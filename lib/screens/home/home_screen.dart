@@ -224,24 +224,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                       child: SizedBox(
                         width: widthSize * 0.15,
-                        child: PlayingCardView(
-                          card: PlayingCard(Suit.diamonds, CardValue.ace),
-                          showBack: true,
-                        ),
+                        child: gameCards.isEmpty
+                            ? Container()
+                            : PlayingCardView(
+                                card: gameCards.first.card,
+                                showBack: true,
+                              ),
                       ),
                     ),
                     SizedBox(
                       width: widthSize * 0.15,
-                      child: gameThrowedCards.isNotEmpty
-                          ? InkWell(
+                      child: gameThrowedCards.isEmpty
+                          ? Container()
+                          : InkWell(
                               onLongPress: () => showCardsBottomSheet(
                                   "Throwed", gameThrowedCards),
                               child: PlayingCardView(
                                 card: gameThrowedCards.last.card,
                                 showBack: false,
                               ),
-                            )
-                          : Container(),
+                            ),
                     )
                   ],
                 ),
