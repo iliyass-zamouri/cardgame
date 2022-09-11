@@ -2,6 +2,7 @@ import 'package:playing_cards/playing_cards.dart';
 
 class PCard {
   final PlayingCard card;
+  final String tag;
   final int gameValue;
   final int cardValue;
   bool isCardShown;
@@ -9,6 +10,7 @@ class PCard {
   bool isThrown;
   PCard(
       {required this.card,
+      required this.tag,
       required this.gameValue,
       required this.cardValue,
       this.isCardShown = false,
@@ -28,27 +30,33 @@ class PCardMain {
     List<PCard> cards = [];
     for (int i = 1; i < 14; i++) {
       cards.add(PCard(
+          tag: "A$i",
           card: PlayingCard(Suit.clubs, getCardValueByIndex(i)),
           gameValue: getCardGameValue(i, Suit.clubs),
           cardValue: i));
       cards.add(PCard(
+          tag: "B$i",
           card: PlayingCard(Suit.diamonds, getCardValueByIndex(i)),
           gameValue: getCardGameValue(i, Suit.diamonds),
           cardValue: i));
       cards.add(PCard(
+          tag: "C$i",
           card: PlayingCard(Suit.hearts, getCardValueByIndex(i)),
           gameValue: getCardGameValue(i, Suit.hearts),
           cardValue: i));
       cards.add(PCard(
+          tag: "D$i",
           card: PlayingCard(Suit.spades, getCardValueByIndex(i)),
           gameValue: getCardGameValue(i, Suit.spades),
           cardValue: i));
     }
     cards.add(PCard(
+        tag: "A14",
         card: PlayingCard(Suit.diamonds, CardValue.joker_1),
         gameValue: -1,
         cardValue: 14));
     cards.add(PCard(
+        tag: "B14",
         card: PlayingCard(Suit.spades, CardValue.joker_2),
         gameValue: -1,
         cardValue: 14));
