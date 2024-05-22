@@ -43,7 +43,7 @@ io.on('connection', (socket) => {
         if (rooms[roomID] && rooms[roomID].players.length < 2) {
             rooms[roomID].players.push(socket.id);
             socket.join(roomID);
-            io.to(roomID).emit('startGame', { players: rooms[roomID].players });
+            io.to(roomID).emit('start', { players: rooms[roomID].players });
             console.log('User joined room:', roomID);
         } else {
             socket.emit('error', { message: 'Room is full or does not exist' });
