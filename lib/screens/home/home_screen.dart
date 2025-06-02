@@ -2,8 +2,10 @@ import 'dart:developer';
 import 'package:cardgame/GameState_VM.dart';
 import 'package:cardgame/models/p_card.dart';
 import 'package:cardgame/models/player.dart';
+import 'package:cardgame/screens/home/game_starter.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:patterns_canvas/patterns_canvas.dart';
 import 'package:playing_cards/playing_cards.dart';
 import 'package:provider/provider.dart';
 
@@ -45,123 +47,155 @@ class _HomeScreenState extends State<HomeScreen> {
     // }
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(
-          gameState.result,
-          style: const TextStyle(color: Colors.white),
-        ),
-        actions: [
-          if (gameState.revealed)
-            TextButton(
-                onPressed: () {
-                  _gameViewModel.newGame();
-                },
-                child: const Text(
-                  "New Game",
-                  style: TextStyle(color: Colors.white),
-                ))
-          else
-            TextButton(
-                onPressed: () {
-                  _gameViewModel.endGame();
-                },
-                child: const Text(
-                  "End Game",
-                  style: TextStyle(color: Colors.white),
-                )),
-        ],
-      ),
+      backgroundColor: Colors.transparent,
       body: Center(
-        child: ConstrainedBox(
-          constraints:
-              BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.4),
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  PlayerHandView(
-                    player: _gameViewModel.remotePlayer,
-                    revealAll: gameState.revealed,
-                  ),
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        InkWell(
-                          onLongPress: () =>
-                              showCardsBottomSheet("Game", gameState.deck),
-                          onTap: () {
-                            _gameViewModel.drawCard(context);
-                          },
-                          child: SizedBox(
-                            width: 120,
-                            child: gameState.deck.isEmpty
-                                ? Container()
-                                : PlayingCardView(
-                                    card: gameState.deck.first.card,
-                                    showBack: true,
-                                  ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 120,
-                          child: gameState.throwedCards.isEmpty
-                              ? Container()
-                              : InkWell(
-                                  onLongPress: () => showCardsBottomSheet(
-                                      "Throwed", gameState.throwedCards),
-                                  child: PlayingCardView(
-                                    card: gameState.throwedCards.last.card,
-                                    showBack: false,
-                                  ),
-                                ),
-                        )
-                      ],
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.4,
+                      maxHeight: MediaQuery.of(context).size.height * 0.4),
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: PlayerHandView(
+                      player: _gameViewModel.remotePlayer,
+                      revealAll: gameState.revealed,
                     ),
                   ),
-                  PlayerHandView(
-                    player: _gameViewModel.mainPlayer,
-                    revealAll: gameState.revealed,
-                    onTap: (e) {
-                      _gameViewModel.tapCard(context, e);
-                    },
-                  ),
-                ],
-              ),
-              if (_gameViewModel.mainPlayer.handCard != null) ...[
-                Positioned(
-                  left: 4,
-                  bottom: 4,
-                  child: SizedBox(
-                    width: 120,
-                    child: InkWell(
-                      onTap: () {
-                        _gameViewModel.throwHandCard();
-                      },
-                      child: PlayingCardView(
-                        card: _gameViewModel.mainPlayer.handCard!.card,
-                        showBack: false,
+                ),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      InkWell(
+                        onLongPress: () =>
+                            showCardsBottomSheet("Game", gameState.deck),
+                        onTap: () {
+                          _gameViewModel.drawCard(context);
+                        },
+                        child: SizedBox(
+                          width: 120,
+                          child: gameState.deck.isEmpty
+                              ? Container()
+                              : DecoratedBox(
+                                  decoration: shadowDecoration,
+                                  child: PlayingCardView(
+                                    card: gameState.deck.first.card,
+                                    style: PlayingCardViewStyle(
+                                        cardBackContentBuilder: (context) {
+                                      return const PCardPattern();
+                                    }),
+                                    showBack: true,
+                                  ),
+                                ),
+                        ),
                       ),
+                      SizedBox(
+                        width: 120,
+                        child: gameState.throwedCards.isEmpty
+                            ? Container()
+                            : InkWell(
+                                onLongPress: () => showCardsBottomSheet(
+                                    "Throwed", gameState.throwedCards),
+                                child: PlayingCardView(
+                                  card: gameState.throwedCards.last.card,
+                                  showBack: false,
+                                ),
+                              ),
+                      )
+                    ],
+                  ),
+                ),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.4,
+                      maxHeight: MediaQuery.of(context).size.height * 0.4),
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: PlayerHandView(
+                      player: _gameViewModel.mainPlayer,
+                      revealAll: gameState.revealed,
+                      onTap: (e) {
+                        _gameViewModel.tapCard(context, e);
+                      },
                     ),
                   ),
                 ),
               ],
-              if (_gameViewModel.remotePlayer.handCard != null)
-                Positioned(
-                  left: 4,
-                  top: 4,
-                  child: SizedBox(
-                    width: 40,
-                    child: PlayingCardView(
-                      card: _gameViewModel.remotePlayer.handCard!.card,
-                      showBack: true,
+            ),
+            if (_gameViewModel.mainPlayer.handCard != null) ...[
+              Positioned(
+                left: 4,
+                bottom: 4,
+                child: SizedBox(
+                  width: 120,
+                  child: InkWell(
+                    onTap: () {
+                      _gameViewModel.throwHandCard();
+                    },
+                    child: DecoratedBox(
+                      decoration: shadowDecoration,
+                      child: PlayingCardView(
+                        card: _gameViewModel.mainPlayer.handCard!.card,
+                        showBack: false,
+                        style: PlayingCardViewStyle(
+                            cardBackContentBuilder: (context) {
+                          return const PCardPattern();
+                        }),
+                      ),
                     ),
                   ),
                 ),
+              ),
             ],
-          ),
+            if (_gameViewModel.remotePlayer.handCard != null)
+              Positioned(
+                left: 4,
+                top: 4,
+                child: SizedBox(
+                  width: 40,
+                  child: DecoratedBox(
+                    decoration: shadowDecoration,
+                    child: PlayingCardView(
+                      card: _gameViewModel.remotePlayer.handCard!.card,
+                      showBack: true,
+                      style: PlayingCardViewStyle(
+                          cardBackContentBuilder: (context) {
+                        return const PCardPattern();
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Column(
+                children: [
+                  if (gameState.revealed)
+                    TextButton(
+                        onPressed: () {
+                          _gameViewModel.newGame();
+                        },
+                        child: const Text(
+                          "New Game",
+                          style: TextStyle(color: Colors.white),
+                        ))
+                  else
+                    TextButton(
+                        onPressed: () {
+                          _gameViewModel.endGame();
+                        },
+                        child: const Text(
+                          "End Game",
+                          style: TextStyle(color: Colors.white),
+                        )),
+                ],
+              ),
+            )
+          ],
         ),
       ),
       floatingActionButton:
@@ -398,6 +432,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   child: PlayingCardView(
                                                     card: e.card,
                                                     showBack: false,
+                                                    style: PlayingCardViewStyle(
+                                                        cardBackContentBuilder:
+                                                            (context) {
+                                                      return const PCardPattern();
+                                                    }),
                                                   ),
                                                 ),
                                               ))
@@ -441,10 +480,10 @@ class PlayerHandView extends StatelessWidget {
                         ? Alignment.topCenter
                         : Alignment.bottomCenter,
                     colors: const [
-                    Colors.blue,
-                    Colors.transparent,
-                    Colors.transparent,
-                    Colors.transparent,
+                    Colors.white,
+                    Color.fromARGB(0, 255, 255, 255),
+                    Color.fromARGB(0, 255, 255, 255),
+                    Color.fromARGB(0, 255, 255, 255),
                   ]))
             : const BoxDecoration(),
         child: Center(
@@ -463,12 +502,21 @@ class PlayerHandView extends StatelessWidget {
                               width: 140,
                               child: e.isThrown
                                   ? Container()
-                                  : PlayingCardView(
-                                      card: e.card,
-                                      showBack: false,
-                                      // showBack: player.isMainPlayer
-                                      //     ? (revealAll ? false : !e.isCardShown)
-                                      //     : !revealAll,
+                                  : DecoratedBox(
+                                      decoration: shadowDecoration,
+                                      child: PlayingCardView(
+                                        card: e.card,
+                                        // showBack: false,
+                                        showBack: player.isMainPlayer
+                                            ? (revealAll
+                                                ? false
+                                                : !e.isCardShown)
+                                            : !revealAll,
+                                        style: PlayingCardViewStyle(
+                                            cardBackContentBuilder: (context) {
+                                          return const PCardPattern();
+                                        }),
+                                      ),
                                     ),
                             ),
                           ),
@@ -482,39 +530,53 @@ class PlayerHandView extends StatelessWidget {
   }
 }
 
-class StartGameWidget extends StatefulWidget {
-  const StartGameWidget({Key? key}) : super(key: key);
+const shadowDecoration = BoxDecoration(
+  boxShadow: [
+    BoxShadow(
+      color: Color.fromRGBO(50, 50, 93, 0.25),
+      offset: Offset(0, 30),
+      blurRadius: 60,
+      spreadRadius: -12,
+    ),
+    BoxShadow(
+      color: Color.fromRGBO(0, 0, 0, 0.3),
+      offset: Offset(0, 18),
+      blurRadius: 36,
+      spreadRadius: -18,
+    ),
+  ],
+);
+
+class PatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    Pattern pattern = DiagonalStripesThick(
+        bgColor: Colors.white, fgColor: Colors.red.shade900);
+    pattern.paintOnCanvas(canvas, size);
+  }
 
   @override
-  State<StartGameWidget> createState() => _StartGameWidgetState();
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
+  }
 }
 
-class _StartGameWidgetState extends State<StartGameWidget> {
+class PCardPattern extends StatelessWidget {
+  const PCardPattern({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            const Text(
-              "Card Game",
-              style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                context.read<GameViewModel>().newGame();
-              },
-              child: const Text("New Game",
-                  style: TextStyle(fontSize: 20, color: Colors.white)),
-            ),
-          ],
+    return Container(
+        margin: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.red.shade900, width: 4),
+          borderRadius: BorderRadius.circular(10),
         ),
-      ),
-    );
+        child: ClipRRect(
+          child: CustomPaint(
+            painter: PatternPainter(),
+          ),
+        ));
   }
 }

@@ -43,7 +43,7 @@ class GameViewModel extends ChangeNotifier {
           _launchRemote();
           break;
         case GameActions.throwCard:
-          _remoteThrowCard(PCard.fromTag(data['card']), data['index']);
+          _remoteThrowCard(PCard.fromTag(data['card']), data['hand']);
           break;
         case GameActions.draw:
           _remoteDrawCard();
@@ -53,7 +53,13 @@ class GameViewModel extends ChangeNotifier {
               PCard.fromTag(data['oldCard']), PCard.fromTag(data['newCard']));
           break;
         case GameActions.next:
-          _remoteNextTurn();
+          _nextTurn(true);
+          break;
+        case GameActions.penalty:
+          _remotePenalty();
+          break;
+        case GameActions.restock:
+          _reStock(data['deck'], data['throwedCards']);
           break;
         case GameActions.end:
           dev.log('Game Ended');
@@ -167,6 +173,11 @@ class GameViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  _remotePenalty() {
+    _gameState.players[1].cards.add(_gameState.deck.removeAt(0));
+    notifyListeners();
+  }
+
   void tapCard(BuildContext ctx, PCard tapped) {
     var currentPlayer = _gameState.players[0];
     if (currentPlayer.isMyTurn() && _gameState.launchedRevealed()) {
@@ -178,10 +189,11 @@ class GameViewModel extends ChangeNotifier {
           _gameState.throwedCards.add(tapped);
           sendAction(GameActions.throwCard, {
             'card': tapped.tag,
-            'index': currentPlayer.cards.indexOf(tapped)
+            'hand': false,
           });
         } else {
           currentPlayer.cards.add(_gameState.deck.removeAt(0));
+          sendAction(GameActions.penalty);
         }
       } else if (currentPlayer.handCard != null) {
         if (currentPlayer.handCard!.cardValue == tapped.cardValue) {
@@ -192,20 +204,16 @@ class GameViewModel extends ChangeNotifier {
               .add(currentPlayer.cards[currentPlayer.cards.indexOf(tapped)]);
           sendAction(GameActions.throwCard, {
             'card': tapped.tag,
-            'index': currentPlayer.cards.indexOf(tapped)
+            'hand': false,
           });
           // throw hand card
           _gameState.throwedCards.add(currentPlayer.handCard as PCard);
           sendAction(GameActions.throwCard,
-              {'card': currentPlayer.handCard!.tag, 'index': -1});
+              {'card': currentPlayer.handCard!.tag, 'hand': true});
         } else {
           // throw player card
           _gameState.throwedCards
               .add(currentPlayer.cards[currentPlayer.cards.indexOf(tapped)]);
-          sendAction(GameActions.throwCard, {
-            'card': tapped.tag,
-            'index': currentPlayer.cards.indexOf(tapped)
-          });
           // swap with hand card
           currentPlayer.cards[currentPlayer.cards.indexOf(tapped)] =
               currentPlayer.handCard as PCard;
@@ -231,14 +239,15 @@ class GameViewModel extends ChangeNotifier {
         remotePlayer.cards.indexWhere((c) => c.tag == oldCard.tag);
     if (oldCardIndex != -1) {
       remotePlayer.cards[oldCardIndex] = newCard;
+      _gameState.throwedCards.add(oldCard);
       remotePlayer.handCard = null;
       notifyListeners();
     }
   }
 
   void drawCard(BuildContext ctx) {
-    var currentPlayer = mainPlayer;
-    if (_gameState.deck.isNotEmpty) {
+    var currentPlayer = _gameState.players[0];
+    if (_gameState.deck.isNotEmpty && currentPlayer.handCard == null) {
       if (currentPlayer.isMyTurn() && _gameState.launchedRevealed()) {
         currentPlayer.handCard = _gameState.deck.removeAt(0);
         if (currentPlayer.handCard!.cardValue == 11) {
@@ -276,38 +285,31 @@ class GameViewModel extends ChangeNotifier {
     _gameState.throwedCards.add(_gameState.players[0].handCard as PCard);
     _gameState.players[0].handCard = null;
     sendAction(GameActions.throwCard,
-        {'card': _gameState.throwedCards.last.tag, 'index': -1});
+        {'card': _gameState.throwedCards.last.tag, 'hand': true});
     _nextTurn();
   }
 
-  void _nextTurn() {
-    //if (_checkEnd()) return;
-    _gameState.players[0].endTurn();
-    _gameState.currentPlayerIndex = 1;
-    _gameState.players[1].startTurn();
-    sendAction(GameActions.next);
+  _nextTurn([bool remote = false]) {
+    _gameState.nextTurn(remote, () {
+      sendAction(GameActions.next);
+      _checkRestock();
+    });
     notifyListeners();
   }
 
-  _remoteNextTurn() {
-    _gameState.players[1].endTurn();
-    _gameState.currentPlayerIndex = 0;
-    _gameState.players[0].startTurn();
-    notifyListeners();
-  }
-
-  _reStock() {
+  _checkRestock() {
     if (_gameState.deck.isEmpty) {
-      PCard lastCard =
-          _gameState.throwedCards.removeAt(_gameState.throwedCards.length - 1);
-      _gameState.deck = _gameState.throwedCards.map((e) {
-        e.isThrown = false;
-        return e;
-      }).toList();
-      _gameState.throwedCards = [lastCard];
-      _gameState.deck.shuffle();
-      notifyListeners();
+      _gameState.restock();
+      sendAction(GameActions.restock, {
+        'deck': _gameState.deck.map((e) => e.tag).toList(),
+        'throwedCards': _gameState.throwedCards.map((e) => e.tag).toList(),
+      });
     }
+  }
+
+  _reStock([List<dynamic>? deck, List<dynamic>? throwedCards]) {
+    _gameState.restock();
+    notifyListeners();
   }
 
   _checkEnd() {
@@ -337,24 +339,13 @@ class GameViewModel extends ChangeNotifier {
     return false;
   }
 
-  void _remoteThrowCard(PCard card, int index) {
-    var remotePlayer = _gameState.players[1];
-    if (index != -1) {
-      remotePlayer.cards[index].isThrown = true;
-      _gameState.throwedCards.add(remotePlayer.cards[index]);
-      notifyListeners();
-    } else {
-      _gameState.throwedCards.add(remotePlayer.handCard as PCard);
-      remotePlayer.handCard = null;
-      notifyListeners();
-    }
+  void _remoteThrowCard(PCard card, bool hand) {
+    _gameState.remoteThrowCard(card, hand);
     notifyListeners();
   }
 
   void _remoteDrawCard() {
-    var remotePlayer = _gameState.players[1];
-    remotePlayer.handCard = _gameState.deck.removeAt(0);
-    remotePlayer.handCard!.cardSeen = true;
+    _gameState.players[1].drawCard(_gameState.deck.removeAt(0));
     notifyListeners();
   }
 }

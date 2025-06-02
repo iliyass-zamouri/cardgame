@@ -79,6 +79,11 @@ class Player {
     cards[3].isCardShown = false;
   }
 
+  drawCard(PCard card) {
+    handCard = card;
+    handCard!.cardSeen = true;
+  }
+
   // from Map
   factory Player.fromMap(Map<String, dynamic> map,
       [bool isMainPlayer = false]) {

@@ -88,11 +88,11 @@ class PCard {
   }
 
   static int getGameValue(int index, Suit suit) {
-    if (index == 13 && suit == Suit.spades) {
+    if (index == 13 && (suit == Suit.spades || suit == Suit.clubs)) {
       return 0;
     }
-    if (index == 13 && suit == Suit.clubs) {
-      return 0;
+    if (index == 14) {
+      return -1;
     }
     return index;
   }

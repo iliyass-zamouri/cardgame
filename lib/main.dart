@@ -1,4 +1,5 @@
 import 'package:cardgame/GameState_VM.dart';
+import 'package:cardgame/background.dart';
 import 'package:cardgame/screens/home/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +17,10 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.blue,
         ),
         home: ChangeNotifierProvider(
-            create: (context) => GameViewModel(), child: const HomeScreen()),
+          create: (context) => GameViewModel(),
+          child: const GameBackground(
+            child: HomeScreen(),
+          ),
+        ),
       );
 }
