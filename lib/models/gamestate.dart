@@ -1,5 +1,5 @@
-import 'package:cardgame/models/p_card.dart';
-import 'package:cardgame/models/player.dart';
+import 'package:shadow_hand/models/p_card.dart';
+import 'package:shadow_hand/models/player.dart';
 import 'package:flutter/material.dart';
 
 class GameState {

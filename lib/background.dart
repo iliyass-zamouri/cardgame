@@ -1,4 +1,4 @@
-import 'package:cardgame/gen/assets.gen.dart';
+import 'package:shadow_hand/gen/assets.gen.dart';
 import 'package:flutter/material.dart';
 
 class GameBackground extends StatelessWidget {

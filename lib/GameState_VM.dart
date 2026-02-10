@@ -2,15 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:math';
-import 'package:cardgame/socket_service.dart';
+import 'package:shadow_hand/socket_service.dart';
 import 'package:flutter/material.dart';
-import 'package:cardgame/models/p_card.dart';
-import 'package:cardgame/models/player.dart';
-import 'package:cardgame/models/gamestate.dart';
+import 'package:shadow_hand/models/p_card.dart';
+import 'package:shadow_hand/models/player.dart';
+import 'package:shadow_hand/models/gamestate.dart';
 
 class GameViewModel extends ChangeNotifier {
   final GameState _gameState;
   final SocketService _socketService;
+  final ValueNotifier<String?> roomCodeNotifier = ValueNotifier<String?>(null);
 
   GameViewModel()
       : _gameState = GameState(
@@ -27,9 +28,9 @@ class GameViewModel extends ChangeNotifier {
 
   GameState get gameState => _gameState;
 
-  Player get mainPlayer => _gameState.players[0];
+  Player get mainPlayer => _gameState.players.isNotEmpty ? _gameState.players[0] : Player.main();
 
-  Player get remotePlayer => _gameState.players[1];
+  Player get remotePlayer => _gameState.players.length > 1 ? _gameState.players[1] : Player.remote();
 
   void _listenToSocket() {
     _socketService.stream.listen((message) {
@@ -78,20 +79,13 @@ class GameViewModel extends ChangeNotifier {
     _gameState.deck = PCard.generateDeck();
     _gameState.throwedCards = [];
     _gameState.revealed = false;
-    _gameState.players = [
-      Player(cards: [], isMainPlayer: true),
-      Player(cards: []),
-    ];
+    _gameState.players = [];
     _gameState.currentPlayerIndex = 0;
-    _dealInitialCards();
-    _startGame();
-    sendAction(GameActions.init, {
-      'deck': _gameState.deck.map((e) => e.tag).toList(),
-      'throwedCards': _gameState.throwedCards.map((e) => e.tag).toList(),
-      'players': _gameState.players.map((p) => p.toMap()).toList(),
-      'currentPlayerIndex': _gameState.currentPlayerIndex,
-    });
     notifyListeners();
+  }
+
+  void setRoomCode(String? roomCode) {
+    roomCodeNotifier.value = roomCode;
   }
 
   void _remoteNewGame(List<dynamic> deck, List<dynamic> throwedCards,

@@ -1,4 +1,4 @@
-name: cardgame
+name: shadow_hand
 description: A new Flutter project.
 
 
@@ -28,6 +28,9 @@ dependencies:
   cupertino_icons: ^1.0.2
 
   patterns_canvas: ^0.4.0
+
+  http: ^0.13.5
+  shared_preferences: ^2.0.15
   rename_app: ^1.1.0
   flutter_gen: ^5.3.1
   build_runner: ^2.3.3

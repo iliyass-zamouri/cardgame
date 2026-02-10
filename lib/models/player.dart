@@ -1,4 +1,4 @@
-import 'package:cardgame/models/p_card.dart';
+import 'package:shadow_hand/models/p_card.dart';
 
 class Player {
   List<PCard> cards;
@@ -17,6 +17,23 @@ class Player {
       this.total = 0,
       this.turn = false,
       this.isMainPlayer = false});
+
+  // Factory methods for creating default players
+  factory Player.main() {
+    return Player(
+      cards: [],
+      isMainPlayer: true,
+      launchReveal: 'NOT_LAUNCHED',
+    );
+  }
+
+  factory Player.remote() {
+    return Player(
+      cards: [],
+      isMainPlayer: false,
+      launchReveal: 'NOT_LAUNCHED',
+    );
+  }
 
   startGame() {
     gameStarter = true;

@@ -1,4 +1,4 @@
-import 'package:cardgame/screens/home/home_screen.dart';
+import 'package:shadow_hand/screens/home/home_screen.dart';
 import 'package:flutter/material.dart';
 
 class SplashScreen extends StatefulWidget {

@@ -1,8 +1,8 @@
 import 'dart:developer';
-import 'package:cardgame/GameState_VM.dart';
-import 'package:cardgame/models/p_card.dart';
-import 'package:cardgame/models/player.dart';
-import 'package:cardgame/screens/home/game_starter.dart';
+import 'package:shadow_hand/GameState_VM.dart';
+import 'package:shadow_hand/models/p_card.dart';
+import 'package:shadow_hand/models/player.dart';
+import 'package:shadow_hand/screens/home/game_starter.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:patterns_canvas/patterns_canvas.dart';
@@ -10,7 +10,22 @@ import 'package:playing_cards/playing_cards.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  final int userId;
+  final String username;
+  final int totalPoints;
+  final int wins;
+  final int losses;
+  final int currentStreak;
+
+  const HomeScreen({
+    Key? key,
+    required this.userId,
+    required this.username,
+    required this.totalPoints,
+    required this.wins,
+    required this.losses,
+    required this.currentStreak,
+  }) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -18,12 +33,120 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late double widthSize;
-
   late GameViewModel _gameViewModel;
+  String? _roomCode;
 
   @override
   void initState() {
     super.initState();
+    
+    // Listen for room code changes from GameViewModel
+    _gameViewModel = Provider.of<GameViewModel>(context, listen: false);
+    _gameViewModel.roomCodeNotifier.addListener(_onRoomCodeChanged);
+  }
+
+  @override
+  void dispose() {
+    _gameViewModel.roomCodeNotifier.removeListener(_onRoomCodeChanged);
+    super.dispose();
+  }
+
+  void _onRoomCodeChanged() {
+    if (mounted) {
+      setState(() {
+        _roomCode = _gameViewModel.roomCodeNotifier.value;
+      });
+    }
+  }
+
+  Widget _buildRoomCodeOverlay() {
+    return Positioned(
+      top: 50,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withOpacity(0.3)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Room Code',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    _gameViewModel.setRoomCode(null);
+                  },
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 15),
+            Text(
+              _roomCode ?? '',
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 3,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Share this code with your friend',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // Copy room code to clipboard
+                    // TODO: Implement clipboard functionality
+                  },
+                  icon: const Icon(Icons.copy, size: 16),
+                  label: const Text('Copy'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    _gameViewModel.setRoomCode(null);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -38,7 +161,11 @@ class _HomeScreenState extends State<HomeScreen> {
     inspect(gameState);
 
     if (gameState.deck.isEmpty && gameState.players.isEmpty) {
-      return const StartGameWidget();
+      return StartGameWidget(
+        userId: widget.userId,
+        username: widget.username,
+        totalPoints: widget.totalPoints,
+      );
     }
 
     // robot: player 2
@@ -194,7 +321,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         )),
                 ],
               ),
-            )
+            ),
+            // Room code overlay
+            if (_roomCode != null) _buildRoomCodeOverlay(),
           ],
         ),
       ),
@@ -467,19 +596,18 @@ class PlayerHandView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Flexible(
-      child: Container(
-        width: 220,
-        decoration: player.isMyTurn()
-            ? BoxDecoration(
-                gradient: LinearGradient(
-                    begin: player.isMainPlayer
-                        ? Alignment.bottomCenter
-                        : Alignment.topCenter,
-                    end: player.isMainPlayer
-                        ? Alignment.topCenter
-                        : Alignment.bottomCenter,
-                    colors: const [
+    return Container(
+      width: 220,
+      decoration: player.isMyTurn()
+          ? BoxDecoration(
+              gradient: LinearGradient(
+                  begin: player.isMainPlayer
+                      ? Alignment.bottomCenter
+                      : Alignment.topCenter,
+                  end: player.isMainPlayer
+                      ? Alignment.topCenter
+                      : Alignment.bottomCenter,
+                  colors: const [
                     Colors.white,
                     Color.fromARGB(0, 255, 255, 255),
                     Color.fromARGB(0, 255, 255, 255),
@@ -525,8 +653,7 @@ class PlayerHandView extends StatelessWidget {
                 .toList(),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
