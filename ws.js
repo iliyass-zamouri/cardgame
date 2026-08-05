@@ -1,37 +1,23 @@
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
+const { GameServer } = require('./server/game_server');
 
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-let clients = [];
-
-wss.on('connection', (ws) => {
-  console.log('New client connected');
-  clients.push(ws);
-
-  ws.on('message', (message) => {
-    if (Buffer.isBuffer(message)) {
-        message = message.toString('utf8');
-    }
-      
-    console.log('Received:', message);
-    // Broadcast the message to all connected clients
-    clients.forEach((client) => {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
-  });
-
-  ws.on('close', () => {
-    console.log('Client disconnected');
-    clients = clients.filter((client) => client !== ws);
-  });
+const gameServer = new GameServer({
+  host: process.env.HOST ?? '127.0.0.1',
+  port: Number(process.env.PORT ?? 8080),
 });
 
-server.listen(8080, () => {
-  console.log('Server is listening on port 8080');
-});
+gameServer.start()
+  .then(({ host, port }) => {
+    console.log(`Authoritative game server listening at ws://${host}:${port}`);
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+
+async function shutdown() {
+  await gameServer.stop();
+  process.exit(0);
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

@@ -2,11 +2,118 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Flutter (Chrome)",
+      "name": "Flutter: iOS Simulator",
       "request": "launch",
       "type": "dart",
+      "program": "lib/main.dart",
       "flutterMode": "debug",
-      "deviceId": "chrome"
+      "deviceId": "606CDDF5-CE47-470B-A29C-08B4C4198BAF",
+      "toolArgs": [
+        "--dart-define=WS_HOST=127.0.0.1",
+        "--dart-define=WS_PORT=8080"
+      ]
+    },
+    {
+      "name": "Flutter: iOS Simulator (Profile)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "profile",
+      "deviceId": "606CDDF5-CE47-470B-A29C-08B4C4198BAF"
+    },
+    {
+      "name": "Flutter: Chrome",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "deviceId": "chrome",
+      "args": [
+        "--web-port=5173"
+      ],
+      "toolArgs": [
+        "--dart-define=WS_HOST=127.0.0.1",
+        "--dart-define=WS_PORT=8080"
+      ]
+    },
+    {
+      "name": "Flutter: macOS",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "deviceId": "macos",
+      "toolArgs": [
+        "--dart-define=WS_HOST=127.0.0.1",
+        "--dart-define=WS_PORT=8080"
+      ]
+    },
+    {
+      "name": "Flutter: Android Emulator",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "deviceId": "emulator-5554",
+      "toolArgs": [
+        "--dart-define=WS_HOST=10.0.2.2",
+        "--dart-define=WS_PORT=8080"
+      ]
+    },
+    {
+      "name": "Game Server",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "program": "${workspaceFolder}/ws.js",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "restart": true,
+      "env": {
+        "HOST": "127.0.0.1",
+        "PORT": "8080"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack: iOS + Server",
+      "configurations": [
+        "Game Server",
+        "Flutter: iOS Simulator"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "order": 1,
+        "group": "fullstack",
+        "hidden": false
+      }
+    },
+    {
+      "name": "Full Stack: Chrome + Server",
+      "configurations": [
+        "Game Server",
+        "Flutter: Chrome"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "order": 2,
+        "group": "fullstack",
+        "hidden": false
+      }
+    },
+    {
+      "name": "Full Stack: macOS + Server",
+      "configurations": [
+        "Game Server",
+        "Flutter: macOS"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "order": 3,
+        "group": "fullstack",
+        "hidden": false
+      }
     }
   ]
 }
