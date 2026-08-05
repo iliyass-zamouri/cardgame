@@ -14,12 +14,11 @@ class Assets {
 
   static const AssetGenImage background =
       AssetGenImage('assets/background.jpg');
-  static const AssetGenImage card = AssetGenImage('assets/card.jpg');
   static const AssetGenImage logo = AssetGenImage('assets/logo.png');
-  static const AssetGenImage table = AssetGenImage('assets/table.png');
+  static const AssetGenImage table = AssetGenImage('assets/table.jpg');
 
   /// List of all assets
-  List<AssetGenImage> get values => [background, card, logo, table];
+  List<AssetGenImage> get values => [background, logo, table];
 }
 
 class AssetGenImage {

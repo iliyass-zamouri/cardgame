@@ -107,9 +107,9 @@ class GameBoard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
+    return const Scaffold(
       backgroundColor: Colors.transparent,
-      body: const Center(
+      body: Center(
         child: Stack(
           children: [
             Column(
@@ -125,7 +125,7 @@ class GameBoard extends ConsumerWidget {
           ],
         ),
       ),
-      floatingActionButton: const LaunchFab(),
+      floatingActionButton: LaunchFab(),
     );
   }
 }

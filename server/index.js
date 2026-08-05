@@ -1,4 +1,4 @@
-const { GameServer } = require('./server/game_server');
+const { GameServer } = require('./game_server');
 
 const gameServer = new GameServer({
   host: process.env.HOST ?? '127.0.0.1',

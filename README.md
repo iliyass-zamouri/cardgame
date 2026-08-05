@@ -1,16 +1,73 @@
-# cardgame
+# Card Game
 
-A new Flutter project.
+Flutter multiplayer card game with an **authoritative** Node WebSocket server.
 
-## Getting Started
+## Stack
 
-This project is a starting point for a Flutter application.
+| Layer | Tech |
+| --- | --- |
+| Client | Flutter 3.35 (FVM) + Riverpod |
+| Server | Node.js + `ws` room authority |
+| Protocol | Commands in → per-player snapshots out |
 
-A few resources to get you started if this is your first Flutter project:
+## Project layout
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
+```
+lib/
+  app/          # Riverpod session controller + immutable UI state
+  data/         # WebSocket client
+  domain/       # Snapshot models + card rendering helpers
+  ui/           # Screens & widgets
+server/
+  index.js      # Server entry
+  game_server.js
+  game_room.js
+  test/
+```
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Setup
+
+```bash
+# Flutter (uses FVM pin in .fvmrc)
+fvm flutter pub get
+
+# Server
+npm install
+```
+
+## Run
+
+```bash
+# Terminal 1 — game server (ws://127.0.0.1:8080)
+npm start
+
+# Terminal 2 — app
+fvm flutter run -d <device>
+```
+
+Or use VS Code / Cursor **Full Stack: iOS + Server** from Run and Debug.
+
+## Play
+
+1. Create room on device A → note the 6-character code  
+2. Join that code on device B  
+3. Start game when both connected  
+4. Eye button reveals bottom cards for 5 seconds  
+
+## Test
+
+```bash
+fvm flutter analyze
+fvm flutter test
+npm test
+```
+
+## Config
+
+| Env / define | Default | Meaning |
+| --- | --- | --- |
+| `HOST` / `PORT` | `127.0.0.1` / `8080` | Server bind |
+| `--dart-define=WS_HOST=` | `127.0.0.1` | Client host |
+| `--dart-define=WS_PORT=` | `8080` | Client port |
+
+Android emulator uses `WS_HOST=10.0.2.2` (see `.vscode/launch.json`).

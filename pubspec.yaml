@@ -1,51 +1,37 @@
 name: cardgame
-description: A new Flutter project.
-
-
-publish_to: 'none' 
-
-
+description: Multiplayer card game with authoritative WebSocket rooms.
+publish_to: 'none'
 version: 1.0.0+1
 
 environment:
   sdk: ">=3.7.0 <4.0.0"
 
-
 dependencies:
   flutter:
     sdk: flutter
-  
-  # flip_card: ^0.6.0
-
-  playing_cards: ^0.3.1+9
-
-
-  # local_hero: ^0.2.0
-
-  web_socket_channel: ^3.0.1
-
   cupertino_icons: ^1.0.8
-
-  patterns_canvas: ^0.4.0
-  rename_app: ^1.1.0
-  flutter_gen: ^5.3.1
-  build_runner: ^2.3.3
   flutter_riverpod: ^3.0.0
-
+  patterns_canvas: ^0.4.0
+  playing_cards: ^0.3.1+9
+  web_socket_channel: ^3.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
+  build_runner: ^2.4.13
+  flutter_gen_runner: ^5.9.0
+  flutter_launcher_icons: ^0.14.4
   flutter_lints: ^5.0.0
-  flutter_gen_runner:
-  flutter_launcher_icons: 
-
-
 
 flutter:
-  
   uses-material-design: true
-
   assets:
-    - assets/
+    - assets/background.jpg
+    - assets/table.jpg
+    - assets/logo.png
+
+flutter_gen:
+  output: lib/gen/
+  line_length: 80
+  integrations:
+    flutter_svg: false

@@ -65,7 +65,7 @@
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "node",
-      "program": "${workspaceFolder}/ws.js",
+      "program": "${workspaceFolder}/server/index.js",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "restart": true,
