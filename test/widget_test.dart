@@ -20,6 +20,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Card Game'), findsOneWidget);
+    expect(find.text('Create'), findsOneWidget);
     expect(find.text('Create room'), findsOneWidget);
   });
 }

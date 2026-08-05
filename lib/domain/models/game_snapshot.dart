@@ -78,6 +78,9 @@ class GameSnapshot {
   final bool ready;
   final int deckCount;
   final String? discardTopTag;
+
+  /// Public discard pile, oldest first, capped to the two most recent cards.
+  final List<String> discardRecentTags;
   final bool isYourTurn;
   final PlayerSnapshot you;
   final PlayerSnapshot? opponent;
@@ -90,6 +93,7 @@ class GameSnapshot {
     required this.ready,
     required this.deckCount,
     required this.discardTopTag,
+    required this.discardRecentTags,
     required this.isYourTurn,
     required this.you,
     required this.opponent,
@@ -110,6 +114,8 @@ class GameSnapshot {
       ready: json['ready'] as bool? ?? false,
       deckCount: json['deckCount'] as int? ?? 0,
       discardTopTag: json['discardTop'] as String?,
+      discardRecentTags:
+          (json['discardRecent'] as List<dynamic>? ?? const []).cast<String>(),
       isYourTurn: json['turn'] == 'you',
       you: PlayerSnapshot.fromJson(json['you'] as Map<String, dynamic>),
       opponent:

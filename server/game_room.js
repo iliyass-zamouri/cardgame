@@ -111,6 +111,7 @@ class GameRoom {
 
   draw(clientId) {
     this.#requireAction(clientId);
+    this.lastAction = null;
     const player = this.#requirePlayer(clientId);
     if (player.handCard) {
       throw new GameRuleError('already_drew', 'Throw or swap drawn card first');
@@ -190,6 +191,7 @@ class GameRoom {
       ready: this.players.length === 2,
       deckCount: this.deck.length,
       discardTop: this.discard.at(-1) ?? null,
+      discardRecent: this.discard.slice(-2),
       turn: this.turnIndex === null
         ? null
         : this.turnIndex === viewerIndex ? 'you' : 'opponent',

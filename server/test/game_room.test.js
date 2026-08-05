@@ -51,6 +51,42 @@ test('draw changes authoritative snapshot exactly once', () => {
   assert.equal(typeof after.you.handCard, 'string');
 });
 
+test('matching hand and drawn cards both land on the public discard pile', () => {
+  const room = startedRoom();
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  player.cards = ['A5', 'B8'];
+  player.handCard = 'D5';
+
+  room.tapCard(player.id, 0);
+  const snapshot = room.snapshotFor(player.id);
+
+  assert.deepEqual(snapshot.discardRecent, ['A5', 'D5']);
+  assert.equal(snapshot.discardTop, 'D5');
+  assert.equal(snapshot.you.cards.length, 1);
+  assert.equal(snapshot.you.handCard, null);
+});
+
+test('mismatched cards leave only the swapped card on the discard pile', () => {
+  const room = startedRoom();
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  player.cards = ['A5', 'B8'];
+  player.handCard = 'D9';
+
+  room.tapCard(player.id, 0);
+  const snapshot = room.snapshotFor(player.id);
+
+  assert.equal(snapshot.discardTop, 'A5');
+  assert.equal(snapshot.discardRecent.at(-1), 'A5');
+  assert.equal(snapshot.you.cards.length, 2);
+  assert.equal(snapshot.you.hasHandCard, false);
+});
+
 test('end computes scores on server and reveals cards', () => {
   const room = startedRoom();
   room.players[0].cards = ['A5'];

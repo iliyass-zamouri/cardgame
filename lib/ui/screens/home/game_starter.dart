@@ -1,10 +1,10 @@
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
-import 'package:cardgame/gen/assets.gen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-const int _backgroundDecodeWidth = 1080;
+enum _LobbyMode { create, join }
 
 class StartGameWidget extends ConsumerStatefulWidget {
   const StartGameWidget({super.key});
@@ -15,6 +15,7 @@ class StartGameWidget extends ConsumerStatefulWidget {
 
 class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
   final _roomController = TextEditingController();
+  _LobbyMode _mode = _LobbyMode.create;
 
   @override
   void dispose() {
@@ -24,100 +25,89 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final connection = ref.watch(
       gameSessionProvider.select((state) => state.connection),
     );
     final connected = connection == ConnectionStatus.connected;
+    final joining = _mode == _LobbyMode.join;
 
-    return Material(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: ResizeImage(
-              AssetImage(Assets.background.path),
-              width: _backgroundDecodeWidth,
-            ),
-            colorFilter: ColorFilter.mode(
-              Colors.black.withValues(alpha: 0.4),
-              BlendMode.darken,
-            ),
-            fit: BoxFit.fitHeight,
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 360),
-              child: Card(
-                color: Colors.black.withValues(alpha: 0.72),
-                margin: const EdgeInsets.all(24),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Card Game',
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        switch (connection) {
-                          ConnectionStatus.connected => 'Server connected',
-                          ConnectionStatus.connecting => 'Connecting…',
-                          ConnectionStatus.disconnected => 'Server offline',
-                        },
-                        style: TextStyle(
-                          color: connected ? Colors.greenAccent : Colors.orange,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      FilledButton.icon(
-                        onPressed: connected
-                            ? ref
-                                .read(gameSessionProvider.notifier)
-                                .createRoom
-                            : null,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Create room'),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Text('or', style: TextStyle(color: Colors.white)),
-                      ),
-                      TextField(
-                        controller: _roomController,
-                        enabled: connected,
-                        textCapitalization: TextCapitalization.characters,
-                        maxLength: 6,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(
-                          labelText: 'Room code',
-                          labelStyle: TextStyle(color: Colors.white70),
-                          counterText: '',
-                          border: OutlineInputBorder(),
-                        ),
-                        onSubmitted: _joinRoom,
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        onPressed:
-                            connected ? () => _joinRoom(_roomController.text) : null,
-                        child: const Text('Join room'),
-                      ),
-                      if (connection == ConnectionStatus.disconnected)
-                        TextButton(
-                          onPressed:
-                              ref.read(gameSessionProvider.notifier).connect,
-                          child: const Text('Retry connection'),
-                        ),
-                    ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Card Game',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineMedium,
                   ),
-                ),
+                  const SizedBox(height: 32),
+                  SegmentedButton<_LobbyMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: _LobbyMode.create,
+                        label: Text('Create'),
+                      ),
+                      ButtonSegment(
+                        value: _LobbyMode.join,
+                        label: Text('Join'),
+                      ),
+                    ],
+                    selected: {_mode},
+                    onSelectionChanged: (selection) =>
+                        setState(() => _mode = selection.first),
+                  ),
+                  const SizedBox(height: 24),
+                  if (joining) ...[
+                    TextField(
+                      controller: _roomController,
+                      enabled: connected,
+                      textAlign: TextAlign.center,
+                      textCapitalization: TextCapitalization.characters,
+                      maxLength: 6,
+                      inputFormatters: [UpperCaseFormatter()],
+                      decoration: const InputDecoration(
+                        labelText: 'Room code',
+                        counterText: '',
+                        border: OutlineInputBorder(),
+                      ),
+                      onSubmitted: (_) => _start(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _roomController,
+                    builder: (context, value, _) => FilledButton(
+                      onPressed:
+                          connected && (!joining || value.text.trim().isNotEmpty)
+                              ? _start
+                              : null,
+                      child: Text(joining ? 'Join room' : 'Create room'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    switch (connection) {
+                      ConnectionStatus.connected => 'Connected',
+                      ConnectionStatus.connecting => 'Connecting…',
+                      ConnectionStatus.disconnected => 'Server offline',
+                    },
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  if (connection == ConnectionStatus.disconnected)
+                    TextButton(
+                      onPressed: ref.read(gameSessionProvider.notifier).connect,
+                      child: const Text('Retry connection'),
+                    ),
+                ],
               ),
             ),
           ),
@@ -126,7 +116,22 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
     );
   }
 
-  void _joinRoom(String roomId) {
-    ref.read(gameSessionProvider.notifier).joinRoom(roomId);
+  void _start() {
+    final notifier = ref.read(gameSessionProvider.notifier);
+    if (_mode == _LobbyMode.create) {
+      notifier.createRoom();
+      return;
+    }
+    notifier.joinRoom(_roomController.text.trim().toUpperCase());
+  }
+}
+
+class UpperCaseFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }
