@@ -1,12 +1,10 @@
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
-import 'package:cardgame/domain/models/p_card.dart';
+import 'package:cardgame/ui/flame/card_game_view.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
-import 'package:cardgame/ui/widgets/player_hand_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:playing_cards/playing_cards.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -80,9 +78,7 @@ class WaitingRoom extends ConsumerWidget {
                     const SizedBox(height: 24),
                     FilledButton(
                       onPressed: game.ready
-                          ? ref
-                              .read(gameSessionProvider.notifier)
-                              .startGame
+                          ? ref.read(gameSessionProvider.notifier).startGame
                           : null,
                       child: const Text('Start game'),
                     ),
@@ -109,193 +105,13 @@ class GameBoard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return const Scaffold(
       backgroundColor: Colors.transparent,
-      body: Center(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                OpponentHand(),
-                Expanded(child: TableCenter()),
-                LocalHand(),
-              ],
-            ),
-            LocalHandCardOverlay(),
-            RemoteHandCardOverlay(),
-            GameHud(),
-          ],
-        ),
+      body: Stack(
+        children: [
+          Positioned.fill(child: CardGameView()),
+          GameHud(),
+        ],
       ),
       floatingActionButton: LaunchFab(),
-    );
-  }
-}
-
-class OpponentHand extends ConsumerWidget {
-  const OpponentHand({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(
-      gameSessionProvider.select(
-        (state) => (
-          state.game!.opponent?.cards ?? const <CardSnapshot>[],
-          state.game!.isYourTurn,
-        ),
-      ),
-    );
-    return _HandFrame(
-      child: PlayerHandView(
-        cards: view.$1,
-        isSelf: false,
-        isTurn: !view.$2,
-      ),
-    );
-  }
-}
-
-class LocalHand extends ConsumerWidget {
-  const LocalHand({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final view = ref.watch(
-      gameSessionProvider.select(
-        (state) => (state.game!.you.cards, state.game!.isYourTurn),
-      ),
-    );
-    return _HandFrame(
-      child: PlayerHandView(
-        cards: view.$1,
-        isSelf: true,
-        isTurn: view.$2,
-        onTap: ref.read(gameSessionProvider.notifier).tapCard,
-      ),
-    );
-  }
-}
-
-class _HandFrame extends StatelessWidget {
-  final Widget child;
-
-  const _HandFrame({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.sizeOf(context).width * 0.5,
-        maxHeight: MediaQuery.sizeOf(context).height * 0.36,
-      ),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: child,
-      ),
-    );
-  }
-}
-
-class TableCenter extends ConsumerWidget {
-  const TableCenter({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final table = ref.watch(
-      gameSessionProvider.select(
-        (state) => (
-          state.game!.deckCount,
-          state.game!.discardTop,
-          state.game!.isYourTurn,
-          state.game!.you.handCard,
-        ),
-      ),
-    );
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        InkWell(
-          onTap: table.$3 && table.$4 == null
-              ? ref.read(gameSessionProvider.notifier).drawCard
-              : null,
-          child: SizedBox(
-            width: 120,
-            child: table.$1 == 0
-                ? const SizedBox.shrink()
-                : DecoratedBox(
-                    decoration: shadowDecoration,
-                    child: PlayingCardView(
-                      card: PCard.fromTag('A1').card,
-                      showBack: true,
-                      style: PlayingCardViewStyle(
-                        cardBackContentBuilder: (_) => const PCardPattern(),
-                      ),
-                    ),
-                  ),
-          ),
-        ),
-        SizedBox(
-          width: 120,
-          child: table.$2 == null
-              ? const SizedBox.shrink()
-              : PlayingCardView(card: table.$2!.card, showBack: false),
-        ),
-      ],
-    );
-  }
-}
-
-class LocalHandCardOverlay extends ConsumerWidget {
-  const LocalHandCardOverlay({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final handCard = ref.watch(
-      gameSessionProvider.select((state) => state.game!.you.handCard),
-    );
-    if (handCard == null) return const SizedBox.shrink();
-    return Positioned(
-      left: 4,
-      bottom: 4,
-      child: SizedBox(
-        width: 120,
-        child: InkWell(
-          onTap: ref.read(gameSessionProvider.notifier).throwHandCard,
-          child: DecoratedBox(
-            decoration: shadowDecoration,
-            child: PlayingCardView(card: handCard.card, showBack: false),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class RemoteHandCardOverlay extends ConsumerWidget {
-  const RemoteHandCardOverlay({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hasHand = ref.watch(
-      gameSessionProvider.select(
-        (state) => state.game!.opponent?.hasHandCard ?? false,
-      ),
-    );
-    if (!hasHand) return const SizedBox.shrink();
-    return Positioned(
-      left: 4,
-      top: 4,
-      child: SizedBox(
-        width: 40,
-        child: DecoratedBox(
-          decoration: shadowDecoration,
-          child: PlayingCardView(
-            card: PCard.fromTag('A1').card,
-            showBack: true,
-            style: PlayingCardViewStyle(
-              cardBackContentBuilder: (_) => const PCardPattern(),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -311,34 +127,52 @@ class GameHud extends ConsumerWidget {
     return Positioned(
       top: 4,
       right: 4,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            game.isYourTurn ? 'Your turn' : "Opponent's turn",
-            style: const TextStyle(color: Colors.white),
-          ),
-          if (game.result case final result?)
-            Text(
-              'Score ${result.scores.join(' – ')}',
-              style: const TextStyle(color: Colors.white),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text(
+                  game.isYourTurn ? 'Your turn' : "Opponent's turn",
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
             ),
-          if (game.status == GameStatus.ended)
-            FilledButton(
-              onPressed: ref.read(gameSessionProvider.notifier).startGame,
-              child: const Text('Play again'),
-            )
-          else
+            if (game.result case final result?)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Score ${result.scores.join(' – ')}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            if (game.status == GameStatus.ended)
+              FilledButton(
+                onPressed: ref.read(gameSessionProvider.notifier).startGame,
+                child: const Text('Play again'),
+              )
+            else
+              TextButton(
+                onPressed: ref.read(gameSessionProvider.notifier).endGame,
+                child: const Text(
+                  'End game',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
             TextButton(
-              onPressed: ref.read(gameSessionProvider.notifier).endGame,
+              onPressed: ref.read(gameSessionProvider.notifier).leaveRoom,
               child:
-                  const Text('End game', style: TextStyle(color: Colors.white)),
+                  const Text('Leave', style: TextStyle(color: Colors.white)),
             ),
-          TextButton(
-            onPressed: ref.read(gameSessionProvider.notifier).leaveRoom,
-            child: const Text('Leave', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

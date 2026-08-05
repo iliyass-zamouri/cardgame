@@ -241,6 +241,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
+  flame:
+    dependency: "direct main"
+    description:
+      name: flame
+      sha256: d084557523a45ad446d2480a4fa5a1c75aade5f8eb54251418e0ed4ee73ff3b8
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.35.1"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -459,6 +467,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.2"
+  ordered_set:
+    dependency: transitive
+    description:
+      name: ordered_set
+      sha256: ca415a0e28b8e8f5e284af4b7d1b189d2d09af6d2082532ddaec54473f67d226
+      url: "https://pub.dev"
+    source: hosted
+    version: "8.0.1"
   package_config:
     dependency: transitive
     description:
@@ -483,14 +499,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
-  patterns_canvas:
-    dependency: "direct main"
-    description:
-      name: patterns_canvas
-      sha256: "13d88f8abe044a22e22b55ae52c30e8417c7a7748a21a6282048ff32b1acc2f6"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.4.0"
   petitparser:
     dependency: transitive
     description:
@@ -499,14 +507,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.2"
-  playing_cards:
-    dependency: "direct main"
-    description:
-      name: playing_cards
-      sha256: b44d29025fa8776daa930dadfdefe6ec426ae2606941c167f7a4a24de29a4e8a
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.3.1+9"
   pointycastle:
     dependency: transitive
     description:
@@ -794,4 +794,4 @@ packages:
     version: "3.1.2"
 sdks:
   dart: ">=3.9.0 <4.0.0"
-  flutter: ">=3.18.0-18.0.pre.54"
+  flutter: ">=3.32.0"

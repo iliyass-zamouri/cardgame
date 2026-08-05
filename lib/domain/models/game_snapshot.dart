@@ -1,5 +1,3 @@
-import 'package:cardgame/domain/models/p_card.dart';
-
 enum GameStatus { waiting, playing, ended }
 
 enum LaunchStatus { notLaunched, launched, ended }
@@ -22,8 +20,6 @@ class CardSnapshot {
       visible: json['visible'] as bool? ?? false,
     );
   }
-
-  PCard get card => PCard.fromTag(tag ?? 'A1');
 }
 
 class PlayerSnapshot {
@@ -59,9 +55,6 @@ class PlayerSnapshot {
       hasHandCard: json['hasHandCard'] as bool? ?? false,
     );
   }
-
-  PCard? get handCard =>
-      handCardTag == null ? null : PCard.fromTag(handCardTag!);
 }
 
 class GameResult {
@@ -124,9 +117,6 @@ class GameSnapshot {
       result: resultJson == null ? null : GameResult.fromJson(resultJson),
     );
   }
-
-  PCard? get discardTop =>
-      discardTopTag == null ? null : PCard.fromTag(discardTopTag!);
 
   bool get bothRevealed =>
       you.launch == LaunchStatus.ended &&

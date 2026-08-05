@@ -6,7 +6,7 @@ Flutter multiplayer card game with an **authoritative** Node WebSocket server.
 
 | Layer | Tech |
 | --- | --- |
-| Client | Flutter 3.35 (FVM) + Riverpod |
+| Client | Flutter 3.35 (FVM) + Riverpod + Flame |
 | Server | Node.js + `ws` room authority |
 | Protocol | Commands in → per-player snapshots out |
 
@@ -16,13 +16,11 @@ Flutter multiplayer card game with an **authoritative** Node WebSocket server.
 lib/
   app/          # Riverpod session controller + immutable UI state
   data/         # WebSocket client
-  domain/       # Snapshot models + card rendering helpers
-  ui/           # Screens & widgets
+  domain/       # Snapshot models
+  ui/
+    flame/      # Flame gameplay board (cards, hands, table)
+    screens/    # Lobby / waiting room / HUD shell
 server/
-  index.js      # Server entry
-  game_server.js
-  game_room.js
-  test/
 ```
 
 ## Setup

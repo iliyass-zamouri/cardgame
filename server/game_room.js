@@ -209,7 +209,7 @@ class GameRoom {
       launch: player.launch,
       total: player.total,
       cards: player.cards.map((tag, index) => {
-        const initialReveal = isSelf && player.launch === 'launched' && index >= 2;
+        const initialReveal = isSelf && player.launch === 'launched' && index < 2;
         const visible = showAll || initialReveal;
         return { index, tag: visible ? tag : null, visible };
       }),
