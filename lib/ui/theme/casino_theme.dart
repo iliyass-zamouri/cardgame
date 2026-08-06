@@ -23,13 +23,23 @@ abstract final class CasinoColors {
   static const borderGlow = Color(0xFF3D8B5F);
 }
 
-/// [display] = Cinzel (brand / titles). [ui] = DM Sans (buttons, body, hints).
+/// [display] = Cinzel (Latin brand). [ui] = DM Sans. [arabicUi] for Arabic locale.
 abstract final class CasinoFonts {
   static const display = 'Cinzel';
   static const ui = 'DM Sans';
+  static const arabicUi = 'Noto Naskh Arabic';
+
+  static String uiFor(Locale locale) =>
+      locale.languageCode == 'ar' ? arabicUi : ui;
+
+  static String displayFor(Locale locale) =>
+      locale.languageCode == 'ar' ? arabicUi : display;
 }
 
-ThemeData buildCasinoTheme() {
+ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {
+  final uiFamily = CasinoFonts.uiFor(locale);
+  final displayFamily = CasinoFonts.displayFor(locale);
+
   const scheme = ColorScheme.dark(
     surface: CasinoColors.bg,
     primary: CasinoColors.raise,
@@ -40,15 +50,15 @@ ThemeData buildCasinoTheme() {
     onSurface: CasinoColors.text,
   );
 
-  const ui = TextStyle(fontFamily: CasinoFonts.ui);
-  const display = TextStyle(fontFamily: CasinoFonts.display);
+  final ui = TextStyle(fontFamily: uiFamily);
+  final display = TextStyle(fontFamily: displayFamily);
 
   return ThemeData(
     useMaterial3: false,
     brightness: Brightness.dark,
     colorScheme: scheme,
     scaffoldBackgroundColor: Colors.transparent,
-    fontFamily: CasinoFonts.ui,
+    fontFamily: uiFamily,
     splashFactory: InkRipple.splashFactory,
     textTheme: TextTheme(
       displaySmall: display.copyWith(
@@ -80,8 +90,8 @@ ThemeData buildCasinoTheme() {
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: CasinoColors.surface.withValues(alpha: 0.94),
-      contentTextStyle: const TextStyle(
-        fontFamily: CasinoFonts.ui,
+      contentTextStyle: TextStyle(
+        fontFamily: uiFamily,
         color: CasinoColors.text,
         fontSize: 13,
       ),
@@ -92,14 +102,14 @@ ThemeData buildCasinoTheme() {
     dialogTheme: DialogThemeData(
       backgroundColor: CasinoColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      titleTextStyle: const TextStyle(
-        fontFamily: CasinoFonts.ui,
+      titleTextStyle: TextStyle(
+        fontFamily: uiFamily,
         color: CasinoColors.text,
         fontSize: 18,
         fontWeight: FontWeight.w700,
       ),
-      contentTextStyle: const TextStyle(
-        fontFamily: CasinoFonts.ui,
+      contentTextStyle: TextStyle(
+        fontFamily: uiFamily,
         color: CasinoColors.textMuted,
         fontSize: 14,
       ),
@@ -123,14 +133,17 @@ ThemeData buildCasinoTheme() {
           width: 1.4,
         ),
       ),
-      labelStyle: const TextStyle(
-        fontFamily: CasinoFonts.ui,
+      labelStyle: TextStyle(
+        fontFamily: uiFamily,
         color: CasinoColors.textMuted,
       ),
-      hintStyle: const TextStyle(
-        fontFamily: CasinoFonts.ui,
-        color: CasinoColors.textMuted,
-      ),
+      hintStyle: TextStyle(fontFamily: uiFamily, color: CasinoColors.textMuted),
     ),
   );
+}
+
+/// Uppercase Latin labels only; leave Arabic (and similar) untouched.
+String casinoButtonLabel(String label, Locale locale) {
+  if (locale.languageCode == 'ar') return label;
+  return label.toUpperCase();
 }

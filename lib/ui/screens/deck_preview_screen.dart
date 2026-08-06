@@ -1,3 +1,4 @@
+import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/card_game.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flame/components.dart';
@@ -10,12 +11,12 @@ class DeckPreviewScreen extends StatelessWidget {
   static const _suits = ['A', 'B', 'C', 'D'];
 
   List<String?> get _tags => [
-        for (final suit in _suits)
-          for (var value = 1; value <= 13; value++) '$suit$value',
-        'A14',
-        'B14',
-        null,
-      ];
+    for (final suit in _suits)
+      for (var value = 1; value <= 13; value++) '$suit$value',
+    'A14',
+    'B14',
+    null,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -25,9 +26,9 @@ class DeckPreviewScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: CasinoColors.surface,
         foregroundColor: CasinoColors.text,
-        title: const Text(
-          'Deck',
-          style: TextStyle(
+        title: Text(
+          context.l10n.deck,
+          style: const TextStyle(
             color: CasinoColors.gold,
             fontWeight: FontWeight.w800,
           ),
@@ -42,9 +43,8 @@ class DeckPreviewScreen extends StatelessWidget {
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),
-        itemBuilder: (context, index) => CustomPaint(
-          painter: _CardPainter(tags[index]),
-        ),
+        itemBuilder:
+            (context, index) => CustomPaint(painter: _CardPainter(tags[index])),
       ),
     );
   }

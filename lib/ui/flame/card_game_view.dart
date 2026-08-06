@@ -1,5 +1,6 @@
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
+import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/card_game.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +42,7 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final snapshot = ref.watch(
       gameSessionProvider.select((state) => state.game),
     );
@@ -55,6 +57,15 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
     );
     final replaceIndex = ref.watch(
       gameSessionProvider.select((state) => state.replaceFirstIndex),
+    );
+
+    _game.setUiStrings(
+      hintPeek: l10n.hintPeek,
+      hintShufflePick: l10n.hintShufflePick,
+      hintReplaceFirst: l10n.hintReplaceFirst,
+      hintReplaceSecond: l10n.hintReplaceSecond,
+      shuffleLabel: l10n.shuffle,
+      textDirection: Directionality.of(context),
     );
 
     _game.peekSelecting = peekSelecting;

@@ -3,8 +3,10 @@ import 'package:cardgame/data/auth/google_sign_in_service.dart';
 import 'package:cardgame/data/auth/guest_auth_service.dart';
 import 'package:cardgame/data/auth/oauth_auth_service.dart';
 import 'package:cardgame/data/auth/server_identity.dart';
+import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/screens/auth/auth_provider_buttons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/widgets/language_switcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -48,12 +50,12 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
       await ref.read(sessionAuthProvider.notifier).enterAsGuest();
     } on GuestAuthException catch (error) {
       if (mounted) {
-        setState(() => _error = 'Guest sign-in failed. Is the server running?');
+        setState(() => _error = context.l10n.guestSignInServerDown);
       }
       debugPrint('Guest auth failed: $error');
     } on Object catch (error) {
       if (mounted) {
-        setState(() => _error = 'Guest sign-in failed. Check connection.');
+        setState(() => _error = context.l10n.guestSignInConnection);
       }
       debugPrint('Guest auth error: $error');
     } finally {
@@ -83,12 +85,12 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
       if (mounted) setState(() => _error = error.message);
     } on OAuthAuthException catch (error) {
       if (mounted) {
-        setState(() => _error = 'Google sign-in failed. Try again.');
+        setState(() => _error = context.l10n.googleSignInFailed);
       }
       debugPrint('Google OAuth failed: $error');
     } on Object catch (error) {
       if (mounted) {
-        setState(() => _error = 'Google sign-in failed. Try again.');
+        setState(() => _error = context.l10n.googleSignInFailed);
       }
       debugPrint('Google auth error: $error');
     } finally {
@@ -98,11 +100,19 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Column(
           children: [
+            const Align(
+              alignment: AlignmentDirectional.topEnd,
+              child: Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: LanguageSwitcher(),
+              ),
+            ),
             const Spacer(flex: 2),
             SvgPicture.asset(
               'assets/logo.svg',
@@ -111,7 +121,7 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              'Sign in to play online',
+              l10n.signInToPlay,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -127,12 +137,12 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
               const SizedBox(height: 16),
             ],
             AuthProviderButton.google(
-              label: _googleLoading ? 'Signing in…' : 'Continue with Google',
+              label: _googleLoading ? l10n.signingIn : l10n.continueWithGoogle,
               onPressed: _busy ? null : _enterGoogle,
             ),
             const SizedBox(height: 14),
             AuthProviderButton.guest(
-              label: _guestLoading ? 'Entering…' : 'Play as Guest',
+              label: _guestLoading ? l10n.entering : l10n.playAsGuest,
               onPressed: _busy ? null : _enterGuest,
             ),
             const SizedBox(height: 28),

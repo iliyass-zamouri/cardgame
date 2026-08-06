@@ -36,6 +36,37 @@ class CardGame extends FlameGame {
   late final _ShufflePickLabel _localShuffleLabel;
   late final _ShufflePickLabel _opponentShuffleLabel;
 
+  String hintPeek = 'Tap any card to peek…';
+  String hintShufflePick = 'Tap Shuffle above a hand…';
+  String hintReplaceFirst = 'Tap one card from each hand…';
+  String hintReplaceSecond = 'Tap a card on the other hand…';
+  String shuffleLabel = 'Shuffle';
+  TextDirection uiTextDirection = TextDirection.ltr;
+
+  /// Push localized table copy from the Flutter host.
+  void setUiStrings({
+    required String hintPeek,
+    required String hintShufflePick,
+    required String hintReplaceFirst,
+    required String hintReplaceSecond,
+    required String shuffleLabel,
+    required TextDirection textDirection,
+  }) {
+    this.hintPeek = hintPeek;
+    this.hintShufflePick = hintShufflePick;
+    this.hintReplaceFirst = hintReplaceFirst;
+    this.hintReplaceSecond = hintReplaceSecond;
+    this.shuffleLabel = shuffleLabel;
+    uiTextDirection = textDirection;
+    if (!_ready) return;
+    _localShuffleLabel.label = shuffleLabel;
+    _opponentShuffleLabel.label = shuffleLabel;
+    _localShuffleLabel.textDirection = textDirection;
+    _opponentShuffleLabel.textDirection = textDirection;
+    _table.setHintDirection(textDirection);
+    _syncTableHint();
+  }
+
   /// Back skin applied to every face-down card. Cached art is keyed by skin id,
   /// so a change shows up on the next frame.
   String get cardBackSkinId => CardBackSkins.activeId;
@@ -108,14 +139,12 @@ class CardGame extends FlameGame {
     final snapshot = _snapshot;
     final String? message;
     if (_peekSelecting && snapshot?.canJackPeek == true) {
-      message = 'Tap any card to peek…';
+      message = hintPeek;
     } else if (_queenMode == QueenMode.shufflePick) {
-      message = 'Tap Shuffle above a hand…';
+      message = hintShufflePick;
     } else if (_queenMode == QueenMode.replacePick) {
       message =
-          _replaceFirstSide == null
-              ? 'Tap one card from each hand…'
-              : 'Tap a card on the other hand…';
+          _replaceFirstSide == null ? hintReplaceFirst : hintReplaceSecond;
     } else {
       message = null;
     }
@@ -144,9 +173,13 @@ class CardGame extends FlameGame {
       ..position = Vector2(size.x * 0.5, 52);
     _localShuffleLabel = _ShufflePickLabel(
       onPressed: () => onQueenShuffle?.call('you'),
+      label: shuffleLabel,
+      textDirection: uiTextDirection,
     )..position = Vector2(size.x * 0.5, size.y * 0.75 - 90);
     _opponentShuffleLabel = _ShufflePickLabel(
       onPressed: () => onQueenShuffle?.call('opponent'),
+      label: shuffleLabel,
+      textDirection: uiTextDirection,
     )..position = Vector2(size.x * 0.5, size.y * 0.25 + 90);
 
     world.addAll([
@@ -160,6 +193,11 @@ class CardGame extends FlameGame {
     ]);
 
     _ready = true;
+    _localShuffleLabel.label = shuffleLabel;
+    _opponentShuffleLabel.label = shuffleLabel;
+    _localShuffleLabel.textDirection = uiTextDirection;
+    _opponentShuffleLabel.textDirection = uiTextDirection;
+    _table.setHintDirection(uiTextDirection);
     _syncShuffleLabels();
     _applyReplaceFloat();
     final pending = _pending;
@@ -1613,6 +1651,9 @@ class TableArea extends PositionComponent {
 
   void setHint(String? message) => _hint.setMessage(message);
 
+  void setHintDirection(TextDirection direction) =>
+      _hint.setTextDirection(direction);
+
   void holdDiscard(String? tag, {required String pendingTag}) {
     _holdingDiscard = true;
     _discardHoldTag = tag;
@@ -2392,6 +2433,17 @@ class _TableHintLabel extends PositionComponent {
   }
 
   String? _message;
+  TextDirection _textDirection = TextDirection.ltr;
+
+  void setTextDirection(TextDirection direction) {
+    if (_textDirection == direction) return;
+    _textDirection = direction;
+    final message = _message;
+    if (message != null) {
+      final painter = _painter(message)..layout();
+      size = Vector2((painter.width + 8).clamp(80, 320), painter.height + 4);
+    }
+  }
 
   void setMessage(String? message) {
     if (_message == message) return;
@@ -2415,7 +2467,7 @@ class _TableHintLabel extends PositionComponent {
           shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
         ),
       ),
-      textDirection: TextDirection.ltr,
+      textDirection: _textDirection,
       maxLines: 2,
       textAlign: TextAlign.center,
     );
@@ -2434,13 +2486,19 @@ class _TableHintLabel extends PositionComponent {
 }
 
 class _ShufflePickLabel extends PositionComponent with TapCallbacks {
-  _ShufflePickLabel({required this.onPressed}) {
+  _ShufflePickLabel({
+    required this.onPressed,
+    this.label = 'Shuffle',
+    this.textDirection = TextDirection.ltr,
+  }) {
     size = Vector2(120, 36);
     anchor = Anchor.center;
     priority = 50;
   }
 
   final VoidCallback onPressed;
+  String label;
+  TextDirection textDirection;
   bool visible = false;
 
   @override
@@ -2471,16 +2529,16 @@ class _ShufflePickLabel extends PositionComponent with TapCallbacks {
         ..color = const Color(0xAAFFD54F),
     );
     final painter = TextPainter(
-      text: const TextSpan(
-        text: 'Shuffle',
-        style: TextStyle(
+      text: TextSpan(
+        text: label,
+        style: const TextStyle(
           color: Color(0xEEFFFFFF),
           fontSize: 14,
           fontWeight: FontWeight.w700,
           shadows: [Shadow(color: Color(0xCC000000), blurRadius: 4)],
         ),
       ),
-      textDirection: TextDirection.ltr,
+      textDirection: textDirection,
     )..layout();
     painter.paint(
       canvas,

@@ -1,5 +1,6 @@
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
+import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/card_game_view.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
@@ -32,7 +33,7 @@ class HomeScreen extends ConsumerWidget {
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
           content: CasinoToast(
-            message: message,
+            message: localizeErrorCode(context.l10n, message),
             onClose: messenger.hideCurrentSnackBar,
           ),
         ),
@@ -58,6 +59,7 @@ class MatchmakingWaiting extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final notifier = ref.read(gameSessionProvider.notifier);
 
     return Scaffold(
@@ -72,7 +74,7 @@ class MatchmakingWaiting extends ConsumerWidget {
                 const SuitCardLoader(height: 32),
                 const SizedBox(height: 20),
                 Text(
-                  'Finding opponent',
+                  l10n.findingOpponent,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: CasinoColors.gold,
@@ -81,14 +83,17 @@ class MatchmakingWaiting extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Hang tight — matching you with a player.',
+                Text(
+                  l10n.matchmakingHint,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: CasinoColors.textMuted, fontSize: 14),
+                  style: const TextStyle(
+                    color: CasinoColors.textMuted,
+                    fontSize: 14,
+                  ),
                 ),
                 const SizedBox(height: 36),
                 CasinoActionButton(
-                  label: 'Cancel',
+                  label: l10n.cancel,
                   tone: CasinoActionTone.fold,
                   expanded: false,
                   onPressed: notifier.cancelFindMatch,
@@ -109,12 +114,14 @@ class WaitingRoom extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final notifier = ref.read(gameSessionProvider.notifier);
     final bothJoined = game.ready;
     final youReady = game.you.lobbyReady;
     final opponentReady = game.opponent?.lobbyReady ?? false;
     final yourName = game.you.displayName;
-    final opponentName = game.opponent?.displayName ?? 'Waiting…';
+    final opponentName =
+        game.opponent?.displayName ?? l10n.waitingEllipsisShort;
 
     return Scaffold(
       backgroundColor: CasinoColors.surfaceHi,
@@ -126,7 +133,7 @@ class WaitingRoom extends ConsumerWidget {
             children: [
               const Spacer(flex: 1),
               Text(
-                'Private table',
+                l10n.privateTable,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: CasinoColors.gold,
@@ -138,11 +145,11 @@ class WaitingRoom extends ConsumerWidget {
               Text(
                 bothJoined
                     ? (youReady && !opponentReady
-                        ? 'Waiting for $opponentName…'
+                        ? l10n.waitingForOpponentNamed(opponentName)
                         : !youReady && opponentReady
-                        ? '$opponentName is ready'
-                        : 'Both players joined')
-                    : 'Share this code with a friend',
+                        ? l10n.opponentIsReady(opponentName)
+                        : l10n.bothPlayersJoined)
+                    : l10n.shareCodeWithFriend,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color:
@@ -169,11 +176,11 @@ class WaitingRoom extends ConsumerWidget {
                         isYou: true,
                       ),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
                       child: Text(
-                        'VS',
-                        style: TextStyle(
+                        l10n.vs,
+                        style: const TextStyle(
                           color: CasinoColors.goldSoft,
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
@@ -203,7 +210,7 @@ class WaitingRoom extends ConsumerWidget {
                       elevation: 0,
                       behavior: SnackBarBehavior.floating,
                       margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-                      content: CasinoToast(message: 'Code copied'),
+                      content: CasinoToast(message: context.l10n.codeCopied),
                     ),
                   );
                 },
@@ -225,9 +232,9 @@ class WaitingRoom extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        'Tap to copy',
-                        style: TextStyle(
+                      Text(
+                        l10n.tapToCopy,
+                        style: const TextStyle(
                           color: CasinoColors.textMuted,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -241,7 +248,7 @@ class WaitingRoom extends ConsumerWidget {
               Row(
                 children: [
                   CasinoActionButton(
-                    label: youReady ? 'Waiting…' : 'Ready',
+                    label: youReady ? l10n.waitingEllipsis : l10n.ready,
                     icon:
                         youReady
                             ? Icons.hourglass_top_rounded
@@ -259,7 +266,7 @@ class WaitingRoom extends ConsumerWidget {
                   style: TextButton.styleFrom(
                     foregroundColor: CasinoColors.textMuted,
                   ),
-                  child: const Text('Leave room'),
+                  child: Text(l10n.leaveRoom),
                 ),
               ),
             ],
@@ -285,6 +292,7 @@ class _LobbySeat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -362,7 +370,7 @@ class _LobbySeat extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          isYou ? 'You' : (ready ? 'Ready' : 'Not ready'),
+          isYou ? l10n.you : (ready ? l10n.ready : l10n.notReady),
           style: const TextStyle(
             color: CasinoColors.textMuted,
             fontSize: 12,
@@ -403,6 +411,7 @@ class GameHud extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final game = ref.watch(gameSessionProvider.select((state) => state.game));
     if (game == null) return const SizedBox.shrink();
     final notifier = ref.read(gameSessionProvider.notifier);
@@ -429,7 +438,8 @@ class GameHud extends ConsumerWidget {
                 children: [
                   CasinoMenuPlayersPill(
                     youName: game.you.displayName,
-                    opponentName: game.opponent?.displayName ?? 'Waiting…',
+                    opponentName:
+                        game.opponent?.displayName ?? l10n.waitingEllipsisShort,
                     youConnected: game.you.connected,
                     opponentConnected: game.opponent?.connected ?? false,
                     yourTurn: playing && game.isYourTurn,
@@ -439,14 +449,13 @@ class GameHud extends ConsumerWidget {
                   if (playing)
                     CasinoCircleButton(
                       icon: Icons.flag_outlined,
-                      tooltip: 'End game',
+                      tooltip: l10n.endGame,
                       onPressed:
                           () => _confirm(
                             context,
-                            title: 'End game?',
-                            message:
-                                'Cards get revealed and scores are counted.',
-                            confirmLabel: 'End game',
+                            title: l10n.endGameTitle,
+                            message: l10n.endGameMessage,
+                            confirmLabel: l10n.endGame,
                             tone: CasinoActionTone.fold,
                             onConfirm: notifier.endGame,
                           ),
@@ -454,7 +463,7 @@ class GameHud extends ConsumerWidget {
                   if (playing) const SizedBox(width: 4),
                   CasinoCircleButton(
                     icon: Icons.menu_rounded,
-                    tooltip: 'Menu',
+                    tooltip: l10n.menu,
                     onPressed:
                         () => _showGameMenu(
                           context,
@@ -473,7 +482,7 @@ class GameHud extends ConsumerWidget {
                 right: 16,
                 bottom: 16,
                 child: CasinoActionButton(
-                  label: 'Reveal',
+                  label: l10n.reveal,
                   icon: Icons.visibility_rounded,
                   tone: CasinoActionTone.raise,
                   expanded: false,
@@ -485,7 +494,7 @@ class GameHud extends ConsumerWidget {
                 right: 16,
                 bottom: 16,
                 child: CasinoActionButton(
-                  label: peekSelecting ? 'Cancel' : 'Peek',
+                  label: peekSelecting ? l10n.cancel : l10n.peek,
                   icon:
                       peekSelecting
                           ? Icons.close_rounded
@@ -505,7 +514,7 @@ class GameHud extends ConsumerWidget {
                   children: [
                     if (queenPicking)
                       CasinoActionButton(
-                        label: 'Cancel',
+                        label: l10n.cancel,
                         icon: Icons.close_rounded,
                         tone: CasinoActionTone.fold,
                         expanded: false,
@@ -513,7 +522,7 @@ class GameHud extends ConsumerWidget {
                       )
                     else ...[
                       CasinoActionButton(
-                        label: 'Shuffle',
+                        label: l10n.shuffle,
                         icon: Icons.shuffle_rounded,
                         tone: CasinoActionTone.raise,
                         expanded: false,
@@ -521,7 +530,7 @@ class GameHud extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       CasinoActionButton(
-                        label: 'Replace',
+                        label: l10n.replace,
                         icon: Icons.swap_horiz_rounded,
                         tone: CasinoActionTone.raise,
                         expanded: false,
@@ -534,19 +543,19 @@ class GameHud extends ConsumerWidget {
             else if (playing &&
                 !game.bothRevealed &&
                 game.you.launch != LaunchStatus.notLaunched)
-              const Positioned(
+              Positioned(
                 left: 24,
                 right: 24,
                 bottom: 20,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SuitCardLoader(height: 22),
-                    SizedBox(height: 8),
+                    const SuitCardLoader(height: 22),
+                    const SizedBox(height: 8),
                     Text(
-                      'Waiting for opponent to see their cards…',
+                      l10n.waitingOpponentReveal,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: CasinoColors.textMuted,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -570,6 +579,7 @@ class GameOverPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final game = ref.watch(gameSessionProvider.select((state) => state.game));
     if (game == null) return const SizedBox.shrink();
     final notifier = ref.read(gameSessionProvider.notifier);
@@ -578,19 +588,19 @@ class GameOverPanel extends ConsumerWidget {
     final youWin = opponentTotal != null && yourTotal < opponentTotal;
     final theyWin = opponentTotal != null && yourTotal > opponentTotal;
     final yourName = game.you.displayName;
-    final opponentName = game.opponent?.displayName ?? 'Opponent';
+    final opponentName = game.opponent?.displayName ?? l10n.opponent;
     final yourSeries = game.you.seriesWins;
     final opponentSeries = game.opponent?.seriesWins ?? 0;
     final rematchReady = game.you.rematchReady;
     final opponentRematchReady = game.opponent?.rematchReady ?? false;
     final headline =
         opponentTotal == null
-            ? 'Game over'
+            ? l10n.gameOver
             : youWin
-            ? 'Victory'
+            ? l10n.victory
             : theyWin
-            ? 'Defeat'
-            : 'Draw';
+            ? l10n.defeat
+            : l10n.draw;
 
     return Center(
       child: Container(
@@ -616,7 +626,7 @@ class GameOverPanel extends ConsumerWidget {
             _GameOverHeadline(label: headline, glow: youWin),
             const SizedBox(height: 4),
             Text(
-              'SERIES  $yourSeries – $opponentSeries',
+              l10n.seriesScore(yourSeries, opponentSeries),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: CasinoColors.goldSoft,
@@ -636,11 +646,11 @@ class GameOverPanel extends ConsumerWidget {
                     winner: youWin,
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Text(
-                    'VS',
-                    style: TextStyle(
+                    l10n.vs,
+                    style: const TextStyle(
                       color: CasinoColors.goldSoft,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
@@ -663,10 +673,10 @@ class GameOverPanel extends ConsumerWidget {
               const SizedBox(height: 16),
               const SuitCardLoader(height: 24),
               const SizedBox(height: 10),
-              const Text(
-                'Waiting for opponent to rematch…',
+              Text(
+                l10n.waitingRematch,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: CasinoColors.textMuted,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -675,7 +685,7 @@ class GameOverPanel extends ConsumerWidget {
             ] else if (!rematchReady && opponentRematchReady) ...[
               const SizedBox(height: 16),
               Text(
-                '$opponentName is asking for a rematch',
+                l10n.opponentAskingRematch(opponentName),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: CasinoColors.goldSoft,
@@ -688,14 +698,14 @@ class GameOverPanel extends ConsumerWidget {
             Row(
               children: [
                 CasinoActionButton(
-                  label: 'Leave',
+                  label: l10n.leave,
                   icon: Icons.logout_rounded,
                   tone: CasinoActionTone.fold,
                   onPressed: notifier.leaveRoom,
                 ),
                 const SizedBox(width: 10),
                 CasinoActionButton(
-                  label: rematchReady ? 'Waiting…' : 'Rematch',
+                  label: rematchReady ? l10n.waitingEllipsis : l10n.rematch,
                   icon: Icons.replay_rounded,
                   tone: CasinoActionTone.raise,
                   onPressed: rematchReady ? null : notifier.rematch,
@@ -757,12 +767,20 @@ class _GameOverHeadlineState extends State<_GameOverHeadline>
     super.dispose();
   }
 
+  String get _displayLabel {
+    final locale = Localizations.localeOf(context);
+    return casinoButtonLabel(widget.label, locale);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final displayFamily = CasinoFonts.displayFor(
+      Localizations.localeOf(context),
+    );
     final text = Text(
-      widget.label.toUpperCase(),
-      style: const TextStyle(
-        fontFamily: CasinoFonts.display,
+      _displayLabel,
+      style: TextStyle(
+        fontFamily: displayFamily,
         color: CasinoColors.gold,
         fontSize: 22,
         fontWeight: FontWeight.w800,
@@ -777,9 +795,9 @@ class _GameOverHeadlineState extends State<_GameOverHeadline>
       builder: (context, child) {
         final intensity = _glow.value;
         return Text(
-          widget.label.toUpperCase(),
+          _displayLabel,
           style: TextStyle(
-            fontFamily: CasinoFonts.display,
+            fontFamily: displayFamily,
             color: CasinoColors.gold,
             fontSize: 22,
             fontWeight: FontWeight.w800,
@@ -824,6 +842,7 @@ class _ResultSeat extends StatelessWidget {
   Widget build(BuildContext context) {
     const avatarSize = 52.0;
     final ring = winner ? CasinoColors.gold : Colors.white24;
+    final l10n = context.l10n;
 
     return Opacity(
       opacity: missing ? 0.45 : 1,
@@ -926,11 +945,11 @@ class _ResultSeat extends StatelessWidget {
               ),
               if (!missing) ...[
                 const SizedBox(width: 3),
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 2),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
-                    'pts',
-                    style: TextStyle(
+                    l10n.points,
+                    style: const TextStyle(
                       color: CasinoColors.textMuted,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
@@ -956,6 +975,8 @@ Future<void> _showGameMenu(
   required VoidCallback onEndGame,
   required VoidCallback onLeaveRoom,
 }) {
+  final l10n = context.l10n;
+  final turn = isYourTurn ? l10n.yourTurn : l10n.opponentTurn;
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
@@ -981,7 +1002,7 @@ Future<void> _showGameMenu(
                 ),
                 _GameMenuTile(
                   icon: Icons.menu_book_rounded,
-                  label: 'How to play',
+                  label: l10n.howToPlay,
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     Navigator.of(context).push(
@@ -993,11 +1014,11 @@ Future<void> _showGameMenu(
                 ),
                 _GameMenuTile(
                   icon: Icons.info_outline_rounded,
-                  label: 'Room info',
+                  label: l10n.roomInfo,
                   subtitle:
                       playing
-                          ? '$roomId · ${isYourTurn ? 'Your turn' : 'Opponent turn'}'
-                          : 'Code $roomId',
+                          ? l10n.roomCodePlaying(roomId, turn)
+                          : l10n.codeRoomId(roomId),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -1009,9 +1030,8 @@ Future<void> _showGameMenu(
                         content: CasinoToast(
                           message:
                               playing
-                                  ? 'Room $roomId · '
-                                      '${isYourTurn ? "Your turn" : "Opponent turn"}'
-                                  : 'Room $roomId',
+                                  ? l10n.roomToastPlaying(roomId, turn)
+                                  : l10n.roomToast(roomId),
                         ),
                       ),
                     );
@@ -1020,15 +1040,15 @@ Future<void> _showGameMenu(
                 if (playing)
                   _GameMenuTile(
                     icon: Icons.flag_outlined,
-                    label: 'End game',
+                    label: l10n.endGame,
                     destructive: true,
                     onTap: () async {
                       Navigator.of(sheetContext).pop();
                       await _confirm(
                         context,
-                        title: 'End game?',
-                        message: 'Cards get revealed and scores are counted.',
-                        confirmLabel: 'End game',
+                        title: l10n.endGameTitle,
+                        message: l10n.endGameMessage,
+                        confirmLabel: l10n.endGame,
                         tone: CasinoActionTone.fold,
                         onConfirm: onEndGame,
                       );
@@ -1036,15 +1056,15 @@ Future<void> _showGameMenu(
                   ),
                 _GameMenuTile(
                   icon: Icons.logout_rounded,
-                  label: 'Leave room',
+                  label: l10n.leaveRoom,
                   destructive: true,
                   onTap: () async {
                     Navigator.of(sheetContext).pop();
                     await _confirm(
                       context,
-                      title: 'Leave room?',
-                      message: 'You will drop out of this game.',
-                      confirmLabel: 'Leave',
+                      title: l10n.leaveRoomTitle,
+                      message: l10n.leaveRoomMessage,
+                      confirmLabel: l10n.leave,
                       tone: CasinoActionTone.fold,
                       onConfirm: onLeaveRoom,
                     );
@@ -1135,6 +1155,7 @@ Future<void> _confirm(
   required VoidCallback onConfirm,
   CasinoActionTone tone = CasinoActionTone.raise,
 }) async {
+  final l10n = context.l10n;
   final confirmed = await showDialog<bool>(
     context: context,
     builder:
@@ -1162,7 +1183,7 @@ Future<void> _confirm(
               child: Row(
                 children: [
                   CasinoActionButton(
-                    label: 'Cancel',
+                    label: l10n.cancel,
                     tone: CasinoActionTone.check,
                     onPressed: () => Navigator.of(context).pop(false),
                   ),

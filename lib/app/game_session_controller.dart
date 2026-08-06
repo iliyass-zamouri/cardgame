@@ -50,7 +50,7 @@ class GameSessionController extends Notifier<GameSessionState> {
       onError: (_) {
         state = state.copyWith(
           connection: ConnectionStatus.disconnected,
-          message: 'Connection lost',
+          message: 'connection_lost',
           searchingMatch: false,
         );
       },
@@ -68,7 +68,7 @@ class GameSessionController extends Notifier<GameSessionState> {
   void joinRoom(String roomId) {
     final normalized = roomId.trim().toUpperCase();
     if (normalized.isEmpty) {
-      state = state.copyWith(message: 'Enter a room code');
+      state = state.copyWith(message: 'enter_room_code');
       return;
     }
     _send('joinRoom', {'roomId': normalized, ..._identityPayload});
@@ -240,8 +240,9 @@ class GameSessionController extends Notifier<GameSessionState> {
         state = state.copyWith(searchingMatch: false, message: null);
         break;
       case 'error':
+        final code = message['code'] as String?;
         state = state.copyWith(
-          message: message['message'] as String? ?? 'Command failed',
+          message: (code != null && code.isNotEmpty) ? code : 'command_failed',
         );
         break;
     }
@@ -249,7 +250,7 @@ class GameSessionController extends Notifier<GameSessionState> {
 
   void _send(String type, [Map<String, dynamic> payload = const {}]) {
     if (state.connection != ConnectionStatus.connected) {
-      state = state.copyWith(message: 'Server is not connected');
+      state = state.copyWith(message: 'server_not_connected');
       return;
     }
     _socket?.send(jsonEncode({'type': type, ...payload}));

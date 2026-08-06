@@ -1,0 +1,191 @@
+{
+  "@@locale": "en",
+  "appTitle": "CardGame",
+  "authError": "Auth error: {error}",
+  "@authError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "signInToPlay": "Sign in to play online",
+  "continueWithGoogle": "Continue with Google",
+  "signingIn": "Signing in…",
+  "playAsGuest": "Play as Guest",
+  "entering": "Entering…",
+  "guestSignInServerDown": "Guest sign-in failed. Is the server running?",
+  "guestSignInConnection": "Guest sign-in failed. Check connection.",
+  "googleSignInFailed": "Google sign-in failed. Try again.",
+  "tagline": "Two players. One table.",
+  "findMatch": "Find match",
+  "createRoom": "Create room",
+  "joinRoom": "Join room",
+  "retryConnection": "Retry connection",
+  "howToPlay": "How to play",
+  "deck": "Deck",
+  "signOut": "Sign out",
+  "guest": "Guest",
+  "google": "Google",
+  "player": "Player",
+  "online": "Online",
+  "connecting": "Connecting",
+  "offline": "Offline",
+  "joinRoomTitle": "Join room",
+  "joinRoomHint": "Enter the 6-letter code from your friend.",
+  "codeHint": "CODE",
+  "cancel": "Cancel",
+  "join": "Join",
+  "findingOpponent": "Finding opponent",
+  "matchmakingHint": "Hang tight — matching you with a player.",
+  "privateTable": "Private table",
+  "shareCodeWithFriend": "Share this code with a friend",
+  "waitingForOpponentNamed": "Waiting for {name}…",
+  "@waitingForOpponentNamed": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "opponentIsReady": "{name} is ready",
+  "@opponentIsReady": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "bothPlayersJoined": "Both players joined",
+  "codeCopied": "Code copied",
+  "tapToCopy": "Tap to copy",
+  "ready": "Ready",
+  "waitingEllipsis": "Waiting…",
+  "leaveRoom": "Leave room",
+  "vs": "VS",
+  "you": "You",
+  "notReady": "Not ready",
+  "waitingEllipsisShort": "Waiting…",
+  "endGame": "End game",
+  "menu": "Menu",
+  "endGameTitle": "End game?",
+  "endGameMessage": "Cards get revealed and scores are counted.",
+  "reveal": "Reveal",
+  "peek": "Peek",
+  "shuffle": "Shuffle",
+  "replace": "Replace",
+  "waitingOpponentReveal": "Waiting for opponent to see their cards…",
+  "gameOver": "Game over",
+  "victory": "Victory",
+  "defeat": "Defeat",
+  "draw": "Draw",
+  "seriesScore": "SERIES  {yours} – {theirs}",
+  "@seriesScore": {
+    "placeholders": {
+      "yours": {"type": "int"},
+      "theirs": {"type": "int"}
+    }
+  },
+  "opponent": "Opponent",
+  "waitingRematch": "Waiting for opponent to rematch…",
+  "opponentAskingRematch": "{name} is asking for a rematch",
+  "@opponentAskingRematch": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "leave": "Leave",
+  "rematch": "Rematch",
+  "points": "pts",
+  "roomInfo": "Room info",
+  "roomCodePlaying": "{roomId} · {turn}",
+  "@roomCodePlaying": {
+    "placeholders": {
+      "roomId": {"type": "String"},
+      "turn": {"type": "String"}
+    }
+  },
+  "codeRoomId": "Code {roomId}",
+  "@codeRoomId": {
+    "placeholders": {
+      "roomId": {"type": "String"}
+    }
+  },
+  "roomToastPlaying": "Room {roomId} · {turn}",
+  "@roomToastPlaying": {
+    "placeholders": {
+      "roomId": {"type": "String"},
+      "turn": {"type": "String"}
+    }
+  },
+  "roomToast": "Room {roomId}",
+  "@roomToast": {
+    "placeholders": {
+      "roomId": {"type": "String"}
+    }
+  },
+  "yourTurn": "Your turn",
+  "opponentTurn": "Opponent turn",
+  "leaveRoomTitle": "Leave room?",
+  "leaveRoomMessage": "You will drop out of this game.",
+  "stepOf": "Step {current} of {total}",
+  "@stepOf": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "back": "Back",
+  "next": "Next",
+  "gotIt": "Got it",
+  "ruleGoalTitle": "Goal",
+  "ruleGoalBody": "Empty your four cards, or hold the lowest score when the game ends. Lowest total wins.",
+  "ruleSetupTitle": "Setup",
+  "ruleSetupBody": "Two players. Each gets four face-down cards.",
+  "ruleOpeningPeekTitle": "Opening peek",
+  "ruleOpeningPeekBody": "Before play, both players peek at two of their own cards (bottom row) for a few seconds. Remember them — then they flip face-down again.",
+  "ruleYourTurnTitle": "Your turn",
+  "ruleYourTurnBody": "Draw from the deck, or if the discard top matches a card you know, tap that card to discard it (your turn continues). Wrong guess = a penalty card into your layout.",
+  "ruleAfterDrawTitle": "After you draw",
+  "ruleAfterDrawBody": "Tap one of your cards to swap (different rank) or double-discard (same rank), or throw the drawn card to the discard pile. Then your turn ends.",
+  "ruleSpecialTitle": "Special cards",
+  "ruleSpecialBody": "These ranks trigger an ability when you draw them. After the ability, the card is thrown.",
+  "ruleJackLabel": "Jack",
+  "ruleJackDesc": "Peek one card — yours or theirs — then the Jack is thrown.",
+  "ruleQueenLabel": "Queen",
+  "ruleQueenDesc": "Shuffle a hand, or swap one of yours with one of theirs, then the Queen is thrown.",
+  "ruleScoringTitle": "Scoring",
+  "ruleScoringBody": "When someone empties their layout (or the game ends), sum remaining cards. Lower total wins; equal = tie.",
+  "ruleJokerLabel": "Joker",
+  "ruleJokerDesc": "Counts as −1 point.",
+  "ruleBlackKingLabel": "Black King",
+  "ruleBlackKingDesc": "Clubs or spades King counts as 0. Red Kings count as 13.",
+  "hintPeek": "Tap any card to peek…",
+  "hintShufflePick": "Tap Shuffle above a hand…",
+  "hintReplaceFirst": "Tap one card from each hand…",
+  "hintReplaceSecond": "Tap a card on the other hand…",
+  "errConnectionLost": "Connection lost",
+  "errEnterRoomCode": "Enter a room code",
+  "errServerNotConnected": "Server is not connected",
+  "errCommandFailed": "Command failed",
+  "errRoomFull": "Room already has two players",
+  "errWaitingForPlayer": "Two players required",
+  "errAlreadyStarted": "Game already started",
+  "errNotEnded": "Game is not over",
+  "errAlreadyLaunched": "Cards already revealed",
+  "errAlreadyDrew": "Throw or swap drawn card first",
+  "errDeckEmpty": "No cards available",
+  "errNoJack": "Jack peek requires a drawn Jack",
+  "errPeekUsed": "Jack peek already used",
+  "errInvalidSide": "Invalid side",
+  "errInvalidCard": "Card index is invalid",
+  "errCannotShuffle": "Not enough cards to shuffle",
+  "errDrawFirst": "Draw a card first",
+  "errNoHandCard": "Draw a card first",
+  "errNotInRoom": "Join room first",
+  "errNotYourTurn": "It is not your turn",
+  "errRevealFirst": "Both players must reveal first",
+  "errNotPlaying": "Game is not running",
+  "errPeekInProgress": "Wait for peek to finish",
+  "errQueenInProgress": "Wait for Queen ability to finish",
+  "errNoQueen": "Queen ability requires a drawn Queen",
+  "errQueenUsed": "Queen ability already used",
+  "errInvalidCommand": "Command type is required",
+  "errRoomNotFound": "Room not found",
+  "errUnknownCommand": "Unknown command",
+  "errTooManyCommands": "Too many commands"
+}

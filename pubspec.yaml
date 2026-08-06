@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^3.0.0
   web_socket_channel: ^3.0.1
@@ -30,6 +33,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
 
 flutter:
+  generate: true
   uses-material-design: true
   assets:
     - assets/background.jpg
@@ -53,6 +57,12 @@ flutter:
         - asset: assets/fonts/DMSans-SemiBold.ttf
           weight: 600
         - asset: assets/fonts/DMSans-Bold.ttf
+          weight: 700
+    - family: Noto Naskh Arabic
+      fonts:
+        - asset: assets/fonts/NotoNaskhArabic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoNaskhArabic-Bold.ttf
           weight: 700
     # Keep the old variable file out of the family registration — it renders
     # as .notdef tofu boxes under flutter_test / Impeller.

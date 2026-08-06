@@ -1,3 +1,4 @@
+import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/card_game.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
@@ -12,76 +13,52 @@ class HowToPlayScreen extends StatefulWidget {
 }
 
 class _HowToPlayScreenState extends State<HowToPlayScreen> {
-  static const _steps = <_RuleStep>[
+  int _index = 0;
+
+  List<_RuleStep> _steps(AppLocalizations l10n) => [
+    _RuleStep(title: l10n.ruleGoalTitle, body: l10n.ruleGoalBody),
+    _RuleStep(title: l10n.ruleSetupTitle, body: l10n.ruleSetupBody),
+    _RuleStep(title: l10n.ruleOpeningPeekTitle, body: l10n.ruleOpeningPeekBody),
+    _RuleStep(title: l10n.ruleYourTurnTitle, body: l10n.ruleYourTurnBody),
+    _RuleStep(title: l10n.ruleAfterDrawTitle, body: l10n.ruleAfterDrawBody),
     _RuleStep(
-      title: 'Goal',
-      body:
-          'Empty your four cards, or hold the lowest score when the game ends. Lowest total wins.',
-    ),
-    _RuleStep(
-      title: 'Setup',
-      body: 'Two players. Each gets four face-down cards.',
-    ),
-    _RuleStep(
-      title: 'Opening peek',
-      body:
-          'Before play, both players peek at two of their own cards (bottom row) for a few seconds. Remember them — then they flip face-down again.',
-    ),
-    _RuleStep(
-      title: 'Your turn',
-      body:
-          'Draw from the deck, or if the discard top matches a card you know, tap that card to discard it (your turn continues). Wrong guess = a penalty card into your layout.',
-    ),
-    _RuleStep(
-      title: 'After you draw',
-      body:
-          'Tap one of your cards to swap (different rank) or double-discard (same rank), or throw the drawn card to the discard pile. Then your turn ends.',
-    ),
-    _RuleStep(
-      title: 'Special cards',
-      body:
-          'These ranks trigger an ability when you draw them. After the ability, the card is thrown.',
+      title: l10n.ruleSpecialTitle,
+      body: l10n.ruleSpecialBody,
       examples: [
         _CardExample(
           tag: 'C11',
-          label: 'Jack',
-          description:
-              'Peek one card — yours or theirs — then the Jack is thrown.',
+          label: l10n.ruleJackLabel,
+          description: l10n.ruleJackDesc,
         ),
         _CardExample(
           tag: 'C12',
-          label: 'Queen',
-          description:
-              'Shuffle a hand, or swap one of yours with one of theirs, then the Queen is thrown.',
+          label: l10n.ruleQueenLabel,
+          description: l10n.ruleQueenDesc,
         ),
       ],
     ),
     _RuleStep(
-      title: 'Scoring',
-      body:
-          'When someone empties their layout (or the game ends), sum remaining cards. Lower total wins; equal = tie.',
+      title: l10n.ruleScoringTitle,
+      body: l10n.ruleScoringBody,
       examples: [
         _CardExample(
           tag: 'A14',
-          label: 'Joker',
-          description: 'Counts as −1 point.',
+          label: l10n.ruleJokerLabel,
+          description: l10n.ruleJokerDesc,
         ),
         _CardExample(
           tag: 'A13',
-          label: 'Black King',
-          description:
-              'Clubs or spades King counts as 0. Red Kings count as 13.',
+          label: l10n.ruleBlackKingLabel,
+          description: l10n.ruleBlackKingDesc,
         ),
       ],
     ),
   ];
 
-  int _index = 0;
+  bool _isLast(int total) => _index >= total - 1;
 
-  bool get _isLast => _index >= _steps.length - 1;
-
-  void _next() {
-    if (_isLast) {
+  void _next(int total) {
+    if (_isLast(total)) {
       Navigator.of(context).pop();
       return;
     }
@@ -95,15 +72,21 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final step = _steps[_index];
+    final l10n = context.l10n;
+    final steps = _steps(l10n);
+    if (_index >= steps.length) _index = steps.length - 1;
+    final step = steps[_index];
+    final displayFamily = CasinoFonts.displayFor(
+      Localizations.localeOf(context),
+    );
     return Scaffold(
       backgroundColor: CasinoColors.bg,
       appBar: AppBar(
         backgroundColor: CasinoColors.surface,
         foregroundColor: CasinoColors.text,
-        title: const Text(
-          'How to play',
-          style: TextStyle(
+        title: Text(
+          l10n.howToPlay,
+          style: const TextStyle(
             color: CasinoColors.gold,
             fontWeight: FontWeight.w800,
           ),
@@ -116,7 +99,7 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Step ${_index + 1} of ${_steps.length}',
+                l10n.stepOf(_index + 1, steps.length),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: CasinoColors.textMuted,
@@ -128,7 +111,7 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  for (var i = 0; i < _steps.length; i++) ...[
+                  for (var i = 0; i < steps.length; i++) ...[
                     if (i > 0) const SizedBox(width: 6),
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -188,9 +171,9 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
                             Expanded(
                               child: Text(
                                 step.title,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: CasinoColors.text,
-                                  fontFamily: CasinoFonts.display,
+                                  fontFamily: displayFamily,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 26,
                                   letterSpacing: 0.6,
@@ -231,16 +214,16 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
                 children: [
                   if (_index > 0) ...[
                     CasinoActionButton(
-                      label: 'Back',
+                      label: l10n.back,
                       tone: CasinoActionTone.check,
                       onPressed: _back,
                     ),
                     const SizedBox(width: 12),
                   ],
                   CasinoActionButton(
-                    label: _isLast ? 'Got it' : 'Next',
+                    label: _isLast(steps.length) ? l10n.gotIt : l10n.next,
                     tone: CasinoActionTone.raise,
-                    onPressed: _next,
+                    onPressed: () => _next(steps.length),
                   ),
                 ],
               ),

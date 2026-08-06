@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:cardgame/gen/assets.gen.dart';
+import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -188,7 +189,7 @@ class CasinoActionButton extends StatelessWidget {
     final onTone =
         tone == CasinoActionTone.gold ? CasinoColors.bg : CasinoColors.text;
     final labelText = Text(
-      label.toUpperCase(),
+      casinoButtonLabel(label, Localizations.localeOf(context)),
       style: TextStyle(
         color: onTone,
         fontWeight: FontWeight.w800,
@@ -423,11 +424,11 @@ class CasinoMenuPlayersPill extends StatelessWidget {
                 active: yourTurn,
                 avatarSize: 26,
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Text(
-                  'VS',
-                  style: TextStyle(
+                  context.l10n.vs,
+                  style: const TextStyle(
                     color: CasinoColors.goldSoft,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
