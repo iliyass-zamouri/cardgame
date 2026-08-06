@@ -17,6 +17,7 @@ import 'package:flutter/painting.dart';
 typedef CardTapCallback = void Function(int cardIndex);
 typedef VoidGameCallback = void Function();
 
+
 class CardGame extends FlameGame {
   CardTapCallback? onTapCard;
   VoidGameCallback? onDraw;
@@ -108,6 +109,7 @@ class CardGame extends FlameGame {
     if (snapshot.version == _lastVersion && _snapshot != null) return;
     final previous = _snapshot;
     final action = previous == null ? null : _planAction(previous, snapshot);
+
 
     if (action != null) {
       _lastVersion = snapshot.version;
@@ -404,7 +406,8 @@ class CardGame extends FlameGame {
   /// Tapped card matched the discard top: lift it, reveal it, send it away.
   void _runDiscardMatch(_CardActionPlan plan, VoidCallback onComplete) {
     final tapped = plan.tappedTag!;
-    _localHand.cardAt(plan.cardIndex)?.opacityOverride = 0;
+    final hidden = _localHand.cardAt(plan.cardIndex);
+    hidden?.opacityOverride = 0;
     _table.holdDiscard(plan.previousDiscardTop, pendingTag: tapped);
 
     final card = _ghostCard(tapped, plan.handStart, faceUp: false);
@@ -649,19 +652,37 @@ class HandArea extends PositionComponent {
     required Set<int> peekIndices,
   }) {
     final keep = <PlayingCardComponent>[];
+    final used = <PlayingCardComponent>{};
+    PlayingCardComponent? takeNextUnused() {
+      for (final card in _cards) {
+        if (used.contains(card)) continue;
+        // Discard animations hide the leaving card with opacity 0. Never reuse
+        // that shell for a surviving slot or a neighbor goes invisible.
+        if (card.opacityOverride < 1) continue;
+        return card;
+      }
+      return null;
+    }
     for (final snapshot in cards) {
       PlayingCardComponent? existing;
-      for (final card in _cards) {
-        if (card.cardIndex == snapshot.index) {
-          existing = card;
-          break;
+      if (snapshot.tag != null) {
+        for (final card in _cards) {
+          if (used.contains(card)) continue;
+          if (card.opacityOverride < 1) continue;
+          if (card.tag == snapshot.tag) {
+            existing = card;
+            break;
+          }
         }
       }
+      existing ??= takeNextUnused();
       if (existing != null) {
+        used.add(existing);
         existing.updateFromSnapshot(snapshot, tappable: onTap != null);
         existing.onTap = onTap;
         existing.highlighted = highlight;
         existing.peeking = peekIndices.contains(snapshot.index);
+        existing.opacityOverride = 1;
         keep.add(existing);
       } else {
         final card =
@@ -885,7 +906,7 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     anchor = Anchor.center;
   }
 
-  final int cardIndex;
+  int cardIndex;
   String? _tag;
   bool _visible;
   bool highlighted = false;
@@ -950,6 +971,7 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
   }
 
   void updateFromSnapshot(CardSnapshot snapshot, {required bool tappable}) {
+    cardIndex = snapshot.index;
     final faceChanged = _visible != snapshot.visible || _tag != snapshot.tag;
     _tappable = tappable;
     if (faceChanged) {
