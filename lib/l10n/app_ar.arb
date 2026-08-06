@@ -1,6 +1,6 @@
 {
   "@@locale": "ar",
-  "appTitle": "CardGame",
+  "appTitle": "ShadowHand",
   "authError": "خطأ في المصادقة: {error}",
   "signInToPlay": "سجّل الدخول للعب عبر الإنترنت",
   "continueWithGoogle": "المتابعة مع Google",

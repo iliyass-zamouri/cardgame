@@ -1,6 +1,6 @@
 {
   "@@locale": "fr",
-  "appTitle": "CardGame",
+  "appTitle": "ShadowHand",
   "authError": "Erreur d'auth : {error}",
   "signInToPlay": "Connectez-vous pour jouer en ligne",
   "continueWithGoogle": "Continuer avec Google",

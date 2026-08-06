@@ -1,4 +1,4 @@
-package com.example.cardgame
+package com.hailsom.shadowhand
 
 import io.flutter.embedding.android.FlutterActivity
 

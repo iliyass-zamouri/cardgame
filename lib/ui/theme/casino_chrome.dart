@@ -188,13 +188,15 @@ class CasinoActionButton extends StatelessWidget {
     final enabled = onPressed != null;
     final onTone =
         tone == CasinoActionTone.gold ? CasinoColors.bg : CasinoColors.text;
+    final locale = Localizations.localeOf(context);
     final labelText = Text(
-      casinoButtonLabel(label, Localizations.localeOf(context)),
+      casinoButtonLabel(label, locale),
       style: TextStyle(
+        fontFamily: CasinoFonts.uiFor(locale),
         color: onTone,
         fontWeight: FontWeight.w800,
         fontSize: 15,
-        letterSpacing: 1.1,
+        letterSpacing: locale.languageCode == 'ar' ? 0 : 1.1,
       ),
     );
     final child = AnimatedOpacity(

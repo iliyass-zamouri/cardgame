@@ -9,7 +9,7 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get appTitle => 'CardGame';
+  String get appTitle => 'ShadowHand';
 
   @override
   String authError(String error) {

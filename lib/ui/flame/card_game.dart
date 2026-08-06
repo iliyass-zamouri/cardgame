@@ -42,6 +42,7 @@ class CardGame extends FlameGame {
   String hintReplaceSecond = 'Tap a card on the other hand…';
   String shuffleLabel = 'Shuffle';
   TextDirection uiTextDirection = TextDirection.ltr;
+  String? uiFontFamily;
 
   /// Push localized table copy from the Flutter host.
   void setUiStrings({
@@ -51,6 +52,7 @@ class CardGame extends FlameGame {
     required String hintReplaceSecond,
     required String shuffleLabel,
     required TextDirection textDirection,
+    String? fontFamily,
   }) {
     this.hintPeek = hintPeek;
     this.hintShufflePick = hintShufflePick;
@@ -58,12 +60,16 @@ class CardGame extends FlameGame {
     this.hintReplaceSecond = hintReplaceSecond;
     this.shuffleLabel = shuffleLabel;
     uiTextDirection = textDirection;
+    uiFontFamily = fontFamily;
     if (!_ready) return;
     _localShuffleLabel.label = shuffleLabel;
     _opponentShuffleLabel.label = shuffleLabel;
     _localShuffleLabel.textDirection = textDirection;
     _opponentShuffleLabel.textDirection = textDirection;
+    _localShuffleLabel.fontFamily = fontFamily;
+    _opponentShuffleLabel.fontFamily = fontFamily;
     _table.setHintDirection(textDirection);
+    _table.setHintFontFamily(fontFamily);
     _syncTableHint();
   }
 
@@ -175,11 +181,13 @@ class CardGame extends FlameGame {
       onPressed: () => onQueenShuffle?.call('you'),
       label: shuffleLabel,
       textDirection: uiTextDirection,
+      fontFamily: uiFontFamily,
     )..position = Vector2(size.x * 0.5, size.y * 0.75 - 90);
     _opponentShuffleLabel = _ShufflePickLabel(
       onPressed: () => onQueenShuffle?.call('opponent'),
       label: shuffleLabel,
       textDirection: uiTextDirection,
+      fontFamily: uiFontFamily,
     )..position = Vector2(size.x * 0.5, size.y * 0.25 + 90);
 
     world.addAll([
@@ -197,7 +205,10 @@ class CardGame extends FlameGame {
     _opponentShuffleLabel.label = shuffleLabel;
     _localShuffleLabel.textDirection = uiTextDirection;
     _opponentShuffleLabel.textDirection = uiTextDirection;
+    _localShuffleLabel.fontFamily = uiFontFamily;
+    _opponentShuffleLabel.fontFamily = uiFontFamily;
     _table.setHintDirection(uiTextDirection);
+    _table.setHintFontFamily(uiFontFamily);
     _syncShuffleLabels();
     _applyReplaceFloat();
     final pending = _pending;
@@ -1654,6 +1665,8 @@ class TableArea extends PositionComponent {
   void setHintDirection(TextDirection direction) =>
       _hint.setTextDirection(direction);
 
+  void setHintFontFamily(String? family) => _hint.setFontFamily(family);
+
   void holdDiscard(String? tag, {required String pendingTag}) {
     _holdingDiscard = true;
     _discardHoldTag = tag;
@@ -2434,15 +2447,18 @@ class _TableHintLabel extends PositionComponent {
 
   String? _message;
   TextDirection _textDirection = TextDirection.ltr;
+  String? _fontFamily;
 
   void setTextDirection(TextDirection direction) {
     if (_textDirection == direction) return;
     _textDirection = direction;
-    final message = _message;
-    if (message != null) {
-      final painter = _painter(message)..layout();
-      size = Vector2((painter.width + 8).clamp(80, 320), painter.height + 4);
-    }
+    _relayout();
+  }
+
+  void setFontFamily(String? family) {
+    if (_fontFamily == family) return;
+    _fontFamily = family;
+    _relayout();
   }
 
   void setMessage(String? message) {
@@ -2452,6 +2468,12 @@ class _TableHintLabel extends PositionComponent {
       size = Vector2(1, 1);
       return;
     }
+    _relayout();
+  }
+
+  void _relayout() {
+    final message = _message;
+    if (message == null) return;
     final painter = _painter(message)..layout();
     size = Vector2((painter.width + 8).clamp(80, 320), painter.height + 4);
   }
@@ -2460,11 +2482,12 @@ class _TableHintLabel extends PositionComponent {
     return TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(
-          color: Color(0xFFF2F2F5),
+        style: TextStyle(
+          fontFamily: _fontFamily,
+          color: const Color(0xFFF2F2F5),
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
+          shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 6)],
         ),
       ),
       textDirection: _textDirection,
@@ -2490,6 +2513,7 @@ class _ShufflePickLabel extends PositionComponent with TapCallbacks {
     required this.onPressed,
     this.label = 'Shuffle',
     this.textDirection = TextDirection.ltr,
+    this.fontFamily,
   }) {
     size = Vector2(120, 36);
     anchor = Anchor.center;
@@ -2499,6 +2523,7 @@ class _ShufflePickLabel extends PositionComponent with TapCallbacks {
   final VoidCallback onPressed;
   String label;
   TextDirection textDirection;
+  String? fontFamily;
   bool visible = false;
 
   @override
@@ -2531,11 +2556,12 @@ class _ShufflePickLabel extends PositionComponent with TapCallbacks {
     final painter = TextPainter(
       text: TextSpan(
         text: label,
-        style: const TextStyle(
-          color: Color(0xEEFFFFFF),
+        style: TextStyle(
+          fontFamily: fontFamily,
+          color: const Color(0xEEFFFFFF),
           fontSize: 14,
           fontWeight: FontWeight.w700,
-          shadows: [Shadow(color: Color(0xCC000000), blurRadius: 4)],
+          shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 4)],
         ),
       ),
       textDirection: textDirection,

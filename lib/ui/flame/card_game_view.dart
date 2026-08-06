@@ -2,6 +2,7 @@ import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/card_game.dart';
+import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,6 +44,7 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final locale = Localizations.localeOf(context);
     final snapshot = ref.watch(
       gameSessionProvider.select((state) => state.game),
     );
@@ -66,6 +68,7 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
       hintReplaceSecond: l10n.hintReplaceSecond,
       shuffleLabel: l10n.shuffle,
       textDirection: Directionality.of(context),
+      fontFamily: CasinoFonts.uiFor(locale),
     );
 
     _game.peekSelecting = peekSelecting;

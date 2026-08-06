@@ -31,4 +31,4 @@ Response: `{ playerId, name, username, isNew, authType, linkedFromGuest? }`.
 3. Flutter: set **Web** client ID as `--dart-define=GOOGLE_SERVER_CLIENT_ID=…` (see `.vscode/launch.json`).
 4. iOS: set `GOOGLE_REVERSED_CLIENT_ID` in `ios/Flutter/Debug.xcconfig` and `Release.xcconfig` to the reversed iOS client id (`com.googleusercontent.apps.…`).
 
-Android package id today: `com.example.cardgame`.
+Android package id today: `com.hailsom.shadowhand`.

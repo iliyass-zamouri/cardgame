@@ -58,11 +58,15 @@ flutter:
           weight: 600
         - asset: assets/fonts/DMSans-Bold.ttf
           weight: 700
-    - family: Noto Naskh Arabic
+    - family: Cairo
       fonts:
-        - asset: assets/fonts/NotoNaskhArabic-Regular.ttf
+        - asset: assets/fonts/Cairo-Regular.ttf
           weight: 400
-        - asset: assets/fonts/NotoNaskhArabic-Bold.ttf
+        - asset: assets/fonts/Cairo-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Cairo-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Cairo-Bold.ttf
           weight: 700
     # Keep the old variable file out of the family registration — it renders
     # as .notdef tofu boxes under flutter_test / Impeller.

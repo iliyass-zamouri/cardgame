@@ -18,7 +18,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
-  await ensureCardFontsLoaded();
+  await Future.wait([ensureCardFontsLoaded(), ensureArabicUiFontLoaded()]);
 
   final sessionRepo = await SessionAuthRepository.open();
   final profileRepo = await PlayerProfileRepository.open();
@@ -56,6 +56,16 @@ class MyApp extends ConsumerWidget {
       ],
       onGenerateTitle: (context) => context.l10n.appTitle,
       theme: buildCasinoTheme(locale: locale),
+      builder: (context, child) {
+        return DefaultTextStyle(
+          style: TextStyle(
+            fontFamily: CasinoFonts.uiFor(locale),
+            color: CasinoColors.text,
+            decoration: TextDecoration.none,
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: GameBackground(
         child: sessionAsync.when(
           loading: () => const Center(child: SuitCardLoader(height: 32)),

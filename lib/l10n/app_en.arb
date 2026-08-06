@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "CardGame",
+  "appTitle": "ShadowHand",
   "authError": "Auth error: {error}",
   "@authError": {
     "placeholders": {

@@ -23,17 +23,23 @@ abstract final class CasinoColors {
   static const borderGlow = Color(0xFF3D8B5F);
 }
 
-/// [display] = Cinzel (Latin brand). [ui] = DM Sans. [arabicUi] for Arabic locale.
+/// [display] = Cinzel (Latin brand). [ui] = DM Sans. [arabicUi] = Cairo.
 abstract final class CasinoFonts {
   static const display = 'Cinzel';
   static const ui = 'DM Sans';
-  static const arabicUi = 'Noto Naskh Arabic';
+  static const arabicUi = 'Cairo';
 
   static String uiFor(Locale locale) =>
       locale.languageCode == 'ar' ? arabicUi : ui;
 
   static String displayFor(Locale locale) =>
       locale.languageCode == 'ar' ? arabicUi : display;
+
+  static String uiOf(BuildContext context) =>
+      uiFor(Localizations.localeOf(context));
+
+  static String displayOf(BuildContext context) =>
+      displayFor(Localizations.localeOf(context));
 }
 
 ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {

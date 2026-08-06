@@ -100,7 +100,7 @@ class _AuthProviderButtonState extends State<AuthProviderButton> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: CasinoFonts.ui,
+                    fontFamily: CasinoFonts.uiOf(context),
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                     letterSpacing: 0.3,
