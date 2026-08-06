@@ -1,3 +1,4 @@
+import 'package:cardgame/ads/interstitial_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
@@ -77,7 +78,13 @@ class StartGameWidget extends ConsumerWidget {
                   tone: CasinoActionTone.raise,
                   expanded: false,
                   height: 58,
-                  onPressed: connected ? notifier.findMatch : null,
+                  onPressed:
+                      connected
+                          ? () async {
+                            await ref.read(interstitialAdProvider).show();
+                            notifier.findMatch();
+                          }
+                          : null,
                 ),
               ),
               const SizedBox(height: 12),

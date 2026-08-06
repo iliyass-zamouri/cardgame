@@ -1,3 +1,5 @@
+import 'package:cardgame/ads/ad_ids.dart';
+import 'package:cardgame/ads/interstitial_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/locale_provider.dart';
 import 'package:cardgame/app/locale_repository.dart';
@@ -13,10 +15,14 @@ import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (AdIds.isSupported) {
+    await MobileAds.instance.initialize();
+  }
   await Hive.initFlutter();
   await Future.wait([ensureCardFontsLoaded(), ensureArabicUiFontLoaded()]);
 
@@ -41,6 +47,7 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.read(interstitialAdProvider).preload();
     final sessionAsync = ref.watch(sessionAuthProvider);
     final locale = ref.watch(localeProvider);
 

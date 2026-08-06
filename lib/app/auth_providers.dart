@@ -53,6 +53,7 @@ class SessionAuthNotifier extends AsyncNotifier<SessionAuthStatus> {
     } on Object {
       // Best-effort.
     }
+    await ref.read(playerProfileProvider.notifier).clear();
     const next = SessionAuthStatus.signedOut;
     state = const AsyncData(next);
     await _repo.save(next);
@@ -86,19 +87,22 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
   }
 
   Future<void> applyIdentity(ServerIdentity identity) async {
+    // Wait for initial build() so its empty Hive load cannot overwrite us.
+    await future;
     final next = PlayerProfile(
       playerId: identity.playerId,
       name: identity.name,
       username: identity.username,
       authType: identity.authType,
     );
-    state = AsyncData(next);
     await _repo.save(next);
+    state = AsyncData(next);
   }
 
   Future<void> clear() async {
-    state = const AsyncData(PlayerProfile.empty);
+    await future;
     await _repo.clear();
+    state = const AsyncData(PlayerProfile.empty);
   }
 }
 

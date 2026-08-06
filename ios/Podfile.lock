@@ -12,6 +12,12 @@ PODS:
     - PromisesSwift (~> 2.4)
     - RecaptchaInterop (~> 101.0)
   - Flutter (1.0.0)
+  - Google-Mobile-Ads-SDK (12.14.0):
+    - GoogleUserMessagingPlatform (>= 1.1)
+  - google_mobile_ads (7.0.0):
+    - Flutter
+    - Google-Mobile-Ads-SDK (~> 12.14.0)
+    - webview_flutter_wkwebview
   - google_sign_in_ios (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -22,6 +28,7 @@ PODS:
     - AppCheckCore (~> 11.0)
     - GTMAppAuth (~> 5.0)
     - GTMSessionFetcher/Core (~> 3.3)
+  - GoogleUserMessagingPlatform (3.1.0)
   - GoogleUtilities/Environment (8.1.2):
     - GoogleUtilities/Privacy
   - GoogleUtilities/Logger (8.1.2):
@@ -46,17 +53,24 @@ PODS:
   - PromisesSwift (2.4.1):
     - PromisesObjC (= 2.4.1)
   - RecaptchaInterop (101.0.0)
+  - webview_flutter_wkwebview (0.0.1):
+    - Flutter
+    - FlutterMacOS
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - google_mobile_ads (from `.symlinks/plugins/google_mobile_ads/ios`)
   - google_sign_in_ios (from `.symlinks/plugins/google_sign_in_ios/darwin`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
 
 SPEC REPOS:
   trunk:
     - AppAuth
     - AppCheckCore
+    - Google-Mobile-Ads-SDK
     - GoogleSignIn
+    - GoogleUserMessagingPlatform
     - GoogleUtilities
     - GTMAppAuth
     - GTMSessionFetcher
@@ -67,17 +81,24 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  google_mobile_ads:
+    :path: ".symlinks/plugins/google_mobile_ads/ios"
   google_sign_in_ios:
     :path: ".symlinks/plugins/google_sign_in_ios/darwin"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  webview_flutter_wkwebview:
+    :path: ".symlinks/plugins/webview_flutter_wkwebview/darwin"
 
 SPEC CHECKSUMS:
   AppAuth: ef4da5a3fc2e10b90c09a0a94a9baeaedc0341d5
   AppCheckCore: e215d35177a9cf469927863e69c13e220df32a8b
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  Google-Mobile-Ads-SDK: 4534fd2dfcd3f705c5485a6633c5188d03d4eed2
+  google_mobile_ads: df3008bafbe1f2ad6862f87334e560d2f047f902
   google_sign_in_ios: 000870aa06da9b28d1d0bf7ef70ff0213059dd28
   GoogleSignIn: e449a40a92e9f2eea56e98b5214d13725dc5a00a
+  GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   GoogleUtilities: 766ace00c6b10d8148408f329d10c4f051931850
   GTMAppAuth: 217a876b249c3c585a54fd6f73e6b58c4f5c4238
   GTMSessionFetcher: 5aea5ba6bd522a239e236100971f10cb71b96ab6
@@ -85,6 +106,7 @@ SPEC CHECKSUMS:
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
+  webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d
 
 PODFILE CHECKSUM: 787355b58dd26b8943a6f87cf34b8b25f0744496
 

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cardgame/ads/interstitial_ad_service.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
@@ -382,11 +385,27 @@ class _LobbySeat extends StatelessWidget {
   }
 }
 
-class GameBoard extends ConsumerWidget {
+class GameBoard extends ConsumerStatefulWidget {
   const GameBoard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GameBoard> createState() => _GameBoardState();
+}
+
+class _GameBoardState extends ConsumerState<GameBoard> {
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<bool>(
+      gameSessionProvider.select(
+        (state) => state.game?.status == GameStatus.ended,
+      ),
+      (previous, ended) {
+        if (ended && previous != true) {
+          unawaited(ref.read(interstitialAdProvider).show());
+        }
+      },
+    );
+
     final ended = ref.watch(
       gameSessionProvider.select(
         (state) => state.game?.status == GameStatus.ended,
