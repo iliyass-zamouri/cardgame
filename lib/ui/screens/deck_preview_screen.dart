@@ -1,4 +1,5 @@
 import 'package:cardgame/ui/flame/card_game.dart';
+import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
@@ -20,7 +21,18 @@ class DeckPreviewScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final tags = _tags;
     return Scaffold(
-      appBar: AppBar(title: const Text('Deck')),
+      backgroundColor: CasinoColors.bg,
+      appBar: AppBar(
+        backgroundColor: CasinoColors.surface,
+        foregroundColor: CasinoColors.text,
+        title: const Text(
+          'Deck',
+          style: TextStyle(
+            color: CasinoColors.gold,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
       body: GridView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: tags.length,

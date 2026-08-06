@@ -17,7 +17,6 @@ import 'package:flutter/painting.dart';
 typedef CardTapCallback = void Function(int cardIndex);
 typedef VoidGameCallback = void Function();
 
-
 class CardGame extends FlameGame {
   CardTapCallback? onTapCard;
   VoidGameCallback? onDraw;
@@ -109,7 +108,6 @@ class CardGame extends FlameGame {
     if (snapshot.version == _lastVersion && _snapshot != null) return;
     final previous = _snapshot;
     final action = previous == null ? null : _planAction(previous, snapshot);
-
 
     if (action != null) {
       _lastVersion = snapshot.version;
@@ -663,6 +661,7 @@ class HandArea extends PositionComponent {
       }
       return null;
     }
+
     for (final snapshot in cards) {
       PlayingCardComponent? existing;
       if (snapshot.tag != null) {
@@ -1179,12 +1178,7 @@ class _CardArt {
       maxWidth: w * 0.17,
     );
     // Same filled suit mark as pip cards.
-    _paintSuit(
-      canvas,
-      meta,
-      w * 0.115,
-      Offset(centerX, h * 0.212),
-    );
+    _paintSuit(canvas, meta, w * 0.115, Offset(centerX, h * 0.212));
   }
 
   /// Joker: SVG face in the centre, with JOKER running down both edges
@@ -1259,18 +1253,14 @@ class _CardArt {
   /// Classic court layout: SVG figure (both halves included) inside a broken
   /// L-frame. Indices/suits stay from `_paintIndex`.
   static void _paintCourt(Canvas canvas, double w, double h, _CardMeta meta) {
-    final frame = Rect.fromLTRB(
-      w * 0.0884,
-      h * 0.0505,
-      w * 0.9116,
-      h * 0.9495,
-    );
-    final line = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.011
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round
-      ..color = meta.color;
+    final frame = Rect.fromLTRB(w * 0.0884, h * 0.0505, w * 0.9116, h * 0.9495);
+    final line =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w * 0.011
+          ..strokeJoin = StrokeJoin.round
+          ..strokeCap = StrokeCap.round
+          ..color = meta.color;
     final fill = Paint()..color = meta.color;
 
     // Broken L-frame: open at the index corners (top-left / bottom-right).

@@ -1,8 +1,8 @@
-import 'package:cardgame/gen/assets.gen.dart';
+import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
 
-const int _backgroundDecodeWidth = 1080;
-
+/// Dark charcoal stage behind the oval table — matches the screenshot, not a
+/// full-bleed felt photo.
 class GameBackground extends StatelessWidget {
   final Widget child;
   const GameBackground({super.key, required this.child});
@@ -10,13 +10,15 @@ class GameBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: ResizeImage(
-            Assets.table.provider(),
-            width: _backgroundDecodeWidth,
-          ),
-          fit: BoxFit.fitHeight,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF101014),
+            CasinoColors.bg,
+            Color(0xFF070709),
+          ],
         ),
       ),
       child: child,
