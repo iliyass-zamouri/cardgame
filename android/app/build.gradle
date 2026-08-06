@@ -26,7 +26,7 @@ apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
-    namespace 'com.example.cardgame'
+    namespace 'com.hailsom.shadowhand'
     compileSdkVersion 35
 
     compileOptions {
@@ -43,7 +43,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.cardgame"
+        applicationId "com.hailsom.shadowhand"
         minSdkVersion 21
         targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()

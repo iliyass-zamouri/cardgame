@@ -1,16 +1,34 @@
-# cardgame
+# Shadow Hand
 
-A new Flutter project.
+Flame + Riverpod client, unified Node backend (`cardgame` Docker service).
 
-## Getting Started
+## Layout
 
-This project is a starting point for a Flutter application.
+| Path | Role |
+|---|---|
+| `lib/` | Flutter client (Flame + Riverpod + Camo design) |
+| `packages/game_protocol` | Shared wire contract (Dart) |
+| `server/` | Node REST + WS `/ws` on `:8080` |
+| `docker-compose.yml` | MySQL + **`cardgame`** service |
+| `docs/DESIGN_SYSTEM.md` | Camo visual system |
+| `docs/ACCEPTANCE_MATRIX.md` | Release gates |
+| `docs/DEPLOY.md` | Deploy runbook |
 
-A few resources to get you started if this is your first Flutter project:
+## Run backend
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
+```bash
+cp server/.env.example server/.env
+docker compose up -d --build
+curl http://127.0.0.1:8080/healthz
+cd server && npm run test:parity && npm run test:smoke
+```
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Run client
+
+```bash
+fvm flutter pub get
+fvm flutter run --dart-define=BASE_URL=http://127.0.0.1:8080
+fvm flutter run --dart-define=ONLINE_MP=false
+```
+
+VM: `84.8.222.159:8080` — `server/scripts/deploy_vm.sh`

@@ -1,0 +1,26 @@
+{
+  "name": "cardgame",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Authoritative Shadow Hand server (REST + WebSocket + MySQL)",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node src/migrations/migrate.js",
+    "test:parity": "node scripts/parity_check.js",
+    "test:smoke": "node scripts/ws_smoke.js",
+    "db:up": "docker compose up -d mysql",
+    "db:down": "docker compose down"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.6.1",
+    "jose": "^6.2.4",
+    "mysql2": "^3.14.3",
+    "ws": "^8.18.3"
+  }
+}

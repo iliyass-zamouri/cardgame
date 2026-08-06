@@ -1,0 +1,45 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-cardgame}
+      MYSQL_USER: ${MYSQL_USER:-cardgame}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-cardgame}
+    volumes:
+      - cardgame_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  cardgame:
+    build: .
+    container_name: cardgame
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      PORT: 8080
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-cardgame}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-cardgame}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-cardgame}
+      JWT_SECRET: ${JWT_SECRET:-dev-cardgame-secret-change-me}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 25s
+
+volumes:
+  cardgame_mysql:

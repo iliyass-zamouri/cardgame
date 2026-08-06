@@ -1,0 +1,15 @@
+[Unit]
+Description=Shadow Hand cardgame backend
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/cardgame
+ExecStart=/usr/bin/docker compose up -d cardgame mysql
+ExecStop=/usr/bin/docker compose stop cardgame
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
