@@ -263,3 +263,282 @@ test('end computes scores on server and reveals cards', () => {
   assert.equal(snapshot.you.cards[0].tag, 'A5');
   assert.equal(snapshot.opponent.cards[0].tag, 'B6');
 });
+
+test('drawing a Jack enables private peek for drawer only', () => {
+  const room = startedRoom();
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  const spectatorId = room.players[1 - room.turnIndex].id;
+  room.deck.push('A11');
+
+  room.draw(player.id);
+  const snapshot = room.snapshotFor(player.id);
+  const spectator = room.snapshotFor(spectatorId);
+
+  assert.equal(snapshot.you.handCard, 'A11');
+  assert.equal(snapshot.you.jackPeekAvailable, true);
+  assert.equal(spectator.you.jackPeekAvailable, false);
+  assert.equal(spectator.opponent.jackPeekAvailable, false);
+});
+
+test('jack peek reveals own card privately', () => {
+  const room = startedRoom();
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  const spectatorId = room.players[1 - room.turnIndex].id;
+  player.cards = ['A5', 'B8'];
+  player.handCard = 'C11';
+  player.jackPeekAvailable = true;
+
+  room.jackPeek(player.id, { side: 'you', cardIndex: 1 });
+  const snapshot = room.snapshotFor(player.id);
+  const spectator = room.snapshotFor(spectatorId);
+
+  assert.equal(snapshot.you.cards[1].visible, true);
+  assert.equal(snapshot.you.cards[1].tag, 'B8');
+  assert.equal(snapshot.you.jackPeekAvailable, false);
+  assert.deepEqual(snapshot.lastAction, {
+    actor: 'you',
+    type: 'jackPeek',
+    cardIndex: 1,
+    cardTag: null,
+    drawnTag: null,
+    side: 'you',
+  });
+  assert.equal(spectator.opponent.cards[1].visible, false);
+  assert.equal(spectator.opponent.cards[1].tag, null);
+  assert.deepEqual(spectator.lastAction, {
+    actor: 'opponent',
+    type: 'jackPeek',
+    cardIndex: 1,
+    cardTag: null,
+    drawnTag: null,
+    side: 'you',
+  });
+});
+
+test('jack peek reveals opponent card privately', () => {
+  const room = startedRoom();
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  const opponent = room.players[1 - room.turnIndex];
+  player.cards = ['A5', 'B8'];
+  player.handCard = 'C11';
+  player.jackPeekAvailable = true;
+  opponent.cards = ['D3', 'A7'];
+
+  room.jackPeek(player.id, { side: 'opponent', cardIndex: 0 });
+  const snapshot = room.snapshotFor(player.id);
+  const spectator = room.snapshotFor(opponent.id);
+
+  assert.equal(snapshot.opponent.cards[0].visible, true);
+  assert.equal(snapshot.opponent.cards[0].tag, 'D3');
+  assert.equal(spectator.you.cards[0].visible, false);
+  assert.equal(spectator.you.cards[0].tag, null);
+  assert.equal(spectator.lastAction.side, 'opponent');
+  assert.equal(spectator.lastAction.cardTag, null);
+});
+
+test('jack peek rejects without Jack, after use, and while peek in progress', () => {
+  const room = startedRoom();
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  player.cards = ['A5', 'B8'];
+  player.handCard = 'D9';
+  player.jackPeekAvailable = false;
+
+  assert.throws(
+    () => room.jackPeek(player.id, { side: 'you', cardIndex: 0 }),
+    (error) => error instanceof GameRuleError && error.code === 'no_jack',
+  );
+
+  player.handCard = 'C11';
+  player.jackPeekAvailable = true;
+  room.jackPeek(player.id, { side: 'you', cardIndex: 0 });
+  assert.throws(
+    () => room.jackPeek(player.id, { side: 'you', cardIndex: 1 }),
+    (error) =>
+      error instanceof GameRuleError && error.code === 'peek_in_progress',
+  );
+  assert.throws(
+    () => room.throwHand(player.id),
+    (error) =>
+      error instanceof GameRuleError && error.code === 'peek_in_progress',
+  );
+  assert.throws(
+    () => room.tapCard(player.id, 1),
+    (error) =>
+      error instanceof GameRuleError && error.code === 'peek_in_progress',
+  );
+  room.dispose();
+});
+
+test('jack peek auto-throws Jack when peek ends', async () => {
+  const room = new GameRoom('TEST01', { random: () => 0.25, peekDurationMs: 20 });
+  room.addPlayer('p1');
+  room.addPlayer('p2');
+  room.start('p1');
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  const spectatorId = room.players[1 - room.turnIndex].id;
+  player.cards = ['A5', 'B8'];
+  player.handCard = 'C11';
+  player.jackPeekAvailable = true;
+
+  room.jackPeek(player.id, { side: 'you', cardIndex: 0 });
+  assert.equal(room.snapshotFor(player.id).you.hasHandCard, true);
+
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  const snapshot = room.snapshotFor(player.id);
+  const spectator = room.snapshotFor(spectatorId);
+  assert.equal(snapshot.you.hasHandCard, false);
+  assert.equal(snapshot.you.jackPeekAvailable, false);
+  assert.equal(snapshot.discardTop, 'C11');
+  assert.equal(snapshot.discardSource, 'drawn');
+  assert.deepEqual(snapshot.lastAction, {
+    actor: 'you',
+    type: 'throw',
+    cardIndex: null,
+    cardTag: 'C11',
+    drawnTag: null,
+  });
+  assert.equal(spectator.lastAction.type, 'throw');
+  assert.equal(spectator.lastAction.cardTag, 'C11');
+  assert.equal(snapshot.you.cards[0].visible, false);
+  room.dispose();
+});
+
+test('drawing a Queen enables ability for drawer only', () => {
+  const room = startedRoom();
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  const spectatorId = room.players[1 - room.turnIndex].id;
+  room.deck.push('A12');
+
+  room.draw(player.id);
+  const snapshot = room.snapshotFor(player.id);
+  const spectator = room.snapshotFor(spectatorId);
+
+  assert.equal(snapshot.you.handCard, 'A12');
+  assert.equal(snapshot.you.queenAbilityAvailable, true);
+  assert.equal(snapshot.you.jackPeekAvailable, false);
+  assert.equal(spectator.you.queenAbilityAvailable, false);
+  assert.equal(spectator.opponent.queenAbilityAvailable, false);
+});
+
+test('queen shuffle reorders target hand and auto-throws', async () => {
+  const room = new GameRoom('TEST01', {
+    random: () => 0.1,
+    queenShuffleDurationMs: 20,
+  });
+  room.addPlayer('p1');
+  room.addPlayer('p2');
+  room.start('p1');
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  player.cards = ['A1', 'B2', 'C3', 'D4'];
+  player.handCard = 'A12';
+  player.queenAbilityAvailable = true;
+  const before = [...player.cards];
+
+  room.queenShuffle(player.id, { side: 'you' });
+  const mid = room.snapshotFor(player.id);
+  assert.equal(mid.you.queenAbilityAvailable, false);
+  assert.equal(mid.lastAction.type, 'queenShuffle');
+  assert.equal(mid.lastAction.side, 'you');
+  assert.equal(mid.you.hasHandCard, true);
+  assert.notDeepEqual(
+    mid.you.cards.map((card) => card.index),
+    [],
+  );
+  // Order may change; tags stay hidden but underlying cards shuffled.
+  assert.notDeepEqual(player.cards, before);
+
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const after = room.snapshotFor(player.id);
+  assert.equal(after.you.hasHandCard, false);
+  assert.equal(after.discardTop, 'A12');
+  assert.equal(after.lastAction.type, 'throw');
+  room.dispose();
+});
+
+test('queen replace swaps cross-player cards and auto-throws', async () => {
+  const room = new GameRoom('TEST01', {
+    random: () => 0.25,
+    queenReplaceDurationMs: 20,
+  });
+  room.addPlayer('p1');
+  room.addPlayer('p2');
+  room.start('p1');
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  const opponent = room.players[1 - room.turnIndex];
+  player.cards = ['A5', 'B8'];
+  opponent.cards = ['C3', 'D7'];
+  player.handCard = 'B12';
+  player.queenAbilityAvailable = true;
+
+  room.queenReplace(player.id, { youIndex: 0, opponentIndex: 1 });
+  assert.equal(player.cards[0], 'D7');
+  assert.equal(opponent.cards[1], 'A5');
+  const mid = room.snapshotFor(player.id);
+  assert.equal(mid.lastAction.type, 'queenReplace');
+  assert.equal(mid.lastAction.youIndex, 0);
+  assert.equal(mid.lastAction.opponentIndex, 1);
+  assert.equal(mid.lastAction.cardTag, null);
+  assert.equal(mid.you.hasHandCard, true);
+
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const after = room.snapshotFor(player.id);
+  assert.equal(after.you.hasHandCard, false);
+  assert.equal(after.discardTop, 'B12');
+  room.dispose();
+});
+
+test('queen ability rejects without Queen, after use, and during lock', () => {
+  const room = startedRoom();
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  player.cards = ['A5', 'B8', 'C3'];
+  player.handCard = 'D9';
+  player.queenAbilityAvailable = false;
+
+  assert.throws(
+    () => room.queenShuffle(player.id, { side: 'you' }),
+    (error) => error instanceof GameRuleError && error.code === 'no_queen',
+  );
+
+  player.handCard = 'C12';
+  player.queenAbilityAvailable = true;
+  room.queenShuffle(player.id, { side: 'you' });
+  assert.throws(
+    () => room.queenReplace(player.id, { youIndex: 0, opponentIndex: 0 }),
+    (error) =>
+      error instanceof GameRuleError && error.code === 'queen_in_progress',
+  );
+  assert.throws(
+    () => room.throwHand(player.id),
+    (error) =>
+      error instanceof GameRuleError && error.code === 'queen_in_progress',
+  );
+  room.dispose();
+});

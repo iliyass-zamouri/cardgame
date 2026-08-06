@@ -28,6 +28,15 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
     _game.onTapCard = session.tapCard;
     _game.onDraw = session.drawCard;
     _game.onThrowHand = session.throwHandCard;
+    _game.onJackPeek = (side, cardIndex) {
+      session.jackPeek(side: side, cardIndex: cardIndex);
+    };
+    _game.onQueenShuffle = (side) {
+      session.queenShuffle(side: side);
+    };
+    _game.onQueenReplaceSelect = (side, cardIndex) {
+      session.selectReplaceCard(side: side, cardIndex: cardIndex);
+    };
   }
 
   @override
@@ -35,6 +44,22 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
     final snapshot = ref.watch(
       gameSessionProvider.select((state) => state.game),
     );
+    final peekSelecting = ref.watch(
+      gameSessionProvider.select((state) => state.peekSelecting),
+    );
+    final queenMode = ref.watch(
+      gameSessionProvider.select((state) => state.queenMode),
+    );
+    final replaceSide = ref.watch(
+      gameSessionProvider.select((state) => state.replaceFirstSide),
+    );
+    final replaceIndex = ref.watch(
+      gameSessionProvider.select((state) => state.replaceFirstIndex),
+    );
+
+    _game.peekSelecting = peekSelecting;
+    _game.queenMode = queenMode;
+    _game.setReplaceSelection(side: replaceSide, index: replaceIndex);
 
     if (snapshot != null &&
         (snapshot.status == GameStatus.playing ||

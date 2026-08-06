@@ -8,10 +8,19 @@ class GameRuleError extends Error {
 }
 
 class GameRoom {
-  constructor(id, { random = Math.random, onChange = () => {} } = {}) {
+  constructor(id, {
+    random = Math.random,
+    onChange = () => {},
+    peekDurationMs = 3500,
+    queenShuffleDurationMs = 1200,
+    queenReplaceDurationMs = 1400,
+  } = {}) {
     this.id = id;
     this.random = random;
     this.onChange = onChange;
+    this.peekDurationMs = peekDurationMs;
+    this.queenShuffleDurationMs = queenShuffleDurationMs;
+    this.queenReplaceDurationMs = queenReplaceDurationMs;
     this.version = 0;
     this.status = 'waiting';
     this.players = [];
@@ -22,6 +31,8 @@ class GameRoom {
     this.lastAction = null;
     this.discardSource = null;
     this.launchTimers = new Map();
+    this.activePeek = null;
+    this.activeQueenAbility = null;
   }
 
   addPlayer(clientId) {
@@ -41,6 +52,8 @@ class GameRoom {
       handCard: null,
       launch: 'notLaunched',
       total: 0,
+      jackPeekAvailable: false,
+      queenAbilityAvailable: false,
     };
     this.players.push(player);
     this.#changed();
@@ -52,6 +65,8 @@ class GameRoom {
     if (index < 0) return;
     clearTimeout(this.launchTimers.get(clientId));
     this.launchTimers.delete(clientId);
+    this.#clearActivePeek();
+    this.#clearActiveQueenAbility();
     this.players.splice(index, 1);
     this.status = 'waiting';
     this.deck = [];
@@ -65,6 +80,8 @@ class GameRoom {
       player.handCard = null;
       player.launch = 'notLaunched';
       player.total = 0;
+      player.jackPeekAvailable = false;
+      player.queenAbilityAvailable = false;
     });
     this.#changed();
   }
@@ -90,6 +107,8 @@ class GameRoom {
       player.handCard = null;
       player.launch = 'notLaunched';
       player.total = 0;
+      player.jackPeekAvailable = false;
+      player.queenAbilityAvailable = false;
     });
     for (let round = 0; round < 4; round += 1) {
       this.players.forEach((player) => player.cards.push(this.deck.pop()));
@@ -126,6 +145,9 @@ class GameRoom {
       throw new GameRuleError('deck_empty', 'No cards available');
     }
     player.handCard = this.deck.pop();
+    const value = cardValue(player.handCard);
+    player.jackPeekAvailable = value === 11;
+    player.queenAbilityAvailable = value === 12;
     this.lastAction = {
       playerId: clientId,
       type: 'draw',
@@ -135,8 +157,126 @@ class GameRoom {
     this.#changed();
   }
 
+  jackPeek(clientId, { side, cardIndex } = {}) {
+    this.#requireAction(clientId);
+    this.#requireNoAbilityLock(clientId);
+    const player = this.#requirePlayer(clientId);
+    if (!player.handCard || cardValue(player.handCard) !== 11) {
+      throw new GameRuleError('no_jack', 'Jack peek requires a drawn Jack');
+    }
+    if (!player.jackPeekAvailable) {
+      throw new GameRuleError('peek_used', 'Jack peek already used');
+    }
+    if (side !== 'you' && side !== 'opponent') {
+      throw new GameRuleError('invalid_side', 'Peek side must be you or opponent');
+    }
+    const viewerIndex = this.players.findIndex((entry) => entry.id === clientId);
+    const targetPlayer = side === 'you'
+      ? player
+      : this.players[1 - viewerIndex];
+    const index = Number(cardIndex);
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= targetPlayer.cards.length
+    ) {
+      throw new GameRuleError('invalid_card', 'Card index is invalid');
+    }
+
+    player.jackPeekAvailable = false;
+    this.#clearActivePeek();
+    this.activePeek = {
+      viewerId: clientId,
+      side,
+      cardIndex: index,
+      tag: targetPlayer.cards[index],
+      timer: null,
+    };
+    this.activePeek.timer = setTimeout(() => {
+      this.#resolveJackPeek();
+    }, this.peekDurationMs);
+    this.lastAction = {
+      playerId: clientId,
+      type: 'jackPeek',
+      cardIndex: index,
+      side,
+    };
+    this.discardSource = null;
+    this.#changed();
+  }
+
+  queenShuffle(clientId, { side } = {}) {
+    this.#requireAction(clientId);
+    this.#requireNoAbilityLock(clientId);
+    const player = this.#requireQueenAbility(clientId);
+    if (side !== 'you' && side !== 'opponent') {
+      throw new GameRuleError('invalid_side', 'Shuffle side must be you or opponent');
+    }
+    const viewerIndex = this.players.findIndex((entry) => entry.id === clientId);
+    const targetPlayer = side === 'you'
+      ? player
+      : this.players[1 - viewerIndex];
+    if (targetPlayer.cards.length < 2) {
+      throw new GameRuleError('cannot_shuffle', 'Not enough cards to shuffle');
+    }
+
+    player.queenAbilityAvailable = false;
+    player.jackPeekAvailable = false;
+    targetPlayer.cards = shuffle(targetPlayer.cards, this.random);
+    this.lastAction = {
+      playerId: clientId,
+      type: 'queenShuffle',
+      cardIndex: null,
+      side,
+    };
+    this.discardSource = null;
+    this.#startQueenAbilityLock(clientId, this.queenShuffleDurationMs);
+    this.#changed();
+  }
+
+  queenReplace(clientId, { youIndex, opponentIndex } = {}) {
+    this.#requireAction(clientId);
+    this.#requireNoAbilityLock(clientId);
+    const player = this.#requireQueenAbility(clientId);
+    const viewerIndex = this.players.findIndex((entry) => entry.id === clientId);
+    const opponent = this.players[1 - viewerIndex];
+    const ownIndex = Number(youIndex);
+    const oppIndex = Number(opponentIndex);
+    if (
+      !Number.isInteger(ownIndex) ||
+      ownIndex < 0 ||
+      ownIndex >= player.cards.length
+    ) {
+      throw new GameRuleError('invalid_card', 'Your card index is invalid');
+    }
+    if (
+      !Number.isInteger(oppIndex) ||
+      oppIndex < 0 ||
+      oppIndex >= opponent.cards.length
+    ) {
+      throw new GameRuleError('invalid_card', 'Opponent card index is invalid');
+    }
+
+    player.queenAbilityAvailable = false;
+    player.jackPeekAvailable = false;
+    const ownTag = player.cards[ownIndex];
+    player.cards[ownIndex] = opponent.cards[oppIndex];
+    opponent.cards[oppIndex] = ownTag;
+    this.lastAction = {
+      playerId: clientId,
+      type: 'queenReplace',
+      cardIndex: ownIndex,
+      youIndex: ownIndex,
+      opponentIndex: oppIndex,
+    };
+    this.discardSource = null;
+    this.#startQueenAbilityLock(clientId, this.queenReplaceDurationMs);
+    this.#changed();
+  }
+
   tapCard(clientId, cardIndex) {
     this.#requireAction(clientId);
+    this.#requireNoAbilityLock(clientId);
     const player = this.#requirePlayer(clientId);
     const index = Number(cardIndex);
     if (!Number.isInteger(index) || index < 0 || index >= player.cards.length) {
@@ -198,26 +338,19 @@ class GameRoom {
       };
     }
     player.handCard = null;
+    player.jackPeekAvailable = false;
+    player.queenAbilityAvailable = false;
     this.#advanceTurn();
   }
 
   throwHand(clientId) {
     this.#requireAction(clientId);
+    this.#requireNoAbilityLock(clientId);
     const player = this.#requirePlayer(clientId);
     if (!player.handCard) {
       throw new GameRuleError('no_hand_card', 'Draw a card first');
     }
-    const cardTag = player.handCard;
-    this.lastAction = {
-      playerId: clientId,
-      type: 'throw',
-      cardIndex: null,
-      cardTag,
-    };
-    this.discardSource = 'drawn';
-    this.discard.push(cardTag);
-    player.handCard = null;
-    this.#advanceTurn();
+    this.#throwDrawnCard(player);
   }
 
   end(clientId) {
@@ -246,8 +379,8 @@ class GameRoom {
       turn: this.turnIndex === null
         ? null
         : this.turnIndex === viewerIndex ? 'you' : 'opponent',
-      you: viewer ? this.#playerView(viewer, true, showAll) : null,
-      opponent: opponent ? this.#playerView(opponent, false, showAll) : null,
+      you: viewer ? this.#playerView(viewer, true, showAll, clientId) : null,
+      opponent: opponent ? this.#playerView(opponent, false, showAll, clientId) : null,
       result: this.result,
       discardSource: this.discardSource,
       lastAction: this.lastAction
@@ -257,6 +390,13 @@ class GameRoom {
           cardIndex: this.lastAction.cardIndex,
           cardTag: this.lastAction.cardTag ?? null,
           drawnTag: this.lastAction.drawnTag ?? null,
+          ...(this.lastAction.side != null ? { side: this.lastAction.side } : {}),
+          ...(this.lastAction.youIndex != null
+            ? { youIndex: this.lastAction.youIndex }
+            : {}),
+          ...(this.lastAction.opponentIndex != null
+            ? { opponentIndex: this.lastAction.opponentIndex }
+            : {}),
         }
         : null,
     };
@@ -266,18 +406,25 @@ class GameRoom {
     this.#clearTimers();
   }
 
-  #playerView(player, isSelf, showAll) {
+  #playerView(player, isSelf, showAll, viewerId = null) {
+    const peek = this.activePeek;
+    const peekForViewer = Boolean(peek && peek.viewerId === viewerId);
     return {
       connected: player.connected,
       launch: player.launch,
       total: player.total,
       cards: player.cards.map((tag, index) => {
         const initialReveal = isSelf && player.launch === 'launched' && index < 2;
-        const visible = showAll || initialReveal;
+        const jackPeekReveal = peekForViewer
+          && peek.cardIndex === index
+          && ((peek.side === 'you' && isSelf) || (peek.side === 'opponent' && !isSelf));
+        const visible = Boolean(showAll || initialReveal || jackPeekReveal);
         return { index, tag: visible ? tag : null, visible };
       }),
       handCard: isSelf && player.handCard ? player.handCard : null,
       hasHandCard: Boolean(player.handCard),
+      jackPeekAvailable: isSelf ? Boolean(player.jackPeekAvailable) : false,
+      queenAbilityAvailable: isSelf ? Boolean(player.queenAbilityAvailable) : false,
     };
   }
 
@@ -354,9 +501,91 @@ class GameRoom {
     this.onChange(this);
   }
 
+  #requireNoAbilityLock(clientId) {
+    if (this.activePeek?.viewerId === clientId) {
+      throw new GameRuleError('peek_in_progress', 'Wait for peek to finish');
+    }
+    if (this.activeQueenAbility?.viewerId === clientId) {
+      throw new GameRuleError('queen_in_progress', 'Wait for Queen ability to finish');
+    }
+  }
+
+  #requireQueenAbility(clientId) {
+    const player = this.#requirePlayer(clientId);
+    if (!player.handCard || cardValue(player.handCard) !== 12) {
+      throw new GameRuleError('no_queen', 'Queen ability requires a drawn Queen');
+    }
+    if (!player.queenAbilityAvailable) {
+      throw new GameRuleError('queen_used', 'Queen ability already used');
+    }
+    return player;
+  }
+
+  #startQueenAbilityLock(clientId, durationMs) {
+    this.#clearActiveQueenAbility();
+    this.activeQueenAbility = {
+      viewerId: clientId,
+      timer: setTimeout(() => {
+        this.#resolveQueenAbility();
+      }, durationMs),
+    };
+  }
+
+  #throwDrawnCard(player) {
+    const cardTag = player.handCard;
+    this.lastAction = {
+      playerId: player.id,
+      type: 'throw',
+      cardIndex: null,
+      cardTag,
+    };
+    this.discardSource = 'drawn';
+    this.discard.push(cardTag);
+    player.handCard = null;
+    player.jackPeekAvailable = false;
+    player.queenAbilityAvailable = false;
+    this.#advanceTurn();
+  }
+
+  #resolveJackPeek() {
+    const peek = this.activePeek;
+    this.#clearActivePeek();
+    if (!peek) return;
+    const player = this.#player(peek.viewerId);
+    if (!player?.handCard) {
+      this.#changed();
+      return;
+    }
+    this.#throwDrawnCard(player);
+  }
+
+  #resolveQueenAbility() {
+    const ability = this.activeQueenAbility;
+    this.#clearActiveQueenAbility();
+    if (!ability) return;
+    const player = this.#player(ability.viewerId);
+    if (!player?.handCard) {
+      this.#changed();
+      return;
+    }
+    this.#throwDrawnCard(player);
+  }
+
+  #clearActivePeek() {
+    if (this.activePeek?.timer) clearTimeout(this.activePeek.timer);
+    this.activePeek = null;
+  }
+
+  #clearActiveQueenAbility() {
+    if (this.activeQueenAbility?.timer) clearTimeout(this.activeQueenAbility.timer);
+    this.activeQueenAbility = null;
+  }
+
   #clearTimers() {
     this.launchTimers.forEach(clearTimeout);
     this.launchTimers.clear();
+    this.#clearActivePeek();
+    this.#clearActiveQueenAbility();
   }
 }
 

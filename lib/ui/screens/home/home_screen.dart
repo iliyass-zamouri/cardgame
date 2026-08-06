@@ -179,6 +179,15 @@ class GameHud extends ConsumerWidget {
     final notifier = ref.read(gameSessionProvider.notifier);
     final playing = game.status == GameStatus.playing;
     final canReveal = playing && game.you.launch == LaunchStatus.notLaunched;
+    final peekSelecting = ref.watch(
+      gameSessionProvider.select((state) => state.peekSelecting),
+    );
+    final queenMode = ref.watch(
+      gameSessionProvider.select((state) => state.queenMode),
+    );
+    final canPeek = game.canJackPeek;
+    final canQueen = game.canQueenAbility;
+    final queenPicking = queenMode != QueenMode.none;
 
     return SafeArea(
       child: SizedBox.expand(
@@ -257,6 +266,57 @@ class GameHud extends ConsumerWidget {
                   onPressed: notifier.launch,
                 ),
               )
+            else if (playing && canPeek)
+              Positioned(
+                right: 16,
+                bottom: 16,
+                child: CasinoActionButton(
+                  label: peekSelecting ? 'Cancel' : 'Peek',
+                  icon:
+                      peekSelecting
+                          ? Icons.close_rounded
+                          : Icons.zoom_in_rounded,
+                  tone: CasinoActionTone.raise,
+                  expanded: false,
+                  onPressed: notifier.togglePeekSelecting,
+                ),
+              )
+            else if (playing && canQueen)
+              Positioned(
+                right: 16,
+                bottom: 16,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (queenPicking)
+                      CasinoActionButton(
+                        label: 'Cancel',
+                        icon: Icons.close_rounded,
+                        tone: CasinoActionTone.fold,
+                        expanded: false,
+                        onPressed: notifier.cancelQueenMode,
+                      )
+                    else ...[
+                      CasinoActionButton(
+                        label: 'Shuffle',
+                        icon: Icons.shuffle_rounded,
+                        tone: CasinoActionTone.raise,
+                        expanded: false,
+                        onPressed: notifier.enterQueenShufflePick,
+                      ),
+                      const SizedBox(height: 8),
+                      CasinoActionButton(
+                        label: 'Replace',
+                        icon: Icons.swap_horiz_rounded,
+                        tone: CasinoActionTone.raise,
+                        expanded: false,
+                        onPressed: notifier.enterQueenReplacePick,
+                      ),
+                    ],
+                  ],
+                ),
+              )
             else if (playing &&
                 !game.bothRevealed &&
                 game.you.launch != LaunchStatus.notLaunched)
@@ -268,6 +328,61 @@ class GameHud extends ConsumerWidget {
                   'Waiting for opponent to see their cards…',
                   textAlign: TextAlign.center,
                   style: TextStyle(
+                    color: CasinoColors.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
+                  ),
+                ),
+              ),
+            if (playing && peekSelecting && canPeek)
+              const Positioned(
+                left: 24,
+                right: 80,
+                bottom: 28,
+                child: Text(
+                  'Tap any card to peek…',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: CasinoColors.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
+                  ),
+                ),
+              ),
+            if (playing && queenMode == QueenMode.shufflePick)
+              const Positioned(
+                left: 24,
+                right: 80,
+                bottom: 28,
+                child: Text(
+                  'Tap Shuffle above a hand…',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: CasinoColors.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
+                  ),
+                ),
+              ),
+            if (playing && queenMode == QueenMode.replacePick)
+              Positioned(
+                left: 24,
+                right: 80,
+                bottom: 28,
+                child: Text(
+                  ref.watch(
+                            gameSessionProvider.select(
+                              (s) => s.replaceFirstSide,
+                            ),
+                          ) ==
+                          null
+                      ? 'Tap one card from each hand…'
+                      : 'Tap a card on the other hand…',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
                     color: CasinoColors.textMuted,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,

@@ -15,8 +15,8 @@ final gameSocketFactoryProvider = Provider<GameSocketFactory>(
 
 final gameSessionProvider =
     NotifierProvider<GameSessionController, GameSessionState>(
-  GameSessionController.new,
-);
+      GameSessionController.new,
+    );
 
 class GameSessionController extends Notifier<GameSessionState> {
   GameSocket? _socket;
@@ -76,6 +76,98 @@ class GameSessionController extends Notifier<GameSessionState> {
 
   void endGame() => _send('endGame');
 
+  void togglePeekSelecting() {
+    final game = state.game;
+    if (game == null || !game.canJackPeek) {
+      if (state.peekSelecting) {
+        state = state.copyWith(peekSelecting: false);
+      }
+      return;
+    }
+    state = state.copyWith(
+      peekSelecting: !state.peekSelecting,
+      queenMode: QueenMode.none,
+      replaceFirstSide: null,
+      replaceFirstIndex: null,
+    );
+  }
+
+  void cancelPeekSelecting() {
+    if (state.peekSelecting) {
+      state = state.copyWith(peekSelecting: false);
+    }
+  }
+
+  void jackPeek({required String side, required int cardIndex}) {
+    cancelPeekSelecting();
+    _send('jackPeek', {'side': side, 'cardIndex': cardIndex});
+  }
+
+  void enterQueenShufflePick() {
+    final game = state.game;
+    if (game == null || !game.canQueenAbility) return;
+    state = state.copyWith(
+      queenMode: QueenMode.shufflePick,
+      peekSelecting: false,
+      replaceFirstSide: null,
+      replaceFirstIndex: null,
+    );
+  }
+
+  void enterQueenReplacePick() {
+    final game = state.game;
+    if (game == null || !game.canQueenAbility) return;
+    state = state.copyWith(
+      queenMode: QueenMode.replacePick,
+      peekSelecting: false,
+      replaceFirstSide: null,
+      replaceFirstIndex: null,
+    );
+  }
+
+  void cancelQueenMode() {
+    if (state.queenMode == QueenMode.none && state.replaceFirstSide == null) {
+      return;
+    }
+    state = state.copyWith(
+      queenMode: QueenMode.none,
+      replaceFirstSide: null,
+      replaceFirstIndex: null,
+    );
+  }
+
+  void queenShuffle({required String side}) {
+    cancelQueenMode();
+    _send('queenShuffle', {'side': side});
+  }
+
+  void selectReplaceCard({required String side, required int cardIndex}) {
+    if (state.queenMode != QueenMode.replacePick) return;
+    final firstSide = state.replaceFirstSide;
+    final firstIndex = state.replaceFirstIndex;
+    if (firstSide == null || firstIndex == null) {
+      state = state.copyWith(
+        replaceFirstSide: side,
+        replaceFirstIndex: cardIndex,
+      );
+      return;
+    }
+    if (firstSide == side) {
+      state = state.copyWith(
+        replaceFirstSide: side,
+        replaceFirstIndex: cardIndex,
+      );
+      return;
+    }
+    final youIndex = firstSide == 'you' ? firstIndex : cardIndex;
+    final opponentIndex = firstSide == 'opponent' ? firstIndex : cardIndex;
+    cancelQueenMode();
+    _send('queenReplace', {
+      'youIndex': youIndex,
+      'opponentIndex': opponentIndex,
+    });
+  }
+
   void clearMessage() {
     if (state.message != null) state = state.copyWith(message: null);
   }
@@ -95,11 +187,28 @@ class GameSessionController extends Notifier<GameSessionState> {
         final currentVersion = state.game?.version ?? -1;
         if (snapshot.version >= currentVersion ||
             snapshot.roomId != state.game?.roomId) {
-          state = state.copyWith(game: snapshot, message: null);
+          final keepPeek = state.peekSelecting && snapshot.canJackPeek;
+          final keepQueen =
+              state.queenMode != QueenMode.none && snapshot.canQueenAbility;
+          state = state.copyWith(
+            game: snapshot,
+            message: null,
+            peekSelecting: keepPeek,
+            queenMode: keepQueen ? state.queenMode : QueenMode.none,
+            replaceFirstSide: keepQueen ? state.replaceFirstSide : null,
+            replaceFirstIndex: keepQueen ? state.replaceFirstIndex : null,
+          );
         }
         break;
       case 'leftRoom':
-        state = state.copyWith(game: null, message: null);
+        state = state.copyWith(
+          game: null,
+          message: null,
+          peekSelecting: false,
+          queenMode: QueenMode.none,
+          replaceFirstSide: null,
+          replaceFirstIndex: null,
+        );
         break;
       case 'error':
         state = state.copyWith(

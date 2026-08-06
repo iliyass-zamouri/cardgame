@@ -15,10 +15,16 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/painting.dart';
 
 typedef CardTapCallback = void Function(int cardIndex);
+typedef JackPeekCallback = void Function(String side, int cardIndex);
+typedef QueenShuffleCallback = void Function(String side);
+typedef QueenReplaceSelectCallback = void Function(String side, int cardIndex);
 typedef VoidGameCallback = void Function();
 
 class CardGame extends FlameGame {
   CardTapCallback? onTapCard;
+  JackPeekCallback? onJackPeek;
+  QueenShuffleCallback? onQueenShuffle;
+  QueenReplaceSelectCallback? onQueenReplaceSelect;
   VoidGameCallback? onDraw;
   VoidGameCallback? onThrowHand;
 
@@ -27,6 +33,8 @@ class CardGame extends FlameGame {
   late final TableArea _table;
   late final DrawnCardSlot _localDrawn;
   late final DrawnCardSlot _remoteDrawn;
+  late final _ShufflePickLabel _localShuffleLabel;
+  late final _ShufflePickLabel _opponentShuffleLabel;
 
   /// Back skin applied to every face-down card. Cached art is keyed by skin id,
   /// so a change shows up on the next frame.
@@ -40,6 +48,12 @@ class CardGame extends FlameGame {
   int _lastVersion = -1;
   bool _ready = false;
   bool _animatingAction = false;
+  bool _peekSelecting = false;
+  QueenMode _queenMode = QueenMode.none;
+  String? _replaceFirstSide;
+  int? _replaceFirstIndex;
+  LastAction? _lastZoomCue;
+  LastAction? _lastQueenAnim;
 
   /// Hand slot this client last tapped. The server only reports public state,
   /// so the tap index is what lets the board animate the right card.
@@ -50,6 +64,40 @@ class CardGame extends FlameGame {
 
   /// When set, the next sync snaps the new end-slot card into place (no fly-in).
   bool? _expectingPenaltyAppendSelf;
+
+  bool get peekSelecting => _peekSelecting;
+
+  set peekSelecting(bool value) {
+    if (_peekSelecting == value) return;
+    _peekSelecting = value;
+    if (_ready) _refreshInteraction();
+  }
+
+  QueenMode get queenMode => _queenMode;
+
+  set queenMode(QueenMode value) {
+    if (_queenMode == value) return;
+    _queenMode = value;
+    if (value != QueenMode.replacePick) {
+      _replaceFirstSide = null;
+      _replaceFirstIndex = null;
+      if (_ready) _clearReplaceFloat();
+    }
+    _refreshInteraction();
+  }
+
+  void setReplaceSelection({String? side, int? index}) {
+    _replaceFirstSide = side;
+    _replaceFirstIndex = index;
+    if (_ready) _applyReplaceFloat();
+  }
+
+  void _refreshInteraction() {
+    if (!_ready || _animatingAction) return;
+    final snapshot = _snapshot;
+    if (snapshot != null) _wireHandTaps(snapshot);
+    _syncShuffleLabels();
+  }
 
   @override
   Color backgroundColor() => const Color(0x00000000);
@@ -71,6 +119,12 @@ class CardGame extends FlameGame {
     )..position = Vector2(size.x * 0.5, size.y - 92);
     _remoteDrawn = DrawnCardSlot(isSelf: false)
       ..position = Vector2(size.x * 0.5, 52);
+    _localShuffleLabel = _ShufflePickLabel(
+      onPressed: () => onQueenShuffle?.call('you'),
+    )..position = Vector2(size.x * 0.5, size.y * 0.75 - 90);
+    _opponentShuffleLabel = _ShufflePickLabel(
+      onPressed: () => onQueenShuffle?.call('opponent'),
+    )..position = Vector2(size.x * 0.5, size.y * 0.25 + 90);
 
     world.addAll([
       _opponentHand,
@@ -78,9 +132,13 @@ class CardGame extends FlameGame {
       _table,
       _localDrawn,
       _remoteDrawn,
+      _localShuffleLabel,
+      _opponentShuffleLabel,
     ]);
 
     _ready = true;
+    _syncShuffleLabels();
+    _applyReplaceFloat();
     final pending = _pending;
     _pending = null;
     if (pending != null) applySnapshot(pending);
@@ -95,6 +153,8 @@ class CardGame extends FlameGame {
     _table.position = Vector2(size.x * 0.5, size.y * 0.5);
     _localDrawn.position = Vector2(size.x * 0.5, size.y - 92);
     _remoteDrawn.position = Vector2(size.x * 0.5, 52);
+    _localShuffleLabel.position = Vector2(size.x * 0.5, size.y * 0.75 - 90);
+    _opponentShuffleLabel.position = Vector2(size.x * 0.5, size.y * 0.25 + 90);
     _layoutHands();
   }
 
@@ -112,6 +172,20 @@ class CardGame extends FlameGame {
     }
     if (snapshot.version == _lastVersion && _snapshot != null) return;
     final previous = _snapshot;
+
+    final queenAnim = _planQueenAbilityAnim(previous, snapshot);
+    if (queenAnim != null) {
+      _lastVersion = snapshot.version;
+      _animatingAction = true;
+      queenAnim(() {
+        final completedSnapshot = _queuedDuringAnimation ?? snapshot;
+        _queuedDuringAnimation = null;
+        _animatingAction = false;
+        _syncSnapshot(completedSnapshot);
+      });
+      return;
+    }
+
     final action =
         previous == null
             ? null
@@ -131,6 +205,33 @@ class CardGame extends FlameGame {
     }
 
     _syncSnapshot(snapshot);
+  }
+
+  void Function(VoidCallback onComplete)? _planQueenAbilityAnim(
+    GameSnapshot? previous,
+    GameSnapshot snapshot,
+  ) {
+    final action = snapshot.lastAction;
+    if (action == null) return null;
+    if (action.sameAs(_lastQueenAnim) &&
+        previous?.lastAction?.sameAs(action) == true) {
+      return null;
+    }
+    if (action.type == LastActionType.queenShuffle && action.side != null) {
+      return (onComplete) {
+        _lastQueenAnim = action;
+        _runQueenShuffle(action, onComplete);
+      };
+    }
+    if (action.type == LastActionType.queenReplace &&
+        action.youIndex != null &&
+        action.opponentIndex != null) {
+      return (onComplete) {
+        _lastQueenAnim = action;
+        _runQueenReplace(action, onComplete);
+      };
+    }
+    return null;
   }
 
   void _syncSnapshot(GameSnapshot snapshot) {
@@ -159,26 +260,26 @@ class CardGame extends FlameGame {
 
     _opponentHand.syncCards(
       snapshot.opponent?.cards ?? const [],
-      highlight: !snapshot.isYourTurn,
+      highlight:
+          !snapshot.isYourTurn ||
+          _peekSelecting ||
+          _queenMode != QueenMode.none,
       onTap: null,
       animateDeal: previous == null || previous.version > snapshot.version,
       snapToPositionIndices: opponentSnapIndices,
-      peekIndices: const {},
+      peekIndices: _jackPeekIndices(snapshot, side: 'opponent'),
     );
     _localHand.syncCards(
       snapshot.you.cards,
-      highlight: snapshot.isYourTurn,
-      onTap: snapshot.isYourTurn ? _handleHandTap : null,
+      highlight:
+          snapshot.isYourTurn || _peekSelecting || _queenMode != QueenMode.none,
+      onTap: null,
       animateDeal: previous == null || previous.status != GameStatus.playing,
       snapToPositionIndices: localSnapIndices,
-      peekIndices:
-          snapshot.you.launch == LaunchStatus.launched
-              ? {
-                for (final card in snapshot.you.cards)
-                  if (card.visible) card.index,
-              }
-              : const {},
+      peekIndices: _localPeekIndices(snapshot),
     );
+    _wireHandTaps(snapshot);
+    _syncShuffleLabels();
     _table.sync(
       deckCount: snapshot.deckCount,
       discardTag: snapshot.discardTopTag,
@@ -186,12 +287,18 @@ class CardGame extends FlameGame {
           snapshot.isYourTurn &&
           snapshot.you.handCardTag == null &&
           snapshot.status == GameStatus.playing &&
-          snapshot.bothRevealed,
+          snapshot.bothRevealed &&
+          !_peekSelecting &&
+          _queenMode == QueenMode.none,
     );
     _localDrawn.sync(
       snapshot.you.handCardTag,
       faceUp: true,
       animateAppear: _suppressDrawnAppearSelf != true,
+      throwable:
+          snapshot.isYourTurn &&
+          !snapshot.abilityLockActive &&
+          _queenMode == QueenMode.none,
     );
     _remoteDrawn.sync(
       snapshot.opponent?.hasHandCard == true ? 'BACK' : null,
@@ -200,6 +307,240 @@ class CardGame extends FlameGame {
     );
     _suppressDrawnAppearSelf = null;
     _layoutHands();
+    _applyJackPeekZoom(snapshot, previous);
+  }
+
+  Set<int> _localPeekIndices(GameSnapshot snapshot) {
+    if (snapshot.you.launch == LaunchStatus.launched) {
+      return {
+        for (final card in snapshot.you.cards)
+          if (card.visible) card.index,
+      };
+    }
+    return _jackPeekIndices(snapshot, side: 'you');
+  }
+
+  Set<int> _jackPeekIndices(GameSnapshot snapshot, {required String side}) {
+    final action = snapshot.lastAction;
+    if (action == null ||
+        action.type != LastActionType.jackPeek ||
+        action.actor != LastActionActor.you ||
+        action.side != side ||
+        action.cardIndex == null) {
+      return const {};
+    }
+    final cards = side == 'you' ? snapshot.you.cards : snapshot.opponent?.cards;
+    if (cards == null) return const {};
+    final match = cards.where((card) => card.index == action.cardIndex);
+    if (match.isEmpty || !match.first.visible) return const {};
+    return {action.cardIndex!};
+  }
+
+  void _wireHandTaps(GameSnapshot snapshot) {
+    if (_peekSelecting && snapshot.canJackPeek) {
+      _localHand.setTapHandler((index) => _handleJackPeekTap('you', index));
+      _opponentHand.setTapHandler(
+        (index) => _handleJackPeekTap('opponent', index),
+      );
+      return;
+    }
+    if (_queenMode == QueenMode.replacePick && snapshot.canQueenAbility) {
+      _localHand.setTapHandler((index) => _handleQueenReplaceTap('you', index));
+      _opponentHand.setTapHandler(
+        (index) => _handleQueenReplaceTap('opponent', index),
+      );
+      return;
+    }
+    final canTapHand =
+        snapshot.isYourTurn &&
+        !snapshot.abilityLockActive &&
+        _queenMode == QueenMode.none;
+    _localHand.setTapHandler(canTapHand ? _handleHandTap : null);
+    _opponentHand.setTapHandler(null);
+  }
+
+  void _syncShuffleLabels() {
+    if (!_ready) return;
+    final show = _queenMode == QueenMode.shufflePick;
+    _localShuffleLabel.visible = show;
+    _opponentShuffleLabel.visible = show;
+  }
+
+  void _handleQueenReplaceTap(String side, int cardIndex) {
+    onQueenReplaceSelect?.call(side, cardIndex);
+  }
+
+  void _clearReplaceFloat() {
+    if (!_ready) return;
+    for (final card in _localHand.cards) {
+      card.peeking = false;
+    }
+    for (final card in _opponentHand.cards) {
+      card.peeking = false;
+    }
+    _layoutHands();
+  }
+
+  void _applyReplaceFloat() {
+    if (!_ready) return;
+    _clearReplaceFloat();
+    final side = _replaceFirstSide;
+    final index = _replaceFirstIndex;
+    if (side == null || index == null) return;
+    final hand = side == 'you' ? _localHand : _opponentHand;
+    final card = hand.cardAt(index);
+    if (card == null) return;
+    card.peeking = true;
+    hand.layout();
+  }
+
+  void _runQueenShuffle(LastAction action, VoidCallback onComplete) {
+    final sideFromActor = action.side!;
+    final HandArea hand;
+    if (action.actor == LastActionActor.you) {
+      hand = sideFromActor == 'you' ? _localHand : _opponentHand;
+    } else {
+      hand = sideFromActor == 'you' ? _opponentHand : _localHand;
+    }
+    hand.playShuffleAnimation(onComplete: onComplete);
+  }
+
+  void _runQueenReplace(LastAction action, VoidCallback onComplete) {
+    _clearReplaceFloat();
+    final int localIndex;
+    final int opponentIndex;
+    if (action.actor == LastActionActor.you) {
+      localIndex = action.youIndex!;
+      opponentIndex = action.opponentIndex!;
+    } else {
+      localIndex = action.opponentIndex!;
+      opponentIndex = action.youIndex!;
+    }
+    final localCard = _localHand.cardAt(localIndex);
+    final oppCard = _opponentHand.cardAt(opponentIndex);
+    if (localCard == null || oppCard == null) {
+      onComplete();
+      return;
+    }
+
+    final localStart = localCard.absolutePositionOfAnchor(Anchor.center);
+    final oppStart = oppCard.absolutePositionOfAnchor(Anchor.center);
+    final localLift = _liftPos(localStart, isSelf: true);
+    final oppLift = _liftPos(oppStart, isSelf: false);
+    final localSlot = _localHand.worldSlotCenter(
+      localIndex,
+      count: _localHand.cards.length,
+    );
+    final oppSlot = _opponentHand.worldSlotCenter(
+      opponentIndex,
+      count: _opponentHand.cards.length,
+    );
+
+    localCard.opacityOverride = 0;
+    oppCard.opacityOverride = 0;
+
+    final ghostA = _ghostCard(
+      localCard.tag,
+      localStart,
+      faceUp: localCard.tag != null,
+    );
+    final ghostB = _ghostCard(
+      oppCard.tag,
+      oppStart,
+      faceUp: oppCard.tag != null,
+    );
+    world.addAll([ghostA, ghostB]);
+
+    void finish() {
+      // Keep shells in the same slot indices; sync will refresh faces.
+      localCard
+        ..position = _localHand._slotCenter(localIndex, _localHand.cards.length)
+        ..opacityOverride = 1;
+      oppCard
+        ..position = _opponentHand._slotCenter(
+          opponentIndex,
+          _opponentHand.cards.length,
+        )
+        ..opacityOverride = 1;
+      onComplete();
+    }
+
+    ghostA.add(
+      SequenceEffect([
+        MoveEffect.to(
+          localLift,
+          EffectController(duration: _liftDuration, curve: Curves.easeOutBack),
+        ),
+        ScaleEffect.to(
+          Vector2.all(_peekScale),
+          EffectController(duration: 0.12),
+        ),
+        _PauseEffect(_readDuration),
+        MoveEffect.to(
+          oppSlot,
+          EffectController(
+            duration: _travelDuration,
+            curve: Curves.easeInOutCubic,
+          ),
+        ),
+        RemoveEffect(),
+      ]),
+    );
+    ghostB.add(
+      SequenceEffect([
+        MoveEffect.to(
+          oppLift,
+          EffectController(duration: _liftDuration, curve: Curves.easeOutBack),
+        ),
+        ScaleEffect.to(
+          Vector2.all(_peekScale),
+          EffectController(duration: 0.12),
+        ),
+        _PauseEffect(_readDuration),
+        MoveEffect.to(
+          localSlot,
+          EffectController(
+            duration: _travelDuration,
+            curve: Curves.easeInOutCubic,
+          ),
+        ),
+        _CallbackEffect(finish),
+        RemoveEffect(),
+      ]),
+    );
+  }
+
+  void _applyJackPeekZoom(GameSnapshot snapshot, GameSnapshot? previous) {
+    final action = snapshot.lastAction;
+    if (action == null ||
+        action.type != LastActionType.jackPeek ||
+        action.cardIndex == null ||
+        action.side == null) {
+      return;
+    }
+    if (action.sameAs(_lastZoomCue) &&
+        previous?.lastAction?.sameAs(action) == true) {
+      return;
+    }
+    _lastZoomCue = action;
+
+    // Own-card peek: flip/lift only (no zoom icon).
+    if (action.actor == LastActionActor.you && action.side == 'you') {
+      return;
+    }
+
+    final HandArea hand;
+    final bool showFace;
+    if (action.actor == LastActionActor.you) {
+      // Peeker looking at opponent card: zoom + private face.
+      hand = _opponentHand;
+      showFace = true;
+    } else {
+      // Opponent peeked: their "you" is our opponent hand; their "opponent" is us.
+      hand = action.side == 'you' ? _opponentHand : _localHand;
+      showFace = false;
+    }
+    hand.playZoomCue(action.cardIndex!, showFace: showFace);
   }
 
   /// Local seat: pending tap drives match/swap/penalty; draw/throw from diff.
@@ -521,6 +862,11 @@ class CardGame extends FlameGame {
   void _handleHandTap(int cardIndex) {
     _pendingTapIndex = cardIndex;
     onTapCard?.call(cardIndex);
+  }
+
+  void _handleJackPeekTap(String side, int cardIndex) {
+    _peekSelecting = false;
+    onJackPeek?.call(side, cardIndex);
   }
 
   HandArea _handFor(_CardActionPlan plan) =>
@@ -1007,7 +1353,15 @@ class HandArea extends PositionComponent {
 
     for (final snapshot in cards) {
       PlayingCardComponent? existing;
-      if (snapshot.tag != null) {
+      // Prefer same slot index so replace/shuffle keep cards in place.
+      for (final card in _cards) {
+        if (used.contains(card)) continue;
+        if (card.cardIndex == snapshot.index) {
+          existing = card;
+          break;
+        }
+      }
+      if (existing == null && snapshot.tag != null) {
         for (final card in _cards) {
           if (used.contains(card)) continue;
           if (card.opacityOverride < 1) continue;
@@ -1025,6 +1379,9 @@ class HandArea extends PositionComponent {
         existing.highlighted = highlight;
         existing.peeking = peekIndices.contains(snapshot.index);
         existing.opacityOverride = 1;
+        if (snapToPositionIndices.contains(snapshot.index)) {
+          existing.position = _slotCenter(snapshot.index, cards.length);
+        }
         keep.add(existing);
       } else {
         final card =
@@ -1070,6 +1427,100 @@ class HandArea extends PositionComponent {
       ..clear()
       ..addAll(keep);
     layout();
+  }
+
+  void setTapHandler(CardTapCallback? onTap) {
+    for (final card in _cards) {
+      card.onTap = onTap;
+      card.setTappable(onTap != null);
+    }
+  }
+
+  void playZoomCue(int cardIndex, {required bool showFace}) {
+    final card = cardAt(cardIndex);
+    if (card == null) return;
+    card.playZoomCue(showFace: showFace);
+  }
+
+  void playShuffleAnimation({required VoidCallback onComplete}) {
+    if (_cards.isEmpty) {
+      onComplete();
+      return;
+    }
+    final count = _cards.length;
+    final pileCenter = Vector2(0, isSelf ? 8 : -8);
+    var pending = count;
+
+    void doneOne() {
+      pending -= 1;
+      if (pending > 0) return;
+      for (final card in _cards) {
+        card.priority = 0;
+      }
+      layout();
+      onComplete();
+    }
+
+    for (var i = 0; i < count; i++) {
+      final card = _cards[i];
+      for (final effect in card.children.whereType<MoveEffect>().toList()) {
+        effect.removeFromParent();
+      }
+      for (final effect in card.children.whereType<SequenceEffect>().toList()) {
+        effect.removeFromParent();
+      }
+
+      // Slight deck offset so the stack reads as a pile, not one card.
+      final stackPos = pileCenter + Vector2(i * 1.2, -i * 0.8);
+      card.priority = 30 + i;
+      card.scaleTo(1);
+
+      card.add(
+        SequenceEffect([
+          // Gather into one deck.
+          MoveEffect.to(
+            stackPos,
+            EffectController(duration: 0.3, curve: Curves.easeInOutCubic),
+          ),
+          // Shake the pile.
+          MoveEffect.by(
+            Vector2(12, 0),
+            EffectController(duration: 0.05, curve: Curves.linear),
+          ),
+          MoveEffect.by(
+            Vector2(-24, 0),
+            EffectController(duration: 0.07, curve: Curves.linear),
+          ),
+          MoveEffect.by(
+            Vector2(22, 2),
+            EffectController(duration: 0.06, curve: Curves.linear),
+          ),
+          MoveEffect.by(
+            Vector2(-18, -4),
+            EffectController(duration: 0.06, curve: Curves.linear),
+          ),
+          MoveEffect.by(
+            Vector2(14, 3),
+            EffectController(duration: 0.05, curve: Curves.linear),
+          ),
+          MoveEffect.by(
+            Vector2(-10, -2),
+            EffectController(duration: 0.05, curve: Curves.linear),
+          ),
+          MoveEffect.to(
+            stackPos,
+            EffectController(duration: 0.08, curve: Curves.easeOut),
+          ),
+          _PauseEffect(0.06),
+          // Fan back into hand slots.
+          MoveEffect.to(
+            _slotCenter(i, count),
+            EffectController(duration: 0.34, curve: Curves.easeOutBack),
+          ),
+          _CallbackEffect(doneOne),
+        ]),
+      );
+    }
   }
 
   /// Positions cards in rows of [cardsPerRow]. Pass [projectedCount] to lay
@@ -1201,20 +1652,26 @@ class DrawnCardSlot extends PositionComponent {
     _card?.opacityOverride = opacity;
   }
 
-  void sync(String? tag, {required bool faceUp, bool animateAppear = true}) {
+  void sync(
+    String? tag, {
+    required bool faceUp,
+    bool animateAppear = true,
+    bool throwable = true,
+  }) {
     if (tag == null) {
       _card?.removeFromParent();
       _card = null;
       return;
     }
     final visibleTag = tag == 'BACK' ? null : tag;
+    final canThrow = isSelf && throwable;
     if (_card == null) {
       _card = PlayingCardComponent(
         cardIndex: isSelf ? -10 : -11,
         tag: visibleTag,
         visible: faceUp && visibleTag != null,
         sizeOverride: Vector2(isSelf ? 86 : 48, isSelf ? 124 : 70),
-      )..onPressed = isSelf ? () => onThrow?.call() : null;
+      )..onPressed = canThrow ? () => onThrow?.call() : null;
       add(_card!);
       if (animateAppear) {
         _card!
@@ -1227,13 +1684,14 @@ class DrawnCardSlot extends PositionComponent {
           );
       }
     } else {
+      _card!.onPressed = canThrow ? () => onThrow?.call() : null;
       _card!.updateFromSnapshot(
         CardSnapshot(
           index: _card!.cardIndex,
           tag: visibleTag,
           visible: faceUp && visibleTag != null,
         ),
-        tappable: isSelf,
+        tappable: canThrow,
       );
     }
   }
@@ -1264,8 +1722,55 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
   double opacityOverride = 1;
   Vector2? _targetPosition;
   double _targetScale = 1;
+  double _zoomCue = 0;
+  bool _zoomCueActive = false;
 
   String? get tag => _tag;
+
+  void setTappable(bool value) {
+    _tappable = value;
+  }
+
+  void playZoomCue({required bool showFace}) {
+    _zoomCueActive = true;
+    _zoomCue = 0;
+    for (final effect in children.whereType<_ZoomCueEffect>().toList()) {
+      effect.removeFromParent();
+    }
+    add(
+      _ZoomCueEffect(
+        onProgress: (value) => _zoomCue = value,
+        onDone: () {
+          _zoomCueActive = false;
+          _zoomCue = 0;
+        },
+      ),
+    );
+    if (showFace) {
+      // Face already flipped via snapshot; bump scale for lens feel.
+      scaleTo(_targetScale * 1.12);
+      add(
+        SequenceEffect([
+          _PauseEffect(2.8),
+          _CallbackEffect(() => scaleTo(peeking ? 1.18 : 1)),
+        ]),
+      );
+    } else {
+      add(
+        SequenceEffect([
+          ScaleEffect.to(
+            Vector2.all(_targetScale * 1.08),
+            EffectController(duration: 0.2, curve: Curves.easeOut),
+          ),
+          _PauseEffect(2.6),
+          ScaleEffect.to(
+            Vector2.all(_targetScale),
+            EffectController(duration: 0.25, curve: Curves.easeIn),
+          ),
+        ]),
+      );
+    }
+  }
 
   void moveTo(Vector2 target) {
     if (_targetPosition != null && (_targetPosition! - target).length < 0.5) {
@@ -1384,7 +1889,40 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
       ),
     );
     canvas.restore();
+    if (_zoomCueActive && _zoomCue > 0) {
+      _paintZoomCue(canvas, _zoomCue);
+    }
     canvas.restore();
+  }
+
+  void _paintZoomCue(Canvas canvas, double progress) {
+    final pulse = math.sin(progress * math.pi * 2) * 0.08 + 1.0;
+    final alpha = (progress < 0.15
+            ? progress / 0.15
+            : progress > 0.85
+            ? (1 - progress) / 0.15
+            : 1.0)
+        .clamp(0.0, 1.0);
+    final cx = size.x * 0.72;
+    final cy = size.y * 0.28;
+    final radius = size.x * 0.18 * pulse;
+    final stroke =
+        Paint()
+          ..color = Color.fromRGBO(255, 213, 79, alpha)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(Offset(cx, cy), radius, stroke);
+    canvas.drawCircle(
+      Offset(cx, cy),
+      radius * 0.55,
+      Paint()..color = Color.fromRGBO(255, 255, 255, 0.35 * alpha),
+    );
+    canvas.drawLine(
+      Offset(cx + radius * 0.65, cy + radius * 0.65),
+      Offset(cx + radius * 1.35, cy + radius * 1.35),
+      stroke..strokeWidth = 3.5,
+    );
   }
 }
 
@@ -1819,6 +2357,62 @@ class _CardMeta {
   }
 }
 
+class _ShufflePickLabel extends PositionComponent with TapCallbacks {
+  _ShufflePickLabel({required this.onPressed}) {
+    size = Vector2(120, 36);
+    anchor = Anchor.center;
+    priority = 50;
+  }
+
+  final VoidCallback onPressed;
+  bool visible = false;
+
+  @override
+  bool containsLocalPoint(Vector2 point) {
+    if (!visible) return false;
+    return super.containsLocalPoint(point);
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) {
+    if (!visible) return;
+    onPressed();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (!visible) return;
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.x, size.y),
+      const Radius.circular(18),
+    );
+    canvas.drawRRect(rect, Paint()..color = const Color(0x99000000));
+    canvas.drawRRect(
+      rect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = const Color(0xAAFFD54F),
+    );
+    final painter = TextPainter(
+      text: const TextSpan(
+        text: 'Shuffle',
+        style: TextStyle(
+          color: Color(0xEEFFFFFF),
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          shadows: [Shadow(color: Color(0xCC000000), blurRadius: 4)],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(
+      canvas,
+      Offset((size.x - painter.width) / 2, (size.y - painter.height) / 2),
+    );
+  }
+}
+
 class _FlipEffect extends Effect {
   _FlipEffect({required this.to, required double duration})
     : super(EffectController(duration: duration));
@@ -1901,4 +2495,26 @@ class _PauseEffect extends Effect {
 
   @override
   void apply(double progress) {}
+}
+
+class _ZoomCueEffect extends Effect {
+  _ZoomCueEffect({required this.onProgress, required this.onDone})
+    : super(EffectController(duration: 3.2, curve: Curves.linear));
+
+  final void Function(double value) onProgress;
+  final VoidCallback onDone;
+  bool _done = false;
+
+  @override
+  void apply(double progress) {
+    onProgress(progress);
+  }
+
+  @override
+  void onFinish() {
+    if (_done) return;
+    _done = true;
+    onDone();
+    super.onFinish();
+  }
 }

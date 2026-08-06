@@ -11,7 +11,12 @@ enum LastActionType {
   penaltyDraw,
   draw,
   throwHand,
+  jackPeek,
+  queenShuffle,
+  queenReplace,
 }
+
+enum QueenMode { none, shufflePick, replacePick }
 
 class CardSnapshot {
   final int index;
@@ -40,6 +45,8 @@ class PlayerSnapshot {
   final List<CardSnapshot> cards;
   final String? handCardTag;
   final bool hasHandCard;
+  final bool jackPeekAvailable;
+  final bool queenAbilityAvailable;
 
   const PlayerSnapshot({
     required this.connected,
@@ -48,6 +55,8 @@ class PlayerSnapshot {
     required this.cards,
     required this.handCardTag,
     required this.hasHandCard,
+    this.jackPeekAvailable = false,
+    this.queenAbilityAvailable = false,
   });
 
   factory PlayerSnapshot.fromJson(Map<String, dynamic> json) {
@@ -64,7 +73,21 @@ class PlayerSnapshot {
           .toList(growable: false),
       handCardTag: json['handCard'] as String?,
       hasHandCard: json['hasHandCard'] as bool? ?? false,
+      jackPeekAvailable: json['jackPeekAvailable'] as bool? ?? false,
+      queenAbilityAvailable: json['queenAbilityAvailable'] as bool? ?? false,
     );
+  }
+
+  bool get handCardIsJack {
+    final tag = handCardTag;
+    if (tag == null || tag.length < 2) return false;
+    return int.tryParse(tag.substring(1)) == 11;
+  }
+
+  bool get handCardIsQueen {
+    final tag = handCardTag;
+    if (tag == null || tag.length < 2) return false;
+    return int.tryParse(tag.substring(1)) == 12;
   }
 }
 
@@ -93,12 +116,24 @@ class LastAction {
   /// Second public face (double-discard drawn card), when applicable.
   final String? drawnTag;
 
+  /// Jack peek / queen shuffle target side from the actor's perspective.
+  final String? side;
+
+  /// Queen replace: actor's own card index.
+  final int? youIndex;
+
+  /// Queen replace: opponent card index (from actor's view).
+  final int? opponentIndex;
+
   const LastAction({
     required this.actor,
     required this.type,
     required this.cardIndex,
     this.cardTag,
     this.drawnTag,
+    this.side,
+    this.youIndex,
+    this.opponentIndex,
   });
 
   bool sameAs(LastAction? other) {
@@ -107,7 +142,20 @@ class LastAction {
         type == other.type &&
         cardIndex == other.cardIndex &&
         cardTag == other.cardTag &&
-        drawnTag == other.drawnTag;
+        drawnTag == other.drawnTag &&
+        side == other.side &&
+        youIndex == other.youIndex &&
+        opponentIndex == other.opponentIndex;
+  }
+
+  static int? _parseIndex(dynamic raw) {
+    return switch (raw) {
+      null => null,
+      int value => value,
+      num value => value.toInt(),
+      String value => int.tryParse(value),
+      _ => null,
+    };
   }
 
   static LastAction? tryParse(Map<String, dynamic>? json) {
@@ -124,26 +172,38 @@ class LastAction {
       'penaltyDraw' => LastActionType.penaltyDraw,
       'draw' => LastActionType.draw,
       'throw' => LastActionType.throwHand,
+      'jackPeek' => LastActionType.jackPeek,
+      'queenShuffle' => LastActionType.queenShuffle,
+      'queenReplace' => LastActionType.queenReplace,
       _ => null,
     };
     if (actor == null || type == null) return null;
-    final rawIndex = json['cardIndex'];
-    final int? cardIndex = switch (rawIndex) {
-      null => null,
-      int value => value,
-      num value => value.toInt(),
-      String value => int.tryParse(value),
-      _ => null,
-    };
+    final cardIndex = _parseIndex(json['cardIndex']);
+    final youIndex = _parseIndex(json['youIndex']);
+    final opponentIndex = _parseIndex(json['opponentIndex']);
     final needsIndex =
-        type != LastActionType.draw && type != LastActionType.throwHand;
-    if (needsIndex && cardIndex == null) return null;
+        type != LastActionType.draw &&
+        type != LastActionType.throwHand &&
+        type != LastActionType.queenShuffle;
+    if (needsIndex &&
+        cardIndex == null &&
+        type != LastActionType.queenReplace) {
+      return null;
+    }
+    if (type == LastActionType.queenReplace &&
+        (youIndex == null || opponentIndex == null)) {
+      return null;
+    }
+    final side = json['side'] as String?;
     return LastAction(
       actor: actor,
       type: type,
-      cardIndex: cardIndex,
+      cardIndex: cardIndex ?? youIndex,
       cardTag: json['cardTag'] as String?,
       drawnTag: json['drawnTag'] as String?,
+      side: side == 'you' || side == 'opponent' ? side : null,
+      youIndex: youIndex,
+      opponentIndex: opponentIndex,
     );
   }
 }
@@ -213,4 +273,30 @@ class GameSnapshot {
   bool get bothRevealed =>
       you.launch == LaunchStatus.ended &&
       opponent?.launch == LaunchStatus.ended;
+
+  bool get canJackPeek =>
+      status == GameStatus.playing &&
+      you.jackPeekAvailable &&
+      you.handCardIsJack;
+
+  /// Peek reveal still running; Jack throws when it ends.
+  bool get jackPeekInProgress =>
+      status == GameStatus.playing &&
+      lastAction?.type == LastActionType.jackPeek &&
+      you.hasHandCard &&
+      !you.jackPeekAvailable;
+
+  bool get canQueenAbility =>
+      status == GameStatus.playing &&
+      you.queenAbilityAvailable &&
+      you.handCardIsQueen;
+
+  bool get queenAbilityInProgress =>
+      status == GameStatus.playing &&
+      you.hasHandCard &&
+      !you.queenAbilityAvailable &&
+      (lastAction?.type == LastActionType.queenShuffle ||
+          lastAction?.type == LastActionType.queenReplace);
+
+  bool get abilityLockActive => jackPeekInProgress || queenAbilityInProgress;
 }

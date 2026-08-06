@@ -153,6 +153,21 @@ class GameServer {
       case 'throwHand':
         room.throwHand(context.id);
         break;
+      case 'jackPeek':
+        room.jackPeek(context.id, {
+          side: command.side,
+          cardIndex: command.cardIndex,
+        });
+        break;
+      case 'queenShuffle':
+        room.queenShuffle(context.id, { side: command.side });
+        break;
+      case 'queenReplace':
+        room.queenReplace(context.id, {
+          youIndex: command.youIndex,
+          opponentIndex: command.opponentIndex,
+        });
+        break;
       case 'endGame':
         room.end(context.id);
         break;
