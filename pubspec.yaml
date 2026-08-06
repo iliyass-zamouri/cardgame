@@ -28,6 +28,15 @@ flutter:
     - assets/background.jpg
     - assets/table.jpg
     - assets/logo.png
+  fonts:
+    - family: Cinzel
+      fonts:
+        - asset: assets/fonts/Cinzel-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Cinzel-Bold.ttf
+          weight: 700
+    # Keep the old variable file out of the family registration — it renders
+    # as .notdef tofu boxes under flutter_test / Impeller.
 
 flutter_gen:
   output: lib/gen/

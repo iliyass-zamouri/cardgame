@@ -1,5 +1,6 @@
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
+import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -107,6 +108,14 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
                       onPressed: ref.read(gameSessionProvider.notifier).connect,
                       child: const Text('Retry connection'),
                     ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (context) => const DeckPreviewScreen(),
+                      ),
+                    ),
+                    child: const Text('View deck'),
+                  ),
                 ],
               ),
             ),

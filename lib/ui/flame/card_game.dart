@@ -1,7 +1,12 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:cardgame/domain/models/game_snapshot.dart';
+import 'package:cardgame/ui/flame/suit_shapes.dart';
+import 'package:cardgame/ui/flame/court_svg_art.dart';
+import 'package:cardgame/ui/flame/joker_svg_art.dart';
+import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
@@ -22,6 +27,12 @@ class CardGame extends FlameGame {
   late final TableArea _table;
   late final DrawnCardSlot _localDrawn;
   late final DrawnCardSlot _remoteDrawn;
+
+  /// Back skin applied to every face-down card. Cached art is keyed by skin id,
+  /// so a change shows up on the next frame.
+  String get cardBackSkinId => CardBackSkins.activeId;
+
+  set cardBackSkinId(String id) => CardBackSkins.select(id);
 
   GameSnapshot? _snapshot;
   GameSnapshot? _pending;
@@ -939,106 +950,453 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
   @override
   void render(Canvas canvas) {
     if (opacityOverride <= 0) return;
+    final squeeze = _flip.abs().clamp(0.08, 1.0);
+    final faceUp = _visible && _tag != null && _flip >= 0;
+
     canvas.saveLayer(
-      Offset.zero & Size(size.x, size.y),
+      Rect.fromLTWH(-6, -6, size.x + 12, size.y + 12),
       Paint()..color = Color.fromRGBO(255, 255, 255, opacityOverride),
     );
-    final width = size.x * _flip.abs().clamp(0.08, 1);
-    final left = (size.x - width) / 2;
-    final rect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(left, 0, width, size.y),
-      const Radius.circular(8),
-    );
-
-    final shadow =
-        Paint()
-          ..color = const Color(0x66000000)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-    canvas.drawRRect(rect.shift(const Offset(0, 3)), shadow);
-
-    final faceUp = _visible && _tag != null && _flip >= 0;
-    final fill =
-        Paint()
-          ..color = faceUp ? const Color(0xFFFFFDF7) : const Color(0xFF1B5E20);
-    canvas.drawRRect(rect, fill);
-
-    final border =
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = highlighted ? 3 : 1.5
-          ..color =
-              highlighted ? const Color(0xFFFFD54F) : const Color(0xFF263238);
-    canvas.drawRRect(rect, border);
-
-    if (!faceUp) {
-      final inset = rect.deflate(6);
-      final pattern =
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.4
-            ..color = const Color(0xFF81C784);
-      for (var i = -size.y; i < size.x + size.y; i += 10) {
-        canvas.drawLine(
-          Offset(inset.left + i, inset.top),
-          Offset(inset.left + i + size.y, inset.bottom),
-          pattern,
-        );
-      }
-      canvas.restore();
-      return;
-    }
-
-    final meta = _CardMeta.fromTag(_tag!);
-    final textStyle = TextStyle(
-      color: meta.color,
-      fontSize: size.x * 0.28,
-      fontWeight: FontWeight.w700,
-      height: 1,
-    );
-    final rank = TextPainter(
-      text: TextSpan(text: meta.rank, style: textStyle),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    final suit = TextPainter(
-      text: TextSpan(
-        text: meta.suit,
-        style: textStyle.copyWith(fontSize: size.x * 0.34),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    rank.paint(canvas, Offset(left + 6, 6));
-    suit.paint(
-      canvas,
-      Offset(left + (width - suit.width) / 2, (size.y - suit.height) / 2),
-    );
     canvas.save();
-    canvas.translate(left + width - 6, size.y - 6);
-    canvas.rotate(math.pi);
-    rank.paint(canvas, Offset.zero);
+    canvas.translate(size.x / 2, 0);
+    canvas.scale(squeeze, 1);
+    canvas.translate(-size.x / 2, 0);
+    canvas.drawPicture(
+      _CardArt.picture(
+        tag: faceUp ? _tag : null,
+        width: size.x,
+        height: size.y,
+        highlighted: highlighted,
+      ),
+    );
     canvas.restore();
     canvas.restore();
   }
 }
 
+/// Engraved Roman capitals, the register printed decks use for their indices.
+const String _cardFontFamily = 'Cinzel';
+
+/// Draws card faces and backs once per tag/size and replays the recording, so
+/// the pip layouts cost nothing per frame.
+class _CardArt {
+  static final Map<String, Picture> _cache = {};
+
+  static Picture picture({
+    required String? tag,
+    required double width,
+    required double height,
+    required bool highlighted,
+  }) {
+    final face = tag ?? 'back:${CardBackSkins.activeId}';
+    final key = '$face|$width|$height|$highlighted';
+    return _cache.putIfAbsent(
+      key,
+      () => _record(tag, width, height, highlighted),
+    );
+  }
+
+  static Picture _record(String? tag, double w, double h, bool highlighted) {
+    final recorder = PictureRecorder();
+    final canvas = Canvas(recorder);
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, w, h),
+      Radius.circular(w * 0.1),
+    );
+
+    canvas.drawRRect(
+      rect.shift(const Offset(0, 4)),
+      Paint()
+        ..color = const Color(0x3F000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
+    );
+    canvas.drawRRect(
+      rect.shift(const Offset(0, 1)),
+      Paint()
+        ..color = const Color(0x33000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+    );
+
+    if (tag == null) {
+      _paintBack(canvas, rect, w, h);
+    } else {
+      _paintFace(canvas, rect, w, h, _CardMeta.fromTag(tag));
+    }
+
+    canvas.drawRRect(
+      rect.deflate(0.75),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = highlighted ? 3 : 1.5
+        ..color =
+            highlighted ? const Color(0xFFFFD54F) : const Color(0x33263238),
+    );
+    return recorder.endRecording();
+  }
+
+  /// Hands the back over to the selected skin in a space one unit wide, so a
+  /// single skin definition renders every card size on the board.
+  static void _paintBack(Canvas canvas, RRect rect, double w, double h) {
+    canvas.save();
+    canvas.clipRRect(rect);
+    canvas.scale(w);
+    CardBackSkins.active.paintUnit(canvas, h / w);
+    canvas.restore();
+  }
+
+  static void _paintFace(
+    Canvas canvas,
+    RRect rect,
+    double w,
+    double h,
+    _CardMeta meta,
+  ) {
+    canvas.drawRRect(
+      rect,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment(-0.7, -1),
+          end: Alignment(0.7, 1),
+          colors: [Color(0xFFFFFFFF), Color(0xFFFDF8EF)],
+        ).createShader(Rect.fromLTWH(0, 0, w, h)),
+    );
+
+    // Hairline frame in the suit colour: keeps the face from looking bare
+    // without competing with the pips.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.05, h * 0.035, w * 0.9, h * 0.93),
+        Radius.circular(w * 0.06),
+      ),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(0.6, w * 0.008)
+        ..color = meta.color.withValues(alpha: 0.14),
+    );
+
+    if (meta.isJoker) {
+      _paintJoker(canvas, w, h, meta);
+      return;
+    }
+
+    _paintIndex(canvas, w, h, meta);
+    canvas.save();
+    canvas.translate(w, h);
+    canvas.rotate(math.pi);
+    _paintIndex(canvas, w, h, meta);
+    canvas.restore();
+
+    if (meta.isFace) {
+      _paintCourt(canvas, w, h, meta);
+      return;
+    }
+    if (meta.value == 1) {
+      _paintSuit(canvas, meta, w * 0.44, Offset(w * 0.5, h * 0.5));
+      return;
+    }
+    for (final pip in _pipLayout(meta.value)) {
+      final (x, y, flipped) = pip;
+      canvas.save();
+      canvas.translate(w * x, h * y);
+      if (flipped) canvas.rotate(math.pi);
+      _paintSuit(canvas, meta, w * 0.18, Offset.zero);
+      canvas.restore();
+    }
+  }
+
+  /// Rank over suit in the corner, the way a real card reads when fanned.
+  static void _paintIndex(Canvas canvas, double w, double h, _CardMeta meta) {
+    final centerX = w * 0.163;
+    _paintGlyph(
+      canvas,
+      meta.rank,
+      w * 0.19,
+      meta.color,
+      Offset(centerX, h * 0.102),
+      bold: true,
+      maxWidth: w * 0.17,
+    );
+    // Same filled suit mark as pip cards.
+    _paintSuit(
+      canvas,
+      meta,
+      w * 0.115,
+      Offset(centerX, h * 0.212),
+    );
+  }
+
+  /// Joker: SVG face in the centre, with JOKER running down both edges
+  /// (mirrored so the card reads the same either way up).
+  /// Black joker = `FwOp801`; red joker = `YEP0T01`.
+  /// Girl portrait kept in [jokerGirlSvgFills] for later.
+  static void _paintJoker(Canvas canvas, double w, double h, _CardMeta meta) {
+    _paintJokerWord(canvas, w, h, meta.color);
+    canvas.save();
+    canvas.translate(w, h);
+    canvas.rotate(math.pi);
+    _paintJokerWord(canvas, w, h, meta.color);
+    canvas.restore();
+
+    final red =
+        meta.suit == SuitShape.diamonds || meta.suit == SuitShape.hearts;
+    final aspect = jokerSvgAspect(red: red);
+    // Red fills the face; black stays modest so lettering stays clear.
+    final maxW = w * (red ? 0.92 : 0.68);
+    final maxH = h * (red ? 0.86 : 0.55);
+    var faceW = maxW;
+    var faceH = faceW / aspect;
+    if (faceH > maxH) {
+      faceH = maxH;
+      faceW = faceH * aspect;
+    }
+    final left = (w - faceW) / 2;
+    final top = (h - faceH) / 2;
+    final toFace = Float64List.fromList([
+      faceW, 0, 0, 0, //
+      0, faceH, 0, 0, //
+      0, 0, 1, 0, //
+      left, top, 0, 1, //
+    ]);
+    final fill = Paint()..color = meta.color;
+    for (final path in jokerSvgFills(red: red)) {
+      canvas.drawPath(path.transform(toFace), fill);
+    }
+  }
+
+  static void _paintJokerWord(Canvas canvas, double w, double h, Color color) {
+    const word = 'JOKER';
+    final fontSize = w * 0.15;
+    final step = fontSize * 1.15;
+    for (var i = 0; i < word.length; i++) {
+      _paintGlyph(
+        canvas,
+        word[i],
+        fontSize,
+        color,
+        Offset(w * 0.11, h * 0.08 + i * step),
+        bold: true,
+      );
+    }
+  }
+
+  /// Suits are drawn as paths so they stay crisp and identical on every
+  /// platform, instead of depending on the system font's glyphs.
+  static void _paintSuit(
+    Canvas canvas,
+    _CardMeta meta,
+    double size,
+    Offset center,
+  ) {
+    canvas.save();
+    canvas.translate(center.dx - size / 2, center.dy - size / 2);
+    canvas.scale(size);
+    canvas.drawPath(meta.path, Paint()..color = meta.color);
+    canvas.restore();
+  }
+
+  /// Classic court layout: SVG figure (both halves included) inside a broken
+  /// L-frame. Indices/suits stay from `_paintIndex`.
+  static void _paintCourt(Canvas canvas, double w, double h, _CardMeta meta) {
+    final frame = Rect.fromLTRB(
+      w * 0.0884,
+      h * 0.0505,
+      w * 0.9116,
+      h * 0.9495,
+    );
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.011
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round
+      ..color = meta.color;
+    final fill = Paint()..color = meta.color;
+
+    // Broken L-frame: open at the index corners (top-left / bottom-right).
+    final gapX = w * 0.22;
+    final gapY = h * 0.20;
+    canvas.drawPath(
+      Path()
+        ..moveTo(frame.left + gapX, frame.top)
+        ..lineTo(frame.right, frame.top)
+        ..lineTo(frame.right, frame.bottom - gapY)
+        ..moveTo(frame.right - gapX, frame.bottom)
+        ..lineTo(frame.left, frame.bottom)
+        ..lineTo(frame.left, frame.top + gapY),
+      line,
+    );
+
+    final fills = switch (meta.value) {
+      11 => jackSvgFills(),
+      12 => queenSvgFills(),
+      _ => kingSvgFills(),
+    };
+    final toCard = Float64List.fromList([
+      w, 0, 0, 0, //
+      0, h, 0, 0, //
+      0, 0, 1, 0, //
+      0, 0, 0, 1, //
+    ]);
+    for (final path in fills) {
+      canvas.drawPath(path.transform(toCard), fill);
+    }
+  }
+
+  static void _paintGlyph(
+    Canvas canvas,
+    String text,
+    double fontSize,
+    Color color,
+    Offset center, {
+    bool bold = false,
+    double? maxWidth,
+  }) {
+    var painter = _layoutGlyph(text, fontSize, color, bold);
+    if (maxWidth != null && painter.width > maxWidth) {
+      painter = _layoutGlyph(
+        text,
+        fontSize * maxWidth / painter.width,
+        color,
+        bold,
+      );
+    }
+    painter.paint(
+      canvas,
+      center - Offset(painter.width / 2, painter.height / 2),
+    );
+  }
+
+  static TextPainter _layoutGlyph(
+    String text,
+    double fontSize,
+    Color color,
+    bool bold,
+  ) {
+    return TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontFamily: _cardFontFamily,
+          fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+          letterSpacing: -fontSize * 0.03,
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+  }
+
+  /// Standard pip grid: fractional position plus whether the pip is upside
+  /// down, mirroring how printed cards read from both ends.
+  static List<(double, double, bool)> _pipLayout(int value) {
+    const left = 0.365;
+    const right = 0.635;
+    const mid = 0.5;
+    // Rows pulled in from the card edges so the pips read as one block.
+    const top = 0.26;
+    const bottom = 0.74;
+    const upper = 0.34;
+    const lower = 0.66;
+    const nearTop = 0.38;
+    const nearBottom = 0.62;
+    const overTop = 0.42;
+    const overBottom = 0.58;
+    return switch (value) {
+      2 => const [(mid, top, false), (mid, bottom, true)],
+      3 => const [(mid, top, false), (mid, mid, false), (mid, bottom, true)],
+      4 => const [
+        (left, top, false),
+        (right, top, false),
+        (left, bottom, true),
+        (right, bottom, true),
+      ],
+      5 => const [
+        (left, top, false),
+        (right, top, false),
+        (mid, mid, false),
+        (left, bottom, true),
+        (right, bottom, true),
+      ],
+      6 => const [
+        (left, top, false),
+        (right, top, false),
+        (left, mid, false),
+        (right, mid, false),
+        (left, bottom, true),
+        (right, bottom, true),
+      ],
+      7 => const [
+        (left, top, false),
+        (right, top, false),
+        (mid, nearTop, false),
+        (left, mid, false),
+        (right, mid, false),
+        (left, bottom, true),
+        (right, bottom, true),
+      ],
+      8 => const [
+        (left, top, false),
+        (right, top, false),
+        (mid, nearTop, false),
+        (left, mid, false),
+        (right, mid, false),
+        (mid, nearBottom, true),
+        (left, bottom, true),
+        (right, bottom, true),
+      ],
+      9 => const [
+        (left, top, false),
+        (right, top, false),
+        (left, overTop, false),
+        (right, overTop, false),
+        (mid, mid, false),
+        (left, overBottom, true),
+        (right, overBottom, true),
+        (left, bottom, true),
+        (right, bottom, true),
+      ],
+      10 => const [
+        (left, top, false),
+        (right, top, false),
+        (mid, upper, false),
+        (left, overTop, false),
+        (right, overTop, false),
+        (left, overBottom, true),
+        (right, overBottom, true),
+        (mid, lower, true),
+        (left, bottom, true),
+        (right, bottom, true),
+      ],
+      _ => const [(mid, mid, false)],
+    };
+  }
+}
+
 class _CardMeta {
-  const _CardMeta(this.rank, this.suit, this.color);
+  const _CardMeta(this.rank, this.suit, this.color, this.value);
 
   final String rank;
-  final String suit;
+  final SuitShape suit;
   final Color color;
+  final int value;
+
+  bool get isFace => value >= 11 && value <= 13;
+
+  bool get isJoker => value == 14;
+
+  /// Suit outline inside a unit square.
+  Path get path => suitPath(suit);
 
   factory _CardMeta.fromTag(String tag) {
-    final suitCode = tag[0];
     final value = int.parse(tag.substring(1));
-    final red = suitCode == 'B' || suitCode == 'C';
-    final suit = switch (suitCode) {
-      'A' => '♣',
-      'B' => '♦',
-      'C' => '♥',
-      'D' => '♠',
-      _ => '?',
+    final suit = switch (tag[0]) {
+      'B' => SuitShape.diamonds,
+      'C' => SuitShape.hearts,
+      'D' => SuitShape.spades,
+      _ => SuitShape.clubs,
     };
+    final red = suit == SuitShape.diamonds || suit == SuitShape.hearts;
     final rank = switch (value) {
       1 => 'A',
       11 => 'J',
@@ -1050,7 +1408,8 @@ class _CardMeta {
     return _CardMeta(
       rank,
       suit,
-      red ? const Color(0xFFC62828) : const Color(0xFF212121),
+      red ? const Color(0xFFA31819) : const Color(0xFF1A1A1A),
+      value,
     );
   }
 }
