@@ -44,6 +44,7 @@ class CardGame extends FlameGame {
   /// Hand slot this client last tapped. The server only reports public state,
   /// so the tap index is what lets the board animate the right card.
   int? _pendingTapIndex;
+  bool _expectingPenaltyAppend = false;
 
   @override
   Color backgroundColor() => const Color(0x00000000);
@@ -127,6 +128,14 @@ class CardGame extends FlameGame {
     final previous = _snapshot;
     _snapshot = snapshot;
     _lastVersion = snapshot.version;
+    final snapIndices = <int>{};
+    if (_expectingPenaltyAppend &&
+        previous != null &&
+        snapshot.you.cards.length == previous.you.cards.length + 1 &&
+        snapshot.you.cards.isNotEmpty) {
+      snapIndices.add(snapshot.you.cards.last.index);
+    }
+    _expectingPenaltyAppend = false;
 
     _opponentHand.syncCards(
       snapshot.opponent?.cards ?? const [],
@@ -140,6 +149,7 @@ class CardGame extends FlameGame {
       highlight: snapshot.isYourTurn,
       onTap: snapshot.isYourTurn ? _handleHandTap : null,
       animateDeal: previous == null || previous.status != GameStatus.playing,
+      snapToPositionIndices: snapIndices,
       peekIndices:
           snapshot.you.launch == LaunchStatus.launched
               ? {
@@ -253,13 +263,15 @@ class CardGame extends FlameGame {
       );
     }
     if (after > before) {
+      // Reflow now so the ghost lands where the new end card will sit.
+      _localHand.layout(projectedCount: after);
       return _CardActionPlan(
         kind: _CardActionKind.penaltyDraw,
         cardIndex: tapIndex,
         handStart: handStart,
         discard: discard,
         deckStart: _table.worldDeckPosition,
-        handOrigin: _localHand.worldOrigin,
+        handOrigin: _localHand.worldSlotCenter(after - 1, count: after),
         previousDiscardTop: previousDiscardTop,
       );
     }
@@ -437,7 +449,8 @@ class CardGame extends FlameGame {
     );
   }
 
-  /// Tapped card did not match: the hand shakes and takes a card from the deck.
+  /// Tapped card did not match: the hand shakes and takes a card from the deck
+  /// into the end slot (always appended).
   void _runPenaltyDraw(_CardActionPlan plan, VoidCallback onComplete) {
     const shake = 0.07;
     final tapped = _localHand.cardAt(plan.cardIndex);
@@ -458,13 +471,15 @@ class CardGame extends FlameGame {
       ]),
     );
 
+    final landing = plan.handOrigin!;
     final penalty = _ghostCard(null, plan.deckStart!, faceUp: false);
+    _expectingPenaltyAppend = true;
     world.add(penalty);
     penalty.add(
       SequenceEffect([
         _PauseEffect(shake * 4),
         MoveEffect.to(
-          plan.handOrigin!,
+          landing,
           EffectController(
             duration: _travelDuration,
             curve: Curves.easeInOutCubic,
@@ -589,6 +604,12 @@ class HandArea extends PositionComponent {
   final bool isSelf;
   final List<PlayingCardComponent> _cards = [];
 
+  static const cardsPerRow = 4;
+  static const cardWidth = 78.0;
+  static const cardHeight = 112.0;
+  static const gapX = 14.0;
+  static const gapY = 16.0;
+
   List<PlayingCardComponent> get cards => List.unmodifiable(_cards);
 
   Vector2 get worldOrigin => absolutePositionOfAnchor(Anchor.topLeft);
@@ -603,11 +624,28 @@ class HandArea extends PositionComponent {
   Vector2? worldPositionFor(int cardIndex) =>
       cardAt(cardIndex)?.absolutePositionOfAnchor(Anchor.center);
 
+  /// World centre of hand slot [index] when the hand holds [count] cards.
+  Vector2 worldSlotCenter(int index, {required int count}) =>
+      absolutePositionOf(_slotCenter(index, count));
+
+  /// Local centre for slot [index] in a hand of [count] cards (4 per row).
+  Vector2 _slotCenter(int index, int count) {
+    assert(count > 0 && index >= 0 && index < count);
+    final row = index ~/ cardsPerRow;
+    final col = index % cardsPerRow;
+    final cardsInRow = math.min(cardsPerRow, count - row * cardsPerRow);
+    final rowWidth = cardsInRow * cardWidth + (cardsInRow - 1) * gapX;
+    final x = -rowWidth / 2 + cardWidth / 2 + col * (cardWidth + gapX);
+    final y = row * (cardHeight + gapY);
+    return Vector2(x, y);
+  }
+
   void syncCards(
     List<CardSnapshot> cards, {
     required bool highlight,
     required CardTapCallback? onTap,
     required bool animateDeal,
+    Set<int> snapToPositionIndices = const {},
     required Set<int> peekIndices,
   }) {
     final keep = <PlayingCardComponent>[];
@@ -635,6 +673,9 @@ class HandArea extends PositionComponent {
               )
               ..highlighted = highlight
               ..peeking = peekIndices.contains(snapshot.index);
+        if (snapToPositionIndices.contains(snapshot.index)) {
+          card.position = _slotCenter(snapshot.index, cards.length);
+        }
         if (animateDeal) {
           card.scale = Vector2.zero();
           card.add(
@@ -668,32 +709,31 @@ class HandArea extends PositionComponent {
     layout();
   }
 
-  void layout() {
+  /// Positions cards in rows of [cardsPerRow]. Pass [projectedCount] to lay
+  /// out as if extra end slots already exist (penalty-draw fly-in).
+  void layout({int? projectedCount}) {
     if (_cards.isEmpty) return;
-    const cardWidth = 78.0;
-    const gap = 14.0;
     const peekScale = 1.18;
     const peekForward = 34.0;
 
-    final totalWidth = _cards.length * cardWidth + (_cards.length - 1) * gap;
+    final count = projectedCount ?? _cards.length;
     final peeking = _cards.where((card) => card.peeking).toList();
     final peekWidth = cardWidth * peekScale;
     final peekSpan = peeking.length * peekWidth;
     var peekX = -peekSpan / 2 + peekWidth / 2;
-    var slotX = -totalWidth / 2 + cardWidth / 2;
 
-    for (final card in _cards) {
+    for (var i = 0; i < _cards.length; i++) {
+      final card = _cards[i];
       final Vector2 target;
       if (card.peeking) {
         target = Vector2(peekX, isSelf ? peekForward : -peekForward);
         peekX += peekWidth;
       } else {
-        target = Vector2(slotX, 0);
+        target = _slotCenter(i, count);
       }
       card.priority = card.peeking ? 10 : 0;
       card.moveTo(target);
       card.scaleTo(card.peeking ? peekScale : 1);
-      slotX += cardWidth + gap;
     }
   }
 }
