@@ -1,15 +1,86 @@
+import 'dart:ui';
+
 import 'package:cardgame/gen/assets.gen.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
 
-/// Circular dark chrome button (menu / info style from the screenshot).
+/// Frosted glass shell for HUD chrome over the felt table.
+class CasinoGlass extends StatelessWidget {
+  const CasinoGlass({
+    super.key,
+    required this.child,
+    this.borderRadius,
+    this.shape,
+    this.padding,
+    this.clipBehavior = Clip.antiAlias,
+  }) : assert(
+         borderRadius != null || shape != null,
+         'Provide borderRadius or shape',
+       );
+
+  final Widget child;
+  final BorderRadius? borderRadius;
+  final ShapeBorder? shape;
+  final EdgeInsetsGeometry? padding;
+  final Clip clipBehavior;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedShape =
+        shape ??
+        RoundedRectangleBorder(borderRadius: borderRadius ?? BorderRadius.zero);
+    return ClipPath(
+      clipper: ShapeBorderClipper(shape: resolvedShape),
+      clipBehavior: clipBehavior,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: DecoratedBox(
+          decoration: ShapeDecoration(
+            color: CasinoColors.bg.withValues(alpha: 0.55),
+            shape: resolvedShape,
+          ),
+          child: CustomPaint(
+            foregroundPainter: _GlassBorderPainter(shape: resolvedShape),
+            child:
+                padding == null
+                    ? child
+                    : Padding(padding: padding!, child: child),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassBorderPainter extends CustomPainter {
+  _GlassBorderPainter({required this.shape});
+
+  final ShapeBorder shape;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = shape.getOuterPath(Offset.zero & size);
+    final paint =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0
+          ..color = Colors.white.withValues(alpha: 0.12);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GlassBorderPainter oldDelegate) =>
+      oldDelegate.shape != shape;
+}
+
+/// Circular frosted HUD button (menu / info / end).
 class CasinoCircleButton extends StatelessWidget {
   const CasinoCircleButton({
     super.key,
     required this.icon,
     required this.onPressed,
     this.tooltip,
-    this.size = 42,
+    this.size = 38,
   });
 
   final IconData icon;
@@ -19,17 +90,20 @@ class CasinoCircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final button = Material(
-      color: CasinoColors.surfaceHi,
+    final button = CasinoGlass(
       shape: const CircleBorder(),
-      elevation: 0,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onPressed,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Icon(icon, size: size * 0.45, color: CasinoColors.text),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        elevation: 0,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: Icon(icon, size: size * 0.45, color: CasinoColors.text),
+          ),
         ),
       ),
     );
@@ -311,21 +385,19 @@ class CasinoPlayerSeat extends StatelessWidget {
   }
 }
 
-/// Menu + VS players in one chrome pill (matches [CasinoCircleButton] fill).
+/// VS players pill (frosted glass HUD).
 class CasinoMenuPlayersPill extends StatelessWidget {
   const CasinoMenuPlayersPill({
     super.key,
-    required this.onMenuPressed,
     required this.youName,
     required this.opponentName,
     required this.youConnected,
     required this.opponentConnected,
     required this.yourTurn,
     required this.opponentTurn,
-    this.height = 42,
+    this.height = 38,
   });
 
-  final VoidCallback onMenuPressed;
   final String youName;
   final String opponentName;
   final bool youConnected;
@@ -336,63 +408,41 @@ class CasinoMenuPlayersPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: CasinoColors.surfaceHi,
+    return CasinoGlass(
       shape: const StadiumBorder(),
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
       child: SizedBox(
         height: height,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Tooltip(
-              message: 'Leave room',
-              child: InkWell(
-                onTap: onMenuPressed,
-                child: SizedBox(
-                  width: height,
-                  height: height,
-                  child: Icon(
-                    Icons.menu,
-                    size: height * 0.34,
-                    color: CasinoColors.text,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CasinoPlayerSeat(
+                name: youName,
+                connected: youConnected,
+                active: yourTurn,
+                avatarSize: 26,
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Text(
+                  'VS',
+                  style: TextStyle(
+                    color: CasinoColors.goldSoft,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ),
-            ),
-            Container(width: 1, height: height * 0.45, color: Colors.white12),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 4, 14, 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CasinoPlayerSeat(
-                    name: youName,
-                    connected: youConnected,
-                    active: yourTurn,
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      'VS',
-                      style: TextStyle(
-                        color: CasinoColors.goldSoft,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                  CasinoPlayerSeat(
-                    name: opponentName,
-                    connected: opponentConnected,
-                    active: opponentTurn,
-                  ),
-                ],
+              CasinoPlayerSeat(
+                name: opponentName,
+                connected: opponentConnected,
+                active: opponentTurn,
+                avatarSize: 26,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

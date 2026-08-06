@@ -3,11 +3,11 @@ import 'package:cardgame/data/auth/google_sign_in_service.dart';
 import 'package:cardgame/data/auth/guest_auth_service.dart';
 import 'package:cardgame/data/auth/oauth_auth_service.dart';
 import 'package:cardgame/data/auth/server_identity.dart';
-import 'package:cardgame/gen/assets.gen.dart';
 import 'package:cardgame/ui/screens/auth/auth_provider_buttons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class AuthenticationScreen extends ConsumerStatefulWidget {
   const AuthenticationScreen({super.key});
@@ -104,16 +104,12 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
         child: Column(
           children: [
             const Spacer(flex: 2),
-            Image.asset(Assets.logo.path, height: 88, fit: BoxFit.contain),
-            const SizedBox(height: 20),
-            Text(
-              'ShadowHand',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: CasinoColors.gold,
-                letterSpacing: 1.4,
-              ),
+            SvgPicture.asset(
+              'assets/logo.svg',
+              height: 168,
+              fit: BoxFit.contain,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 14),
             Text(
               'Sign in to play online',
               textAlign: TextAlign.center,

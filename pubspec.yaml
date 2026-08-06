@@ -35,6 +35,7 @@ flutter:
     - assets/background.jpg
     - assets/table.jpg
     - assets/logo.png
+    - assets/logo.svg
     - assets/crown.svg
   fonts:
     - family: Cinzel

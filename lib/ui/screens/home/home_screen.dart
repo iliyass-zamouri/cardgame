@@ -2,6 +2,7 @@ import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/ui/flame/card_game_view.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
+import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
@@ -433,15 +434,6 @@ class GameHud extends ConsumerWidget {
                     opponentConnected: game.opponent?.connected ?? false,
                     yourTurn: playing && game.isYourTurn,
                     opponentTurn: playing && !game.isYourTurn,
-                    onMenuPressed:
-                        () => _confirm(
-                          context,
-                          title: 'Leave room?',
-                          message: 'You will drop out of this game.',
-                          confirmLabel: 'Leave',
-                          tone: CasinoActionTone.fold,
-                          onConfirm: notifier.leaveRoom,
-                        ),
                   ),
                   const Spacer(),
                   if (playing)
@@ -459,25 +451,19 @@ class GameHud extends ConsumerWidget {
                             onConfirm: notifier.endGame,
                           ),
                     ),
-                  if (playing) const SizedBox(width: 8),
+                  if (playing) const SizedBox(width: 4),
                   CasinoCircleButton(
-                    icon: Icons.info_outline,
-                    tooltip: 'Room info',
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          backgroundColor: Colors.transparent,
-                          elevation: 0,
-                          behavior: SnackBarBehavior.floating,
-                          margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-                          content: CasinoToast(
-                            message:
-                                'Room ${game.roomId} · '
-                                '${game.isYourTurn ? "Your turn" : "Opponent turn"}',
-                          ),
+                    icon: Icons.menu_rounded,
+                    tooltip: 'Menu',
+                    onPressed:
+                        () => _showGameMenu(
+                          context,
+                          roomId: game.roomId,
+                          playing: playing,
+                          isYourTurn: game.isYourTurn,
+                          onEndGame: notifier.endGame,
+                          onLeaveRoom: notifier.leaveRoom,
                         ),
-                      );
-                    },
                   ),
                 ],
               ),
@@ -570,61 +556,6 @@ class GameHud extends ConsumerWidget {
                       ),
                     ),
                   ],
-                ),
-              ),
-            if (playing && peekSelecting && canPeek)
-              const Positioned(
-                left: 24,
-                right: 80,
-                bottom: 28,
-                child: Text(
-                  'Tap any card to peek…',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
-                  ),
-                ),
-              ),
-            if (playing && queenMode == QueenMode.shufflePick)
-              const Positioned(
-                left: 24,
-                right: 80,
-                bottom: 28,
-                child: Text(
-                  'Tap Shuffle above a hand…',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
-                  ),
-                ),
-              ),
-            if (playing && queenMode == QueenMode.replacePick)
-              Positioned(
-                left: 24,
-                right: 80,
-                bottom: 28,
-                child: Text(
-                  ref.watch(
-                            gameSessionProvider.select(
-                              (s) => s.replaceFirstSide,
-                            ),
-                          ) ==
-                          null
-                      ? 'Tap one card from each hand…'
-                      : 'Tap a card on the other hand…',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
-                  ),
                 ),
               ),
           ],
@@ -1012,6 +943,185 @@ class _ResultSeat extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+Future<void> _showGameMenu(
+  BuildContext context, {
+  required String roomId,
+  required bool playing,
+  required bool isYourTurn,
+  required VoidCallback onEndGame,
+  required VoidCallback onLeaveRoom,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: 0.55),
+    builder: (sheetContext) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: CasinoGlass(
+            borderRadius: BorderRadius.circular(22),
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                _GameMenuTile(
+                  icon: Icons.menu_book_rounded,
+                  label: 'How to play',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const HowToPlayScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _GameMenuTile(
+                  icon: Icons.info_outline_rounded,
+                  label: 'Room info',
+                  subtitle:
+                      playing
+                          ? '$roomId · ${isYourTurn ? 'Your turn' : 'Opponent turn'}'
+                          : 'Code $roomId',
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        behavior: SnackBarBehavior.floating,
+                        margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                        content: CasinoToast(
+                          message:
+                              playing
+                                  ? 'Room $roomId · '
+                                      '${isYourTurn ? "Your turn" : "Opponent turn"}'
+                                  : 'Room $roomId',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                if (playing)
+                  _GameMenuTile(
+                    icon: Icons.flag_outlined,
+                    label: 'End game',
+                    destructive: true,
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      await _confirm(
+                        context,
+                        title: 'End game?',
+                        message: 'Cards get revealed and scores are counted.',
+                        confirmLabel: 'End game',
+                        tone: CasinoActionTone.fold,
+                        onConfirm: onEndGame,
+                      );
+                    },
+                  ),
+                _GameMenuTile(
+                  icon: Icons.logout_rounded,
+                  label: 'Leave room',
+                  destructive: true,
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    await _confirm(
+                      context,
+                      title: 'Leave room?',
+                      message: 'You will drop out of this game.',
+                      confirmLabel: 'Leave',
+                      tone: CasinoActionTone.fold,
+                      onConfirm: onLeaveRoom,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _GameMenuTile extends StatelessWidget {
+  const _GameMenuTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.subtitle,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String? subtitle;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = destructive ? CasinoColors.foldHi : CasinoColors.text;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, size: 22, color: color),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: const TextStyle(
+                          color: CasinoColors.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: CasinoColors.textMuted.withValues(alpha: 0.7),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

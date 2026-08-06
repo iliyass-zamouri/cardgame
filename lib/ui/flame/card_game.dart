@@ -89,7 +89,10 @@ class CardGame extends FlameGame {
   void setReplaceSelection({String? side, int? index}) {
     _replaceFirstSide = side;
     _replaceFirstIndex = index;
-    if (_ready) _applyReplaceFloat();
+    if (_ready) {
+      _applyReplaceFloat();
+      _syncTableHint();
+    }
   }
 
   void _refreshInteraction() {
@@ -97,6 +100,26 @@ class CardGame extends FlameGame {
     final snapshot = _snapshot;
     if (snapshot != null) _wireHandTaps(snapshot);
     _syncShuffleLabels();
+    _syncTableHint();
+  }
+
+  void _syncTableHint() {
+    if (!_ready) return;
+    final snapshot = _snapshot;
+    final String? message;
+    if (_peekSelecting && snapshot?.canJackPeek == true) {
+      message = 'Tap any card to peek…';
+    } else if (_queenMode == QueenMode.shufflePick) {
+      message = 'Tap Shuffle above a hand…';
+    } else if (_queenMode == QueenMode.replacePick) {
+      message =
+          _replaceFirstSide == null
+              ? 'Tap one card from each hand…'
+              : 'Tap a card on the other hand…';
+    } else {
+      message = null;
+    }
+    _table.setHint(message);
   }
 
   @override
@@ -308,6 +331,7 @@ class CardGame extends FlameGame {
     _suppressDrawnAppearSelf = null;
     _layoutHands();
     _applyJackPeekZoom(snapshot, previous);
+    _syncTableHint();
   }
 
   Set<int> _localPeekIndices(GameSnapshot snapshot) {
@@ -1568,11 +1592,12 @@ class TableArea extends PositionComponent {
     visible: true,
     sizeOverride: Vector2(86, 124),
   )..position = Vector2(70, 0);
+  final _TableHintLabel _hint = _TableHintLabel()..position = Vector2(0, 88);
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    addAll([_deck, _discard]);
+    addAll([_deck, _discard, _hint]);
   }
 
   bool _showDeck = true;
@@ -1585,6 +1610,8 @@ class TableArea extends PositionComponent {
 
   Vector2 get worldDeckPosition =>
       _deck.absolutePositionOfAnchor(Anchor.center);
+
+  void setHint(String? message) => _hint.setMessage(message);
 
   void holdDiscard(String? tag, {required String pendingTag}) {
     _holdingDiscard = true;
@@ -2353,6 +2380,55 @@ class _CardMeta {
       suit,
       red ? const Color(0xFFA31819) : const Color(0xFF1A1A1A),
       value,
+    );
+  }
+}
+
+class _TableHintLabel extends PositionComponent {
+  _TableHintLabel() {
+    size = Vector2(220, 32);
+    anchor = Anchor.topCenter;
+    priority = 40;
+  }
+
+  String? _message;
+
+  void setMessage(String? message) {
+    if (_message == message) return;
+    _message = message;
+    if (message == null) {
+      size = Vector2(1, 1);
+      return;
+    }
+    final painter = _painter(message)..layout();
+    size = Vector2((painter.width + 8).clamp(80, 320), painter.height + 4);
+  }
+
+  TextPainter _painter(String text) {
+    return TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: Color(0xFFF2F2F5),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 2,
+      textAlign: TextAlign.center,
+    );
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final message = _message;
+    if (message == null) return;
+    final painter = _painter(message)..layout(maxWidth: size.x);
+    painter.paint(
+      canvas,
+      Offset((size.x - painter.width) / 2, (size.y - painter.height) / 2),
     );
   }
 }

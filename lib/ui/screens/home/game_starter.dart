@@ -2,7 +2,6 @@ import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
-import 'package:cardgame/gen/assets.gen.dart';
 import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
@@ -10,6 +9,7 @@ import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class StartGameWidget extends ConsumerWidget {
   const StartGameWidget({super.key});
@@ -28,7 +28,7 @@ class StartGameWidget extends ConsumerWidget {
     final notifier = ref.read(gameSessionProvider.notifier);
 
     return Scaffold(
-      backgroundColor: CasinoColors.surfaceHi,
+      backgroundColor: CasinoColors.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(28, 12, 28, 16),
@@ -42,18 +42,11 @@ class StartGameWidget extends ConsumerWidget {
                 connection: connection,
               ),
               const Spacer(flex: 2),
-              Assets.logo.image(height: 72, fit: BoxFit.contain),
-              const SizedBox(height: 18),
-              Text(
-                'ShadowHand',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: CasinoColors.gold,
-                  letterSpacing: 1.6,
-                  fontSize: 34,
-                ),
+              SvgPicture.asset(
+                'assets/logo.svg',
+                height: 160,
+                fit: BoxFit.contain,
               ),
-              const SizedBox(height: 8),
               const Text(
                 'Two players. One table.',
                 textAlign: TextAlign.center,
