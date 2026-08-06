@@ -21,6 +21,17 @@ test('server owns deal and hides private cards', () => {
   assert.equal(p2.opponent.cards.every((card) => card.tag === null), true);
 });
 
+test('snapshot includes displayName from addPlayer', () => {
+  const room = new GameRoom('NAMES1');
+  room.addPlayer('p1', { playerId: 'guest-1', displayName: 'Lucky Ace' });
+  room.addPlayer('p2', { playerId: 'google-2', displayName: 'Sharp King' });
+  const snap = room.snapshotFor('p1');
+  assert.equal(snap.you.displayName, 'Lucky Ace');
+  assert.equal(snap.you.playerId, 'guest-1');
+  assert.equal(snap.opponent.displayName, 'Sharp King');
+  assert.equal(snap.opponent.playerId, 'google-2');
+});
+
 test('rejects command from player without turn', () => {
   const room = startedRoom();
   room.players.forEach((player) => {

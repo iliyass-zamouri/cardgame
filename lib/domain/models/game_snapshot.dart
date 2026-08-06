@@ -40,6 +40,11 @@ class CardSnapshot {
 
 class PlayerSnapshot {
   final bool connected;
+  final String displayName;
+  final String? playerId;
+  final int seriesWins;
+  final bool lobbyReady;
+  final bool rematchReady;
   final LaunchStatus launch;
   final int total;
   final List<CardSnapshot> cards;
@@ -50,6 +55,11 @@ class PlayerSnapshot {
 
   const PlayerSnapshot({
     required this.connected,
+    this.displayName = 'Player',
+    this.playerId,
+    this.seriesWins = 0,
+    this.lobbyReady = false,
+    this.rematchReady = false,
     required this.launch,
     required this.total,
     required this.cards,
@@ -62,6 +72,11 @@ class PlayerSnapshot {
   factory PlayerSnapshot.fromJson(Map<String, dynamic> json) {
     return PlayerSnapshot(
       connected: json['connected'] as bool? ?? false,
+      displayName: json['displayName'] as String? ?? 'Player',
+      playerId: json['playerId'] as String?,
+      seriesWins: json['seriesWins'] as int? ?? 0,
+      lobbyReady: json['lobbyReady'] as bool? ?? false,
+      rematchReady: json['rematchReady'] as bool? ?? false,
       launch: switch (json['launch']) {
         'launched' => LaunchStatus.launched,
         'ended' => LaunchStatus.ended,
@@ -213,6 +228,7 @@ class GameSnapshot {
   final int version;
   final GameStatus status;
   final bool ready;
+  final String matchType;
   final int deckCount;
   final String? discardTopTag;
 
@@ -232,6 +248,7 @@ class GameSnapshot {
     required this.version,
     required this.status,
     required this.ready,
+    this.matchType = 'private',
     required this.deckCount,
     required this.discardTopTag,
     required this.discardRecentTags,
@@ -256,6 +273,7 @@ class GameSnapshot {
         _ => GameStatus.waiting,
       },
       ready: json['ready'] as bool? ?? false,
+      matchType: json['matchType'] as String? ?? 'private',
       deckCount: json['deckCount'] as int? ?? 0,
       discardTopTag: json['discardTop'] as String?,
       discardRecentTags:

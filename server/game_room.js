@@ -23,6 +23,10 @@ class GameRoom {
     this.queenReplaceDurationMs = queenReplaceDurationMs;
     this.version = 0;
     this.status = 'waiting';
+    this.matchType = 'private';
+    this.seriesWins = [0, 0];
+    this.lobbyReady = [false, false];
+    this.rematchReady = [false, false];
     this.players = [];
     this.deck = [];
     this.discard = [];
@@ -35,10 +39,12 @@ class GameRoom {
     this.activeQueenAbility = null;
   }
 
-  addPlayer(clientId) {
+  addPlayer(clientId, { playerId = null, displayName = null } = {}) {
     const existing = this.players.find((player) => player.id === clientId);
     if (existing) {
       existing.connected = true;
+      if (playerId) existing.playerId = playerId;
+      if (displayName) existing.displayName = displayName;
       this.#changed();
       return existing;
     }
@@ -47,6 +53,8 @@ class GameRoom {
     }
     const player = {
       id: clientId,
+      playerId: playerId || null,
+      displayName: displayName || 'Player',
       connected: true,
       cards: [],
       handCard: null,
@@ -69,6 +77,10 @@ class GameRoom {
     this.#clearActiveQueenAbility();
     this.players.splice(index, 1);
     this.status = 'waiting';
+    this.matchType = 'private';
+    this.seriesWins = [0, 0];
+    this.lobbyReady = [false, false];
+    this.rematchReady = [false, false];
     this.deck = [];
     this.discard = [];
     this.turnIndex = null;
@@ -83,6 +95,24 @@ class GameRoom {
       player.jackPeekAvailable = false;
       player.queenAbilityAvailable = false;
     });
+    this.#changed();
+  }
+
+  /** Mark lobby ready; when both players ready, auto-start. */
+  ready(clientId) {
+    this.#requirePlayer(clientId);
+    if (this.players.length !== 2) {
+      throw new GameRuleError('waiting_for_player', 'Two players required');
+    }
+    if (this.status !== 'waiting') {
+      throw new GameRuleError('already_started', 'Game already started');
+    }
+    const index = this.players.findIndex((player) => player.id === clientId);
+    this.lobbyReady[index] = true;
+    if (this.lobbyReady[0] && this.lobbyReady[1]) {
+      this.start(clientId);
+      return;
+    }
     this.#changed();
   }
 
@@ -102,6 +132,8 @@ class GameRoom {
     this.lastAction = null;
     this.discardSource = null;
     this.status = 'playing';
+    this.lobbyReady = [false, false];
+    this.rematchReady = [false, false];
     this.players.forEach((player) => {
       player.cards = [];
       player.handCard = null;
@@ -114,6 +146,23 @@ class GameRoom {
       this.players.forEach((player) => player.cards.push(this.deck.pop()));
     }
     this.turnIndex = Math.floor(this.random() * 2);
+    this.#changed();
+  }
+
+  rematch(clientId) {
+    this.#requirePlayer(clientId);
+    if (this.players.length !== 2) {
+      throw new GameRuleError('waiting_for_player', 'Two players required');
+    }
+    if (this.status !== 'ended') {
+      throw new GameRuleError('not_ended', 'Game is not over');
+    }
+    const index = this.players.findIndex((player) => player.id === clientId);
+    this.rematchReady[index] = true;
+    if (this.rematchReady[0] && this.rematchReady[1]) {
+      this.start(clientId);
+      return;
+    }
     this.#changed();
   }
 
@@ -373,14 +422,19 @@ class GameRoom {
       version: this.version,
       status: this.status,
       ready: this.players.length === 2,
+      matchType: this.matchType,
       deckCount: this.deck.length,
       discardTop: this.discard.at(-1) ?? null,
       discardRecent: this.discard.slice(-2),
       turn: this.turnIndex === null
         ? null
         : this.turnIndex === viewerIndex ? 'you' : 'opponent',
-      you: viewer ? this.#playerView(viewer, true, showAll, clientId) : null,
-      opponent: opponent ? this.#playerView(opponent, false, showAll, clientId) : null,
+      you: viewer
+        ? this.#playerView(viewer, true, showAll, clientId, viewerIndex)
+        : null,
+      opponent: opponent
+        ? this.#playerView(opponent, false, showAll, clientId, 1 - viewerIndex)
+        : null,
       result: this.result,
       discardSource: this.discardSource,
       lastAction: this.lastAction
@@ -406,11 +460,16 @@ class GameRoom {
     this.#clearTimers();
   }
 
-  #playerView(player, isSelf, showAll, viewerId = null) {
+  #playerView(player, isSelf, showAll, viewerId = null, seatIndex = 0) {
     const peek = this.activePeek;
     const peekForViewer = Boolean(peek && peek.viewerId === viewerId);
     return {
       connected: player.connected,
+      displayName: player.displayName || 'Player',
+      playerId: player.playerId || null,
+      seriesWins: this.seriesWins[seatIndex] ?? 0,
+      lobbyReady: Boolean(this.lobbyReady[seatIndex]),
+      rematchReady: Boolean(this.rematchReady[seatIndex]),
       launch: player.launch,
       total: player.total,
       cards: player.cards.map((tag, index) => {
@@ -449,15 +508,20 @@ class GameRoom {
   #endGame() {
     this.status = 'ended';
     this.turnIndex = null;
+    this.rematchReady = [false, false];
     this.players.forEach((player) => {
       player.total = player.cards.reduce((sum, tag) => sum + gameValue(tag), 0);
     });
+    const winnerIndex = this.players[0].total === this.players[1].total
+      ? null
+      : this.players[0].total < this.players[1].total ? 0 : 1;
     this.result = {
       scores: this.players.map((player) => player.total),
-      winnerIndex: this.players[0].total === this.players[1].total
-        ? null
-        : this.players[0].total < this.players[1].total ? 0 : 1,
+      winnerIndex,
     };
+    if (winnerIndex === 0 || winnerIndex === 1) {
+      this.seriesWins[winnerIndex] += 1;
+    }
     this.#clearTimers();
   }
 

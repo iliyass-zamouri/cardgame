@@ -1,7 +1,22 @@
 const http = require('http');
 const crypto = require('crypto');
+const { URL } = require('url');
 const WebSocket = require('ws');
 const { GameRoom, GameRuleError, createRoomCode } = require('./game_room');
+const { sendJson, readJsonBody, corsHeaders } = require('./http_util');
+const {
+  assertValidGuestDeviceId,
+  InvalidGuestDeviceIdError,
+  InvalidGuestIpError,
+  GuestIpMismatchError,
+  getClientIp,
+} = require('./auth/guest_device');
+const {
+  verifyGoogleIdToken,
+  InvalidGoogleTokenError,
+} = require('./auth/google_token');
+const { authenticateOAuth } = require('./auth/oauth');
+const { findOrCreateGuest } = require('./db/store');
 
 class GameServer {
   constructor({ port = 8080, host = '127.0.0.1' } = {}) {
@@ -9,6 +24,8 @@ class GameServer {
     this.host = host;
     this.rooms = new Map();
     this.clients = new Map();
+    /** @type {Array<object>} FIFO matchmaking queue of client contexts */
+    this.matchQueue = [];
     this.httpServer = null;
     this.webSocketServer = null;
   }
@@ -17,17 +34,15 @@ class GameServer {
     if (this.httpServer) return this.address;
 
     this.httpServer = http.createServer((request, response) => {
-      if (request.url === '/health') {
-        response.writeHead(200, { 'content-type': 'application/json' });
-        response.end(JSON.stringify({
-          status: 'ok',
-          rooms: this.rooms.size,
-          clients: this.clients.size,
-        }));
-        return;
-      }
-      response.writeHead(404);
-      response.end();
+      this.#handleHttp(request, response).catch((error) => {
+        console.error('[http] unhandled', error);
+        if (!response.headersSent) {
+          sendJson(response, 500, {
+            error: 'server_error',
+            message: 'Internal server error',
+          });
+        }
+      });
     });
 
     this.webSocketServer = new WebSocket.Server({
@@ -55,10 +70,183 @@ class GameServer {
     for (const context of this.clients.values()) context.socket.terminate();
     this.rooms.clear();
     this.clients.clear();
+    this.matchQueue = [];
     await new Promise((resolve) => this.webSocketServer?.close(resolve));
     await new Promise((resolve) => this.httpServer?.close(resolve));
     this.webSocketServer = null;
     this.httpServer = null;
+  }
+
+  async #handleHttp(request, response) {
+    const url = new URL(request.url ?? '/', `http://${request.headers.host || 'localhost'}`);
+
+    if (request.method === 'GET' && url.pathname === '/health') {
+      sendJson(response, 200, {
+        status: 'ok',
+        rooms: this.rooms.size,
+        clients: this.clients.size,
+      });
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/auth/guest') {
+      await this.#handleGuestAuth(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/auth/google') {
+      await this.#handleGoogleAuth(request, response);
+      return;
+    }
+
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204, corsHeaders());
+      response.end();
+      return;
+    }
+
+    response.writeHead(404);
+    response.end();
+  }
+
+  async #handleGuestAuth(request, response) {
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+
+    let deviceId;
+    try {
+      deviceId = assertValidGuestDeviceId(body.deviceId);
+    } catch (error) {
+      const message =
+        error instanceof InvalidGuestDeviceIdError
+          ? error.message
+          : 'deviceId is required';
+      sendJson(response, 400, {
+        error: 'invalid_device_id',
+        message,
+      });
+      return;
+    }
+
+    const clientIp = getClientIp(request);
+
+    try {
+      const identity = await findOrCreateGuest({ deviceId, clientIp });
+      sendJson(response, 200, identity);
+    } catch (error) {
+      if (
+        error instanceof InvalidGuestDeviceIdError ||
+        error instanceof InvalidGuestIpError
+      ) {
+        sendJson(response, 400, {
+          error: error.code,
+          message: error.message,
+        });
+        return;
+      }
+      if (error instanceof GuestIpMismatchError) {
+        sendJson(response, 403, {
+          error: error.code,
+          message: error.message,
+        });
+        return;
+      }
+      if (error?.message?.includes('MySQL pool not initialized')) {
+        sendJson(response, 503, {
+          error: 'db_unavailable',
+          message: 'Database not ready',
+        });
+        return;
+      }
+      console.error('[auth/guest] failed', error);
+      sendJson(response, 500, {
+        error: 'server_error',
+        message: 'Could not create or load guest',
+      });
+    }
+  }
+
+  async #handleGoogleAuth(request, response) {
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+
+    const idToken =
+      typeof body.idToken === 'string' ? body.idToken.trim() : '';
+    if (!idToken) {
+      sendJson(response, 400, {
+        error: 'invalid_id_token',
+        message: 'idToken is required',
+      });
+      return;
+    }
+
+    let deviceId = null;
+    if (body.deviceId != null && String(body.deviceId).trim()) {
+      try {
+        deviceId = assertValidGuestDeviceId(body.deviceId);
+      } catch (error) {
+        const message =
+          error instanceof InvalidGuestDeviceIdError
+            ? error.message
+            : 'Invalid deviceId';
+        sendJson(response, 400, {
+          error: 'invalid_device_id',
+          message,
+        });
+        return;
+      }
+    }
+
+    const clientIp = getClientIp(request);
+
+    try {
+      const claims = await verifyGoogleIdToken(idToken);
+      const identity = await authenticateOAuth({
+        provider: 'google',
+        sub: claims.sub,
+        displayNameHint: claims.name ?? null,
+        deviceId,
+        clientIp,
+      });
+      sendJson(response, 200, identity);
+    } catch (error) {
+      if (error instanceof InvalidGoogleTokenError) {
+        sendJson(response, 401, {
+          error: error.code,
+          message: error.message,
+        });
+        return;
+      }
+      if (error instanceof InvalidGuestDeviceIdError) {
+        sendJson(response, 400, {
+          error: error.code,
+          message: error.message,
+        });
+        return;
+      }
+      if (error?.message?.includes('MySQL pool not initialized')) {
+        sendJson(response, 503, {
+          error: 'db_unavailable',
+          message: 'Database not ready',
+        });
+        return;
+      }
+      console.error('[auth/google] failed', error);
+      sendJson(response, 500, {
+        error: 'server_error',
+        message: 'Could not authenticate with Google',
+      });
+    }
   }
 
   #connect(socket) {
@@ -66,6 +254,8 @@ class GameServer {
       id: crypto.randomUUID(),
       socket,
       roomId: null,
+      playerId: null,
+      displayName: null,
       messages: [],
     };
     this.clients.set(context.id, context);
@@ -96,6 +286,7 @@ class GameServer {
     });
 
     socket.on('close', () => {
+      this.#dequeue(context);
       const room = this.rooms.get(context.roomId);
       room?.removePlayer(context.id);
       this.clients.delete(context.id);
@@ -103,32 +294,76 @@ class GameServer {
     });
   }
 
+  #identityFromCommand(command) {
+    const playerId =
+      typeof command.playerId === 'string' && command.playerId.trim()
+        ? command.playerId.trim().slice(0, 64)
+        : null;
+    const displayName =
+      typeof command.displayName === 'string' && command.displayName.trim()
+        ? command.displayName.trim().slice(0, 64)
+        : null;
+    return { playerId, displayName };
+  }
+
   #handle(context, command) {
     if (!command || typeof command.type !== 'string') {
       throw new GameRuleError('invalid_command', 'Command type is required');
     }
 
-    if (command.type === 'createRoom') {
+    if (command.type === 'findMatch') {
       this.#leaveCurrentRoom(context);
+      this.#dequeue(context);
+      const identity = this.#identityFromCommand(command);
+      context.playerId = identity.playerId;
+      context.displayName = identity.displayName;
+      this.matchQueue.push(context);
+      this.#tryFormMatch();
+      return;
+    }
+
+    if (command.type === 'cancelFindMatch') {
+      this.#dequeue(context);
+      this.#send(context.socket, { type: 'leftQueue' });
+      return;
+    }
+
+    if (command.type === 'createRoom') {
+      this.#dequeue(context);
+      this.#leaveCurrentRoom(context);
+      const identity = this.#identityFromCommand(command);
+      context.playerId = identity.playerId;
+      context.displayName = identity.displayName;
       let roomId;
       do roomId = createRoomCode(); while (this.rooms.has(roomId));
-      const room = this.#createRoom(roomId);
+      const room = this.#createRoom(roomId, 'private');
       context.roomId = roomId;
-      room.addPlayer(context.id);
+      room.addPlayer(context.id, {
+        playerId: context.playerId,
+        displayName: context.displayName,
+      });
       return;
     }
 
     if (command.type === 'joinRoom') {
+      this.#dequeue(context);
       const roomId = String(command.roomId ?? '').trim().toUpperCase();
       const room = this.rooms.get(roomId);
       if (!room) throw new GameRuleError('room_not_found', 'Room not found');
       this.#leaveCurrentRoom(context);
+      const identity = this.#identityFromCommand(command);
+      context.playerId = identity.playerId;
+      context.displayName = identity.displayName;
       context.roomId = roomId;
-      room.addPlayer(context.id);
+      room.addPlayer(context.id, {
+        playerId: context.playerId,
+        displayName: context.displayName,
+      });
       return;
     }
 
     if (command.type === 'leaveRoom') {
+      this.#dequeue(context);
       this.#leaveCurrentRoom(context);
       this.#send(context.socket, { type: 'leftRoom' });
       return;
@@ -139,7 +374,11 @@ class GameServer {
 
     switch (command.type) {
       case 'startGame':
-        room.start(context.id);
+      case 'ready':
+        room.ready(context.id);
+        break;
+      case 'rematch':
+        room.rematch(context.id);
         break;
       case 'launch':
         room.launch(context.id);
@@ -176,10 +415,50 @@ class GameServer {
     }
   }
 
-  #createRoom(roomId) {
+  #dequeue(context) {
+    this.matchQueue = this.matchQueue.filter((entry) => entry.id !== context.id);
+  }
+
+  #tryFormMatch() {
+    while (this.matchQueue.length >= 2) {
+      const first = this.matchQueue.shift();
+      const second = this.matchQueue.shift();
+      if (!first || !second) break;
+      if (
+        first.socket.readyState !== WebSocket.OPEN
+        || second.socket.readyState !== WebSocket.OPEN
+      ) {
+        if (first.socket.readyState === WebSocket.OPEN) {
+          this.matchQueue.unshift(first);
+        }
+        if (second.socket.readyState === WebSocket.OPEN) {
+          this.matchQueue.unshift(second);
+        }
+        continue;
+      }
+
+      let roomId;
+      do roomId = createRoomCode(); while (this.rooms.has(roomId));
+      const room = this.#createRoom(roomId, 'random');
+      first.roomId = roomId;
+      second.roomId = roomId;
+      room.addPlayer(first.id, {
+        playerId: first.playerId,
+        displayName: first.displayName,
+      });
+      room.addPlayer(second.id, {
+        playerId: second.playerId,
+        displayName: second.displayName,
+      });
+      room.start(first.id);
+    }
+  }
+
+  #createRoom(roomId, matchType = 'private') {
     const room = new GameRoom(roomId, {
       onChange: (changedRoom) => this.#broadcastRoom(changedRoom),
     });
+    room.matchType = matchType;
     this.rooms.set(roomId, room);
     return room;
   }

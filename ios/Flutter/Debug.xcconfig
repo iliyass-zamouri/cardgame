@@ -1,1 +1,5 @@
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
+
+// Same Web client as chameleon_2d (reversed form for iOS URL scheme).
+GOOGLE_REVERSED_CLIENT_ID=com.googleusercontent.apps.336790716391-cfhpcah0v00avevev4nihlphvpt14mc8

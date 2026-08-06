@@ -1,0 +1,160 @@
+import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/data/auth/google_sign_in_service.dart';
+import 'package:cardgame/data/auth/guest_auth_service.dart';
+import 'package:cardgame/data/auth/oauth_auth_service.dart';
+import 'package:cardgame/data/auth/server_identity.dart';
+import 'package:cardgame/gen/assets.gen.dart';
+import 'package:cardgame/ui/screens/auth/auth_provider_buttons.dart';
+import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class AuthenticationScreen extends ConsumerStatefulWidget {
+  const AuthenticationScreen({super.key});
+
+  @override
+  ConsumerState<AuthenticationScreen> createState() =>
+      _AuthenticationScreenState();
+}
+
+class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
+  bool _guestLoading = false;
+  bool _googleLoading = false;
+  String? _error;
+
+  bool get _busy => _guestLoading || _googleLoading;
+
+  Future<void> _applyIdentity(ServerIdentity identity) async {
+    await ref.read(playerProfileProvider.notifier).applyIdentity(identity);
+  }
+
+  Future<void> _enterGuest() async {
+    if (_busy) return;
+    setState(() {
+      _guestLoading = true;
+      _error = null;
+    });
+    try {
+      final fingerprint =
+          await ref.read(deviceIdentityServiceProvider).fingerprint();
+      final identity = await ref
+          .read(guestAuthServiceProvider)
+          .authenticateGuest(
+            deviceId: fingerprint.deviceId,
+            platform: fingerprint.platform,
+            model: fingerprint.model,
+          );
+      await _applyIdentity(identity);
+      await ref.read(sessionAuthProvider.notifier).enterAsGuest();
+    } on GuestAuthException catch (error) {
+      if (mounted) {
+        setState(() => _error = 'Guest sign-in failed. Is the server running?');
+      }
+      debugPrint('Guest auth failed: $error');
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() => _error = 'Guest sign-in failed. Check connection.');
+      }
+      debugPrint('Guest auth error: $error');
+    } finally {
+      if (mounted) setState(() => _guestLoading = false);
+    }
+  }
+
+  Future<void> _enterGoogle() async {
+    if (_busy) return;
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+    try {
+      final idToken =
+          await ref.read(googleSignInServiceProvider).signInIdToken();
+      final fingerprint =
+          await ref.read(deviceIdentityServiceProvider).fingerprint();
+      final identity = await ref
+          .read(oauthAuthServiceProvider)
+          .authenticateGoogle(idToken: idToken, deviceId: fingerprint.deviceId);
+      await _applyIdentity(identity);
+      await ref.read(sessionAuthProvider.notifier).enterWithGoogle();
+    } on GoogleSignInCancelledException {
+      // Stay on auth.
+    } on GoogleSignInFailedException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on OAuthAuthException catch (error) {
+      if (mounted) {
+        setState(() => _error = 'Google sign-in failed. Try again.');
+      }
+      debugPrint('Google OAuth failed: $error');
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() => _error = 'Google sign-in failed. Try again.');
+      }
+      debugPrint('Google auth error: $error');
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          children: [
+            const Spacer(flex: 2),
+            Image.asset(Assets.logo.path, height: 88, fit: BoxFit.contain),
+            const SizedBox(height: 20),
+            Text(
+              'ShadowHand',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: CasinoColors.gold,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Sign in to play online',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const Spacer(flex: 2),
+            if (_error != null) ...[
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: CasinoColors.foldHi),
+              ),
+              const SizedBox(height: 16),
+            ],
+            AuthProviderButton.google(
+              label: _googleLoading ? 'Signing in…' : 'Continue with Google',
+              onPressed: _busy ? null : _enterGoogle,
+            ),
+            const SizedBox(height: 14),
+            AuthProviderButton.guest(
+              label: _guestLoading ? 'Entering…' : 'Play as Guest',
+              onPressed: _busy ? null : _enterGuest,
+            ),
+            const SizedBox(height: 28),
+            if (_busy)
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: CasinoColors.gold,
+                ),
+              )
+            else
+              const SizedBox(height: 22),
+            const Spacer(flex: 1),
+          ],
+        ),
+      ),
+    );
+  }
+}

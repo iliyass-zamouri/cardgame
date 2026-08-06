@@ -79,7 +79,7 @@ class CasinoPill extends StatelessWidget {
   }
 }
 
-enum CasinoActionTone { fold, check, raise }
+enum CasinoActionTone { fold, check, raise, gold }
 
 /// Large bottom action button (FOLD / CHECK / RAISE look).
 class CasinoActionButton extends StatelessWidget {
@@ -90,6 +90,7 @@ class CasinoActionButton extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.expanded = true,
+    this.height = 52,
   });
 
   final String label;
@@ -97,21 +98,25 @@ class CasinoActionButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final IconData? icon;
   final bool expanded;
+  final double height;
 
   (Color, Color) get _colors => switch (tone) {
     CasinoActionTone.fold => (CasinoColors.fold, CasinoColors.foldHi),
     CasinoActionTone.check => (CasinoColors.check, CasinoColors.checkHi),
     CasinoActionTone.raise => (CasinoColors.raise, CasinoColors.raiseHi),
+    CasinoActionTone.gold => (CasinoColors.gold, CasinoColors.goldSoft),
   };
 
   @override
   Widget build(BuildContext context) {
     final (lo, hi) = _colors;
     final enabled = onPressed != null;
+    final onTone =
+        tone == CasinoActionTone.gold ? CasinoColors.bg : CasinoColors.text;
     final labelText = Text(
       label.toUpperCase(),
-      style: const TextStyle(
-        color: CasinoColors.text,
+      style: TextStyle(
+        color: onTone,
         fontWeight: FontWeight.w800,
         fontSize: 15,
         letterSpacing: 1.1,
@@ -121,9 +126,8 @@ class CasinoActionButton extends StatelessWidget {
       duration: const Duration(milliseconds: 160),
       opacity: enabled ? 1 : 0.45,
       child: Container(
-        height: 52,
-        padding: EdgeInsets.symmetric(horizontal: expanded ? 0 : 22),
-        alignment: Alignment.center,
+        height: height,
+        padding: EdgeInsets.symmetric(horizontal: expanded ? 0 : 16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           gradient: LinearGradient(
@@ -132,22 +136,21 @@ class CasinoActionButton extends StatelessWidget {
             colors: [hi, lo],
           ),
         ),
-        child:
-            icon == null
-                ? labelText
-                : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      icon,
-                      color: CasinoColors.text,
-                      size: expanded ? 22 : 18,
-                    ),
-                    const SizedBox(width: 8),
-                    labelText,
-                  ],
-                ),
+        child: Center(
+          widthFactor: expanded ? null : 1,
+          child:
+              icon == null
+                  ? labelText
+                  : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: onTone, size: expanded ? 22 : 18),
+                      const SizedBox(width: 8),
+                      labelText,
+                    ],
+                  ),
+        ),
       ),
     );
 

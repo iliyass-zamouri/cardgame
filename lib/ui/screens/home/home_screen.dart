@@ -4,6 +4,7 @@ import 'package:cardgame/ui/flame/card_game_view.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,11 +41,63 @@ class HomeScreen extends ConsumerWidget {
 
     final session = ref.watch(gameSessionProvider);
     final game = session.game;
+    if (session.searchingMatch && game == null) {
+      return const MatchmakingWaiting();
+    }
     if (game == null) return const StartGameWidget();
     if (game.status == GameStatus.waiting) {
       return WaitingRoom(game: game);
     }
     return const GameBoard();
+  }
+}
+
+class MatchmakingWaiting extends ConsumerWidget {
+  const MatchmakingWaiting({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(gameSessionProvider.notifier);
+
+    return Scaffold(
+      backgroundColor: CasinoColors.surfaceHi,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SuitCardLoader(height: 32),
+                const SizedBox(height: 20),
+                Text(
+                  'Finding opponent',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: CasinoColors.gold,
+                    fontSize: 26,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Hang tight — matching you with a player.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: CasinoColors.textMuted, fontSize: 14),
+                ),
+                const SizedBox(height: 36),
+                CasinoActionButton(
+                  label: 'Cancel',
+                  tone: CasinoActionTone.fold,
+                  expanded: false,
+                  onPressed: notifier.cancelFindMatch,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -56,91 +109,266 @@ class WaitingRoom extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(gameSessionProvider.notifier);
+    final bothJoined = game.ready;
+    final youReady = game.you.lobbyReady;
+    final opponentReady = game.opponent?.lobbyReady ?? false;
+    final yourName = game.you.displayName;
+    final opponentName = game.opponent?.displayName ?? 'Waiting…';
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: CasinoColors.surfaceHi,
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CasinoPill(
-                  borderColor: CasinoColors.borderGlow,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.meeting_room_outlined,
-                        size: 18,
-                        color: CasinoColors.gold,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Spacer(flex: 1),
+              Text(
+                'Private table',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: CasinoColors.gold,
+                  fontSize: 26,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                bothJoined
+                    ? (youReady && !opponentReady
+                        ? 'Waiting for $opponentName…'
+                        : !youReady && opponentReady
+                        ? '$opponentName is ready'
+                        : 'Both players joined')
+                    : 'Share this code with a friend',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color:
+                      bothJoined
+                          ? CasinoColors.raiseHi
+                          : CasinoColors.textMuted,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              if (bothJoined && youReady && !opponentReady) ...[
+                const SizedBox(height: 20),
+                const Center(child: SuitCardLoader(height: 24)),
+              ],
+              const SizedBox(height: 28),
+              if (bothJoined) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: _LobbySeat(
+                        name: yourName,
+                        connected: game.you.connected,
+                        ready: youReady,
+                        isYou: true,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'ROOM ${game.roomId}',
-                        style: const TextStyle(
-                          color: CasinoColors.gold,
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        'VS',
+                        style: TextStyle(
+                          color: CasinoColors.goldSoft,
+                          fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 2,
+                          letterSpacing: 1.2,
                         ),
                       ),
-                      IconButton(
-                        tooltip: 'Copy code',
-                        onPressed: () async {
-                          await Clipboard.setData(
-                            ClipboardData(text: game.roomId),
-                          );
-                        },
-                        icon: const Icon(Icons.copy, size: 16),
-                        color: CasinoColors.textMuted,
-                        visualDensity: VisualDensity.compact,
+                    ),
+                    Expanded(
+                      child: _LobbySeat(
+                        name: opponentName,
+                        connected: game.opponent?.connected ?? false,
+                        ready: opponentReady,
+                        isYou: false,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+              ],
+              GestureDetector(
+                onTap: () async {
+                  await Clipboard.setData(ClipboardData(text: game.roomId));
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                      content: CasinoToast(message: 'Code copied'),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: bothJoined ? 14 : 22),
+                  decoration: BoxDecoration(
+                    color: CasinoColors.bgElevated,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      SelectableText(
+                        game.roomId,
+                        style: TextStyle(
+                          color: CasinoColors.text,
+                          fontSize: bothJoined ? 28 : 40,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: bothJoined ? 8 : 10,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Tap to copy',
+                        style: TextStyle(
+                          color: CasinoColors.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 28),
-                SelectableText(
-                  game.roomId,
-                  style: const TextStyle(
-                    color: CasinoColors.text,
-                    fontSize: 42,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 8,
+              ),
+              const Spacer(flex: 2),
+              Row(
+                children: [
+                  CasinoActionButton(
+                    label: youReady ? 'Waiting…' : 'Ready',
+                    icon:
+                        youReady
+                            ? Icons.hourglass_top_rounded
+                            : Icons.check_rounded,
+                    tone: CasinoActionTone.raise,
+                    onPressed:
+                        bothJoined && !youReady ? notifier.readyUp : null,
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  game.ready
-                      ? 'Two players connected'
-                      : 'Waiting for opponent…',
-                  style: TextStyle(
-                    color:
-                        game.ready
-                            ? CasinoColors.raiseHi
-                            : CasinoColors.textMuted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 28),
-                CasinoActionButton(
-                  label: 'Start game',
-                  tone: CasinoActionTone.raise,
-                  expanded: false,
-                  onPressed: game.ready ? notifier.startGame : null,
-                ),
-                const SizedBox(height: 12),
-                CasinoActionButton(
-                  label: 'Leave room',
-                  tone: CasinoActionTone.fold,
-                  expanded: false,
+                ],
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: TextButton(
                   onPressed: notifier.leaveRoom,
+                  style: TextButton.styleFrom(
+                    foregroundColor: CasinoColors.textMuted,
+                  ),
+                  child: const Text('Leave room'),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LobbySeat extends StatelessWidget {
+  const _LobbySeat({
+    required this.name,
+    required this.connected,
+    required this.ready,
+    required this.isYou,
+  });
+
+  final String name;
+  final bool connected;
+  final bool ready;
+  final bool isYou;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 64,
+          height: 64,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: CasinoColors.bgElevated,
+                  border: Border.all(
+                    color: ready ? CasinoColors.gold : Colors.white24,
+                    width: ready ? 2.5 : 1.5,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.person_rounded,
+                  size: 32,
+                  color: CasinoColors.text,
+                ),
+              ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color:
+                        connected
+                            ? const Color(0xFF7ED50E)
+                            : CasinoColors.foldHi,
+                    border: Border.all(color: CasinoColors.surfaceHi, width: 2),
+                  ),
+                ),
+              ),
+              if (ready)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: CasinoColors.raise,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      size: 14,
+                      color: CasinoColors.text,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: ready ? CasinoColors.gold : CasinoColors.text,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          isYou ? 'You' : (ready ? 'Ready' : 'Not ready'),
+          style: const TextStyle(
+            color: CasinoColors.textMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -199,8 +427,8 @@ class GameHud extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CasinoMenuPlayersPill(
-                    youName: 'You',
-                    opponentName: 'Player 2',
+                    youName: game.you.displayName,
+                    opponentName: game.opponent?.displayName ?? 'Waiting…',
                     youConnected: game.you.connected,
                     opponentConnected: game.opponent?.connected ?? false,
                     yourTurn: playing && game.isYourTurn,
@@ -324,15 +552,24 @@ class GameHud extends ConsumerWidget {
                 left: 24,
                 right: 24,
                 bottom: 20,
-                child: Text(
-                  'Waiting for opponent to see their cards…',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SuitCardLoader(height: 22),
+                    SizedBox(height: 8),
+                    Text(
+                      'Waiting for opponent to see their cards…',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: CasinoColors.textMuted,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(color: Color(0xCC000000), blurRadius: 6),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             if (playing && peekSelecting && canPeek)
@@ -409,13 +646,19 @@ class GameOverPanel extends ConsumerWidget {
     final opponentTotal = game.opponent?.total;
     final youWin = opponentTotal != null && yourTotal < opponentTotal;
     final theyWin = opponentTotal != null && yourTotal > opponentTotal;
+    final yourName = game.you.displayName;
+    final opponentName = game.opponent?.displayName ?? 'Opponent';
+    final yourSeries = game.you.seriesWins;
+    final opponentSeries = game.opponent?.seriesWins ?? 0;
+    final rematchReady = game.you.rematchReady;
+    final opponentRematchReady = game.opponent?.rematchReady ?? false;
     final headline =
         opponentTotal == null
             ? 'Game over'
             : youWin
-            ? 'You win'
+            ? 'Victory'
             : theyWin
-            ? 'Player 2 wins'
+            ? 'Defeat'
             : 'Draw';
 
     return Center(
@@ -439,22 +682,24 @@ class GameOverPanel extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _GameOverHeadline(label: headline, glow: youWin),
+            const SizedBox(height: 4),
             Text(
-              headline.toUpperCase(),
+              'SERIES  $yourSeries – $opponentSeries',
+              textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: CasinoFonts.display,
-                color: CasinoColors.gold,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.4,
+                color: CasinoColors.goldSoft,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
               ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
                   child: _ResultSeat(
-                    name: 'You',
+                    name: yourName,
                     score: yourTotal,
                     connected: game.you.connected,
                     winner: youWin,
@@ -474,7 +719,7 @@ class GameOverPanel extends ConsumerWidget {
                 ),
                 Expanded(
                   child: _ResultSeat(
-                    name: 'Player 2',
+                    name: opponentName,
                     score: opponentTotal ?? 0,
                     connected: game.opponent?.connected ?? false,
                     winner: theyWin,
@@ -483,6 +728,31 @@ class GameOverPanel extends ConsumerWidget {
                 ),
               ],
             ),
+            if (rematchReady && !opponentRematchReady) ...[
+              const SizedBox(height: 16),
+              const SuitCardLoader(height: 24),
+              const SizedBox(height: 10),
+              const Text(
+                'Waiting for opponent to rematch…',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: CasinoColors.textMuted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ] else if (!rematchReady && opponentRematchReady) ...[
+              const SizedBox(height: 16),
+              Text(
+                '$opponentName is asking for a rematch',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: CasinoColors.goldSoft,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             Row(
               children: [
@@ -494,16 +764,112 @@ class GameOverPanel extends ConsumerWidget {
                 ),
                 const SizedBox(width: 10),
                 CasinoActionButton(
-                  label: 'Play again',
+                  label: rematchReady ? 'Waiting…' : 'Rematch',
                   icon: Icons.replay_rounded,
                   tone: CasinoActionTone.raise,
-                  onPressed: notifier.startGame,
+                  onPressed: rematchReady ? null : notifier.rematch,
                 ),
               ],
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _GameOverHeadline extends StatefulWidget {
+  const _GameOverHeadline({required this.label, required this.glow});
+
+  final String label;
+  final bool glow;
+
+  @override
+  State<_GameOverHeadline> createState() => _GameOverHeadlineState();
+}
+
+class _GameOverHeadlineState extends State<_GameOverHeadline>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _glow;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    _glow = Tween<double>(
+      begin: 0.25,
+      end: 0.85,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    if (widget.glow) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _GameOverHeadline oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.glow && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    } else if (!widget.glow && _controller.isAnimating) {
+      _controller.stop();
+      _controller.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Text(
+      widget.label.toUpperCase(),
+      style: const TextStyle(
+        fontFamily: CasinoFonts.display,
+        color: CasinoColors.gold,
+        fontSize: 22,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.4,
+      ),
+    );
+
+    if (!widget.glow) return text;
+
+    return AnimatedBuilder(
+      animation: _glow,
+      builder: (context, child) {
+        final intensity = _glow.value;
+        return Text(
+          widget.label.toUpperCase(),
+          style: TextStyle(
+            fontFamily: CasinoFonts.display,
+            color: CasinoColors.gold,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.4,
+            shadows: [
+              Shadow(
+                color: CasinoColors.gold.withValues(alpha: intensity),
+                blurRadius: 8 + intensity * 16,
+              ),
+              Shadow(
+                color: CasinoColors.goldSoft.withValues(alpha: intensity * 0.7),
+                blurRadius: 4 + intensity * 10,
+              ),
+              Shadow(
+                color: CasinoColors.gold.withValues(alpha: intensity * 0.45),
+                blurRadius: 22 + intensity * 18,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -603,6 +969,8 @@ class _ResultSeat extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: winner ? CasinoColors.gold : CasinoColors.text,
               fontSize: 13,
@@ -610,14 +978,38 @@ class _ResultSeat extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            missing ? '—' : '$score',
-            style: TextStyle(
-              color: winner ? CasinoColors.goldSoft : CasinoColors.textMuted,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                missing ? '—' : '$score',
+                style: TextStyle(
+                  color:
+                      winner ? CasinoColors.goldSoft : CasinoColors.textMuted,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.4,
+                  height: 1,
+                ),
+              ),
+              if (!missing) ...[
+                const SizedBox(width: 3),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    'pts',
+                    style: TextStyle(
+                      color: CasinoColors.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),

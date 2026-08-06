@@ -11,6 +11,7 @@ class GameSessionState {
   final String? message;
   final bool peekSelecting;
   final QueenMode queenMode;
+  final bool searchingMatch;
 
   /// Replace pick: first selection side (`you` / `opponent`) and index.
   final String? replaceFirstSide;
@@ -23,6 +24,7 @@ class GameSessionState {
     this.message,
     this.peekSelecting = false,
     this.queenMode = QueenMode.none,
+    this.searchingMatch = false,
     this.replaceFirstSide,
     this.replaceFirstIndex,
   });
@@ -34,6 +36,7 @@ class GameSessionState {
     Object? message = _unset,
     bool? peekSelecting,
     QueenMode? queenMode,
+    bool? searchingMatch,
     Object? replaceFirstSide = _unset,
     Object? replaceFirstIndex = _unset,
   }) {
@@ -45,6 +48,7 @@ class GameSessionState {
       message: identical(message, _unset) ? this.message : message as String?,
       peekSelecting: peekSelecting ?? this.peekSelecting,
       queenMode: queenMode ?? this.queenMode,
+      searchingMatch: searchingMatch ?? this.searchingMatch,
       replaceFirstSide:
           identical(replaceFirstSide, _unset)
               ? this.replaceFirstSide

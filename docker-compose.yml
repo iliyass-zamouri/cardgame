@@ -1,4 +1,34 @@
 services:
+  mysql:
+    image: mysql:8.4
+    container_name: cardgame-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-cardgame}
+      MYSQL_USER: ${MYSQL_USER:-cardgame}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-cardgame}
+    ports:
+      - "${MYSQL_PUBLISH_PORT:-3308}:3306"
+    volumes:
+      - cardgame_mysql_data:/var/lib/mysql
+      - ./server/sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "127.0.0.1",
+          "-uroot",
+          "-p${MYSQL_ROOT_PASSWORD:-root}",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+    restart: unless-stopped
+
   server:
     build: .
     container_name: cardgame-server
@@ -7,6 +37,17 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: "8080"
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: ${MYSQL_USER:-cardgame}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-cardgame}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-cardgame}
+      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      GUEST_IP_REBIND: ${GUEST_IP_REBIND:-1}
+    depends_on:
+      mysql:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test:
@@ -18,5 +59,8 @@ services:
         ]
       interval: 15s
       timeout: 3s
-      start_period: 5s
+      start_period: 10s
       retries: 5
+
+volumes:
+  cardgame_mysql_data:

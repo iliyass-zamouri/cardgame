@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/data/game_socket.dart';
 import 'package:cardgame/data/socket_client.dart';
@@ -29,11 +30,18 @@ class GameSessionController extends Notifier<GameSessionState> {
     return const GameSessionState();
   }
 
+  Map<String, dynamic> get _identityPayload {
+    final profile = ref.read(playerProfileRepositoryProvider).load();
+    if (profile.isEmpty) return const {};
+    return {'playerId': profile.playerId, 'displayName': profile.name};
+  }
+
   void connect() {
     _disposeSocket();
     state = state.copyWith(
       connection: ConnectionStatus.connecting,
       message: null,
+      searchingMatch: false,
     );
     final socket = ref.read(gameSocketFactoryProvider)();
     _socket = socket;
@@ -43,15 +51,19 @@ class GameSessionController extends Notifier<GameSessionState> {
         state = state.copyWith(
           connection: ConnectionStatus.disconnected,
           message: 'Connection lost',
+          searchingMatch: false,
         );
       },
       onDone: () {
-        state = state.copyWith(connection: ConnectionStatus.disconnected);
+        state = state.copyWith(
+          connection: ConnectionStatus.disconnected,
+          searchingMatch: false,
+        );
       },
     );
   }
 
-  void createRoom() => _send('createRoom');
+  void createRoom() => _send('createRoom', _identityPayload);
 
   void joinRoom(String roomId) {
     final normalized = roomId.trim().toUpperCase();
@@ -59,12 +71,24 @@ class GameSessionController extends Notifier<GameSessionState> {
       state = state.copyWith(message: 'Enter a room code');
       return;
     }
-    _send('joinRoom', {'roomId': normalized});
+    _send('joinRoom', {'roomId': normalized, ..._identityPayload});
+  }
+
+  void findMatch() {
+    state = state.copyWith(searchingMatch: true, message: null, game: null);
+    _send('findMatch', _identityPayload);
+  }
+
+  void cancelFindMatch() {
+    state = state.copyWith(searchingMatch: false);
+    _send('cancelFindMatch');
   }
 
   void leaveRoom() => _send('leaveRoom');
 
-  void startGame() => _send('startGame');
+  void readyUp() => _send('startGame');
+
+  void rematch() => _send('rematch');
 
   void launch() => _send('launch');
 
@@ -193,6 +217,7 @@ class GameSessionController extends Notifier<GameSessionState> {
           state = state.copyWith(
             game: snapshot,
             message: null,
+            searchingMatch: false,
             peekSelecting: keepPeek,
             queenMode: keepQueen ? state.queenMode : QueenMode.none,
             replaceFirstSide: keepQueen ? state.replaceFirstSide : null,
@@ -204,11 +229,15 @@ class GameSessionController extends Notifier<GameSessionState> {
         state = state.copyWith(
           game: null,
           message: null,
+          searchingMatch: false,
           peekSelecting: false,
           queenMode: QueenMode.none,
           replaceFirstSide: null,
           replaceFirstIndex: null,
         );
+        break;
+      case 'leftQueue':
+        state = state.copyWith(searchingMatch: false, message: null);
         break;
       case 'error':
         state = state.copyWith(

@@ -1,12 +1,31 @@
 import 'dart:convert';
 
+import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
+import 'package:cardgame/app/player_profile_repository.dart';
+import 'package:cardgame/app/session_auth_repository.dart';
+import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_game_socket.dart';
+
+List<dynamic> _authOverrides() => [
+  sessionAuthRepositoryProvider.overrideWithValue(
+    SessionAuthRepository.memory(SessionAuthStatus.guest),
+  ),
+  playerProfileRepositoryProvider.overrideWithValue(
+    PlayerProfileRepository.memory(
+      const PlayerProfile(
+        playerId: 'guest-test',
+        name: 'Test Ace',
+        username: 'test_ace',
+      ),
+    ),
+  ),
+];
 
 void main() {
   test('parses authoritative snapshot into immutable state', () async {
@@ -14,6 +33,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         gameSocketFactoryProvider.overrideWithValue(() => socket),
+        ..._authOverrides(),
       ],
     );
     addTearDown(container.dispose);
@@ -34,6 +54,7 @@ void main() {
     expect(state.game?.status, GameStatus.playing);
     expect(state.game?.you.cards.single.visible, isTrue);
     expect(state.game?.opponent?.cards.single.visible, isFalse);
+    expect(state.game?.you.displayName, 'Lucky Ace');
   });
 
   test('sends commands without mutating game state locally', () async {
@@ -41,6 +62,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         gameSocketFactoryProvider.overrideWithValue(() => socket),
+        ..._authOverrides(),
       ],
     );
     addTearDown(container.dispose);
@@ -58,9 +80,32 @@ void main() {
     container.read(gameSessionProvider.notifier).tapCard(0);
 
     expect(container.read(gameSessionProvider).game, same(before));
+    expect(jsonDecode(socket.sent.last), {'type': 'tapCard', 'cardIndex': 0});
+  });
+
+  test('createRoom includes player identity', () async {
+    final socket = FakeGameSocket();
+    final container = ProviderContainer(
+      overrides: [
+        gameSocketFactoryProvider.overrideWithValue(() => socket),
+        ..._authOverrides(),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(gameSessionProvider);
+    await Future<void>.delayed(Duration.zero);
+    socket.emit({
+      'type': 'connected',
+      'protocolVersion': 1,
+      'clientId': 'client-1',
+    });
+    await Future<void>.delayed(Duration.zero);
+
+    container.read(gameSessionProvider.notifier).createRoom();
     expect(jsonDecode(socket.sent.last), {
-      'type': 'tapCard',
-      'cardIndex': 0,
+      'type': 'createRoom',
+      'playerId': 'guest-test',
+      'displayName': 'Test Ace',
     });
   });
 }
@@ -77,18 +122,22 @@ Map<String, dynamic> _snapshot() {
     'turn': 'you',
     'you': {
       'connected': true,
+      'displayName': 'Lucky Ace',
+      'playerId': 'guest-1',
       'launch': 'ended',
-      'total': 0,
+      'total': 5,
       'cards': [
-        {'index': 0, 'tag': 'B3', 'visible': true},
+        {'index': 0, 'tag': 'A1', 'visible': true},
       ],
       'handCard': null,
       'hasHandCard': false,
     },
     'opponent': {
       'connected': true,
+      'displayName': 'Sharp King',
+      'playerId': 'guest-2',
       'launch': 'ended',
-      'total': 0,
+      'total': 8,
       'cards': [
         {'index': 0, 'tag': null, 'visible': false},
       ],
@@ -96,5 +145,6 @@ Map<String, dynamic> _snapshot() {
       'hasHandCard': false,
     },
     'result': null,
+    'lastAction': null,
   };
 }

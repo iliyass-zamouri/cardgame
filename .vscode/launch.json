@@ -10,7 +10,9 @@
       "deviceId": "542E34A4-ABA1-4A3B-B1B5-ED54D754F77E",
       "toolArgs": [
         "--dart-define=WS_HOST=127.0.0.1",
-        "--dart-define=WS_PORT=8080"
+        "--dart-define=WS_PORT=8080",
+        "--dart-define=HTTP_URL=http://127.0.0.1:8080",
+        "--dart-define=GOOGLE_SERVER_CLIENT_ID=336790716391-cfhpcah0v00avevev4nihlphvpt14mc8.apps.googleusercontent.com"
       ]
     },
     {
@@ -33,7 +35,9 @@
       ],
       "toolArgs": [
         "--dart-define=WS_HOST=127.0.0.1",
-        "--dart-define=WS_PORT=8080"
+        "--dart-define=WS_PORT=8080",
+        "--dart-define=HTTP_URL=http://127.0.0.1:8080",
+        "--dart-define=GOOGLE_SERVER_CLIENT_ID=336790716391-cfhpcah0v00avevev4nihlphvpt14mc8.apps.googleusercontent.com"
       ]
     },
     {
@@ -45,7 +49,9 @@
       "deviceId": "macos",
       "toolArgs": [
         "--dart-define=WS_HOST=127.0.0.1",
-        "--dart-define=WS_PORT=8080"
+        "--dart-define=WS_PORT=8080",
+        "--dart-define=HTTP_URL=http://127.0.0.1:8080",
+        "--dart-define=GOOGLE_SERVER_CLIENT_ID=336790716391-cfhpcah0v00avevev4nihlphvpt14mc8.apps.googleusercontent.com"
       ]
     },
     {
@@ -57,7 +63,9 @@
       "deviceId": "emulator-5554",
       "toolArgs": [
         "--dart-define=WS_HOST=10.0.2.2",
-        "--dart-define=WS_PORT=8080"
+        "--dart-define=WS_PORT=8080",
+        "--dart-define=HTTP_URL=http://10.0.2.2:8080",
+        "--dart-define=GOOGLE_SERVER_CLIENT_ID=336790716391-cfhpcah0v00avevev4nihlphvpt14mc8.apps.googleusercontent.com"
       ]
     },
     {
@@ -81,7 +89,13 @@
       "restart": true,
       "env": {
         "HOST": "127.0.0.1",
-        "PORT": "8080"
+        "PORT": "8080",
+        "MYSQL_HOST": "127.0.0.1",
+        "MYSQL_PORT": "3306",
+        "MYSQL_USER": "cardgame",
+        "MYSQL_PASSWORD": "cardgame",
+        "MYSQL_DATABASE": "cardgame",
+        "GUEST_IP_REBIND": "1"
       }
     }
   ],
