@@ -74,8 +74,8 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
                         _LobbyTab(
                           label: 'Create',
                           selected: _mode == _LobbyMode.create,
-                          onTap: () =>
-                              setState(() => _mode = _LobbyMode.create),
+                          onTap:
+                              () => setState(() => _mode = _LobbyMode.create),
                         ),
                         _LobbyTab(
                           label: 'Join',
@@ -114,11 +114,13 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
                       final can =
                           connected &&
                           (!joining || value.text.trim().isNotEmpty);
-                      return CasinoActionButton(
-                        label: joining ? 'Join room' : 'Create room',
-                        tone: CasinoActionTone.raise,
-                        expanded: false,
-                        onPressed: can ? _start : null,
+                      return Center(
+                        child: CasinoActionButton(
+                          label: joining ? 'Join room' : 'Create room',
+                          tone: CasinoActionTone.raise,
+                          expanded: false,
+                          onPressed: can ? _start : null,
+                        ),
                       );
                     },
                   ),
@@ -131,29 +133,34 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
                     },
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: connected
-                          ? CasinoColors.raiseHi
-                          : CasinoColors.textMuted,
+                      color:
+                          connected
+                              ? CasinoColors.raiseHi
+                              : CasinoColors.textMuted,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   if (connection == ConnectionStatus.disconnected) ...[
                     const SizedBox(height: 8),
-                    CasinoActionButton(
-                      label: 'Retry',
-                      tone: CasinoActionTone.check,
-                      expanded: false,
-                      onPressed: ref.read(gameSessionProvider.notifier).connect,
+                    Center(
+                      child: CasinoActionButton(
+                        label: 'Retry',
+                        tone: CasinoActionTone.check,
+                        expanded: false,
+                        onPressed:
+                            ref.read(gameSessionProvider.notifier).connect,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 12),
                   TextButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (context) => const DeckPreviewScreen(),
-                      ),
-                    ),
+                    onPressed:
+                        () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (context) => const DeckPreviewScreen(),
+                          ),
+                        ),
                     style: TextButton.styleFrom(
                       foregroundColor: CasinoColors.goldSoft,
                     ),

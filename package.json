@@ -6,7 +6,11 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test server/test/*.test.js"
+    "test": "node --test server/test/*.test.js",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f server",
+    "start:docker": "docker compose up --build"
   },
   "engines": {
     "node": ">=18"

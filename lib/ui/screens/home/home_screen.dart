@@ -13,29 +13,29 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen<String?>(
-      gameSessionProvider.select((state) => state.message),
-      (previous, message) {
-        if (message == null || message == previous) return;
-        final messenger = ScaffoldMessenger.of(context);
-        messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            padding: EdgeInsets.zero,
-            margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-            content: CasinoToast(
-              message: message,
-              onClose: messenger.hideCurrentSnackBar,
-            ),
+    ref.listen<String?>(gameSessionProvider.select((state) => state.message), (
+      previous,
+      message,
+    ) {
+      if (message == null || message == previous) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          content: CasinoToast(
+            message: message,
+            onClose: messenger.hideCurrentSnackBar,
           ),
-        );
-        ref.read(gameSessionProvider.notifier).clearMessage();
-      },
-    );
+        ),
+      );
+      ref.read(gameSessionProvider.notifier).clearMessage();
+    });
 
     final session = ref.watch(gameSessionProvider);
     final game = session.game;
@@ -114,9 +114,10 @@ class WaitingRoom extends ConsumerWidget {
                       ? 'Two players connected'
                       : 'Waiting for opponent…',
                   style: TextStyle(
-                    color: game.ready
-                        ? CasinoColors.raiseHi
-                        : CasinoColors.textMuted,
+                    color:
+                        game.ready
+                            ? CasinoColors.raiseHi
+                            : CasinoColors.textMuted,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -149,17 +150,16 @@ class GameBoard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ended = ref.watch(
-      gameSessionProvider
-          .select((state) => state.game?.status == GameStatus.ended),
+      gameSessionProvider.select(
+        (state) => state.game?.status == GameStatus.ended,
+      ),
     );
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const CasinoTableFrame(
-            child: CardGameView(),
-          ),
+          const CasinoTableFrame(child: CardGameView()),
           const GameHud(),
           if (ended) const GameOverPanel(),
         ],
@@ -173,35 +173,30 @@ class GameHud extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final game = ref.watch(
-      gameSessionProvider.select((state) => state.game),
-    );
+    final game = ref.watch(gameSessionProvider.select((state) => state.game));
     if (game == null) return const SizedBox.shrink();
     final notifier = ref.read(gameSessionProvider.notifier);
     final playing = game.status == GameStatus.playing;
-    final canReveal =
-        playing && game.you.launch == LaunchStatus.notLaunched;
+    final canReveal = playing && game.you.launch == LaunchStatus.notLaunched;
 
     return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final h = constraints.maxHeight;
-          // Flame hands sit at ~20% (opponent) and ~75% (you); badge sits
-          // just under the first card row (cardHeight/2 ≈ 56).
-          final opponentTop = h * 0.20 + 62;
-          final youTop = h * 0.75 + 62;
-
-          return SizedBox.expand(
-            child: Stack(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                  child: Row(
-                    children: [
-                      CasinoCircleButton(
-                        icon: Icons.menu,
-                        tooltip: 'Leave room',
-                        onPressed: () => _confirm(
+      child: SizedBox.expand(
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CasinoMenuPlayersPill(
+                    youName: 'You',
+                    opponentName: 'Player 2',
+                    youConnected: game.you.connected,
+                    opponentConnected: game.opponent?.connected ?? false,
+                    yourTurn: playing && game.isYourTurn,
+                    opponentTurn: playing && !game.isYourTurn,
+                    onMenuPressed:
+                        () => _confirm(
                           context,
                           title: 'Leave room?',
                           message: 'You will drop out of this game.',
@@ -209,86 +204,63 @@ class GameHud extends ConsumerWidget {
                           tone: CasinoActionTone.fold,
                           onConfirm: notifier.leaveRoom,
                         ),
-                      ),
-                      const Spacer(),
-                      if (playing)
-                        CasinoCircleButton(
-                          icon: Icons.flag_outlined,
-                          tooltip: 'End game',
-                          onPressed: () => _confirm(
+                  ),
+                  const Spacer(),
+                  if (playing)
+                    CasinoCircleButton(
+                      icon: Icons.flag_outlined,
+                      tooltip: 'End game',
+                      onPressed:
+                          () => _confirm(
                             context,
                             title: 'End game?',
                             message:
                                 'Cards get revealed and scores are counted.',
                             confirmLabel: 'End game',
-                            tone: CasinoActionTone.check,
+                            tone: CasinoActionTone.fold,
                             onConfirm: notifier.endGame,
                           ),
+                    ),
+                  if (playing) const SizedBox(width: 8),
+                  CasinoCircleButton(
+                    icon: Icons.info_outline,
+                    tooltip: 'Room info',
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          backgroundColor: Colors.transparent,
+                          elevation: 0,
+                          behavior: SnackBarBehavior.floating,
+                          margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                          content: CasinoToast(
+                            message:
+                                'Room ${game.roomId} · '
+                                '${game.isYourTurn ? "Your turn" : "Opponent turn"}',
+                          ),
                         ),
-                      if (playing) const SizedBox(width: 8),
-                      CasinoCircleButton(
-                        icon: Icons.info_outline,
-                        tooltip: 'Room info',
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: Colors.transparent,
-                              elevation: 0,
-                              behavior: SnackBarBehavior.floating,
-                              margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-                              content: CasinoToast(
-                                message:
-                                    'Room ${game.roomId} · '
-                                    '${game.isYourTurn ? "Your turn" : "Opponent turn"}',
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                ),
-                Positioned(
-                  top: opponentTop,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: CasinoTurnBadge(
-                      name: 'Player 2',
-                      nameAbove: true,
-                      active: playing && !game.isYourTurn,
-                      offline: game.opponent?.connected == false,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: youTop,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: CasinoTurnBadge(
-                      active: playing && game.isYourTurn,
-                    ),
-                  ),
-                ),
-                if (playing)
-                  Positioned(
-                    right: 16,
-                    bottom: 16,
-                    child: CasinoActionButton(
-                      label: canReveal ? 'Reveal' : 'Wait',
-                      icon: canReveal
+                ],
+              ),
+            ),
+            if (playing)
+              Positioned(
+                right: 16,
+                bottom: 16,
+                child: CasinoActionButton(
+                  label: canReveal ? 'Reveal' : 'Wait',
+                  icon:
+                      canReveal
                           ? Icons.visibility_rounded
                           : Icons.hourglass_top_rounded,
-                      tone: CasinoActionTone.raise,
-                      expanded: false,
-                      onPressed: canReveal ? notifier.launch : null,
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
+                  tone: CasinoActionTone.raise,
+                  expanded: false,
+                  onPressed: canReveal ? notifier.launch : null,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -304,13 +276,14 @@ class GameOverPanel extends ConsumerWidget {
     final notifier = ref.read(gameSessionProvider.notifier);
     final yourTotal = game.you.total;
     final opponentTotal = game.opponent?.total;
-    final headline = opponentTotal == null
-        ? 'Game over'
-        : yourTotal < opponentTotal
+    final headline =
+        opponentTotal == null
+            ? 'Game over'
+            : yourTotal < opponentTotal
             ? 'You win'
             : yourTotal > opponentTotal
-                ? 'Player 2 wins'
-                : 'Draw';
+            ? 'Player 2 wins'
+            : 'Draw';
 
     return Center(
       child: Container(
@@ -380,43 +353,46 @@ Future<void> _confirm(
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: CasinoColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: CasinoColors.text,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      content: Text(
-        message,
-        style: const TextStyle(color: CasinoColors.textMuted),
-      ),
-      actionsAlignment: MainAxisAlignment.center,
-      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      actions: [
-        SizedBox(
-          width: double.infinity,
-          child: Row(
-            children: [
-              CasinoActionButton(
-                label: 'Cancel',
-                tone: CasinoActionTone.check,
-                onPressed: () => Navigator.of(context).pop(false),
-              ),
-              const SizedBox(width: 8),
-              CasinoActionButton(
-                label: confirmLabel,
-                tone: tone,
-                onPressed: () => Navigator.of(context).pop(true),
-              ),
-            ],
+    builder:
+        (context) => AlertDialog(
+          backgroundColor: CasinoColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: CasinoColors.text,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(color: CasinoColors.textMuted),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: Row(
+                children: [
+                  CasinoActionButton(
+                    label: 'Cancel',
+                    tone: CasinoActionTone.check,
+                    onPressed: () => Navigator.of(context).pop(false),
+                  ),
+                  const SizedBox(width: 8),
+                  CasinoActionButton(
+                    label: confirmLabel,
+                    tone: tone,
+                    onPressed: () => Navigator.of(context).pop(true),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
   );
   if (confirmed ?? false) onConfirm();
 }

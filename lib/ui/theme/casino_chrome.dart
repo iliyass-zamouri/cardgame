@@ -121,28 +121,33 @@ class CasinoActionButton extends StatelessWidget {
       duration: const Duration(milliseconds: 160),
       opacity: enabled ? 1 : 0.45,
       child: Container(
-        height: expanded ? 52 : 44,
+        height: 52,
         padding: EdgeInsets.symmetric(horizontal: expanded ? 0 : 22),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(expanded ? 14 : 12),
+          borderRadius: BorderRadius.circular(14),
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [hi, lo],
           ),
         ),
-        child: icon == null
-            ? labelText
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, color: CasinoColors.text, size: expanded ? 22 : 18),
-                  const SizedBox(width: 8),
-                  labelText,
-                ],
-              ),
+        child:
+            icon == null
+                ? labelText
+                : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon,
+                      color: CasinoColors.text,
+                      size: expanded ? 22 : 18,
+                    ),
+                    const SizedBox(width: 8),
+                    labelText,
+                  ],
+                ),
       ),
     );
 
@@ -162,11 +167,7 @@ class CasinoActionButton extends StatelessWidget {
 
 /// Screenshot-style toast: dark rounded banner + green check + dismiss.
 class CasinoToast extends StatelessWidget {
-  const CasinoToast({
-    super.key,
-    required this.message,
-    this.onClose,
-  });
+  const CasinoToast({super.key, required this.message, this.onClose});
 
   final String message;
   final VoidCallback? onClose;
@@ -223,76 +224,173 @@ class CasinoToast extends StatelessWidget {
   }
 }
 
-/// Compact seat under a hand: optional name, small avatar, turn ring.
-class CasinoTurnBadge extends StatelessWidget {
-  const CasinoTurnBadge({
+/// Single player chip: avatar with connection badge, name to the right.
+class CasinoPlayerSeat extends StatelessWidget {
+  const CasinoPlayerSeat({
     super.key,
+    required this.name,
+    required this.connected,
     required this.active,
-    this.name,
-    this.nameAbove = true,
-    this.offline = false,
-    this.avatarSize = 32,
+    this.avatarSize = 28,
   });
 
+  final String name;
+  final bool connected;
   final bool active;
-  final String? name;
-  final bool nameAbove;
-  final bool offline;
   final double avatarSize;
 
   @override
   Widget build(BuildContext context) {
-    final avatar = Container(
-      width: avatarSize,
-      height: avatarSize,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: CasinoColors.surfaceHi,
-        border: Border.all(
-          color: active ? CasinoColors.gold : Colors.white24,
-          width: active ? 2.5 : 1.5,
-        ),
-      ),
-      child: Icon(
-        Icons.person,
-        size: avatarSize * 0.55,
-        color: CasinoColors.text.withValues(alpha: 0.9),
-      ),
-    );
-
-    final nameLabel = name == null
-        ? null
-        : Text(
-            offline ? '$name · offline' : name!,
-            style: TextStyle(
-              color: active ? CasinoColors.gold : CasinoColors.text,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
-              shadows: const [
-                Shadow(
-                  color: Color(0xCC000000),
-                  blurRadius: 4,
+    final dotSize = avatarSize * 0.32;
+    return Opacity(
+      opacity: connected ? 1 : 0.55,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: avatarSize,
+            height: avatarSize,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: avatarSize,
+                  height: avatarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: CasinoColors.bgElevated,
+                    border: Border.all(
+                      color: active ? CasinoColors.gold : Colors.white24,
+                      width: active ? 2 : 1.2,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.person,
+                    size: avatarSize * 0.55,
+                    color: CasinoColors.text.withValues(alpha: 0.9),
+                  ),
+                ),
+                Positioned(
+                  right: -1,
+                  bottom: -1,
+                  child: Container(
+                    width: dotSize,
+                    height: dotSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color:
+                          connected
+                              ? const Color(0xFF7ED50E)
+                              : CasinoColors.foldHi,
+                      border: Border.all(
+                        color: CasinoColors.surfaceHi,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-          );
-
-    return Opacity(
-      opacity: offline ? 0.55 : 1,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (nameLabel != null && nameAbove) ...[
-            nameLabel,
-            const SizedBox(height: 4),
-          ],
-          avatar,
-          if (nameLabel != null && !nameAbove) ...[
-            const SizedBox(height: 4),
-            nameLabel,
-          ],
+          ),
+          const SizedBox(width: 6),
+          Text(
+            name,
+            style: TextStyle(
+              color: active ? CasinoColors.gold : CasinoColors.text,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Menu + VS players in one chrome pill (matches [CasinoCircleButton] fill).
+class CasinoMenuPlayersPill extends StatelessWidget {
+  const CasinoMenuPlayersPill({
+    super.key,
+    required this.onMenuPressed,
+    required this.youName,
+    required this.opponentName,
+    required this.youConnected,
+    required this.opponentConnected,
+    required this.yourTurn,
+    required this.opponentTurn,
+    this.height = 42,
+  });
+
+  final VoidCallback onMenuPressed;
+  final String youName;
+  final String opponentName;
+  final bool youConnected;
+  final bool opponentConnected;
+  final bool yourTurn;
+  final bool opponentTurn;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: CasinoColors.surfaceHi,
+      shape: const StadiumBorder(),
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: height,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Tooltip(
+              message: 'Leave room',
+              child: InkWell(
+                onTap: onMenuPressed,
+                child: SizedBox(
+                  width: height,
+                  height: height,
+                  child: Icon(
+                    Icons.menu,
+                    size: height * 0.34,
+                    color: CasinoColors.text,
+                  ),
+                ),
+              ),
+            ),
+            Container(width: 1, height: height * 0.45, color: Colors.white12),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 4, 14, 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CasinoPlayerSeat(
+                    name: youName,
+                    connected: youConnected,
+                    active: yourTurn,
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'VS',
+                      style: TextStyle(
+                        color: CasinoColors.goldSoft,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  CasinoPlayerSeat(
+                    name: opponentName,
+                    connected: opponentConnected,
+                    active: opponentTurn,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

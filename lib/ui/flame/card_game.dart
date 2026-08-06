@@ -55,7 +55,7 @@ class CardGame extends FlameGame {
     camera.viewfinder.anchor = Anchor.topLeft;
 
     _opponentHand = HandArea(isSelf: false)
-      ..position = Vector2(size.x * 0.5, size.y * 0.20);
+      ..position = Vector2(size.x * 0.5, size.y * 0.25);
     _localHand = HandArea(isSelf: true)
       ..position = Vector2(size.x * 0.5, size.y * 0.75);
     _table = TableArea(onDraw: () => onDraw?.call())
@@ -85,7 +85,7 @@ class CardGame extends FlameGame {
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
     if (!_ready) return;
-    _opponentHand.position = Vector2(size.x * 0.5, size.y * 0.20);
+    _opponentHand.position = Vector2(size.x * 0.5, size.y * 0.25);
     _localHand.position = Vector2(size.x * 0.5, size.y * 0.75);
     _table.position = Vector2(size.x * 0.5, size.y * 0.5);
     _localDrawn.position = Vector2(size.x * 0.5, size.y - 92);
@@ -630,14 +630,21 @@ class HandArea extends PositionComponent {
       absolutePositionOf(_slotCenter(index, count));
 
   /// Local centre for slot [index] in a hand of [count] cards (4 per row).
+  ///
+  /// Local hand grows down (away from deck). Opponent hand is mirrored:
+  /// first row sits near the deck, later / penalty rows grow up toward the
+  /// top of the screen.
   Vector2 _slotCenter(int index, int count) {
     assert(count > 0 && index >= 0 && index < count);
     final row = index ~/ cardsPerRow;
-    final col = index % cardsPerRow;
+    final colInRow = index % cardsPerRow;
     final cardsInRow = math.min(cardsPerRow, count - row * cardsPerRow);
+    // Mirror left/right across the table for the opponent.
+    final col = isSelf ? colInRow : cardsInRow - 1 - colInRow;
     final rowWidth = cardsInRow * cardWidth + (cardsInRow - 1) * gapX;
     final x = -rowWidth / 2 + cardWidth / 2 + col * (cardWidth + gapX);
-    final y = row * (cardHeight + gapY);
+    final rowSign = isSelf ? 1.0 : -1.0;
+    final y = rowSign * row * (cardHeight + gapY);
     return Vector2(x, y);
   }
 
