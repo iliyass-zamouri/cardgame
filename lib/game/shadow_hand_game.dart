@@ -1,216 +1,224 @@
-import 'package:flame/components.dart';
-import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:game_protocol/game_protocol.dart';
 
+import '../features/match/match_controller.dart';
+import 'components/action_buttons.dart';
+import 'components/corner_hand_card.dart';
+import 'components/deck_discard_row.dart';
+import 'components/game_hud.dart';
+import 'components/game_result_overlay.dart';
+import 'components/player_hand_grid.dart';
+import 'components/table_background.dart';
+import 'layout/table_layout.dart';
+
 typedef CardActionCallback = void Function(CardActionMessage action);
 
-class ShadowHandGame extends FlameGame with HasCollisionDetection {
-  ShadowHandGame({required this.onAction});
+class ShadowHandGame extends FlameGame {
+  ShadowHandGame({
+    required this.onAction,
+    required this.onRematch,
+    required this.onLobby,
+  });
 
   final CardActionCallback onAction;
+  final VoidCallback onRematch;
+  final VoidCallback onLobby;
+
   MatchSnapshotMessage? _snapshot;
-  late final TableComponent table;
+  AppPhase _phase = AppPhase.inGame;
+  TableLayout? _layout;
+  bool _loaded = false;
+
+  late final TableBackgroundComponent background;
+  late final PlayerHandGridComponent remoteHand;
+  late final PlayerHandGridComponent localHand;
+  late final DeckDiscardRowComponent deckDiscard;
+  late final CornerHandCardComponent localCornerHand;
+  late final CornerHandCardComponent remoteCornerHand;
+  late final GameHudComponent hud;
+  late final ActionButtonsComponent actions;
+  late final GameResultOverlayComponent resultOverlay;
+
+  MatchSnapshotMessage? get snapshot => _snapshot;
 
   @override
   Color backgroundColor() => const Color(0x00000000);
 
   @override
   Future<void> onLoad() async {
-    table = TableComponent(onAction: onAction);
-    await add(table);
+    background = TableBackgroundComponent()..priority = 0;
+    remoteHand = PlayerHandGridComponent(
+      isLocal: false,
+      onCardTap: (_, {required fromHand}) {},
+    )..priority = 1;
+    localHand = PlayerHandGridComponent(
+      isLocal: true,
+      onCardTap: _onLocalCardTap,
+    )..priority = 1;
+    deckDiscard = DeckDiscardRowComponent(
+      onDraw: () =>
+          onAction(const CardActionMessage(type: WireCardActionType.draw)),
+    )..priority = 1;
+    localCornerHand = CornerHandCardComponent(
+      isLocal: true,
+      onTap: () => onAction(
+        const CardActionMessage(type: WireCardActionType.throwCard, hand: true),
+      ),
+    )..priority = 2;
+    remoteCornerHand = CornerHandCardComponent(
+      isLocal: false,
+      onTap: null,
+    )..priority = 2;
+    hud = GameHudComponent()..priority = 10;
+    actions = ActionButtonsComponent(
+      onReveal: () =>
+          onAction(const CardActionMessage(type: WireCardActionType.launch)),
+      onCallGame: () =>
+          onAction(const CardActionMessage(type: WireCardActionType.end)),
+    )..priority = 11;
+    resultOverlay = GameResultOverlayComponent(
+      onRematch: onRematch,
+      onLobby: onLobby,
+    )..priority = 100;
+
+    await addAll([
+      background,
+      remoteHand,
+      localHand,
+      deckDiscard,
+      localCornerHand,
+      remoteCornerHand,
+      hud,
+      actions,
+      resultOverlay,
+    ]);
+
+    _loaded = true;
+    if (size.x > 0 && size.y > 0) {
+      _layout = TableLayout(size);
+    }
+    _dispatch();
   }
 
   void applySnapshot(MatchSnapshotMessage? snapshot) {
-    _snapshot = snapshot;
-    table.applySnapshot(snapshot);
+    applyMatchState(snapshot: snapshot, phase: _phase);
   }
 
-  MatchSnapshotMessage? get snapshot => _snapshot;
-}
-
-class TableComponent extends PositionComponent with HasGameReference<ShadowHandGame> {
-  TableComponent({required this.onAction});
-
-  final CardActionCallback onAction;
-  MatchSnapshotMessage? snapshot;
-  final List<CardSprite> _sprites = [];
-
-  void applySnapshot(MatchSnapshotMessage? snap) {
-    snapshot = snap;
-    for (final s in _sprites) {
-      s.removeFromParent();
+  void applyMatchState({
+    required MatchSnapshotMessage? snapshot,
+    required AppPhase phase,
+  }) {
+    final sw = Stopwatch()..start();
+    _snapshot = snapshot;
+    _phase = phase;
+    if (!_loaded) return;
+    if (size.x > 0 && size.y > 0) {
+      _layout = TableLayout(size);
     }
-    _sprites.clear();
-    if (snap == null) return;
-
-    final local = snap.players.where((p) => p.id == snap.localPlayerId).firstOrNull;
-    final remote = snap.players.where((p) => p.id != snap.localPlayerId).firstOrNull;
-    final canAct = snap.canAct;
-
-    if (remote != null) {
-      _layoutPlayer(remote, y: 40, canAct: false, faceUpDefault: false);
-    }
-    if (local != null) {
-      _layoutPlayer(
-        local,
-        y: game.size.y - 160,
-        canAct: canAct,
-        faceUpDefault: true,
-        hasHand: local.handCard != null,
-        topValue: snap.topDiscardValue,
+    _dispatch();
+    sw.stop();
+    if (sw.elapsedMilliseconds > 12) {
+      debugPrint(
+        '[flame.perf] applyMatchState ${sw.elapsedMilliseconds}ms phase=${phase.name} snap=${snapshot?.phase.name}',
       );
     }
-
-    final thrown = snap.throwedCards;
-    if (thrown.isNotEmpty) {
-      final tag = thrown.last;
-      final sprite = CardSprite(tag: tag, faceUp: true, onTap: null)
-        ..position = Vector2(game.size.x / 2 + 40, game.size.y / 2 - 40);
-      _sprites.add(sprite);
-      add(sprite);
-    }
-
-    final deck = CardSprite(
-      tag: 'XX',
-      faceUp: false,
-      onTap: canAct && local?.handCard == null
-          ? () => onAction(const CardActionMessage(type: WireCardActionType.draw))
-          : null,
-    )..position = Vector2(game.size.x / 2 - 70, game.size.y / 2 - 40);
-    _sprites.add(deck);
-    add(deck);
   }
 
-  void _layoutPlayer(
-    WirePlayerState player, {
-    required double y,
-    required bool canAct,
-    required bool faceUpDefault,
-    bool hasHand = false,
-    int? topValue,
-  }) {
-    final startX = (game.size.x - (player.cards.length * 58)) / 2;
-    for (var i = 0; i < player.cards.length; i++) {
-      final card = player.cards[i];
-      if (card.isThrown) continue;
-      final faceUp = faceUpDefault || card.isCardShown;
-      final sprite = CardSprite(
-        tag: card.tag,
-        faceUp: faceUp,
-        onTap: canAct
-            ? () {
-                if (hasHand) {
-                  onAction(CardActionMessage(
-                    type: WireCardActionType.throwCard,
-                    cardTag: card.tag,
-                    hand: true,
-                  ));
-                } else {
-                  onAction(CardActionMessage(
-                    type: WireCardActionType.throwCard,
-                    cardTag: card.tag,
-                  ));
-                }
-              }
-            : null,
-      )..position = Vector2(startX + i * 58, y);
-      _sprites.add(sprite);
-      add(sprite);
-    }
+  void _onLocalCardTap(WireCard card, {required bool fromHand}) {
+    final local = _localPlayer;
+    final hasHand =
+        local?.handCard != null && local!.handCard!.tag != 'XX';
+    onAction(
+      CardActionMessage(
+        type: WireCardActionType.throwCard,
+        cardTag: card.tag,
+        hand: hasHand,
+      ),
+    );
+  }
 
-    if (player.handCard != null && player.handCard!.tag != 'XX') {
-      final hand = CardSprite(
-        tag: player.handCard!.tag,
-        faceUp: true,
-        onTap: canAct
-            ? () => onAction(const CardActionMessage(
-                  type: WireCardActionType.throwCard,
-                  hand: true,
-                ))
-            : null,
-      )..position = Vector2(game.size.x / 2 - 30, y - 70);
-      _sprites.add(hand);
-      add(hand);
+  WirePlayerState? get _localPlayer {
+    final snap = _snapshot;
+    if (snap == null) return null;
+    for (final p in snap.players) {
+      if (p.id == snap.localPlayerId) return p;
+    }
+    return null;
+  }
+
+  WirePlayerState? get _remotePlayer {
+    final snap = _snapshot;
+    if (snap == null) return null;
+    for (final p in snap.players) {
+      if (p.id != snap.localPlayerId) return p;
+    }
+    return null;
+  }
+
+  void _dispatch() {
+    final sw = Stopwatch()..start();
+    if (!_loaded) return;
+    final snap = _snapshot;
+    final layout = _layout;
+    if (layout == null) return;
+
+    background.size = layout.size;
+
+    final canAct = snap?.canAct ?? false;
+
+    remoteHand.apply(
+      player: _remotePlayer,
+      canAct: false,
+      layout: layout,
+    );
+    localHand.apply(
+      player: _localPlayer,
+      canAct: canAct,
+      layout: layout,
+    );
+    deckDiscard.apply(snapshot: snap, layout: layout);
+
+    localCornerHand.apply(
+      handCard: _localPlayer?.handCard,
+      canAct: canAct,
+      layout: layout,
+    );
+    remoteCornerHand.apply(
+      handCard: _remotePlayer?.handCard,
+      canAct: false,
+      layout: layout,
+    );
+
+    hud
+      ..size = layout.size
+      ..apply(snapshot: snap, layout: layout);
+
+    actions
+      ..size = layout.size
+      ..apply(snapshot: snap, local: _localPlayer, layout: layout);
+
+    resultOverlay
+      ..size = layout.size
+      ..apply(
+        snapshot: snap,
+        visible: _phase == AppPhase.result,
+      );
+    sw.stop();
+    if (sw.elapsedMilliseconds > 8) {
+      debugPrint(
+        '[flame.perf] dispatch ${sw.elapsedMilliseconds}ms cards='
+        '${_localPlayer?.cards.length ?? 0}/${_remotePlayer?.cards.length ?? 0}',
+      );
     }
   }
 
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
-    applySnapshot(snapshot);
-  }
-}
-
-class CardSprite extends PositionComponent with TapCallbacks {
-  CardSprite({
-    required this.tag,
-    required this.faceUp,
-    this.onTap,
-  }) : super(size: Vector2(52, 78));
-
-  final String tag;
-  final bool faceUp;
-  final VoidCallback? onTap;
-
-  @override
-  void onTapUp(TapUpEvent event) {
-    onTap?.call();
-  }
-
-  @override
-  void render(Canvas canvas) {
-    final rect = size.toRect();
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
-    const fillUp = Color(0xFFE8E8E8);
-    const fillDown = Color(0xFF315C4A);
-    const border = Color(0xFF353438);
-    final fill = faceUp ? fillUp : fillDown;
-    canvas.drawRRect(rrect, Paint()..color = fill);
-    canvas.drawRRect(
-      rrect,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = border,
-    );
-    if (faceUp && tag != 'XX') {
-      final tp = TextPainter(
-        text: TextSpan(
-          text: _label(tag),
-          style: TextStyle(
-            color: _suitColor(tag),
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: size.x);
-      tp.paint(canvas, const Offset(6, 6));
-    }
-  }
-
-  String _label(String tag) {
-    if (tag.length < 2) return '?';
-    final v = int.tryParse(tag.substring(1)) ?? 0;
-    const faces = {1: 'A', 11: 'J', 12: 'Q', 13: 'K'};
-    final suit = {'A': '♣', 'B': '♦', 'C': '♥', 'D': '♠'}[tag[0]] ?? '';
-    return '${faces[v] ?? v}$suit';
-  }
-
-  Color _suitColor(String tag) {
-    if (tag.startsWith('B') || tag.startsWith('C')) {
-      return const Color(0xFFE74C3C);
-    }
-    return const Color(0xFF1A1A1E);
-  }
-}
-
-extension _FirstOrNull<E> on Iterable<E> {
-  E? get firstOrNull {
-    final it = iterator;
-    if (!it.moveNext()) return null;
-    return it.current;
+    if (!_loaded) return;
+    _layout = TableLayout(size);
+    _dispatch();
   }
 }

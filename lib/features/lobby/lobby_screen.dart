@@ -4,16 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/config/dependency_injection.dart';
 import '../../core/constants/camo_colors.dart';
-import '../../core/constants/camo_spacing.dart';
 import '../../core/constants/camo_typography.dart';
-import '../../core/widgets/camo_buttons.dart';
 import '../../core/widgets/camo_lobby_actions.dart';
 import '../../core/widgets/camo_lobby_header.dart';
-import '../../core/widgets/camo_scaffold.dart';
-import '../../core/widgets/camo_stake_selector.dart';
 import '../../core/widgets/camo_toast.dart';
 import '../../core/widgets/game_background.dart';
 import '../match/match_controller.dart';
+import 'lobby_modals.dart';
 
 class LobbyScreen extends ConsumerStatefulWidget {
   const LobbyScreen({super.key});
@@ -23,12 +20,23 @@ class LobbyScreen extends ConsumerStatefulWidget {
 }
 
 class _LobbyScreenState extends ConsumerState<LobbyScreen> {
-  final _codeCtrl = TextEditingController();
-  final _pageCtrl = PageController(viewportFraction: 0.72);
+  late final PageController _pageCtrl;
+  int _page = 0;
+
+  static const _modes = [
+    LobbyMode.quickMatch,
+    LobbyMode.privateRoom,
+    LobbyMode.joinRoom,
+  ];
 
   @override
   void initState() {
     super.initState();
+    _pageCtrl = PageController(viewportFraction: 0.58);
+    _pageCtrl.addListener(() {
+      final p = _pageCtrl.page?.round() ?? 0;
+      if (p != _page) setState(() => _page = p);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(matchControllerProvider.notifier).connect();
     });
@@ -36,27 +44,38 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
 
   @override
   void dispose() {
-    _codeCtrl.dispose();
     _pageCtrl.dispose();
     super.dispose();
   }
+
+  void _openMode(LobbyMode mode) =>
+      openLobbyModeSheet(context, ref, mode);
 
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
     final match = ref.watch(matchControllerProvider);
+    final size = MediaQuery.sizeOf(context);
+    final cardHeight = (size.height * 0.28).clamp(165.0, 195.0);
 
     ref.listen(matchControllerProvider, (prev, next) {
       if (next.error != null && prev?.error != next.error) {
         showCamoToast(context, next.error!, error: true);
       }
-      if (next.phase == AppPhase.inGame || next.phase == AppPhase.result) {
-        context.go('/match');
-      } else if (next.phase == AppPhase.matchmaking) {
-        context.go('/matchmaking');
-      } else if (next.phase == AppPhase.room) {
-        context.go('/room');
-      }
+      if (prev?.phase == next.phase) return;
+
+      final path = switch (next.phase) {
+        AppPhase.inGame || AppPhase.result => '/match',
+        AppPhase.matchmaking || AppPhase.waitingForOpponent => '/matchmaking',
+        AppPhase.room => '/room',
+        _ => null,
+      };
+      if (path == null) return;
+
+      // Drop leftover dialogs only — leave GoRouter pages alone.
+      final nav = Navigator.of(context, rootNavigator: true);
+      nav.popUntil((route) => route is! PopupRoute);
+      context.go(path);
     });
 
     return Scaffold(
@@ -64,130 +83,72 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
       body: GameBackground(
         child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  CamoSpacing.lg,
-                  CamoSpacing.sm,
-                  CamoSpacing.lg,
-                  CamoSpacing.md,
-                ),
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: CamoLobbyProfile(
                         displayName: session.displayName ?? 'Guest',
-                        progressLabel: 'STAKE ${match.stake}',
+                        starCurrent: session.coins.clamp(0, 15),
                       ),
                     ),
                     CamoLobbyCurrencyStack(
                       coins: session.coins,
+                      gems: 30,
                       onShopTap: () => context.push('/shop'),
                     ),
                   ],
                 ),
               ),
-              Expanded(
+              const Spacer(flex: 3),
+              SizedBox(
+                height: cardHeight,
                 child: PageView(
                   controller: _pageCtrl,
+                  padEnds: true,
                   children: [
                     CamoModeCard(
+                      height: cardHeight,
                       title: '1 on 1',
                       subtitle: 'Quick Match',
                       color: const Color(0xFFFFD54F),
-                      accent: const Color(0xFF3D2200),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${match.stake}',
-                            style: CamoTypography.gameTitle(
-                              CamoColors.purpleMid,
-                            ).copyWith(fontSize: 72, height: 1),
-                          ),
-                          const SizedBox(height: CamoSpacing.lg),
-                          CamoStakeSelector(
-                            stakes: const [50, 100, 250, 500],
-                            selected: match.stake,
-                            onSelected: (s) => ref
-                                .read(matchControllerProvider.notifier)
-                                .setStake(s),
-                          ),
-                        ],
+                      footerColor: const Color(0xFFF9A825),
+                      titleColor: const Color(0xFF3D2200),
+                      onTap: () => _openMode(LobbyMode.quickMatch),
+                      illustration: CamoModeCardHeroNumber(
+                        value: '${match.stake}',
                       ),
                     ),
                     CamoModeCard(
-                      title: 'Private Room',
+                      height: cardHeight,
+                      title: 'Private',
                       subtitle: 'Play with Friends',
-                      color: const Color(0xFF5BB8FF),
-                      accent: CamoColors.white,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.lock_outline_rounded,
-                            size: 64,
-                            color: CamoColors.white.withValues(alpha: 0.9),
-                          ),
-                          const SizedBox(height: CamoSpacing.lg),
-                          CamoMenuButton(
-                            label: 'Create Room',
-                            primary: true,
-                            onPressed: () => ref
-                                .read(matchControllerProvider.notifier)
-                                .createRoom(),
-                          ),
-                        ],
-                      ),
+                      color: const Color(0xFF64B5F6),
+                      footerColor: const Color(0xFF1976D2),
+                      titleColor: CamoColors.white,
+                      onTap: () => _openMode(LobbyMode.privateRoom),
+                      illustration: const CamoModeCardIcons(),
                     ),
                     CamoModeCard(
+                      height: cardHeight,
                       title: 'Join Room',
                       subtitle: 'Enter Code',
-                      color: const Color(0xFFE8E8E8),
-                      accent: const Color(0xFF333333),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CamoPanel(
-                            opaque: false,
-                            child: TextField(
-                              controller: _codeCtrl,
-                              style: CamoTypography.displaySm(
-                                CamoColors.onSurface,
-                              ),
-                              textAlign: TextAlign.center,
-                              textCapitalization:
-                                  TextCapitalization.characters,
-                              decoration: InputDecoration(
-                                hintText: 'CODE',
-                                hintStyle: CamoTypography.displaySm(
-                                  CamoColors.onSurfaceVariant,
-                                ),
-                                border: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: CamoSpacing.md),
-                          CamoMenuButton(
-                            label: 'Join',
-                            primary: true,
-                            onPressed: () => ref
-                                .read(matchControllerProvider.notifier)
-                                .joinRoom(_codeCtrl.text.trim()),
-                          ),
-                        ],
-                      ),
+                      color: const Color(0xFFECEFF1),
+                      footerColor: const Color(0xFFB0BEC5),
+                      titleColor: const Color(0xFF263238),
+                      onTap: () => _openMode(LobbyMode.joinRoom),
+                      illustration: const CamoModeCardJoinArt(),
                     ),
                   ],
                 ),
               ),
+              const Spacer(flex: 4),
               if (match.error != null)
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CamoSpacing.xl,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
                     match.error!,
                     textAlign: TextAlign.center,
@@ -197,8 +158,7 @@ class _LobbyScreenState extends ConsumerState<LobbyScreen> {
               CamoLobbyFloatingBar(
                 onFriends: () => context.push('/friends'),
                 onShop: () => context.push('/shop'),
-                onPlay: () =>
-                    ref.read(matchControllerProvider.notifier).queue(),
+                onPlay: () => _openMode(_modes[_page.clamp(0, _modes.length - 1)]),
               ),
             ],
           ),

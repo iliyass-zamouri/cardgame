@@ -9,6 +9,7 @@ import '../../core/constants/camo_spacing.dart';
 import '../../core/constants/camo_typography.dart';
 import '../../core/widgets/camo_buttons.dart';
 import '../../core/widgets/camo_scaffold.dart';
+import '../../core/widgets/waiting_screen.dart';
 import '../match/match_controller.dart';
 
 class RoomScreen extends ConsumerWidget {
@@ -21,11 +22,35 @@ class RoomScreen extends ConsumerWidget {
     final room = match.room;
 
     ref.listen(matchControllerProvider, (prev, next) {
-      if (next.phase == AppPhase.inGame) context.go('/match');
-      if (next.phase == AppPhase.lobby) context.go('/lobby');
+      if (prev?.phase == next.phase) return;
+      if (next.phase == AppPhase.inGame || next.phase == AppPhase.result) {
+        context.go('/match');
+      } else if (next.phase == AppPhase.waitingForOpponent) {
+        context.go('/matchmaking');
+      } else if (next.phase == AppPhase.lobby) {
+        context.go('/lobby');
+      }
     });
 
     final isHost = room?.hostPlayerId == session.playerId;
+    final memberCount = room?.members.length ?? 0;
+    final code = room?.code ?? match.roomCode ?? '------';
+
+    if (memberCount < 2) {
+      return WaitingScreen(
+        tips: const [
+          'Waiting for your friend to join the room...',
+          'Share your room code so they can enter.',
+          'Private games need two players before starting.',
+        ],
+        statusLine: code,
+        cancelLabel: 'Leave room',
+        onCancel: () {
+          ref.read(matchControllerProvider.notifier).leaveRoom();
+          context.go('/lobby');
+        },
+      );
+    }
 
     return CamoScaffold(
       title: 'Private Room',

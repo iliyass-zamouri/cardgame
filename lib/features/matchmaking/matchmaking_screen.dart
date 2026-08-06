@@ -2,58 +2,53 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/constants/camo_colors.dart';
-import '../../core/constants/camo_spacing.dart';
-import '../../core/constants/camo_typography.dart';
-import '../../core/widgets/camo_buttons.dart';
-import '../../core/widgets/camo_scaffold.dart';
-import '../../core/widgets/game_background.dart';
+import '../../core/widgets/waiting_screen.dart';
 import '../match/match_controller.dart';
 
 class MatchmakingScreen extends ConsumerWidget {
   const MatchmakingScreen({super.key});
 
+  static List<String> _searchTips(int stake) => [
+        'Searching for an opponent at stake $stake...',
+        'Earnings from private games are not included in league earnings.',
+        'Lowest score wins the round.',
+        'Hang tight — matching players with similar stakes.',
+      ];
+
+  static List<String> _opponentTips(int stake) => [
+        'Waiting for your opponent to join...',
+        'The match starts once both players are connected.',
+        'Stake: $stake coins on the line.',
+        'Lowest score wins the round.',
+      ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final match = ref.watch(matchControllerProvider);
+    final waitingForOpponent = match.phase == AppPhase.waitingForOpponent;
 
     ref.listen(matchControllerProvider, (prev, next) {
-      if (next.phase == AppPhase.inGame) context.go('/match');
-      if (next.phase == AppPhase.lobby) context.go('/lobby');
+      if (prev?.phase == next.phase) return;
+      if (next.phase == AppPhase.inGame || next.phase == AppPhase.result) {
+        context.go('/match');
+      } else if (next.phase == AppPhase.lobby) {
+        context.go('/lobby');
+      }
     });
 
-    return CamoScaffold(
-      title: 'Matchmaking',
-      onBack: () => ref.read(matchControllerProvider.notifier).cancelQueue(),
-      body: GameBackground(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(CamoSpacing.xl),
-            child: CamoPanel(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-              const CircularProgressIndicator(color: CamoColors.secondary),
-              const SizedBox(height: CamoSpacing.lg),
-              Text(
-                'SEARCHING STAKE ${match.stake}',
-                style: CamoTypography.labelCaps(CamoColors.secondary),
-              ),
-              const SizedBox(height: CamoSpacing.lg),
-              CamoMenuButton(
-                label: 'Cancel',
-                onPressed: () {
-                  ref.read(matchControllerProvider.notifier).cancelQueue();
-                  context.go('/lobby');
-                },
-              ),
-            ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return WaitingScreen(
+      tips: waitingForOpponent
+          ? _opponentTips(match.stake)
+          : _searchTips(match.stake),
+      cancelLabel: waitingForOpponent ? 'Leave match' : 'Cancel search',
+      onCancel: () {
+        if (waitingForOpponent) {
+          ref.read(matchControllerProvider.notifier).leaveMatch();
+        } else {
+          ref.read(matchControllerProvider.notifier).cancelQueue();
+        }
+        context.go('/lobby');
+      },
     );
   }
 }

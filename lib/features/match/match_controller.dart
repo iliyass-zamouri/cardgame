@@ -11,6 +11,7 @@ enum AppPhase {
   auth,
   lobby,
   matchmaking,
+  waitingForOpponent,
   room,
   inGame,
   result,
@@ -41,6 +42,30 @@ class MatchViewState {
   final int stake;
   final bool connected;
 
+  String? get localPlayerId =>
+      snapshot?.localPlayerId ?? found?.localPlayerId;
+
+  /// True while opponent hasn't joined / match snapshot isn't ready yet.
+  bool get shouldShowMatchWaiting {
+    if (phase == AppPhase.inGame) {
+      final snap = snapshot;
+      if (snap == null) return true;
+      if (snap.phase == WireMatchPhase.lobby) return true;
+      if (snap.players.length < 2) return true;
+      return false;
+    }
+    if (phase == AppPhase.result && rematch != null && !rematch!.closed) {
+      final r = rematch!;
+      final id = localPlayerId;
+      if (id == null) return false;
+      final joined = r.members.any((m) => m.playerId == id);
+      if (!joined) return false;
+      if (r.members.length < r.expectedPlayers) return true;
+      if (!r.members.every((m) => m.ready)) return true;
+    }
+    return false;
+  }
+
   MatchViewState copyWith({
     AppPhase? phase,
     String? roomCode,
@@ -55,12 +80,13 @@ class MatchViewState {
     bool clearError = false,
     bool clearRoom = false,
     bool clearSnapshot = false,
+    bool clearFound = false,
   }) {
     return MatchViewState(
       phase: phase ?? this.phase,
       roomCode: clearRoom ? null : roomCode ?? this.roomCode,
       room: clearRoom ? null : room ?? this.room,
-      found: found ?? this.found,
+      found: clearFound ? null : found ?? this.found,
       snapshot: clearSnapshot ? null : snapshot ?? this.snapshot,
       rematch: rematch ?? this.rematch,
       queuing: queuing ?? this.queuing,
@@ -84,6 +110,7 @@ class MatchController extends StateNotifier<MatchViewState> {
   final Ref _ref;
   StreamSubscription<WireEnvelope>? _sub;
   StreamSubscription<bool>? _connSub;
+  String? _joinedMatchId;
 
   Future<void> connect() async {
     final session = _ref.read(sessionProvider);
@@ -101,8 +128,15 @@ class MatchController extends StateNotifier<MatchViewState> {
 
   void _rejoinIfNeeded() {
     final matchId = state.found?.matchId ?? state.snapshot?.matchId;
+    if (matchId == null) return;
+    _joinedMatchId = null;
+    _joinMatch(matchId);
+  }
+
+  void _joinMatch(String matchId) {
+    if (_joinedMatchId == matchId) return;
+    _joinedMatchId = matchId;
     final session = _ref.read(sessionProvider);
-    if (matchId == null || session.playerId == null) return;
     _socket.send(
       ProtocolEvents.matchJoin,
       MatchJoinMessage(matchId: matchId, playerId: session.playerId).toJson(),
@@ -115,6 +149,7 @@ class MatchController extends StateNotifier<MatchViewState> {
 
   void queue() {
     final session = _ref.read(sessionProvider);
+    _joinedMatchId = null;
     _socket.send(
       ProtocolEvents.matchQueue,
       MatchQueueMessage(
@@ -194,11 +229,29 @@ class MatchController extends StateNotifier<MatchViewState> {
     );
   }
 
-  void backToLobby() {
+  void leaveMatch() {
+    _socket.send(ProtocolEvents.matchLeave, {});
+    _joinedMatchId = null;
     state = state.copyWith(
       phase: AppPhase.lobby,
       clearRoom: true,
       clearSnapshot: true,
+      clearFound: true,
+      queuing: false,
+    );
+  }
+
+  void backToLobby() {
+    // Always notify server — otherwise seat stays mapped and blocks re-queue.
+    if (state.found != null || state.snapshot != null) {
+      _socket.send(ProtocolEvents.matchLeave, {});
+    }
+    _joinedMatchId = null;
+    state = state.copyWith(
+      phase: AppPhase.lobby,
+      clearRoom: true,
+      clearSnapshot: true,
+      clearFound: true,
       queuing: false,
     );
   }
@@ -207,16 +260,29 @@ class MatchController extends StateNotifier<MatchViewState> {
     switch (envelope.event) {
       case ProtocolEvents.matchFound:
         final found = MatchFoundMessage.fromJson(envelope.payload);
+        // Duplicate found (server rebind ack) — join once, don't flip phase.
+        if (state.found?.matchId == found.matchId) {
+          _joinMatch(found.matchId);
+          break;
+        }
+        _joinedMatchId = null;
+        _joinMatch(found.matchId);
         state = state.copyWith(
           found: found,
-          phase: AppPhase.inGame,
+          phase: AppPhase.waitingForOpponent,
           queuing: false,
+          clearSnapshot: true,
         );
       case ProtocolEvents.matchSnapshot:
         final snap = MatchSnapshotMessage.fromJson(envelope.payload);
-        final phase = snap.phase == WireMatchPhase.result
-            ? AppPhase.result
-            : AppPhase.inGame;
+        final activeId = state.found?.matchId ?? state.snapshot?.matchId;
+        // Stale room still broadcasting after rematch / double-queue.
+        if (activeId != null && snap.matchId != activeId) break;
+        final phase = switch (snap.phase) {
+          WireMatchPhase.result => AppPhase.result,
+          WireMatchPhase.lobby => AppPhase.waitingForOpponent,
+          _ => AppPhase.inGame,
+        };
         state = state.copyWith(snapshot: snap, phase: phase, clearError: true);
       case ProtocolEvents.roomState:
         final room = RoomStateMessage.fromJson(envelope.payload);
@@ -239,6 +305,23 @@ class MatchController extends StateNotifier<MatchViewState> {
         );
       case ProtocolEvents.matchError:
         final err = MatchErrorMessage.fromJson(envelope.payload);
+        if (err.code == 'match_closed') {
+          // Self-leave / re-queue already cleared local state — skip toast noise.
+          if (state.phase == AppPhase.lobby ||
+              state.phase == AppPhase.matchmaking) {
+            break;
+          }
+          _joinedMatchId = null;
+          state = state.copyWith(
+            phase: AppPhase.lobby,
+            clearRoom: true,
+            clearSnapshot: true,
+            clearFound: true,
+            error: err.message,
+            queuing: false,
+          );
+          break;
+        }
         state = state.copyWith(error: err.message, queuing: false);
     }
   }

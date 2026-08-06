@@ -34,15 +34,19 @@ export class MatchRoom {
     this._send = opts.send;
     this._onFinished = opts.onFinished;
     this._onClosed = opts.onClosed;
-    this.phase = 'dealing';
+    this.phase = 'lobby';
     this.closed = false;
     this.revealSecondsLeft = 0;
     this._revealTimer = null;
+    this._started = false;
 
     this.participants = opts.players.map((p, index) => ({
       playerId: p.playerId,
       connectionId: p.connectionId,
       displayName: p.displayName ?? `Player ${index + 1}`,
+      // Queue/rematch players are already on the socket — start without waiting
+      // for a client match.join round-trip (join still used for reconnects).
+      joined: true,
       cards: [],
       handCard: null,
       total: 0,
@@ -53,6 +57,15 @@ export class MatchRoom {
     this.deck = generateDeck();
     this.throwedCards = [];
     this.currentPlayerIndex = 0;
+  }
+
+  _tryStart() {
+    if (this._started || this.closed) return;
+    if (!this.participants.every((p) => p.joined)) return;
+    console.info(
+      `[match.room] start match=${this.matchId} joined=${this.participants.filter((p) => p.joined).length}/${this.participants.length}`,
+    );
+    this._started = true;
     this._deal();
   }
 
@@ -174,11 +187,18 @@ export class MatchRoom {
   }
 
   broadcastSnapshot() {
+    const start = Date.now();
     for (const p of this.participants) {
       const payload = this.toSnapshot(p.playerId);
       this._send(
         p.connectionId,
         JSON.stringify({ event: 'match.snapshot', payload }),
+      );
+    }
+    const elapsed = Date.now() - start;
+    if (elapsed > 10) {
+      console.info(
+        `[match.room] snapshot slow match=${this.matchId} phase=${this.phase} ms=${elapsed}`,
       );
     }
   }
@@ -237,7 +257,7 @@ export class MatchRoom {
   }
 
   handleAction(connectionId, payload) {
-    if (this.closed || this.phase === 'result') return;
+    if (this.closed || this.phase === 'result' || this.phase === 'lobby') return;
     const actor = this._actor(connectionId);
     if (!actor) return;
 
@@ -403,27 +423,37 @@ export class MatchRoom {
   rebind(playerId, connectionId) {
     const p = this.participants.find((x) => x.playerId === playerId);
     if (!p) return false;
+    const connectionChanged = p.connectionId !== connectionId;
     p.connectionId = connectionId;
-    this._send(
-      connectionId,
-      JSON.stringify({
-        event: 'match.found',
-        payload: {
-          matchId: this.matchId,
-          localPlayerId: playerId,
-          players: this.participants.map((x) => ({
-            id: x.playerId,
-            displayName: x.displayName,
-          })),
-          rematchId: this.rematchId,
-          matchesPlayed: this.matchesPlayed,
-          mode: this.mode,
-          roomCode: this.roomCode,
-          stake: this.stake,
-        },
-      }),
+    p.joined = true;
+    console.info(
+      `[match.room] joinAck match=${this.matchId} player=${playerId} joined=${this.participants.filter((x) => x.joined).length}/${this.participants.length}`,
     );
+    // Only re-send match.found when the socket identity changed (reconnect).
+    // Otherwise client join→found→join loops forever.
+    if (connectionChanged) {
+      this._send(
+        connectionId,
+        JSON.stringify({
+          event: 'match.found',
+          payload: {
+            matchId: this.matchId,
+            localPlayerId: playerId,
+            players: this.participants.map((x) => ({
+              id: x.playerId,
+              displayName: x.displayName,
+            })),
+            rematchId: this.rematchId,
+            matchesPlayed: this.matchesPlayed,
+            mode: this.mode,
+            roomCode: this.roomCode,
+            stake: this.stake,
+          },
+        }),
+      );
+    }
     this.broadcastSnapshot();
+    this._tryStart();
     return true;
   }
 

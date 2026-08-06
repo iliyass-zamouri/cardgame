@@ -10,11 +10,15 @@ class CamoStakeSelector extends StatelessWidget {
     required this.stakes,
     required this.selected,
     required this.onSelected,
+    this.compact = false,
+    this.onDark = false,
   });
 
   final List<int> stakes;
   final int selected;
   final ValueChanged<int> onSelected;
+  final bool compact;
+  final bool onDark;
 
   @override
   Widget build(BuildContext context) {
@@ -24,16 +28,82 @@ class CamoStakeSelector extends StatelessWidget {
         return Expanded(
           child: Padding(
             padding: EdgeInsets.only(
-              right: stake == stakes.last ? 0 : CamoSpacing.sm,
+              right: stake == stakes.last ? 0 : (compact ? 4 : CamoSpacing.sm),
             ),
-            child: _StakeChip(
-              stake: stake,
-              selected: isSelected,
-              onTap: () => onSelected(stake),
-            ),
+            child: compact
+                ? _FlatStakeChip(
+                    stake: stake,
+                    selected: isSelected,
+                    onTap: () => onSelected(stake),
+                    onDark: onDark,
+                  )
+                : _StakeChip(
+                    stake: stake,
+                    selected: isSelected,
+                    onTap: () => onSelected(stake),
+                  ),
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+class _FlatStakeChip extends StatelessWidget {
+  const _FlatStakeChip({
+    required this.stake,
+    required this.selected,
+    required this.onTap,
+    required this.onDark,
+  });
+
+  final int stake;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool onDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = selected
+        ? CamoColors.secondary
+        : (onDark
+            ? CamoColors.purpleDeep.withValues(alpha: 0.55)
+            : const Color(0xFF4A2080));
+    final fg = selected ? const Color(0xFF3D2200) : CamoColors.white;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected
+                ? CamoColors.goldDark
+                : CamoColors.white.withValues(alpha: 0.15),
+            width: 1.5,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$stake',
+              style: CamoTypography.headlineMd(fg).copyWith(
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              'STAKE',
+              style: CamoTypography.labelCaps(fg.withValues(alpha: 0.75))
+                  .copyWith(fontSize: 8),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -119,14 +189,6 @@ class _StakeChipState extends State<_StakeChip> {
                       : CamoColors.panelBorder.withValues(alpha: 0.5),
                   width: 1.5,
                 ),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: CamoColors.secondary.withValues(alpha: 0.4),
-                          blurRadius: 10,
-                        ),
-                      ]
-                    : null,
               ),
               alignment: Alignment.center,
               child: Column(

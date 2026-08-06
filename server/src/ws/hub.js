@@ -191,12 +191,41 @@ export class WsHub {
         }),
       );
     }
-    room.broadcastSnapshot();
+    // Deal + first playable snapshot after found so clients can bind matchId first.
+    room._tryStart();
     return { room, matchId: publicId, rematch: session };
   }
 
   _onRoomClosed(matchId) {
+    const room = this._rooms.get(matchId);
     this._rooms.delete(matchId);
+    if (!room) return;
+    for (const p of room.participants) {
+      this._roomByPlayer.delete(p.playerId);
+      this._roomByConnection.delete(p.connectionId);
+      this.sendTo(
+        p.connectionId,
+        encodeEnvelope(ProtocolEvents.matchError, {
+          code: 'match_closed',
+          message: 'Match ended',
+        }),
+      );
+    }
+  }
+
+  _detachFromMatch(connectionId, playerId) {
+    const matchId =
+      this._roomByConnection.get(connectionId) ??
+      (playerId ? this._roomByPlayer.get(playerId) : null);
+    if (!matchId) return;
+    const room = this._rooms.get(matchId);
+    // close() triggers _onRoomClosed which clears all seats + notifies peers
+    if (room && !room.closed) {
+      room.close();
+      return;
+    }
+    this._roomByConnection.delete(connectionId);
+    if (playerId) this._roomByPlayer.delete(playerId);
   }
 
   _dissolveRematch(session) {
@@ -306,8 +335,12 @@ export class WsHub {
     }
     const conn = auth.conn;
     if (payload.playerId) {
-      this._rebindPlayer(connectionId, payload.playerId, payload.displayName);
+      conn.playerId = payload.playerId;
+      conn.displayName = payload.displayName ?? conn.displayName;
+      this._indexPlayerConnection(payload.playerId, connectionId);
     }
+    // Drop abandoned/stuck seat so player can search again.
+    this._detachFromMatch(connectionId, conn.playerId);
     this._leaveLobby(connectionId);
     this._queue.enqueue({
       connectionId,
@@ -337,11 +370,8 @@ export class WsHub {
   }
 
   _handleMatchLeave(connectionId) {
-    const matchId = this._roomByConnection.get(connectionId);
-    if (!matchId) return;
-    const room = this._rooms.get(matchId);
-    room?.close();
-    this._roomByConnection.delete(connectionId);
+    const conn = this._conn(connectionId);
+    this._detachFromMatch(connectionId, conn?.playerId);
   }
 
   _handleCardAction(connectionId, payload) {
