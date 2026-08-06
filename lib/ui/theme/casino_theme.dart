@@ -23,6 +23,12 @@ abstract final class CasinoColors {
   static const borderGlow = Color(0xFF3D8B5F);
 }
 
+/// [display] = Cinzel (brand / titles). [ui] = DM Sans (buttons, body, hints).
+abstract final class CasinoFonts {
+  static const display = 'Cinzel';
+  static const ui = 'DM Sans';
+}
+
 ThemeData buildCasinoTheme() {
   const scheme = ColorScheme.dark(
     surface: CasinoColors.bg,
@@ -34,36 +40,39 @@ ThemeData buildCasinoTheme() {
     onSurface: CasinoColors.text,
   );
 
+  const ui = TextStyle(fontFamily: CasinoFonts.ui);
+  const display = TextStyle(fontFamily: CasinoFonts.display);
+
   return ThemeData(
     useMaterial3: false,
     brightness: Brightness.dark,
     colorScheme: scheme,
     scaffoldBackgroundColor: Colors.transparent,
-    fontFamily: 'Cinzel',
+    fontFamily: CasinoFonts.ui,
     splashFactory: InkRipple.splashFactory,
-    textTheme: const TextTheme(
-      displaySmall: TextStyle(
+    textTheme: TextTheme(
+      displaySmall: display.copyWith(
         color: CasinoColors.text,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
       ),
-      headlineMedium: TextStyle(
+      headlineMedium: display.copyWith(
         color: CasinoColors.text,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.8,
       ),
-      titleLarge: TextStyle(
+      titleLarge: ui.copyWith(
         color: CasinoColors.text,
         fontWeight: FontWeight.w700,
       ),
-      titleMedium: TextStyle(
+      titleMedium: ui.copyWith(
         color: CasinoColors.text,
         fontWeight: FontWeight.w600,
       ),
-      bodyLarge: TextStyle(color: CasinoColors.text),
-      bodyMedium: TextStyle(color: CasinoColors.textMuted),
-      bodySmall: TextStyle(color: CasinoColors.textMuted, fontSize: 12),
-      labelLarge: TextStyle(
+      bodyLarge: ui.copyWith(color: CasinoColors.text),
+      bodyMedium: ui.copyWith(color: CasinoColors.textMuted),
+      bodySmall: ui.copyWith(color: CasinoColors.textMuted, fontSize: 12),
+      labelLarge: ui.copyWith(
         color: CasinoColors.text,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.6,
@@ -71,7 +80,11 @@ ThemeData buildCasinoTheme() {
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: CasinoColors.surface.withValues(alpha: 0.94),
-      contentTextStyle: const TextStyle(color: CasinoColors.text, fontSize: 13),
+      contentTextStyle: const TextStyle(
+        fontFamily: CasinoFonts.ui,
+        color: CasinoColors.text,
+        fontSize: 13,
+      ),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       elevation: 0,
@@ -80,15 +93,15 @@ ThemeData buildCasinoTheme() {
       backgroundColor: CasinoColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       titleTextStyle: const TextStyle(
+        fontFamily: CasinoFonts.ui,
         color: CasinoColors.text,
         fontSize: 18,
         fontWeight: FontWeight.w700,
-        fontFamily: 'Cinzel',
       ),
       contentTextStyle: const TextStyle(
+        fontFamily: CasinoFonts.ui,
         color: CasinoColors.textMuted,
         fontSize: 14,
-        fontFamily: 'Cinzel',
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -105,10 +118,19 @@ ThemeData buildCasinoTheme() {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(28),
-        borderSide: const BorderSide(color: CasinoColors.borderGlow, width: 1.4),
+        borderSide: const BorderSide(
+          color: CasinoColors.borderGlow,
+          width: 1.4,
+        ),
       ),
-      labelStyle: const TextStyle(color: CasinoColors.textMuted),
-      hintStyle: const TextStyle(color: CasinoColors.textMuted),
+      labelStyle: const TextStyle(
+        fontFamily: CasinoFonts.ui,
+        color: CasinoColors.textMuted,
+      ),
+      hintStyle: const TextStyle(
+        fontFamily: CasinoFonts.ui,
+        color: CasinoColors.textMuted,
+      ),
     ),
   );
 }

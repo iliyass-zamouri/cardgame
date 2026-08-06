@@ -19,6 +19,8 @@ class GameRoom {
     this.discard = [];
     this.turnIndex = null;
     this.result = null;
+    this.lastAction = null;
+    this.discardSource = null;
     this.launchTimers = new Map();
   }
 
@@ -56,6 +58,8 @@ class GameRoom {
     this.discard = [];
     this.turnIndex = null;
     this.result = null;
+    this.lastAction = null;
+    this.discardSource = null;
     this.players.forEach((player) => {
       player.cards = [];
       player.handCard = null;
@@ -78,6 +82,8 @@ class GameRoom {
     this.deck = shuffle(createDeck(), this.random);
     this.discard = [];
     this.result = null;
+    this.lastAction = null;
+    this.discardSource = null;
     this.status = 'playing';
     this.players.forEach((player) => {
       player.cards = [];
@@ -111,7 +117,6 @@ class GameRoom {
 
   draw(clientId) {
     this.#requireAction(clientId);
-    this.lastAction = null;
     const player = this.#requirePlayer(clientId);
     if (player.handCard) {
       throw new GameRuleError('already_drew', 'Throw or swap drawn card first');
@@ -121,6 +126,12 @@ class GameRoom {
       throw new GameRuleError('deck_empty', 'No cards available');
     }
     player.handCard = this.deck.pop();
+    this.lastAction = {
+      playerId: clientId,
+      type: 'draw',
+      cardIndex: null,
+    };
+    this.discardSource = null;
     this.#changed();
   }
 
@@ -140,9 +151,22 @@ class GameRoom {
       if (cardValue(selected) === cardValue(this.discard.at(-1))) {
         player.cards.splice(index, 1);
         this.discard.push(selected);
+        this.discardSource = 'hand';
+        this.lastAction = {
+          playerId: clientId,
+          type: 'discardMatch',
+          cardIndex: index,
+          cardTag: selected,
+        };
       } else {
         this.#restock();
         if (this.deck.length > 0) player.cards.push(this.deck.pop());
+        this.discardSource = null;
+        this.lastAction = {
+          playerId: clientId,
+          type: 'penaltyDraw',
+          cardIndex: index,
+        };
       }
       this.#finishIfNeeded();
       this.#changed();
@@ -150,11 +174,28 @@ class GameRoom {
     }
 
     if (cardValue(player.handCard) === cardValue(selected)) {
+      const drawnTag = player.handCard;
       player.cards.splice(index, 1);
-      this.discard.push(selected, player.handCard);
+      this.discard.push(selected, drawnTag);
+      this.discardSource = 'hand';
+      this.lastAction = {
+        playerId: clientId,
+        type: 'doubleDiscard',
+        cardIndex: index,
+        cardTag: selected,
+        drawnTag,
+      };
     } else {
-      player.cards[index] = player.handCard;
+      const drawnTag = player.handCard;
+      player.cards[index] = drawnTag;
       this.discard.push(selected);
+      this.discardSource = 'hand';
+      this.lastAction = {
+        playerId: clientId,
+        type: 'swap',
+        cardIndex: index,
+        cardTag: selected,
+      };
     }
     player.handCard = null;
     this.#advanceTurn();
@@ -166,13 +207,23 @@ class GameRoom {
     if (!player.handCard) {
       throw new GameRuleError('no_hand_card', 'Draw a card first');
     }
-    this.discard.push(player.handCard);
+    const cardTag = player.handCard;
+    this.lastAction = {
+      playerId: clientId,
+      type: 'throw',
+      cardIndex: null,
+      cardTag,
+    };
+    this.discardSource = 'drawn';
+    this.discard.push(cardTag);
     player.handCard = null;
     this.#advanceTurn();
   }
 
   end(clientId) {
     this.#requirePlayer(clientId);
+    this.lastAction = null;
+    this.discardSource = null;
     this.#endGame();
     this.#changed();
   }
@@ -198,6 +249,16 @@ class GameRoom {
       you: viewer ? this.#playerView(viewer, true, showAll) : null,
       opponent: opponent ? this.#playerView(opponent, false, showAll) : null,
       result: this.result,
+      discardSource: this.discardSource,
+      lastAction: this.lastAction
+        ? {
+          actor: this.lastAction.playerId === clientId ? 'you' : 'opponent',
+          type: this.lastAction.type,
+          cardIndex: this.lastAction.cardIndex,
+          cardTag: this.lastAction.cardTag ?? null,
+          drawnTag: this.lastAction.drawnTag ?? null,
+        }
+        : null,
     };
   }
 

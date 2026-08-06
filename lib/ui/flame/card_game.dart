@@ -44,7 +44,12 @@ class CardGame extends FlameGame {
   /// Hand slot this client last tapped. The server only reports public state,
   /// so the tap index is what lets the board animate the right card.
   int? _pendingTapIndex;
-  bool _expectingPenaltyAppend = false;
+
+  /// When set, next drawn-slot sync skips the pop-in (ghost already flew in).
+  bool? _suppressDrawnAppearSelf;
+
+  /// When set, the next sync snaps the new end-slot card into place (no fly-in).
+  bool? _expectingPenaltyAppendSelf;
 
   @override
   Color backgroundColor() => const Color(0x00000000);
@@ -107,7 +112,11 @@ class CardGame extends FlameGame {
     }
     if (snapshot.version == _lastVersion && _snapshot != null) return;
     final previous = _snapshot;
-    final action = previous == null ? null : _planAction(previous, snapshot);
+    final action =
+        previous == null
+            ? null
+            : _planAction(previous, snapshot) ??
+                _planOpponentAction(previous, snapshot);
 
     if (action != null) {
       _lastVersion = snapshot.version;
@@ -128,20 +137,32 @@ class CardGame extends FlameGame {
     final previous = _snapshot;
     _snapshot = snapshot;
     _lastVersion = snapshot.version;
-    final snapIndices = <int>{};
-    if (_expectingPenaltyAppend &&
+    final localSnapIndices = <int>{};
+    final opponentSnapIndices = <int>{};
+    final expectingSelf = _expectingPenaltyAppendSelf;
+    _expectingPenaltyAppendSelf = null;
+    if (expectingSelf == true &&
         previous != null &&
         snapshot.you.cards.length == previous.you.cards.length + 1 &&
         snapshot.you.cards.isNotEmpty) {
-      snapIndices.add(snapshot.you.cards.last.index);
+      localSnapIndices.add(snapshot.you.cards.last.index);
     }
-    _expectingPenaltyAppend = false;
+    if (expectingSelf == false &&
+        previous != null &&
+        previous.opponent != null &&
+        snapshot.opponent != null &&
+        snapshot.opponent!.cards.length ==
+            previous.opponent!.cards.length + 1 &&
+        snapshot.opponent!.cards.isNotEmpty) {
+      opponentSnapIndices.add(snapshot.opponent!.cards.last.index);
+    }
 
     _opponentHand.syncCards(
       snapshot.opponent?.cards ?? const [],
       highlight: !snapshot.isYourTurn,
       onTap: null,
       animateDeal: previous == null || previous.version > snapshot.version,
+      snapToPositionIndices: opponentSnapIndices,
       peekIndices: const {},
     );
     _localHand.syncCards(
@@ -149,7 +170,7 @@ class CardGame extends FlameGame {
       highlight: snapshot.isYourTurn,
       onTap: snapshot.isYourTurn ? _handleHandTap : null,
       animateDeal: previous == null || previous.status != GameStatus.playing,
-      snapToPositionIndices: snapIndices,
+      snapToPositionIndices: localSnapIndices,
       peekIndices:
           snapshot.you.launch == LaunchStatus.launched
               ? {
@@ -167,65 +188,245 @@ class CardGame extends FlameGame {
           snapshot.status == GameStatus.playing &&
           snapshot.bothRevealed,
     );
-    _localDrawn.sync(snapshot.you.handCardTag, faceUp: true);
+    _localDrawn.sync(
+      snapshot.you.handCardTag,
+      faceUp: true,
+      animateAppear: _suppressDrawnAppearSelf != true,
+    );
     _remoteDrawn.sync(
       snapshot.opponent?.hasHandCard == true ? 'BACK' : null,
       faceUp: false,
+      animateAppear: _suppressDrawnAppearSelf != false,
     );
+    _suppressDrawnAppearSelf = null;
     _layoutHands();
   }
 
-  /// Works out what just happened from the two snapshots plus the card this
-  /// client tapped, and captures on-screen positions before the board moves.
+  /// Local seat: pending tap drives match/swap/penalty; draw/throw from diff.
   _CardActionPlan? _planAction(GameSnapshot previous, GameSnapshot snapshot) {
     final tapIndex = _pendingTapIndex;
-    if (tapIndex == null) return null;
-
-    final drawnTag = previous.you.handCardTag;
     final before = previous.you.cards.length;
-    final after = snapshot.you.cards.length;
 
-    // Snapshots unrelated to our own move (an opponent action, a launch timer)
-    // must not consume the pending tap.
-    if (before == after && drawnTag == snapshot.you.handCardTag) return null;
-    _pendingTapIndex = null;
+    if (tapIndex != null) {
+      // Snapshots unrelated to our own move must not consume the pending tap.
+      if (before == snapshot.you.cards.length &&
+          previous.you.handCardTag == snapshot.you.handCardTag) {
+        return null;
+      }
+      _pendingTapIndex = null;
+      return _planSeatAction(
+        previous: previous,
+        snapshot: snapshot,
+        isSelf: true,
+        prevPlayer: previous.you,
+        nextPlayer: snapshot.you,
+        hand: _localHand,
+        drawnSlot: _localDrawn,
+        tapIndex: tapIndex,
+        hintCardTag: null,
+        hintDrawnTag: previous.you.handCardTag,
+        preferThrow: false,
+      );
+    }
 
-    final handStart = _localHand.worldPositionFor(tapIndex);
-    if (handStart == null) return null;
+    // No tap: still animate local draw / throw from seat diff.
+    return _planSeatAction(
+      previous: previous,
+      snapshot: snapshot,
+      isSelf: true,
+      prevPlayer: previous.you,
+      nextPlayer: snapshot.you,
+      hand: _localHand,
+      drawnSlot: _localDrawn,
+      tapIndex: null,
+      hintCardTag:
+          snapshot.lastAction?.actor == LastActionActor.you
+              ? snapshot.lastAction?.cardTag
+              : null,
+      hintDrawnTag: previous.you.handCardTag,
+      preferThrow: snapshot.lastAction?.type == LastActionType.throwHand,
+      drawThrowOnly: true,
+    );
+  }
+
+  /// Opponent seat: front-end diff of public opponent state (no lastAction required).
+  _CardActionPlan? _planOpponentAction(
+    GameSnapshot previous,
+    GameSnapshot snapshot,
+  ) {
+    final prevOpp = previous.opponent;
+    final nextOpp = snapshot.opponent;
+    if (prevOpp == null || nextOpp == null) return null;
+
+    // Own move this frame — local planner owns it.
+    final youChanged =
+        previous.you.cards.length != snapshot.you.cards.length ||
+        previous.you.handCardTag != snapshot.you.handCardTag ||
+        previous.you.hasHandCard != snapshot.you.hasHandCard;
+    if (youChanged) return null;
+
+    final oppChanged =
+        prevOpp.cards.length != nextOpp.cards.length ||
+        prevOpp.hasHandCard != nextOpp.hasHandCard ||
+        previous.discardTopTag != snapshot.discardTopTag;
+    if (!oppChanged) return null;
+
+    final hint =
+        snapshot.lastAction?.actor == LastActionActor.opponent
+            ? snapshot.lastAction
+            : null;
+    final before = prevOpp.cards.length;
+    // Prefer server slot when this frame is a swap; otherwise mid-hand fallback.
+    final tapIndex = hint?.cardIndex ?? (before > 0 ? before ~/ 2 : null);
+    final isSwapHint = hint?.type == LastActionType.swap;
+
+    return _planSeatAction(
+      previous: previous,
+      snapshot: snapshot,
+      isSelf: false,
+      prevPlayer: prevOpp,
+      nextPlayer: nextOpp,
+      hand: _opponentHand,
+      drawnSlot: _remoteDrawn,
+      tapIndex: tapIndex,
+      hintCardTag: hint?.cardTag,
+      hintDrawnTag: hint?.drawnTag,
+      // Throw vs swap are identical in public state. Only animate a hand-slot
+      // swap+reveal when the server marks this frame as a swap.
+      preferThrow: !isSwapHint,
+      drawThrowOnly: false,
+    );
+  }
+
+  /// Shared branches for either seat — same outcomes as the original local planner.
+  _CardActionPlan? _planSeatAction({
+    required GameSnapshot previous,
+    required GameSnapshot snapshot,
+    required bool isSelf,
+    required PlayerSnapshot prevPlayer,
+    required PlayerSnapshot nextPlayer,
+    required HandArea hand,
+    required DrawnCardSlot drawnSlot,
+    required int? tapIndex,
+    required String? hintCardTag,
+    required String? hintDrawnTag,
+    required bool preferThrow,
+    bool drawThrowOnly = false,
+  }) {
+    final hadDrawn = prevPlayer.hasHandCard;
+    final hasDrawn = nextPlayer.hasHandCard;
+    final before = prevPlayer.cards.length;
+    final after = nextPlayer.cards.length;
     final discard = _table.worldDiscardPosition;
     final previousDiscardTop = previous.discardTopTag;
+    final discarded = snapshot.discardRecentTags;
+    final discardChanged = snapshot.discardTopTag != previous.discardTopTag;
+    final drawnStart =
+        drawnSlot.worldCardPosition ?? drawnSlot.worldSlotPosition;
+    final knownDrawnTag = isSelf ? previous.you.handCardTag : hintDrawnTag;
 
-    if (drawnTag != null) {
-      if (snapshot.you.handCardTag != null) return null;
-      final drawnStart =
-          _localDrawn.worldCardPosition ?? _table.worldDeckPosition;
+    // --- draw / throw (no hand tap required) ---
+    if (!hadDrawn && hasDrawn && before == after) {
+      return _CardActionPlan(
+        kind: _CardActionKind.draw,
+        isSelf: isSelf,
+        cardIndex: -1,
+        handStart: drawnSlot.worldSlotPosition,
+        discard: discard,
+        deckStart: _table.worldDeckPosition,
+        drawnTag: isSelf ? nextPlayer.handCardTag : null,
+        drawnFaceUp: isSelf,
+        previousDiscardTop: previousDiscardTop,
+      );
+    }
 
-      // A hand that shrinks while holding a drawn card can only be a matching
-      // pair discard. Exact faces are a bonus when discardRecent is available.
-      if (after < before) {
-        final discarded = snapshot.discardRecentTags;
-        final tappedTag =
-            discarded.length >= 2 && discarded.last == drawnTag
-                ? discarded.first
-                : null;
+    if (hadDrawn && !hasDrawn && before == after && discardChanged) {
+      final thrownTag = hintCardTag ?? snapshot.discardTopTag;
+      if (thrownTag == null) return null;
+
+      // discardSource is public and unambiguous: hand → swap reveal, drawn → throw.
+      final wantSwap = switch (snapshot.discardSource) {
+        'hand' => true,
+        'drawn' => false,
+        _ => !drawThrowOnly && (isSelf || !preferThrow),
+      };
+
+      if (wantSwap) {
+        final handStart = _resolveHandStart(hand, tapIndex, before);
+        if (handStart == null) return null;
+        final cardIndex = _resolveCardIndex(hand, tapIndex, before);
         return _CardActionPlan(
-          kind: _CardActionKind.doubleDiscard,
-          cardIndex: tapIndex,
-          tappedTag: tappedTag,
-          drawnTag: drawnTag,
+          kind: _CardActionKind.swap,
+          isSelf: isSelf,
+          cardIndex: cardIndex,
+          tappedTag: thrownTag,
+          drawnTag: isSelf ? knownDrawnTag : null,
+          drawnFaceUp: isSelf,
           handStart: handStart,
           drawnStart: drawnStart,
           discard: discard,
           previousDiscardTop: previousDiscardTop,
         );
       }
-      final swapped = snapshot.discardTopTag;
+
+      return _CardActionPlan(
+        kind: _CardActionKind.throwHand,
+        isSelf: isSelf,
+        cardIndex: -1,
+        handStart: drawnStart,
+        discard: discard,
+        tappedTag: thrownTag,
+        drawnTag: knownDrawnTag ?? thrownTag,
+        drawnFaceUp: isSelf,
+        drawnStart: drawnStart,
+        previousDiscardTop: previousDiscardTop,
+      );
+    }
+
+    if (drawThrowOnly) return null;
+
+    final handStart = _resolveHandStart(hand, tapIndex, before);
+    if (handStart == null) return null;
+    final cardIndex = _resolveCardIndex(hand, tapIndex, before);
+
+    if (hadDrawn && !hasDrawn) {
+      if (after < before) {
+        final tappedTag =
+            hintCardTag ??
+            (discarded.length >= 2 &&
+                    knownDrawnTag != null &&
+                    discarded.last == knownDrawnTag
+                ? discarded.first
+                : (discarded.length >= 2
+                    ? discarded.first
+                    : snapshot.discardTopTag));
+        final drawnTag =
+            hintDrawnTag ??
+            knownDrawnTag ??
+            (discarded.length >= 2 ? discarded.last : snapshot.discardTopTag);
+        if (drawnTag == null) return null;
+        return _CardActionPlan(
+          kind: _CardActionKind.doubleDiscard,
+          isSelf: isSelf,
+          cardIndex: cardIndex,
+          tappedTag: tappedTag,
+          drawnTag: drawnTag,
+          drawnFaceUp: true,
+          handStart: handStart,
+          drawnStart: drawnStart,
+          discard: discard,
+          previousDiscardTop: previousDiscardTop,
+        );
+      }
+      final swapped = hintCardTag ?? snapshot.discardTopTag;
       if (swapped == null) return null;
       return _CardActionPlan(
         kind: _CardActionKind.swap,
-        cardIndex: tapIndex,
+        isSelf: isSelf,
+        cardIndex: cardIndex,
         tappedTag: swapped,
-        drawnTag: drawnTag,
+        drawnTag: knownDrawnTag,
+        drawnFaceUp: isSelf,
         handStart: handStart,
         drawnStart: drawnStart,
         discard: discard,
@@ -233,49 +434,70 @@ class CardGame extends FlameGame {
       );
     }
 
-    // Tapping a hand card with no drawn card: it either matches the pile top
-    // and is discarded, or the miss costs a penalty card from the deck.
-    // A collapsed draw-plus-tap frame can also look like this; two new discard
-    // cards mean it was actually a double discard.
-    if (after < before) {
-      final discarded = snapshot.discardRecentTags;
+    if (!hadDrawn && after < before) {
       if (discarded.length >= 2 && discarded.first != previous.discardTopTag) {
         return _CardActionPlan(
           kind: _CardActionKind.doubleDiscard,
-          cardIndex: tapIndex,
-          tappedTag: discarded.first,
-          drawnTag: discarded.last,
+          isSelf: isSelf,
+          cardIndex: cardIndex,
+          tappedTag: hintCardTag ?? discarded.first,
+          drawnTag: hintDrawnTag ?? discarded.last,
+          drawnFaceUp: true,
           handStart: handStart,
           drawnStart: _table.worldDeckPosition,
           discard: discard,
           previousDiscardTop: previousDiscardTop,
         );
       }
-      final matched = snapshot.discardTopTag;
+      final matched = hintCardTag ?? snapshot.discardTopTag;
       if (matched == null) return null;
       return _CardActionPlan(
         kind: _CardActionKind.discardMatch,
-        cardIndex: tapIndex,
+        isSelf: isSelf,
+        cardIndex: cardIndex,
         tappedTag: matched,
         handStart: handStart,
         discard: discard,
         previousDiscardTop: previousDiscardTop,
       );
     }
-    if (after > before) {
-      // Reflow now so the ghost lands where the new end card will sit.
-      _localHand.layout(projectedCount: after);
+
+    if (!hadDrawn && after > before) {
+      hand.layout(projectedCount: after);
       return _CardActionPlan(
         kind: _CardActionKind.penaltyDraw,
-        cardIndex: tapIndex,
+        isSelf: isSelf,
+        cardIndex: cardIndex,
         handStart: handStart,
         discard: discard,
         deckStart: _table.worldDeckPosition,
-        handOrigin: _localHand.worldSlotCenter(after - 1, count: after),
+        handOrigin: hand.worldSlotCenter(after - 1, count: after),
         previousDiscardTop: previousDiscardTop,
       );
     }
+
     return null;
+  }
+
+  int _resolveCardIndex(HandArea hand, int? tapIndex, int count) {
+    if (tapIndex != null && hand.cardAt(tapIndex) != null) return tapIndex;
+    if (hand.cards.isEmpty) return tapIndex ?? 0;
+    final fallback = (tapIndex ?? (count ~/ 2)).clamp(0, hand.cards.length - 1);
+    return hand.cards[fallback].cardIndex;
+  }
+
+  Vector2? _resolveHandStart(HandArea hand, int? tapIndex, int count) {
+    if (tapIndex != null) {
+      final pos = hand.worldPositionFor(tapIndex);
+      if (pos != null) return pos;
+    }
+    if (hand.cards.isEmpty) {
+      if (count <= 0) return null;
+      final slot = (tapIndex ?? (count ~/ 2)).clamp(0, count - 1);
+      return hand.worldSlotCenter(slot, count: count);
+    }
+    final fallback = (tapIndex ?? (count ~/ 2)).clamp(0, hand.cards.length - 1);
+    return hand.cards[fallback].absolutePositionOfAnchor(Anchor.center);
   }
 
   void _runAction(_CardActionPlan plan, VoidCallback onComplete) {
@@ -289,6 +511,10 @@ class CardGame extends FlameGame {
         _runDiscardMatch(plan, onComplete);
       case _CardActionKind.penaltyDraw:
         _runPenaltyDraw(plan, onComplete);
+      case _CardActionKind.draw:
+        _runDraw(plan, onComplete);
+      case _CardActionKind.throwHand:
+        _runThrow(plan, onComplete);
     }
   }
 
@@ -297,12 +523,22 @@ class CardGame extends FlameGame {
     onTapCard?.call(cardIndex);
   }
 
+  HandArea _handFor(_CardActionPlan plan) =>
+      plan.isSelf ? _localHand : _opponentHand;
+
+  DrawnCardSlot _drawnFor(_CardActionPlan plan) =>
+      plan.isSelf ? _localDrawn : _remoteDrawn;
+
   void _clearActionOverlays() {
     _table.releaseDiscard();
     for (final card in _localHand.cards) {
       if (card.opacityOverride < 1) card.opacityOverride = 1;
     }
+    for (final card in _opponentHand.cards) {
+      if (card.opacityOverride < 1) card.opacityOverride = 1;
+    }
     _localDrawn.setCardOpacity(1);
+    _remoteDrawn.setCardOpacity(1);
   }
 
   // Shared timing for the action animations, mirroring the reveal: cards lift
@@ -313,14 +549,20 @@ class CardGame extends FlameGame {
   static const _peekScale = 1.35;
   static const _liftForward = 60.0;
 
+  /// Lift toward table centre so opponent hand mirrors local hand motion.
+  Vector2 _liftPos(Vector2 from, {required bool isSelf}) =>
+      from + Vector2(0, isSelf ? -_liftForward : _liftForward);
+
   void _runDoubleDiscard(_CardActionPlan plan, VoidCallback onComplete) {
     const phaseA = _liftDuration + _readDuration + _travelDuration;
     final tappedTag = plan.tappedTag;
     final drawnTag = plan.drawnTag!;
     final pileRevealTag = tappedTag ?? drawnTag;
+    final hand = _handFor(plan);
+    final drawnSlot = _drawnFor(plan);
 
-    _localHand.cardAt(plan.cardIndex)?.opacityOverride = 0;
-    _localDrawn.setCardOpacity(0);
+    hand.cardAt(plan.cardIndex)?.opacityOverride = 0;
+    drawnSlot.setCardOpacity(0);
     _table.holdDiscard(plan.previousDiscardTop, pendingTag: pileRevealTag);
 
     // Phase A: tapped hand card lifts, flips when known, holds, then travels.
@@ -332,7 +574,7 @@ class CardGame extends FlameGame {
     thrown.add(
       SequenceEffect([
         MoveEffect.to(
-          plan.handStart - Vector2(0, _liftForward),
+          _liftPos(plan.handStart, isSelf: plan.isSelf),
           EffectController(duration: _liftDuration, curve: Curves.easeOutBack),
         ),
         _PauseEffect(_readDuration),
@@ -368,8 +610,15 @@ class CardGame extends FlameGame {
     );
 
     // Phase B: drawn card travels straight onto the discard pile.
-    final drawn = _ghostCard(drawnTag, plan.drawnStart!, faceUp: true);
+    final drawn = _ghostCard(
+      drawnTag,
+      plan.drawnStart!,
+      faceUp: plan.drawnFaceUp,
+    );
     world.add(drawn);
+    if (!plan.drawnFaceUp) {
+      drawn.flipTo(tag: drawnTag, visible: true, delay: 0.05, duration: 0.2);
+    }
     drawn.add(
       SequenceEffect([
         _PauseEffect(phaseA),
@@ -404,7 +653,8 @@ class CardGame extends FlameGame {
   /// Tapped card matched the discard top: lift it, reveal it, send it away.
   void _runDiscardMatch(_CardActionPlan plan, VoidCallback onComplete) {
     final tapped = plan.tappedTag!;
-    final hidden = _localHand.cardAt(plan.cardIndex);
+    final hand = _handFor(plan);
+    final hidden = hand.cardAt(plan.cardIndex);
     hidden?.opacityOverride = 0;
     _table.holdDiscard(plan.previousDiscardTop, pendingTag: tapped);
 
@@ -414,7 +664,7 @@ class CardGame extends FlameGame {
     card.add(
       SequenceEffect([
         MoveEffect.to(
-          plan.handStart - Vector2(0, _liftForward),
+          _liftPos(plan.handStart, isSelf: plan.isSelf),
           EffectController(duration: _liftDuration, curve: Curves.easeOutBack),
         ),
         _PauseEffect(_readDuration),
@@ -454,7 +704,8 @@ class CardGame extends FlameGame {
   /// into the end slot (always appended).
   void _runPenaltyDraw(_CardActionPlan plan, VoidCallback onComplete) {
     const shake = 0.07;
-    final tapped = _localHand.cardAt(plan.cardIndex);
+    final hand = _handFor(plan);
+    final tapped = hand.cardAt(plan.cardIndex);
     tapped?.add(
       SequenceEffect([
         MoveEffect.by(
@@ -474,7 +725,7 @@ class CardGame extends FlameGame {
 
     final landing = plan.handOrigin!;
     final penalty = _ghostCard(null, plan.deckStart!, faceUp: false);
-    _expectingPenaltyAppend = true;
+    _expectingPenaltyAppendSelf = plan.isSelf;
     world.add(penalty);
     penalty.add(
       SequenceEffect([
@@ -493,25 +744,25 @@ class CardGame extends FlameGame {
   }
 
   void _runSwap(_CardActionPlan plan, VoidCallback onComplete) {
+    // Same reveal timing as discard-match / double-discard (those work).
     const phaseA = _liftDuration + _readDuration + _travelDuration;
-    final landing = _localHand.cardAt(plan.cardIndex);
+    final hand = _handFor(plan);
+    final drawnSlot = _drawnFor(plan);
+    final landing = hand.cardAt(plan.cardIndex);
+    final swappedTag = plan.tappedTag!;
     landing?.opacityOverride = 0;
-    _table.holdDiscard(plan.previousDiscardTop, pendingTag: plan.tappedTag!);
+    _table.holdDiscard(plan.previousDiscardTop, pendingTag: swappedTag);
 
-    // Phase A: tapped card lifts out of the hand and flips face-up in place,
-    // holds so it can be read, then travels to the discard pile.
-    final thrown = _ghostCard(plan.tappedTag!, plan.handStart, faceUp: false);
+    // Phase A: chosen hand card lifts, flips face-up to reveal, holds, then
+    // travels to discard — identical motion language to a matching discard.
+    final thrown = _ghostCard(swappedTag, plan.handStart, faceUp: false)
+      ..priority = 200;
     world.add(thrown);
-    thrown.flipTo(
-      tag: plan.tappedTag!,
-      visible: true,
-      delay: 0.1,
-      duration: 0.2,
-    );
+    thrown.flipTo(tag: swappedTag, visible: true, delay: 0.1, duration: 0.2);
     thrown.add(
       SequenceEffect([
         MoveEffect.to(
-          plan.handStart - Vector2(0, _liftForward),
+          _liftPos(plan.handStart, isSelf: plan.isSelf),
           EffectController(duration: _liftDuration, curve: Curves.easeOutBack),
         ),
         _PauseEffect(_readDuration),
@@ -543,13 +794,18 @@ class CardGame extends FlameGame {
       ]),
     );
 
-    // Phase B: drawn card travels straight into the vacated slot.
-    final placed = _ghostCard(plan.drawnTag!, plan.drawnStart!, faceUp: true);
+    // Phase B: drawn replacement travels into the vacated slot (face private
+    // for opponent).
+    final placed = _ghostCard(
+      plan.drawnTag,
+      plan.drawnStart!,
+      faceUp: plan.drawnFaceUp,
+    )..priority = 200;
     world.add(placed);
     placed.add(
       SequenceEffect([
         _PauseEffect(phaseA),
-        _CallbackEffect(() => _localDrawn.setCardOpacity(0)),
+        _CallbackEffect(() => drawnSlot.setCardOpacity(0)),
         MoveEffect.to(
           plan.handStart,
           EffectController(
@@ -569,6 +825,86 @@ class CardGame extends FlameGame {
         _PauseEffect(phaseA),
         ScaleEffect.to(
           Vector2.all(1),
+          EffectController(
+            duration: _travelDuration,
+            curve: Curves.easeInOutCubic,
+          ),
+        ),
+      ]),
+    );
+  }
+
+  /// Deck → drawn slot (face-up for local, face-down for opponent).
+  void _runDraw(_CardActionPlan plan, VoidCallback onComplete) {
+    final landing = plan.handStart;
+    _suppressDrawnAppearSelf = plan.isSelf;
+    final card = _ghostCard(
+      plan.drawnTag,
+      plan.deckStart!,
+      faceUp: plan.drawnFaceUp,
+    );
+    world.add(card);
+    card.add(
+      SequenceEffect([
+        MoveEffect.to(
+          landing,
+          EffectController(
+            duration: _travelDuration,
+            curve: Curves.easeInOutCubic,
+          ),
+        ),
+        _CallbackEffect(onComplete),
+        RemoveEffect(),
+      ]),
+    );
+  }
+
+  /// Drawn slot → discard pile.
+  void _runThrow(_CardActionPlan plan, VoidCallback onComplete) {
+    final drawnSlot = _drawnFor(plan);
+    final tag = plan.tappedTag!;
+    drawnSlot.setCardOpacity(0);
+    _table.holdDiscard(plan.previousDiscardTop, pendingTag: tag);
+
+    final card = _ghostCard(
+      plan.drawnTag ?? tag,
+      plan.drawnStart!,
+      faceUp: plan.drawnFaceUp,
+    );
+    world.add(card);
+    if (!plan.drawnFaceUp) {
+      card.flipTo(tag: tag, visible: true, delay: 0.1, duration: 0.2);
+    }
+    card.add(
+      SequenceEffect([
+        MoveEffect.to(
+          _liftPos(plan.drawnStart!, isSelf: plan.isSelf),
+          EffectController(duration: _liftDuration, curve: Curves.easeOutBack),
+        ),
+        _PauseEffect(_readDuration),
+        MoveEffect.to(
+          plan.discard,
+          EffectController(
+            duration: _travelDuration,
+            curve: Curves.easeInOutCubic,
+          ),
+        ),
+        _CallbackEffect(() {
+          _table.releaseDiscard();
+          onComplete();
+        }),
+        RemoveEffect(),
+      ]),
+    );
+    card.add(
+      SequenceEffect([
+        ScaleEffect.to(
+          Vector2.all(_peekScale),
+          EffectController(duration: _liftDuration, curve: Curves.easeOutBack),
+        ),
+        _PauseEffect(_readDuration),
+        ScaleEffect.to(
+          Vector2.all(0.85),
           EffectController(
             duration: _travelDuration,
             curve: Curves.easeInOutCubic,
@@ -859,11 +1195,13 @@ class DrawnCardSlot extends PositionComponent {
   Vector2? get worldCardPosition =>
       _card?.absolutePositionOfAnchor(Anchor.center);
 
+  Vector2 get worldSlotPosition => absolutePositionOfAnchor(Anchor.center);
+
   void setCardOpacity(double opacity) {
     _card?.opacityOverride = opacity;
   }
 
-  void sync(String? tag, {required bool faceUp}) {
+  void sync(String? tag, {required bool faceUp, bool animateAppear = true}) {
     if (tag == null) {
       _card?.removeFromParent();
       _card = null;
@@ -878,14 +1216,16 @@ class DrawnCardSlot extends PositionComponent {
         sizeOverride: Vector2(isSelf ? 86 : 48, isSelf ? 124 : 70),
       )..onPressed = isSelf ? () => onThrow?.call() : null;
       add(_card!);
-      _card!
-        ..scale = Vector2.zero()
-        ..add(
-          ScaleEffect.to(
-            Vector2.all(1),
-            EffectController(duration: 0.25, curve: Curves.easeOutBack),
-          ),
-        );
+      if (animateAppear) {
+        _card!
+          ..scale = Vector2.zero()
+          ..add(
+            ScaleEffect.to(
+              Vector2.all(1),
+              EffectController(duration: 0.25, curve: Curves.easeOutBack),
+            ),
+          );
+      }
     } else {
       _card!.updateFromSnapshot(
         CardSnapshot(
@@ -974,6 +1314,12 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
       _FlipEffect(to: 1, duration: duration),
     ];
     add(SequenceEffect(effects));
+  }
+
+  /// Instantly set face without animation (used inside sequenced swap reveal).
+  void reveal({required String? tag, required bool visible}) {
+    _tag = tag;
+    _visible = visible;
   }
 
   void updateFromSnapshot(CardSnapshot snapshot, {required bool tappable}) {
@@ -1511,11 +1857,19 @@ class _CallbackEffect extends Effect {
   }
 }
 
-enum _CardActionKind { doubleDiscard, swap, discardMatch, penaltyDraw }
+enum _CardActionKind {
+  doubleDiscard,
+  swap,
+  discardMatch,
+  penaltyDraw,
+  draw,
+  throwHand,
+}
 
 class _CardActionPlan {
   const _CardActionPlan({
     required this.kind,
+    required this.isSelf,
     required this.cardIndex,
     required this.handStart,
     required this.discard,
@@ -1525,9 +1879,11 @@ class _CardActionPlan {
     this.drawnStart,
     this.deckStart,
     this.handOrigin,
+    this.drawnFaceUp = true,
   });
 
   final _CardActionKind kind;
+  final bool isSelf;
   final int cardIndex;
   final Vector2 handStart;
   final Vector2 discard;
@@ -1537,6 +1893,7 @@ class _CardActionPlan {
   final Vector2? drawnStart;
   final Vector2? deckStart;
   final Vector2? handOrigin;
+  final bool drawnFaceUp;
 }
 
 class _PauseEffect extends Effect {

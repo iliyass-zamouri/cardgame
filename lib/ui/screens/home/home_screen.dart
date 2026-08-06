@@ -7,6 +7,7 @@ import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -244,19 +245,34 @@ class GameHud extends ConsumerWidget {
                 ],
               ),
             ),
-            if (playing)
+            if (playing && canReveal)
               Positioned(
                 right: 16,
                 bottom: 16,
                 child: CasinoActionButton(
-                  label: canReveal ? 'Reveal' : 'Wait',
-                  icon:
-                      canReveal
-                          ? Icons.visibility_rounded
-                          : Icons.hourglass_top_rounded,
+                  label: 'Reveal',
+                  icon: Icons.visibility_rounded,
                   tone: CasinoActionTone.raise,
                   expanded: false,
-                  onPressed: canReveal ? notifier.launch : null,
+                  onPressed: notifier.launch,
+                ),
+              )
+            else if (playing &&
+                !game.bothRevealed &&
+                game.you.launch != LaunchStatus.notLaunched)
+              const Positioned(
+                left: 24,
+                right: 24,
+                bottom: 20,
+                child: Text(
+                  'Waiting for opponent to see their cards…',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: CasinoColors.textMuted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    shadows: [Shadow(color: Color(0xCC000000), blurRadius: 6)],
+                  ),
                 ),
               ),
           ],
@@ -276,19 +292,21 @@ class GameOverPanel extends ConsumerWidget {
     final notifier = ref.read(gameSessionProvider.notifier);
     final yourTotal = game.you.total;
     final opponentTotal = game.opponent?.total;
+    final youWin = opponentTotal != null && yourTotal < opponentTotal;
+    final theyWin = opponentTotal != null && yourTotal > opponentTotal;
     final headline =
         opponentTotal == null
             ? 'Game over'
-            : yourTotal < opponentTotal
+            : youWin
             ? 'You win'
-            : yourTotal > opponentTotal
+            : theyWin
             ? 'Player 2 wins'
             : 'Draw';
 
     return Center(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 28),
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
         decoration: BoxDecoration(
           color: CasinoColors.surface.withValues(alpha: 0.96),
           borderRadius: BorderRadius.circular(22),
@@ -309,35 +327,184 @@ class GameOverPanel extends ConsumerWidget {
             Text(
               headline.toUpperCase(),
               style: const TextStyle(
+                fontFamily: CasinoFonts.display,
                 color: CasinoColors.gold,
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.4,
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              opponentTotal == null
-                  ? 'Your score $yourTotal'
-                  : 'You $yourTotal — Player 2 $opponentTotal',
-              style: const TextStyle(color: CasinoColors.textMuted),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: _ResultSeat(
+                    name: 'You',
+                    score: yourTotal,
+                    connected: game.you.connected,
+                    winner: youWin,
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    'VS',
+                    style: TextStyle(
+                      color: CasinoColors.goldSoft,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _ResultSeat(
+                    name: 'Player 2',
+                    score: opponentTotal ?? 0,
+                    connected: game.opponent?.connected ?? false,
+                    winner: theyWin,
+                    missing: opponentTotal == null,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            CasinoActionButton(
-              label: 'Play again',
-              tone: CasinoActionTone.raise,
-              expanded: false,
-              onPressed: notifier.startGame,
-            ),
-            const SizedBox(height: 10),
-            CasinoActionButton(
-              label: 'Leave',
-              tone: CasinoActionTone.fold,
-              expanded: false,
-              onPressed: notifier.leaveRoom,
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                CasinoActionButton(
+                  label: 'Leave',
+                  icon: Icons.logout_rounded,
+                  tone: CasinoActionTone.fold,
+                  onPressed: notifier.leaveRoom,
+                ),
+                const SizedBox(width: 10),
+                CasinoActionButton(
+                  label: 'Play again',
+                  icon: Icons.replay_rounded,
+                  tone: CasinoActionTone.raise,
+                  onPressed: notifier.startGame,
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ResultSeat extends StatelessWidget {
+  const _ResultSeat({
+    required this.name,
+    required this.score,
+    required this.connected,
+    required this.winner,
+    this.missing = false,
+  });
+
+  final String name;
+  final int score;
+  final bool connected;
+  final bool winner;
+  final bool missing;
+
+  @override
+  Widget build(BuildContext context) {
+    const avatarSize = 52.0;
+    final ring = winner ? CasinoColors.gold : Colors.white24;
+
+    return Opacity(
+      opacity: missing ? 0.45 : 1,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: avatarSize,
+            height: avatarSize,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: avatarSize,
+                  height: avatarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: CasinoColors.bgElevated,
+                    border: Border.all(color: ring, width: winner ? 2.5 : 1.5),
+                    boxShadow:
+                        winner
+                            ? [
+                              BoxShadow(
+                                color: CasinoColors.gold.withValues(
+                                  alpha: 0.35,
+                                ),
+                                blurRadius: 12,
+                              ),
+                            ]
+                            : null,
+                  ),
+                  child: Icon(
+                    Icons.person,
+                    size: avatarSize * 0.5,
+                    color: CasinoColors.text.withValues(alpha: 0.9),
+                  ),
+                ),
+                Positioned(
+                  right: -1,
+                  bottom: -1,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color:
+                          connected
+                              ? const Color(0xFF7ED50E)
+                              : CasinoColors.foldHi,
+                      border: Border.all(color: CasinoColors.surface, width: 2),
+                    ),
+                  ),
+                ),
+                if (winner)
+                  Positioned(
+                    top: -20,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: SvgPicture.asset(
+                        'assets/crown.svg',
+                        width: 36,
+                        height: 38,
+                        colorFilter: const ColorFilter.mode(
+                          CasinoColors.gold,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            name,
+            style: TextStyle(
+              color: winner ? CasinoColors.gold : CasinoColors.text,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            missing ? '—' : '$score',
+            style: TextStyle(
+              color: winner ? CasinoColors.goldSoft : CasinoColors.textMuted,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
       ),
     );
   }

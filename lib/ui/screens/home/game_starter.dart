@@ -50,6 +50,7 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
                     'CARD GAME',
                     textAlign: TextAlign.center,
                     style: TextStyle(
+                      fontFamily: CasinoFonts.display,
                       color: CasinoColors.gold,
                       fontSize: 28,
                       fontWeight: FontWeight.w800,

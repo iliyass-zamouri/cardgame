@@ -2,6 +2,17 @@ enum GameStatus { waiting, playing, ended }
 
 enum LaunchStatus { notLaunched, launched, ended }
 
+enum LastActionActor { you, opponent }
+
+enum LastActionType {
+  discardMatch,
+  doubleDiscard,
+  swap,
+  penaltyDraw,
+  draw,
+  throwHand,
+}
+
 class CardSnapshot {
   final int index;
   final String? tag;
@@ -71,6 +82,72 @@ class GameResult {
   }
 }
 
+class LastAction {
+  final LastActionActor actor;
+  final LastActionType type;
+  final int? cardIndex;
+
+  /// Public face of the card that left the hand (discarded / swapped out).
+  final String? cardTag;
+
+  /// Second public face (double-discard drawn card), when applicable.
+  final String? drawnTag;
+
+  const LastAction({
+    required this.actor,
+    required this.type,
+    required this.cardIndex,
+    this.cardTag,
+    this.drawnTag,
+  });
+
+  bool sameAs(LastAction? other) {
+    if (other == null) return false;
+    return actor == other.actor &&
+        type == other.type &&
+        cardIndex == other.cardIndex &&
+        cardTag == other.cardTag &&
+        drawnTag == other.drawnTag;
+  }
+
+  static LastAction? tryParse(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    final actor = switch (json['actor']) {
+      'you' => LastActionActor.you,
+      'opponent' => LastActionActor.opponent,
+      _ => null,
+    };
+    final type = switch (json['type']) {
+      'discardMatch' => LastActionType.discardMatch,
+      'doubleDiscard' => LastActionType.doubleDiscard,
+      'swap' => LastActionType.swap,
+      'penaltyDraw' => LastActionType.penaltyDraw,
+      'draw' => LastActionType.draw,
+      'throw' => LastActionType.throwHand,
+      _ => null,
+    };
+    if (actor == null || type == null) return null;
+    final rawIndex = json['cardIndex'];
+    final int? cardIndex = switch (rawIndex) {
+      null => null,
+      int value => value,
+      num value => value.toInt(),
+      String value => int.tryParse(value),
+      _ => null,
+    };
+    final needsIndex =
+        type != LastActionType.draw && type != LastActionType.throwHand;
+    if (needsIndex && cardIndex == null) return null;
+    return LastAction(
+      actor: actor,
+      type: type,
+      cardIndex: cardIndex,
+      cardTag: json['cardTag'] as String?,
+      drawnTag: json['drawnTag'] as String?,
+    );
+  }
+}
+
 class GameSnapshot {
   final String roomId;
   final int version;
@@ -85,6 +162,10 @@ class GameSnapshot {
   final PlayerSnapshot you;
   final PlayerSnapshot? opponent;
   final GameResult? result;
+  final LastAction? lastAction;
+
+  /// Where the newest discard came from: `hand`, `drawn`, or null.
+  final String? discardSource;
 
   const GameSnapshot({
     required this.roomId,
@@ -98,11 +179,14 @@ class GameSnapshot {
     required this.you,
     required this.opponent,
     required this.result,
+    required this.lastAction,
+    this.discardSource,
   });
 
   factory GameSnapshot.fromJson(Map<String, dynamic> json) {
     final opponentJson = json['opponent'] as Map<String, dynamic>?;
     final resultJson = json['result'] as Map<String, dynamic>?;
+    final lastActionJson = json['lastAction'] as Map<String, dynamic>?;
     return GameSnapshot(
       roomId: json['roomId'] as String,
       version: json['version'] as int,
@@ -121,6 +205,8 @@ class GameSnapshot {
       opponent:
           opponentJson == null ? null : PlayerSnapshot.fromJson(opponentJson),
       result: resultJson == null ? null : GameResult.fromJson(resultJson),
+      lastAction: LastAction.tryParse(lastActionJson),
+      discardSource: json['discardSource'] as String?,
     );
   }
 
