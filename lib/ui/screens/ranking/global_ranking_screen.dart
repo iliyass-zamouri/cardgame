@@ -187,8 +187,9 @@ class _RankRow extends StatelessWidget {
     final crownColor = _crownColor(entry.rank);
     return Container(
       color: highlight ? CasinoColors.gold.withValues(alpha: 0.08) : null,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      padding: EdgeInsets.fromLTRB(16, crownColor != null ? 14 : 10, 16, 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
             width: 36,
@@ -202,32 +203,30 @@ class _RankRow extends StatelessWidget {
           ),
           SizedBox(
             width: 40,
-            height: 52,
+            height: 36,
             child: Stack(
               clipBehavior: Clip.none,
-              alignment: Alignment.bottomCenter,
+              alignment: Alignment.center,
               children: [
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: CasinoColors.surface,
-                    child: Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        color: CasinoColors.gold,
-                        fontWeight: FontWeight.w700,
-                      ),
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: CasinoColors.surfaceHi,
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      color: CasinoColors.gold,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
                 if (crownColor != null)
-                  Align(
-                    alignment: Alignment.topCenter,
+                  Positioned(
+                    top: -12,
                     child: SvgPicture.asset(
                       'assets/crown.svg',
-                      width: 22,
-                      height: 22,
+                      width: 20,
+                      height: 16,
+                      fit: BoxFit.contain,
                       colorFilter: ColorFilter.mode(
                         crownColor,
                         BlendMode.srcIn,
@@ -240,6 +239,7 @@ class _RankRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -266,6 +266,7 @@ class _RankRow extends StatelessWidget {
             ),
           ),
           Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
