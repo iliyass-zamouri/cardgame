@@ -17,8 +17,14 @@ final leaderboardProvider = FutureProvider.autoDispose<List<RankingEntry>>((
 final myRankProvider = FutureProvider.autoDispose<RankingEntry?>((ref) async {
   final profile = ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
   if (profile.playerId.isEmpty) return null;
-  return ref.watch(rankingApiProvider).fetchPlayerRank(profile.playerId);
+  return ref.watch(playerRankByIdProvider(profile.playerId).future);
 });
+
+final playerRankByIdProvider = FutureProvider.autoDispose
+    .family<RankingEntry?, String>((ref, playerId) async {
+      if (playerId.isEmpty) return null;
+      return ref.watch(rankingApiProvider).fetchPlayerRank(playerId);
+    });
 
 final matchHistoryProvider = FutureProvider.autoDispose<List<MatchHistoryItem>>(
   (ref) async {

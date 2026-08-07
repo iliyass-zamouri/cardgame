@@ -304,23 +304,26 @@ class CasinoToast extends StatelessWidget {
   }
 }
 
-/// Single player chip: avatar with connection badge, name to the right.
+/// Single player chip: avatar with connection badge, name (+ optional points).
 class CasinoPlayerSeat extends StatelessWidget {
   const CasinoPlayerSeat({
     super.key,
     required this.name,
     required this.connected,
     required this.active,
+    this.points,
     this.avatarSize = 28,
   });
 
   final String name;
   final bool connected;
   final bool active;
+  final int? points;
   final double avatarSize;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final dotSize = avatarSize * 0.32;
     return Opacity(
       opacity: connected ? 1 : 0.55,
@@ -373,14 +376,30 @@ class CasinoPlayerSeat extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            name,
-            style: TextStyle(
-              color: active ? CasinoColors.gold : CasinoColors.text,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
-            ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                style: TextStyle(
+                  color: active ? CasinoColors.gold : CasinoColors.text,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              if (points != null)
+                Text(
+                  '${l10n.elo} $points',
+                  style: TextStyle(
+                    color: CasinoColors.goldSoft.withValues(alpha: 0.9),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -398,7 +417,9 @@ class CasinoMenuPlayersPill extends StatelessWidget {
     required this.opponentConnected,
     required this.yourTurn,
     required this.opponentTurn,
-    this.height = 38,
+    this.youPoints,
+    this.opponentPoints,
+    this.height = 44,
   });
 
   final String youName;
@@ -407,6 +428,8 @@ class CasinoMenuPlayersPill extends StatelessWidget {
   final bool opponentConnected;
   final bool yourTurn;
   final bool opponentTurn;
+  final int? youPoints;
+  final int? opponentPoints;
   final double height;
 
   @override
@@ -424,6 +447,7 @@ class CasinoMenuPlayersPill extends StatelessWidget {
                 name: youName,
                 connected: youConnected,
                 active: yourTurn,
+                points: youPoints,
                 avatarSize: 26,
               ),
               Padding(
@@ -442,6 +466,7 @@ class CasinoMenuPlayersPill extends StatelessWidget {
                 name: opponentName,
                 connected: opponentConnected,
                 active: opponentTurn,
+                points: opponentPoints,
                 avatarSize: 26,
               ),
             ],

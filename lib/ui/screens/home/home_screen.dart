@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cardgame/ads/interstitial_ad_service.dart';
 import 'package:cardgame/app/game_session_controller.dart';
+import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/card_game_view.dart';
@@ -445,6 +446,16 @@ class GameHud extends ConsumerWidget {
     final canPeek = game.canJackPeek;
     final canQueen = game.canQueenAbility;
     final queenPicking = queenMode != QueenMode.none;
+    final youId = game.you.playerId ?? '';
+    final opponentId = game.opponent?.playerId ?? '';
+    final youElo =
+        youId.isEmpty
+            ? null
+            : ref.watch(playerRankByIdProvider(youId)).asData?.value?.elo;
+    final opponentElo =
+        opponentId.isEmpty
+            ? null
+            : ref.watch(playerRankByIdProvider(opponentId)).asData?.value?.elo;
 
     return SafeArea(
       child: SizedBox.expand(
@@ -463,6 +474,8 @@ class GameHud extends ConsumerWidget {
                     opponentConnected: game.opponent?.connected ?? false,
                     yourTurn: playing && game.isYourTurn,
                     opponentTurn: playing && !game.isYourTurn,
+                    youPoints: youElo,
+                    opponentPoints: opponentElo,
                   ),
                   const Spacer(),
                   if (playing)
