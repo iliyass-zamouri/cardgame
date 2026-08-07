@@ -172,44 +172,69 @@ class _RankRow extends StatelessWidget {
   final bool isSelf;
   final String selfLabel;
 
+  static Color? _crownColor(int rank) => switch (rank) {
+    1 => const Color(0xFF7FDBFF), // diamond
+    2 => CasinoColors.gold,
+    3 => const Color(0xFFC0C0C0), // silver
+    4 => const Color(0xFFCD7F32), // bronze
+    _ => null,
+  };
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final name = isSelf ? selfLabel : entry.displayName;
+    final crownColor = _crownColor(entry.rank);
     return Container(
       color: highlight ? CasinoColors.gold.withValues(alpha: 0.08) : null,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Row(
         children: [
           SizedBox(
             width: 36,
-            child:
-                entry.rank == 1
-                    ? SvgPicture.asset(
-                      'assets/crown.svg',
-                      width: 22,
-                      height: 22,
-                    )
-                    : Text(
-                      '#${entry.rank}',
-                      style: TextStyle(
-                        color:
-                            highlight
-                                ? CasinoColors.gold
-                                : CasinoColors.textMuted,
+            child: Text(
+              '#${entry.rank}',
+              style: TextStyle(
+                color: highlight ? CasinoColors.gold : CasinoColors.textMuted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            height: 52,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.bottomCenter,
+              children: [
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: CasinoColors.surface,
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      style: const TextStyle(
+                        color: CasinoColors.gold,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-          ),
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: CasinoColors.surface,
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: const TextStyle(
-                color: CasinoColors.gold,
-                fontWeight: FontWeight.w700,
-              ),
+                  ),
+                ),
+                if (crownColor != null)
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: SvgPicture.asset(
+                      'assets/crown.svg',
+                      width: 22,
+                      height: 22,
+                      colorFilter: ColorFilter.mode(
+                        crownColor,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: 12),
