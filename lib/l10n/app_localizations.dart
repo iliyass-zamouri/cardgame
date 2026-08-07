@@ -934,6 +934,24 @@ abstract class AppLocalizations {
   /// **'Global Ranking'**
   String get globalRanking;
 
+  /// No description provided for @marketplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Marketplace'**
+  String get marketplace;
+
+  /// No description provided for @comingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon'**
+  String get comingSoon;
+
+  /// No description provided for @marketplaceComingSoonBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Card skins and extras will show up here.'**
+  String get marketplaceComingSoonBody;
+
   /// No description provided for @leaderboard.
   ///
   /// In en, this message translates to:

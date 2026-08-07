@@ -454,6 +454,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get globalRanking => 'الترتيب العالمي';
 
   @override
+  String get marketplace => 'المتجر';
+
+  @override
+  String get comingSoon => 'قريبًا';
+
+  @override
+  String get marketplaceComingSoonBody => 'ستظهر هنا تصاميم الورق والإضافات.';
+
+  @override
   String get leaderboard => 'لوحة الصدارة';
 
   @override

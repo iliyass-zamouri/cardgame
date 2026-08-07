@@ -457,6 +457,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get globalRanking => 'Global Ranking';
 
   @override
+  String get marketplace => 'Marketplace';
+
+  @override
+  String get comingSoon => 'Coming soon';
+
+  @override
+  String get marketplaceComingSoonBody =>
+      'Card skins and extras will show up here.';
+
+  @override
   String get leaderboard => 'Leaderboard';
 
   @override

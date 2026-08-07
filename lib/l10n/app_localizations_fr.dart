@@ -460,6 +460,16 @@ class AppLocalizationsFr extends AppLocalizations {
   String get globalRanking => 'Classement mondial';
 
   @override
+  String get marketplace => 'Boutique';
+
+  @override
+  String get comingSoon => 'Bientôt disponible';
+
+  @override
+  String get marketplaceComingSoonBody =>
+      'Les skins de cartes et extras arriveront ici.';
+
+  @override
   String get leaderboard => 'Classement';
 
   @override

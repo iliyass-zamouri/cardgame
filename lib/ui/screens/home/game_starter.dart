@@ -6,6 +6,7 @@ import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
+import 'package:cardgame/ui/screens/marketplace_screen.dart';
 import 'package:cardgame/ui/screens/ranking/global_ranking_screen.dart';
 import 'package:cardgame/ui/screens/settings_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
@@ -143,6 +144,23 @@ class StartGameWidget extends ConsumerWidget {
                                   size: 18,
                                 ),
                                 label: Text(l10n.globalRanking),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: CasinoColors.textMuted,
+                                ),
+                              ),
+                            ),
+                            Center(
+                              child: TextButton.icon(
+                                onPressed:
+                                    () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder:
+                                            (context) =>
+                                                const MarketplaceScreen(),
+                                      ),
+                                    ),
+                                icon: const Icon(Icons.style_rounded, size: 18),
+                                label: Text(l10n.marketplace),
                                 style: TextButton.styleFrom(
                                   foregroundColor: CasinoColors.textMuted,
                                 ),
