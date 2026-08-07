@@ -56,6 +56,7 @@ void main() {
     expect(find.text('FIND MATCH'), findsOneWidget);
     expect(find.text('CREATE ROOM'), findsOneWidget);
     expect(find.text('JOIN ROOM'), findsOneWidget);
+    expect(find.text('PRACTICE VS ROBOT'), findsOneWidget);
     expect(find.textContaining('Test Ace'), findsOneWidget);
   });
 }

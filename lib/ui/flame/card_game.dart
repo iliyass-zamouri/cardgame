@@ -249,12 +249,7 @@ class CardGame extends FlameGame {
     if (queenAnim != null) {
       _lastVersion = snapshot.version;
       _animatingAction = true;
-      queenAnim(() {
-        final completedSnapshot = _queuedDuringAnimation ?? snapshot;
-        _queuedDuringAnimation = null;
-        _animatingAction = false;
-        _syncSnapshot(completedSnapshot);
-      });
+      queenAnim(() => _completeActionAnim(snapshot));
       return;
     }
 
@@ -267,16 +262,22 @@ class CardGame extends FlameGame {
     if (action != null) {
       _lastVersion = snapshot.version;
       _animatingAction = true;
-      _runAction(action, () {
-        final completedSnapshot = _queuedDuringAnimation ?? snapshot;
-        _queuedDuringAnimation = null;
-        _animatingAction = false;
-        _syncSnapshot(completedSnapshot);
-      });
+      _runAction(action, () => _completeActionAnim(snapshot));
       return;
     }
 
     _syncSnapshot(snapshot);
+  }
+
+  /// Sync the frame we just animated, then play any newer queued snapshot.
+  void _completeActionAnim(GameSnapshot animatedSnapshot) {
+    final queued = _queuedDuringAnimation;
+    _queuedDuringAnimation = null;
+    _animatingAction = false;
+    _syncSnapshot(animatedSnapshot);
+    if (queued != null && queued.version > animatedSnapshot.version) {
+      applySnapshot(queued);
+    }
   }
 
   void Function(VoidCallback onComplete)? _planQueenAbilityAnim(

@@ -55,6 +55,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get joinRoom => 'Rejoindre';
 
   @override
+  String get playVsRobot => 'Entraînement vs Robot';
+
+  @override
+  String get robotName => 'Robot';
+
+  @override
   String get retryConnection => 'Réessayer la connexion';
 
   @override

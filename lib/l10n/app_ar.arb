@@ -14,6 +14,8 @@
   "findMatch": "البحث عن مباراة",
   "createRoom": "إنشاء غرفة",
   "joinRoom": "الانضمام لغرفة",
+  "playVsRobot": "تمرين ضد الروبوت",
+  "robotName": "روبوت",
   "retryConnection": "إعادة الاتصال",
   "howToPlay": "طريقة اللعب",
   "deck": "الورق",

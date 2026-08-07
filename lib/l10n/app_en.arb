@@ -19,6 +19,8 @@
   "findMatch": "Find match",
   "createRoom": "Create room",
   "joinRoom": "Join room",
+  "playVsRobot": "Practice vs Robot",
+  "robotName": "Robot",
   "retryConnection": "Retry connection",
   "howToPlay": "How to play",
   "deck": "Deck",

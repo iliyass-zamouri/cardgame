@@ -56,75 +56,115 @@ class StartGameWidget extends ConsumerWidget {
                 alignment: AlignmentDirectional.centerEnd,
                 child: LanguageSwitcher(),
               ),
-              const Spacer(flex: 2),
-              SvgPicture.asset(
-                'assets/logo.svg',
-                height: 160,
-                fit: BoxFit.contain,
-              ),
-              Text(
-                l10n.tagline,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: CasinoColors.textMuted,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxHeight < 480;
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/logo.svg',
+                              height: compact ? 110 : 160,
+                              fit: BoxFit.contain,
+                            ),
+                            Text(
+                              l10n.tagline,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: CasinoColors.textMuted,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: compact ? 20 : 36),
+                            Center(
+                              child: CasinoActionButton(
+                                label: l10n.findMatch,
+                                icon: Icons.bolt_rounded,
+                                tone: CasinoActionTone.raise,
+                                expanded: false,
+                                height: 58,
+                                onPressed:
+                                    connected
+                                        ? () async {
+                                          await ref
+                                              .read(interstitialAdProvider)
+                                              .show();
+                                          notifier.findMatch();
+                                        }
+                                        : null,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Center(
+                              child: CasinoActionButton(
+                                label: l10n.createRoom,
+                                icon: Icons.add_home_rounded,
+                                tone: CasinoActionTone.check,
+                                expanded: false,
+                                height: 58,
+                                onPressed:
+                                    connected ? notifier.createRoom : null,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Center(
+                              child: CasinoActionButton(
+                                label: l10n.joinRoom,
+                                icon: Icons.login_rounded,
+                                tone: CasinoActionTone.gold,
+                                expanded: false,
+                                height: 58,
+                                onPressed:
+                                    connected
+                                        ? () => _showJoinRoomDialog(context)
+                                        : null,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Center(
+                              child: CasinoActionButton(
+                                label: l10n.playVsRobot,
+                                icon: Icons.smart_toy_rounded,
+                                tone: CasinoActionTone.check,
+                                expanded: false,
+                                height: 58,
+                                onPressed:
+                                    () => notifier.playVsRobot(
+                                      robotName: l10n.robotName,
+                                    ),
+                              ),
+                            ),
+                            if (connection ==
+                                ConnectionStatus.disconnected) ...[
+                              const SizedBox(height: 16),
+                              Center(
+                                child: TextButton.icon(
+                                  onPressed: notifier.connect,
+                                  icon: const Icon(
+                                    Icons.refresh_rounded,
+                                    size: 18,
+                                  ),
+                                  label: Text(l10n.retryConnection),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: CasinoColors.goldSoft,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-              const Spacer(flex: 2),
-              Center(
-                child: CasinoActionButton(
-                  label: l10n.findMatch,
-                  icon: Icons.bolt_rounded,
-                  tone: CasinoActionTone.raise,
-                  expanded: false,
-                  height: 58,
-                  onPressed:
-                      connected
-                          ? () async {
-                            await ref.read(interstitialAdProvider).show();
-                            notifier.findMatch();
-                          }
-                          : null,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: CasinoActionButton(
-                  label: l10n.createRoom,
-                  icon: Icons.add_home_rounded,
-                  tone: CasinoActionTone.check,
-                  expanded: false,
-                  height: 58,
-                  onPressed: connected ? notifier.createRoom : null,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: CasinoActionButton(
-                  label: l10n.joinRoom,
-                  icon: Icons.login_rounded,
-                  tone: CasinoActionTone.gold,
-                  expanded: false,
-                  height: 58,
-                  onPressed:
-                      connected ? () => _showJoinRoomDialog(context) : null,
-                ),
-              ),
-              if (connection == ConnectionStatus.disconnected) ...[
-                const SizedBox(height: 16),
-                Center(
-                  child: TextButton.icon(
-                    onPressed: notifier.connect,
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: Text(l10n.retryConnection),
-                    style: TextButton.styleFrom(
-                      foregroundColor: CasinoColors.goldSoft,
-                    ),
-                  ),
-                ),
-              ],
-              const Spacer(flex: 1),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(

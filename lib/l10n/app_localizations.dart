@@ -184,6 +184,18 @@ abstract class AppLocalizations {
   /// **'Join room'**
   String get joinRoom;
 
+  /// No description provided for @playVsRobot.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice vs Robot'**
+  String get playVsRobot;
+
+  /// No description provided for @robotName.
+  ///
+  /// In en, this message translates to:
+  /// **'Robot'**
+  String get robotName;
+
   /// No description provided for @retryConnection.
   ///
   /// In en, this message translates to:

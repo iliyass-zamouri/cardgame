@@ -17,16 +17,14 @@ class SocketClient implements GameSocket {
 
   @override
   Stream<String> get stream => _channel.stream.map((event) {
-        if (event is String) {
-          return event;
-        }
-        if (event is List<int>) {
-          return utf8.decode(event);
-        }
-        throw UnsupportedError(
-          'Unexpected message type: ${event.runtimeType}',
-        );
-      });
+    if (event is String) {
+      return event;
+    }
+    if (event is List<int>) {
+      return utf8.decode(event);
+    }
+    throw UnsupportedError('Unexpected message type: ${event.runtimeType}');
+  });
 
   @override
   void send(String message) {
@@ -35,6 +33,11 @@ class SocketClient implements GameSocket {
 
   @override
   void close() {
-    _channel.sink.close(status.goingAway);
+    // Client-initiated close must be 1000 or 3000–4999 (not goingAway/1001).
+    try {
+      _channel.sink.close(status.normalClosure);
+    } catch (_) {
+      // Already closed / race while swapping to offline socket.
+    }
   }
 }

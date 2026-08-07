@@ -53,6 +53,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get joinRoom => 'الانضمام لغرفة';
 
   @override
+  String get playVsRobot => 'تمرين ضد الروبوت';
+
+  @override
+  String get robotName => 'روبوت';
+
+  @override
   String get retryConnection => 'إعادة الاتصال';
 
   @override

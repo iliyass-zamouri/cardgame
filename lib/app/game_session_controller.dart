@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/data/game_socket.dart';
+import 'package:cardgame/data/offline/offline_game_socket.dart';
 import 'package:cardgame/data/socket_client.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +23,7 @@ final gameSessionProvider =
 class GameSessionController extends Notifier<GameSessionState> {
   GameSocket? _socket;
   StreamSubscription<String>? _subscription;
+  bool _offlineMode = false;
 
   @override
   GameSessionState build() {
@@ -37,6 +39,7 @@ class GameSessionController extends Notifier<GameSessionState> {
   }
 
   void connect() {
+    if (_offlineMode) return;
     _disposeSocket();
     state = state.copyWith(
       connection: ConnectionStatus.connecting,
@@ -44,10 +47,43 @@ class GameSessionController extends Notifier<GameSessionState> {
       searchingMatch: false,
     );
     final socket = ref.read(gameSocketFactoryProvider)();
+    _attachSocket(socket);
+  }
+
+  /// Start an offline match vs the heuristic robot. No network required.
+  void playVsRobot({String robotName = 'Robot'}) {
+    _disposeSocket();
+    _offlineMode = true;
+    final profile = ref.read(playerProfileRepositoryProvider).load();
+    final displayName =
+        profile.isEmpty || profile.name.trim().isEmpty
+            ? 'Player'
+            : profile.name;
+    state = state.copyWith(
+      connection: ConnectionStatus.connected,
+      message: null,
+      searchingMatch: false,
+      game: null,
+      peekSelecting: false,
+      queenMode: QueenMode.none,
+      replaceFirstSide: null,
+      replaceFirstIndex: null,
+      clientId: kOfflineHumanId,
+    );
+    final socket = OfflineGameSocket(
+      humanDisplayName: displayName,
+      humanPlayerId: profile.isEmpty ? null : profile.playerId,
+      robotDisplayName: robotName,
+    );
+    _attachSocket(socket);
+  }
+
+  void _attachSocket(GameSocket socket) {
     _socket = socket;
     _subscription = socket.stream.listen(
       _handleMessage,
       onError: (_) {
+        if (_offlineMode) return;
         state = state.copyWith(
           connection: ConnectionStatus.disconnected,
           message: 'connection_lost',
@@ -55,6 +91,7 @@ class GameSessionController extends Notifier<GameSessionState> {
         );
       },
       onDone: () {
+        if (_offlineMode) return;
         state = state.copyWith(
           connection: ConnectionStatus.disconnected,
           searchingMatch: false,
@@ -84,7 +121,24 @@ class GameSessionController extends Notifier<GameSessionState> {
     _send('cancelFindMatch');
   }
 
-  void leaveRoom() => _send('leaveRoom');
+  void leaveRoom() {
+    if (_offlineMode) {
+      _offlineMode = false;
+      _disposeSocket();
+      state = state.copyWith(
+        game: null,
+        message: null,
+        searchingMatch: false,
+        peekSelecting: false,
+        queenMode: QueenMode.none,
+        replaceFirstSide: null,
+        replaceFirstIndex: null,
+      );
+      connect();
+      return;
+    }
+    _send('leaveRoom');
+  }
 
   void readyUp() => _send('startGame');
 
@@ -249,11 +303,15 @@ class GameSessionController extends Notifier<GameSessionState> {
   }
 
   void _send(String type, [Map<String, dynamic> payload = const {}]) {
-    if (state.connection != ConnectionStatus.connected) {
+    if (!_offlineMode && state.connection != ConnectionStatus.connected) {
       state = state.copyWith(message: 'server_not_connected');
       return;
     }
-    _socket?.send(jsonEncode({'type': type, ...payload}));
+    if (_socket == null) {
+      state = state.copyWith(message: 'server_not_connected');
+      return;
+    }
+    _socket!.send(jsonEncode({'type': type, ...payload}));
   }
 
   void _disposeSocket() {

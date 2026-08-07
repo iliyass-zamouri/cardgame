@@ -14,6 +14,8 @@
   "findMatch": "Trouver une partie",
   "createRoom": "Créer une salle",
   "joinRoom": "Rejoindre",
+  "playVsRobot": "Entraînement vs Robot",
+  "robotName": "Robot",
   "retryConnection": "Réessayer la connexion",
   "howToPlay": "Comment jouer",
   "deck": "Jeu",
