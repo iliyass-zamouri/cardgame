@@ -68,6 +68,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get deck => 'الورق';
 
   @override
+  String get settings => 'الإعدادات';
+
+  @override
+  String get language => 'اللغة';
+
+  @override
   String get signOut => 'تسجيل الخروج';
 
   @override

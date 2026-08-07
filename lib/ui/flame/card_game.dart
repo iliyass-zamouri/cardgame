@@ -81,7 +81,7 @@ class CardGame extends FlameGame {
 
   GameSnapshot? _snapshot;
   GameSnapshot? _pending;
-  GameSnapshot? _queuedDuringAnimation;
+  final List<GameSnapshot> _snapshotQueue = [];
   int _lastVersion = -1;
   bool _ready = false;
   bool _animatingAction = false;
@@ -236,13 +236,18 @@ class CardGame extends FlameGame {
       return;
     }
     if (_animatingAction) {
-      if (_queuedDuringAnimation == null ||
-          snapshot.version > _queuedDuringAnimation!.version) {
-        _queuedDuringAnimation = snapshot;
-      }
+      _enqueueSnapshot(snapshot);
       return;
     }
-    if (snapshot.version == _lastVersion && _snapshot != null) return;
+    if (snapshot.version == _lastVersion &&
+        _snapshot != null &&
+        snapshot.roomId == _snapshot!.roomId) {
+      return;
+    }
+    // Room change: drop stale queue from prior match.
+    if (_snapshot != null && snapshot.roomId != _snapshot!.roomId) {
+      _snapshotQueue.clear();
+    }
     final previous = _snapshot;
 
     final queenAnim = _planQueenAbilityAnim(previous, snapshot);
@@ -267,16 +272,42 @@ class CardGame extends FlameGame {
     }
 
     _syncSnapshot(snapshot);
+    _drainSnapshotQueue();
   }
 
-  /// Sync the frame we just animated, then play any newer queued snapshot.
+  void _enqueueSnapshot(GameSnapshot snapshot) {
+    if (_snapshotQueue.any(
+      (queued) =>
+          queued.version == snapshot.version &&
+          queued.roomId == snapshot.roomId,
+    )) {
+      return;
+    }
+    if (_snapshot != null &&
+        snapshot.roomId == _snapshot!.roomId &&
+        snapshot.version <= _lastVersion) {
+      return;
+    }
+    _snapshotQueue.add(snapshot);
+    _snapshotQueue.sort((a, b) => a.version.compareTo(b.version));
+  }
+
+  /// Sync the frame we just animated, then play the next queued snapshot.
   void _completeActionAnim(GameSnapshot animatedSnapshot) {
-    final queued = _queuedDuringAnimation;
-    _queuedDuringAnimation = null;
     _animatingAction = false;
     _syncSnapshot(animatedSnapshot);
-    if (queued != null && queued.version > animatedSnapshot.version) {
-      applySnapshot(queued);
+    _drainSnapshotQueue();
+  }
+
+  void _drainSnapshotQueue() {
+    while (!_animatingAction && _snapshotQueue.isNotEmpty) {
+      final next = _snapshotQueue.removeAt(0);
+      if (_snapshot != null &&
+          next.roomId == _snapshot!.roomId &&
+          next.version <= _lastVersion) {
+        continue;
+      }
+      applySnapshot(next);
     }
   }
 

@@ -70,6 +70,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get deck => 'Jeu';
 
   @override
+  String get settings => 'Réglages';
+
+  @override
+  String get language => 'Langue';
+
+  @override
   String get signOut => 'Déconnexion';
 
   @override

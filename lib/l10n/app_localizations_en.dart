@@ -69,6 +69,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deck => 'Deck';
 
   @override
+  String get settings => 'Settings';
+
+  @override
+  String get language => 'Language';
+
+  @override
   String get signOut => 'Sign out';
 
   @override

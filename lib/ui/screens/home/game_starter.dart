@@ -5,12 +5,11 @@ import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
-import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/screens/ranking/global_ranking_screen.dart';
+import 'package:cardgame/ui/screens/settings_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
-import 'package:cardgame/ui/widgets/language_switcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,11 +49,12 @@ class StartGameWidget extends ConsumerWidget {
                 authLabel: authLabel,
                 connected: connected,
                 connection: connection,
-              ),
-              const SizedBox(height: 10),
-              const Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: LanguageSwitcher(),
+                onSettings:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (context) => const SettingsScreen(),
+                      ),
+                    ),
               ),
               Expanded(
                 child: LayoutBuilder(
@@ -129,16 +129,23 @@ class StartGameWidget extends ConsumerWidget {
                             ),
                             const SizedBox(height: 12),
                             Center(
-                              child: CasinoActionButton(
-                                label: l10n.playVsRobot,
-                                icon: Icons.smart_toy_rounded,
-                                tone: CasinoActionTone.check,
-                                expanded: false,
-                                height: 58,
+                              child: TextButton.icon(
                                 onPressed:
-                                    () => notifier.playVsRobot(
-                                      robotName: l10n.robotName,
+                                    () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder:
+                                            (context) =>
+                                                const GlobalRankingScreen(),
+                                      ),
                                     ),
+                                icon: const Icon(
+                                  Icons.trending_up_rounded,
+                                  size: 18,
+                                ),
+                                label: Text(l10n.globalRanking),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: CasinoColors.textMuted,
+                                ),
                               ),
                             ),
                             if (connection ==
@@ -165,10 +172,9 @@ class StartGameWidget extends ConsumerWidget {
                   },
                 ),
               ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+              Center(
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     TextButton(
                       onPressed:
@@ -189,47 +195,12 @@ class StartGameWidget extends ConsumerWidget {
                     ),
                     TextButton(
                       onPressed:
-                          () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (context) => const GlobalRankingScreen(),
-                            ),
-                          ),
+                          () => notifier.playVsRobot(robotName: l10n.robotName),
                       style: TextButton.styleFrom(
                         foregroundColor: CasinoColors.textMuted,
                         visualDensity: VisualDensity.compact,
                       ),
-                      child: Text(l10n.globalRanking),
-                    ),
-                    const Text(
-                      '·',
-                      style: TextStyle(color: CasinoColors.textMuted),
-                    ),
-                    TextButton(
-                      onPressed:
-                          () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (context) => const DeckPreviewScreen(),
-                            ),
-                          ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: CasinoColors.textMuted,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      child: Text(l10n.deck),
-                    ),
-                    const Text(
-                      '·',
-                      style: TextStyle(color: CasinoColors.textMuted),
-                    ),
-                    TextButton(
-                      onPressed: () async {
-                        await ref.read(sessionAuthProvider.notifier).signOut();
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: CasinoColors.textMuted,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      child: Text(l10n.signOut),
+                      child: Text(l10n.playVsRobot),
                     ),
                   ],
                 ),
@@ -382,12 +353,14 @@ class _TopBar extends StatelessWidget {
     required this.authLabel,
     required this.connected,
     required this.connection,
+    required this.onSettings,
   });
 
   final String name;
   final String authLabel;
   final bool connected;
   final ConnectionStatus connection;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -470,6 +443,16 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          tooltip: l10n.settings,
+          onPressed: onSettings,
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(
+            Icons.settings_rounded,
+            color: CasinoColors.textMuted,
           ),
         ),
       ],

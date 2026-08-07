@@ -16,7 +16,7 @@ class RobotPlayer {
     this.launchDelayMs = 400,
 
     /// Pause after draw so UI can animate before throw/swap.
-    this.actionDelayMs = 900,
+    this.actionDelayMs = 1200,
     Random? random,
     void Function(Duration delay, void Function() callback)? schedule,
   }) : _random = random ?? Random(),

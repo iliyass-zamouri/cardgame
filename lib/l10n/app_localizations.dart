@@ -214,6 +214,18 @@ abstract class AppLocalizations {
   /// **'Deck'**
   String get deck;
 
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
   /// No description provided for @signOut.
   ///
   /// In en, this message translates to:

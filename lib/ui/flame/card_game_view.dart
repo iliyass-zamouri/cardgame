@@ -41,10 +41,26 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
     };
   }
 
+  void _forwardSnapshot(GameSnapshot? snapshot) {
+    if (snapshot == null) return;
+    if (snapshot.status != GameStatus.playing &&
+        snapshot.status != GameStatus.ended) {
+      return;
+    }
+    _game.applySnapshot(snapshot);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final locale = Localizations.localeOf(context);
+
+    // Deliver every version (not only last-per-frame from watch+build).
+    ref.listen<GameSnapshot?>(
+      gameSessionProvider.select((state) => state.game),
+      (previous, next) => _forwardSnapshot(next),
+    );
+
     final snapshot = ref.watch(
       gameSessionProvider.select((state) => state.game),
     );
@@ -75,12 +91,11 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
     _game.queenMode = queenMode;
     _game.setReplaceSelection(side: replaceSide, index: replaceIndex);
 
-    if (snapshot != null &&
-        (snapshot.status == GameStatus.playing ||
-            snapshot.status == GameStatus.ended)) {
+    // Initial / rebuild sync when listen did not fire (first frame).
+    if (snapshot != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _game.applySnapshot(snapshot);
+        _forwardSnapshot(snapshot);
       });
     }
 
