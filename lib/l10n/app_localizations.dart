@@ -903,6 +903,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Too many commands'**
   String get errTooManyCommands;
+
+  /// No description provided for @globalRanking.
+  ///
+  /// In en, this message translates to:
+  /// **'Global Ranking'**
+  String get globalRanking;
+
+  /// No description provided for @leaderboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaderboard'**
+  String get leaderboard;
+
+  /// No description provided for @matchHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Match History'**
+  String get matchHistory;
+
+  /// No description provided for @elo.
+  ///
+  /// In en, this message translates to:
+  /// **'Elo'**
+  String get elo;
+
+  /// No description provided for @rankingEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No ranked players yet. Play a random match!'**
+  String get rankingEmpty;
+
+  /// No description provided for @matchHistoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No ranked matches yet.'**
+  String get matchHistoryEmpty;
+
+  /// No description provided for @rankingLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load ranking. Is the server running?'**
+  String get rankingLoadError;
+
+  /// No description provided for @matchResultWin.
+  ///
+  /// In en, this message translates to:
+  /// **'WIN'**
+  String get matchResultWin;
+
+  /// No description provided for @matchResultLoss.
+  ///
+  /// In en, this message translates to:
+  /// **'LOSS'**
+  String get matchResultLoss;
+
+  /// No description provided for @matchResultDraw.
+  ///
+  /// In en, this message translates to:
+  /// **'DRAW'**
+  String get matchResultDraw;
+
+  /// No description provided for @recordWinsLossesDraws.
+  ///
+  /// In en, this message translates to:
+  /// **'{wins}W · {losses}L · {draws}D'**
+  String recordWinsLossesDraws(int wins, int losses, int draws);
+
+  /// No description provided for @matchScoreLine.
+  ///
+  /// In en, this message translates to:
+  /// **'You {myScore} · Opp {oppScore}'**
+  String matchScoreLine(int myScore, int oppScore);
 }
 
 class _AppLocalizationsDelegate

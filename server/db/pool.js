@@ -38,6 +38,10 @@ async function initDb() {
     conn.release();
   }
 
+  // Lazy require avoids circular dependency with ranking.js → pool.js
+  const { ensureRankingSchema } = require('./ranking');
+  await ensureRankingSchema();
+
   return pool;
 }
 

@@ -211,7 +211,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get rematch => 'إعادة';
 
   @override
-  String get points => 'نقطة';
+  String get points => 'نقاط';
 
   @override
   String get roomInfo => 'معلومات الغرفة';
@@ -437,4 +437,44 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errTooManyCommands => 'أوامر كثيرة جدًا';
+
+  @override
+  String get globalRanking => 'الترتيب العالمي';
+
+  @override
+  String get leaderboard => 'لوحة الصدارة';
+
+  @override
+  String get matchHistory => 'سجل المباريات';
+
+  @override
+  String get elo => 'إيلو';
+
+  @override
+  String get rankingEmpty => 'لا لاعبين مصنّفين بعد. العب مباراة عشوائية!';
+
+  @override
+  String get matchHistoryEmpty => 'لا مباريات مصنّفة بعد.';
+
+  @override
+  String get rankingLoadError => 'تعذّر تحميل الترتيب. هل الخادم يعمل؟';
+
+  @override
+  String get matchResultWin => 'فوز';
+
+  @override
+  String get matchResultLoss => 'خسارة';
+
+  @override
+  String get matchResultDraw => 'تعادل';
+
+  @override
+  String recordWinsLossesDraws(int wins, int losses, int draws) {
+    return '$winsف · $lossesخ · $drawsت';
+  }
+
+  @override
+  String matchScoreLine(int myScore, int oppScore) {
+    return 'أنت $myScore · الخصم $oppScore';
+  }
 }

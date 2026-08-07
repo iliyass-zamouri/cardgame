@@ -440,4 +440,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errTooManyCommands => 'Too many commands';
+
+  @override
+  String get globalRanking => 'Global Ranking';
+
+  @override
+  String get leaderboard => 'Leaderboard';
+
+  @override
+  String get matchHistory => 'Match History';
+
+  @override
+  String get elo => 'Elo';
+
+  @override
+  String get rankingEmpty => 'No ranked players yet. Play a random match!';
+
+  @override
+  String get matchHistoryEmpty => 'No ranked matches yet.';
+
+  @override
+  String get rankingLoadError =>
+      'Could not load ranking. Is the server running?';
+
+  @override
+  String get matchResultWin => 'WIN';
+
+  @override
+  String get matchResultLoss => 'LOSS';
+
+  @override
+  String get matchResultDraw => 'DRAW';
+
+  @override
+  String recordWinsLossesDraws(int wins, int losses, int draws) {
+    return '${wins}W · ${losses}L · ${draws}D';
+  }
+
+  @override
+  String matchScoreLine(int myScore, int oppScore) {
+    return 'You $myScore · Opp $oppScore';
+  }
 }

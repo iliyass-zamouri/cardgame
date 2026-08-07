@@ -133,5 +133,18 @@
   "errInvalidCommand": "Type de commande requis",
   "errRoomNotFound": "Salle introuvable",
   "errUnknownCommand": "Commande inconnue",
-  "errTooManyCommands": "Trop de commandes"
+  "errTooManyCommands": "Trop de commandes",
+  "globalRanking": "Classement mondial",
+  "leaderboard": "Classement",
+  "matchHistory": "Historique",
+  "elo": "Elo",
+  "points": "pts",
+  "rankingEmpty": "Aucun joueur classé. Jouez une partie aléatoire !",
+  "matchHistoryEmpty": "Aucune partie classée pour l'instant.",
+  "rankingLoadError": "Impossible de charger le classement. Le serveur tourne-t-il ?",
+  "matchResultWin": "VICTOIRE",
+  "matchResultLoss": "DÉFAITE",
+  "matchResultDraw": "ÉGALITÉ",
+  "recordWinsLossesDraws": "{wins}V · {losses}D · {draws}N",
+  "matchScoreLine": "Vous {myScore} · Adv {oppScore}"
 }

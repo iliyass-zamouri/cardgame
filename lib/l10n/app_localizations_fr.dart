@@ -443,4 +443,46 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get errTooManyCommands => 'Trop de commandes';
+
+  @override
+  String get globalRanking => 'Classement mondial';
+
+  @override
+  String get leaderboard => 'Classement';
+
+  @override
+  String get matchHistory => 'Historique';
+
+  @override
+  String get elo => 'Elo';
+
+  @override
+  String get rankingEmpty =>
+      'Aucun joueur classé. Jouez une partie aléatoire !';
+
+  @override
+  String get matchHistoryEmpty => 'Aucune partie classée pour l\'instant.';
+
+  @override
+  String get rankingLoadError =>
+      'Impossible de charger le classement. Le serveur tourne-t-il ?';
+
+  @override
+  String get matchResultWin => 'VICTOIRE';
+
+  @override
+  String get matchResultLoss => 'DÉFAITE';
+
+  @override
+  String get matchResultDraw => 'ÉGALITÉ';
+
+  @override
+  String recordWinsLossesDraws(int wins, int losses, int draws) {
+    return '${wins}V · ${losses}D · ${draws}N';
+  }
+
+  @override
+  String matchScoreLine(int myScore, int oppScore) {
+    return 'Vous $myScore · Adv $oppScore';
+  }
 }

@@ -11,6 +11,7 @@ class GameRoom {
   constructor(id, {
     random = Math.random,
     onChange = () => {},
+    onRankedEnd = null,
     peekDurationMs = 3500,
     queenShuffleDurationMs = 1200,
     queenReplaceDurationMs = 1400,
@@ -18,6 +19,7 @@ class GameRoom {
     this.id = id;
     this.random = random;
     this.onChange = onChange;
+    this.onRankedEnd = onRankedEnd;
     this.peekDurationMs = peekDurationMs;
     this.queenShuffleDurationMs = queenShuffleDurationMs;
     this.queenReplaceDurationMs = queenReplaceDurationMs;
@@ -27,6 +29,7 @@ class GameRoom {
     this.seriesWins = [0, 0];
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
+    this.rankedSaved = false;
     this.players = [];
     this.deck = [];
     this.discard = [];
@@ -81,6 +84,7 @@ class GameRoom {
     this.seriesWins = [0, 0];
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
+    this.rankedSaved = false;
     this.deck = [];
     this.discard = [];
     this.turnIndex = null;
@@ -134,6 +138,7 @@ class GameRoom {
     this.status = 'playing';
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
+    this.rankedSaved = false;
     this.players.forEach((player) => {
       player.cards = [];
       player.handCard = null;
@@ -523,6 +528,30 @@ class GameRoom {
       this.seriesWins[winnerIndex] += 1;
     }
     this.#clearTimers();
+    this.#maybeRecordRanked(winnerIndex);
+  }
+
+  #maybeRecordRanked(winnerIndex) {
+    if (this.rankedSaved) return;
+    if (this.matchType !== 'random') return;
+    if (this.players.length !== 2) return;
+    if (!this.players[0].playerId || !this.players[1].playerId) return;
+    if (typeof this.onRankedEnd !== 'function') return;
+
+    this.rankedSaved = true;
+    const payload = {
+      roomId: this.id,
+      players: this.players.map((player) => ({
+        playerId: player.playerId,
+        cardTotal: player.total,
+      })),
+      winnerIndex,
+    };
+    Promise.resolve()
+      .then(() => this.onRankedEnd(payload))
+      .catch((error) => {
+        console.error('[ranking] record failed', error);
+      });
   }
 
   #restock() {

@@ -133,5 +133,18 @@
   "errInvalidCommand": "نوع الأمر مطلوب",
   "errRoomNotFound": "الغرفة غير موجودة",
   "errUnknownCommand": "أمر غير معروف",
-  "errTooManyCommands": "أوامر كثيرة جدًا"
+  "errTooManyCommands": "أوامر كثيرة جدًا",
+  "globalRanking": "الترتيب العالمي",
+  "leaderboard": "لوحة الصدارة",
+  "matchHistory": "سجل المباريات",
+  "elo": "إيلو",
+  "points": "نقاط",
+  "rankingEmpty": "لا لاعبين مصنّفين بعد. العب مباراة عشوائية!",
+  "matchHistoryEmpty": "لا مباريات مصنّفة بعد.",
+  "rankingLoadError": "تعذّر تحميل الترتيب. هل الخادم يعمل؟",
+  "matchResultWin": "فوز",
+  "matchResultLoss": "خسارة",
+  "matchResultDraw": "تعادل",
+  "recordWinsLossesDraws": "{wins}ف · {losses}خ · {draws}ت",
+  "matchScoreLine": "أنت {myScore} · الخصم {oppScore}"
 }

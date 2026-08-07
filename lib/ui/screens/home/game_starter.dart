@@ -7,6 +7,7 @@ import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
+import 'package:cardgame/ui/screens/ranking/global_ranking_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/language_switcher.dart';
@@ -124,54 +125,74 @@ class StartGameWidget extends ConsumerWidget {
                 ),
               ],
               const Spacer(flex: 1),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TextButton(
-                    onPressed:
-                        () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (context) => const HowToPlayScreen(),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed:
+                          () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (context) => const HowToPlayScreen(),
+                            ),
                           ),
-                        ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: CasinoColors.textMuted,
-                      visualDensity: VisualDensity.compact,
+                      style: TextButton.styleFrom(
+                        foregroundColor: CasinoColors.textMuted,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(l10n.howToPlay),
                     ),
-                    child: Text(l10n.howToPlay),
-                  ),
-                  const Text(
-                    '·',
-                    style: TextStyle(color: CasinoColors.textMuted),
-                  ),
-                  TextButton(
-                    onPressed:
-                        () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (context) => const DeckPreviewScreen(),
+                    const Text(
+                      '·',
+                      style: TextStyle(color: CasinoColors.textMuted),
+                    ),
+                    TextButton(
+                      onPressed:
+                          () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (context) => const GlobalRankingScreen(),
+                            ),
                           ),
-                        ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: CasinoColors.textMuted,
-                      visualDensity: VisualDensity.compact,
+                      style: TextButton.styleFrom(
+                        foregroundColor: CasinoColors.textMuted,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(l10n.globalRanking),
                     ),
-                    child: Text(l10n.deck),
-                  ),
-                  const Text(
-                    '·',
-                    style: TextStyle(color: CasinoColors.textMuted),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      await ref.read(sessionAuthProvider.notifier).signOut();
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: CasinoColors.textMuted,
-                      visualDensity: VisualDensity.compact,
+                    const Text(
+                      '·',
+                      style: TextStyle(color: CasinoColors.textMuted),
                     ),
-                    child: Text(l10n.signOut),
-                  ),
-                ],
+                    TextButton(
+                      onPressed:
+                          () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (context) => const DeckPreviewScreen(),
+                            ),
+                          ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: CasinoColors.textMuted,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(l10n.deck),
+                    ),
+                    const Text(
+                      '·',
+                      style: TextStyle(color: CasinoColors.textMuted),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await ref.read(sessionAuthProvider.notifier).signOut();
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: CasinoColors.textMuted,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(l10n.signOut),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

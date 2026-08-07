@@ -17,6 +17,12 @@ const {
 } = require('./auth/google_token');
 const { authenticateOAuth } = require('./auth/oauth');
 const { findOrCreateGuest } = require('./db/store');
+const {
+  recordRankedMatch,
+  getLeaderboard,
+  getPlayerRank,
+  getMatchHistory,
+} = require('./db/ranking');
 
 class GameServer {
   constructor({ port = 8080, host = '127.0.0.1' } = {}) {
@@ -99,6 +105,21 @@ class GameServer {
       return;
     }
 
+    if (request.method === 'GET' && url.pathname === '/ranking') {
+      await this.#handleLeaderboard(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/ranking/player') {
+      await this.#handlePlayerRank(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/matches') {
+      await this.#handleMatchHistory(request, response, url);
+      return;
+    }
+
     if (request.method === 'OPTIONS') {
       response.writeHead(204, corsHeaders());
       response.end();
@@ -107,6 +128,72 @@ class GameServer {
 
     response.writeHead(404);
     response.end();
+  }
+
+  async #handleLeaderboard(_request, response, url) {
+    const limit = url.searchParams.get('limit');
+    const offset = url.searchParams.get('offset');
+    try {
+      const payload = await getLeaderboard({ limit, offset });
+      sendJson(response, 200, payload);
+    } catch (error) {
+      console.error('[ranking] leaderboard', error);
+      sendJson(response, 500, {
+        error: 'server_error',
+        message: 'Failed to load ranking',
+      });
+    }
+  }
+
+  async #handlePlayerRank(_request, response, url) {
+    const playerId = url.searchParams.get('playerId');
+    if (!playerId) {
+      sendJson(response, 400, {
+        error: 'missing_player_id',
+        message: 'playerId is required',
+      });
+      return;
+    }
+    try {
+      const entry = await getPlayerRank(playerId);
+      if (!entry) {
+        sendJson(response, 404, {
+          error: 'not_found',
+          message: 'Player not found',
+        });
+        return;
+      }
+      sendJson(response, 200, entry);
+    } catch (error) {
+      console.error('[ranking] player', error);
+      sendJson(response, 500, {
+        error: 'server_error',
+        message: 'Failed to load player rank',
+      });
+    }
+  }
+
+  async #handleMatchHistory(_request, response, url) {
+    const playerId = url.searchParams.get('playerId');
+    if (!playerId) {
+      sendJson(response, 400, {
+        error: 'missing_player_id',
+        message: 'playerId is required',
+      });
+      return;
+    }
+    const limit = url.searchParams.get('limit');
+    const offset = url.searchParams.get('offset');
+    try {
+      const payload = await getMatchHistory({ playerId, limit, offset });
+      sendJson(response, 200, payload);
+    } catch (error) {
+      console.error('[ranking] matches', error);
+      sendJson(response, 500, {
+        error: 'server_error',
+        message: 'Failed to load match history',
+      });
+    }
   }
 
   async #handleGuestAuth(request, response) {
@@ -457,6 +544,7 @@ class GameServer {
   #createRoom(roomId, matchType = 'private') {
     const room = new GameRoom(roomId, {
       onChange: (changedRoom) => this.#broadcastRoom(changedRoom),
+      onRankedEnd: (payload) => recordRankedMatch(payload),
     });
     room.matchType = matchType;
     this.rooms.set(roomId, room);

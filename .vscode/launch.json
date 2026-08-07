@@ -2,17 +2,25 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Flutter: iOS Simulator",
+      "name": "Flutter: iOS Simulator (dev)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
       "flutterMode": "debug",
       "deviceId": "542E34A4-ABA1-4A3B-B1B5-ED54D754F77E",
       "toolArgs": [
-        "--dart-define=WS_HOST=127.0.0.1",
-        "--dart-define=WS_PORT=8080",
-        "--dart-define=HTTP_URL=http://127.0.0.1:8080",
-        "--dart-define=GOOGLE_SERVER_CLIENT_ID=336790716391-cfhpcah0v00avevev4nihlphvpt14mc8.apps.googleusercontent.com"
+        "--dart-define-from-file=flavors/dev.json"
+      ]
+    },
+    {
+      "name": "Flutter: iOS Simulator (prod)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "deviceId": "542E34A4-ABA1-4A3B-B1B5-ED54D754F77E",
+      "toolArgs": [
+        "--dart-define-from-file=flavors/prod.json"
       ]
     },
     {
@@ -21,10 +29,13 @@
       "type": "dart",
       "program": "lib/main.dart",
       "flutterMode": "profile",
-      "deviceId": "542E34A4-ABA1-4A3B-B1B5-ED54D754F77E"
+      "deviceId": "542E34A4-ABA1-4A3B-B1B5-ED54D754F77E",
+      "toolArgs": [
+        "--dart-define-from-file=flavors/dev.json"
+      ]
     },
     {
-      "name": "Flutter: Chrome",
+      "name": "Flutter: Chrome (dev)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
@@ -34,38 +45,64 @@
         "--web-port=5173"
       ],
       "toolArgs": [
-        "--dart-define=WS_HOST=127.0.0.1",
-        "--dart-define=WS_PORT=8080",
-        "--dart-define=HTTP_URL=http://127.0.0.1:8080",
-        "--dart-define=GOOGLE_SERVER_CLIENT_ID=336790716391-cfhpcah0v00avevev4nihlphvpt14mc8.apps.googleusercontent.com"
+        "--dart-define-from-file=flavors/dev.json"
       ]
     },
     {
-      "name": "Flutter: macOS",
+      "name": "Flutter: Chrome (prod)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "deviceId": "chrome",
+      "args": [
+        "--web-port=5173"
+      ],
+      "toolArgs": [
+        "--dart-define-from-file=flavors/prod.json"
+      ]
+    },
+    {
+      "name": "Flutter: macOS (dev)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
       "flutterMode": "debug",
       "deviceId": "macos",
       "toolArgs": [
-        "--dart-define=WS_HOST=127.0.0.1",
-        "--dart-define=WS_PORT=8080",
-        "--dart-define=HTTP_URL=http://127.0.0.1:8080",
-        "--dart-define=GOOGLE_SERVER_CLIENT_ID=336790716391-cfhpcah0v00avevev4nihlphvpt14mc8.apps.googleusercontent.com"
+        "--dart-define-from-file=flavors/dev.json"
       ]
     },
     {
-      "name": "Flutter: Android Emulator",
+      "name": "Flutter: macOS (prod)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "deviceId": "macos",
+      "toolArgs": [
+        "--dart-define-from-file=flavors/prod.json"
+      ]
+    },
+    {
+      "name": "Flutter: Android Emulator (dev)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
       "flutterMode": "debug",
       "deviceId": "emulator-5554",
       "toolArgs": [
-        "--dart-define=WS_HOST=10.0.2.2",
-        "--dart-define=WS_PORT=8080",
-        "--dart-define=HTTP_URL=http://10.0.2.2:8080",
-        "--dart-define=GOOGLE_SERVER_CLIENT_ID=336790716391-cfhpcah0v00avevev4nihlphvpt14mc8.apps.googleusercontent.com"
+        "--dart-define-from-file=flavors/android_emulator.json"
+      ]
+    },
+    {
+      "name": "Flutter: Android Device (prod)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "toolArgs": [
+        "--dart-define-from-file=flavors/prod.json"
       ]
     },
     {
@@ -104,7 +141,7 @@
       "name": "Full Stack: iOS + Server",
       "configurations": [
         "Game Server",
-        "Flutter: iOS Simulator"
+        "Flutter: iOS Simulator (dev)"
       ],
       "stopAll": true,
       "presentation": {
@@ -117,7 +154,7 @@
       "name": "Full Stack: Chrome + Server",
       "configurations": [
         "Game Server",
-        "Flutter: Chrome"
+        "Flutter: Chrome (dev)"
       ],
       "stopAll": true,
       "presentation": {
@@ -130,7 +167,7 @@
       "name": "Full Stack: macOS + Server",
       "configurations": [
         "Game Server",
-        "Flutter: macOS"
+        "Flutter: macOS (dev)"
       ],
       "stopAll": true,
       "presentation": {

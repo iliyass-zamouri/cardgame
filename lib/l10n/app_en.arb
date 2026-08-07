@@ -187,5 +187,31 @@
   "errInvalidCommand": "Command type is required",
   "errRoomNotFound": "Room not found",
   "errUnknownCommand": "Unknown command",
-  "errTooManyCommands": "Too many commands"
+  "errTooManyCommands": "Too many commands",
+  "globalRanking": "Global Ranking",
+  "leaderboard": "Leaderboard",
+  "matchHistory": "Match History",
+  "elo": "Elo",
+  "points": "pts",
+  "rankingEmpty": "No ranked players yet. Play a random match!",
+  "matchHistoryEmpty": "No ranked matches yet.",
+  "rankingLoadError": "Could not load ranking. Is the server running?",
+  "matchResultWin": "WIN",
+  "matchResultLoss": "LOSS",
+  "matchResultDraw": "DRAW",
+  "recordWinsLossesDraws": "{wins}W · {losses}L · {draws}D",
+  "@recordWinsLossesDraws": {
+    "placeholders": {
+      "wins": {"type": "int"},
+      "losses": {"type": "int"},
+      "draws": {"type": "int"}
+    }
+  },
+  "matchScoreLine": "You {myScore} · Opp {oppScore}",
+  "@matchScoreLine": {
+    "placeholders": {
+      "myScore": {"type": "int"},
+      "oppScore": {"type": "int"}
+    }
+  }
 }

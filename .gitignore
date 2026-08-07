@@ -41,6 +41,11 @@ app.*.map.json
 node_modules/
 npm-debug.log*
 
+# Local / production secrets (keep .env.example)
+.env
+.env.local
+.env.production
+
 # FVM — keep config, ignore local SDK link/cache
 .fvm/flutter_sdk
 .fvm/versions/
