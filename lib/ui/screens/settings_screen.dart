@@ -2,8 +2,12 @@ import 'dart:async';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/core/monetization/purchases_config.dart';
+import 'package:cardgame/core/monetization/purchases_providers.dart';
+import 'package:cardgame/core/monetization/purchases_service.dart';
 import 'package:cardgame/data/profile/profile_api.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
@@ -13,6 +17,7 @@ import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -23,6 +28,7 @@ class SettingsScreen extends ConsumerWidget {
     final profile =
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
     final authStatus = ref.watch(sessionAuthProvider).value;
+    final isPro = ref.watch(isProProvider);
 
     return Scaffold(
       backgroundColor: CasinoColors.bg,
@@ -46,6 +52,8 @@ class SettingsScreen extends ConsumerWidget {
             onEdit: () => showEditProfileDialog(context, profile),
           ),
           const SizedBox(height: 16),
+          _ProCard(isPro: isPro),
+          const SizedBox(height: 16),
           _SettingsTile(
             icon: Icons.menu_book_rounded,
             label: l10n.howToPlay,
@@ -63,12 +71,49 @@ class SettingsScreen extends ConsumerWidget {
             onTap:
                 () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (context) => const DeckPreviewScreen(),
+                    builder:
+                        (context) => DeckPreviewScreen(
+                          backSkinId: DeckCatalog.skinIdFor(profile.deckId),
+                        ),
                   ),
                 ),
           ),
           const SizedBox(height: 10),
           const _LanguageCard(),
+          const SizedBox(height: 10),
+          _SettingsTile(
+            icon: Icons.restore_rounded,
+            label: 'Restore Purchases',
+            onTap: () async {
+              try {
+                final info = await PurchasesService.instance.restorePurchases();
+                await ref.read(customerInfoProvider.notifier).refresh();
+                if (context.mounted) {
+                  final hasPro =
+                      info
+                          ?.entitlements
+                          .all[PurchasesConfig.entitlementPro]
+                          ?.isActive ??
+                      false;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        hasPro
+                            ? 'Purchases restored. PRO active!'
+                            : 'Purchases restored.',
+                      ),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+                }
+              }
+            },
+          ),
           const SizedBox(height: 10),
           _SettingsTile(
             icon: Icons.logout_rounded,
@@ -400,6 +445,181 @@ class _LowerCaseFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     return newValue.copyWith(text: newValue.text.toLowerCase());
+  }
+}
+
+class _ProCard extends ConsumerStatefulWidget {
+  const _ProCard({required this.isPro});
+
+  final bool isPro;
+
+  @override
+  ConsumerState<_ProCard> createState() => _ProCardState();
+}
+
+class _ProCardState extends ConsumerState<_ProCard> {
+  bool _isLoading = false;
+
+  Future<void> _upgradeToPro() async {
+    setState(() => _isLoading = true);
+    try {
+      final info = await PurchasesService.instance.purchaseProduct(
+        PurchasesConfig.proMonthly,
+      );
+      if (info != null) {
+        await ref.read(customerInfoProvider.notifier).refresh();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Welcome to ShadowHand PRO!')),
+          );
+        }
+      }
+    } on PlatformException catch (e) {
+      final code = PurchasesErrorHelper.getErrorCode(e);
+      if (code != PurchasesErrorCode.purchaseCancelledError) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message ?? 'Purchase failed')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Subscription failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.isPro) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF2A2006), Color(0xFF1C1605)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.6)),
+        ),
+        child: const Row(
+          children: [
+            Icon(
+              Icons.workspace_premium_rounded,
+              color: CasinoColors.gold,
+              size: 32,
+            ),
+            SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ShadowHand PRO',
+                    style: TextStyle(
+                      color: CasinoColors.gold,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Active • Ad-free experience enabled',
+                    style: TextStyle(
+                      color: CasinoColors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CasinoColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: CasinoColors.gold.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.star_rounded,
+                color: CasinoColors.gold,
+                size: 26,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Upgrade to PRO',
+                  style: TextStyle(
+                    color: CasinoColors.text,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Ad-free play & exclusive perks',
+                  style: TextStyle(color: CasinoColors.textMuted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: _isLoading ? null : _upgradeToPro,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: CasinoColors.gold,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            child:
+                _isLoading
+                    ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.black,
+                      ),
+                    )
+                    : const Text(
+                      'PRO',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

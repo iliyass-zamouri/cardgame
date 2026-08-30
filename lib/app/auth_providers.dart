@@ -1,6 +1,8 @@
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/core/monetization/purchases_providers.dart';
+import 'package:cardgame/core/monetization/purchases_service.dart';
 import 'package:cardgame/data/auth/auth_config.dart';
 import 'package:cardgame/data/auth/device_identity_service.dart';
 import 'package:cardgame/data/auth/google_sign_in_service.dart';
@@ -64,6 +66,12 @@ class SessionAuthNotifier extends AsyncNotifier<SessionAuthStatus> {
     } on Object {
       // Best-effort.
     }
+    try {
+      await PurchasesService.instance.logOut();
+      ref.read(customerInfoProvider.notifier).refresh().ignore();
+    } on Object {
+      // Best-effort.
+    }
     await ref.read(playerProfileProvider.notifier).clear();
     const next = SessionAuthStatus.signedOut;
     state = const AsyncData(next);
@@ -106,10 +114,17 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       username: identity.username,
       authType: identity.authType,
       avatarId: current.avatarId.isNotEmpty ? current.avatarId : 'default',
+      deckId: current.deckId.isNotEmpty ? current.deckId : 'default',
       money: identity.money,
       chips: identity.chips,
-      ownedAvatars: current.ownedAvatars.isNotEmpty ? current.ownedAvatars : const ['default'],
-      ownedDecks: current.ownedDecks.isNotEmpty ? current.ownedDecks : const ['default'],
+      ownedAvatars:
+          current.ownedAvatars.isNotEmpty
+              ? current.ownedAvatars
+              : const ['default'],
+      ownedDecks:
+          current.ownedDecks.isNotEmpty
+              ? current.ownedDecks
+              : const ['default'],
     );
     await _repo.save(next);
     state = AsyncData(next);
@@ -121,8 +136,26 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       value: identity.authType,
     );
 
+    try {
+      await PurchasesService.instance.logIn(identity.playerId);
+      ref.read(customerInfoProvider.notifier).refresh().ignore();
+    } on Object {
+      // Best-effort.
+    }
+
     // Refresh inventory in background
     refreshInventory().ignore();
+  }
+
+  Future<void> updateBalances({required int money, int? chips}) async {
+    final current = await future;
+    if (current.isEmpty) return;
+    final next = current.copyWith(
+      money: money,
+      chips: chips ?? current.chips,
+    );
+    await _repo.save(next);
+    state = AsyncData(next);
   }
 
   Future<void> refreshInventory() async {
@@ -135,6 +168,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       final next = current.copyWith(
         money: inv.money,
         chips: inv.chips,
+        adRewardMoney: inv.adRewardMoney,
         ownedAvatars: inv.ownedAvatars,
         ownedDecks: inv.ownedDecks,
       );
@@ -185,35 +219,65 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       price: price,
     );
 
-    final updatedAvatars = itemType == 'avatar'
-        ? {...current.ownedAvatars, itemId}.toList()
-        : current.ownedAvatars;
-    final updatedDecks = itemType == 'deck'
-        ? {...current.ownedDecks, itemId}.toList()
-        : current.ownedDecks;
+    final updatedAvatars =
+        itemType == 'avatar'
+            ? {...current.ownedAvatars, itemId}.toList()
+            : current.ownedAvatars;
+    final updatedDecks =
+        itemType == 'deck'
+            ? {...current.ownedDecks, itemId}.toList()
+            : current.ownedDecks;
 
     final next = current.copyWith(
       money: (res['money'] as num?)?.toInt() ?? current.money,
       chips: (res['chips'] as num?)?.toInt() ?? current.chips,
       ownedAvatars: updatedAvatars,
       ownedDecks: updatedDecks,
+      deckId: itemType == 'deck' ? itemId : current.deckId,
     );
     await _repo.save(next);
     state = AsyncData(next);
   }
 
-  Future<void> claimAdReward() async {
+  Future<int> claimAdReward() async {
     final current = await future;
-    if (current.isEmpty || current.playerId.isEmpty) return;
+    if (current.isEmpty || current.playerId.isEmpty) return 0;
 
     final marketplaceApi = ref.read(marketplaceApiServiceProvider);
     final res = await marketplaceApi.claimAdReward(current.playerId);
+    final reward = (res['reward'] as num?)?.toInt() ?? current.adRewardMoney;
 
     final next = current.copyWith(
-      money: (res['money'] as num?)?.toInt() ?? (current.money + 50),
+      money: (res['money'] as num?)?.toInt() ?? (current.money + reward),
     );
     await _repo.save(next);
     state = AsyncData(next);
+    return reward;
+  }
+
+  Future<Map<String, dynamic>> redeemIapPurchase({
+    required String productId,
+    required String transactionId,
+  }) async {
+    final current = await future;
+    if (current.isEmpty || current.playerId.isEmpty) {
+      throw MarketplaceApiException('Not logged in');
+    }
+
+    final marketplaceApi = ref.read(marketplaceApiServiceProvider);
+    final res = await marketplaceApi.verifyIap(
+      playerId: current.playerId,
+      productId: productId,
+      transactionId: transactionId,
+    );
+
+    final next = current.copyWith(
+      money: (res['money'] as num?)?.toInt() ?? current.money,
+      chips: (res['chips'] as num?)?.toInt() ?? current.chips,
+    );
+    await _repo.save(next);
+    state = AsyncData(next);
+    return res;
   }
 
   Future<void> updateAvatar(String avatarId) async {
@@ -226,6 +290,13 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
     }
 
     final next = current.copyWith(avatarId: avatarId);
+    await _repo.save(next);
+    state = AsyncData(next);
+  }
+
+  Future<void> updateDeck(String deckId) async {
+    final current = await future;
+    final next = current.copyWith(deckId: deckId);
     await _repo.save(next);
     state = AsyncData(next);
   }

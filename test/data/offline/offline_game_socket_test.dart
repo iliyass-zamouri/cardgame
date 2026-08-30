@@ -23,6 +23,7 @@ void main() {
     final socket = OfflineGameSocket(
       humanDisplayName: 'Human',
       humanPlayerId: 'guest-1',
+      humanDeckId: 'black_onyx',
       robotDisplayName: 'Robot',
       roomFactory: testRoom,
       robotFactory:
@@ -53,7 +54,9 @@ void main() {
     expect(snapshot['matchType'], 'offline');
     expect(snapshot['ready'], isTrue);
     expect((snapshot['you'] as Map)['displayName'], 'Human');
+    expect((snapshot['you'] as Map)['deckId'], 'black_onyx');
     expect((snapshot['opponent'] as Map)['displayName'], 'Robot');
+    expect((snapshot['opponent'] as Map)['deckId'], 'default');
     expect(snapshot['deckCount'], 46);
   });
 

@@ -17,8 +17,9 @@ abstract final class AdIds {
   static const prodAndroidInterstitial =
       'ca-app-pub-9698112281637218/1397183976';
   static const prodIosInterstitial = 'ca-app-pub-9698112281637218/1397183976';
-  static const prodAndroidRewarded = 'ca-app-pub-9698112281637218/2170542344';
-  static const prodIosRewarded = 'ca-app-pub-9698112281637218/8979347485';
+  // Marketplace "Watch Video Ad" (AdMob daily-reward)
+  static const prodAndroidRewarded = 'ca-app-pub-9698112281637218/6328096978';
+  static const prodIosRewarded = 'ca-app-pub-9698112281637218/6328096978';
 
   static bool _forceTestIds = false;
 

@@ -1606,29 +1606,17 @@ abstract class AppLocalizations {
   /// **'Standard casino playing cards'**
   String get classicDeckDesc;
 
-  /// No description provided for @goldLuxuryDeck.
+  /// No description provided for @onyxBlackDeck.
   ///
   /// In en, this message translates to:
-  /// **'Gold Luxury'**
-  String get goldLuxuryDeck;
+  /// **'Onyx Black'**
+  String get onyxBlackDeck;
 
-  /// No description provided for @goldLuxuryDeckDesc.
+  /// No description provided for @onyxBlackDeckDesc.
   ///
   /// In en, this message translates to:
-  /// **'Shining gold-rimmed premium deck'**
-  String get goldLuxuryDeckDesc;
-
-  /// No description provided for @shadowNeonDeck.
-  ///
-  /// In en, this message translates to:
-  /// **'Shadow Neon'**
-  String get shadowNeonDeck;
-
-  /// No description provided for @shadowNeonDeckDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Cyberpunk neon glow deck'**
-  String get shadowNeonDeckDesc;
+  /// **'Obsidian back with gold filigree'**
+  String get onyxBlackDeckDesc;
 
   /// No description provided for @price.
   ///

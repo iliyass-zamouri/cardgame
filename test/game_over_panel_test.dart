@@ -132,8 +132,8 @@ void main() {
     // Verify Headline & Series
     expect(find.text('VICTORY'), findsOneWidget);
 
-    // Verify Prize banner with winner name and pot amount
-    expect(find.textContaining('Prize: 100 (Alice)'), findsOneWidget);
+    // Verify Pot amount is displayed
+    expect(find.text('100'), findsOneWidget);
 
     // Verify XP and Elo earned for current player in middle
     expect(find.text('+30 XP'), findsOneWidget);

@@ -6,7 +6,14 @@ import 'package:flutter/material.dart';
 
 /// Every card the server can deal, drawn with the same painter the board uses.
 class DeckPreviewScreen extends StatelessWidget {
-  const DeckPreviewScreen({super.key});
+  const DeckPreviewScreen({
+    super.key,
+    this.title,
+    this.backSkinId = 'ornate_blue',
+  });
+
+  final String? title;
+  final String backSkinId;
 
   static const _suits = ['A', 'B', 'C', 'D'];
 
@@ -27,7 +34,7 @@ class DeckPreviewScreen extends StatelessWidget {
         backgroundColor: CasinoColors.surface,
         foregroundColor: CasinoColors.text,
         title: Text(
-          context.l10n.deck,
+          title ?? context.l10n.deck,
           style: const TextStyle(
             color: CasinoColors.gold,
             fontWeight: FontWeight.w800,
@@ -44,16 +51,19 @@ class DeckPreviewScreen extends StatelessWidget {
           mainAxisSpacing: 12,
         ),
         itemBuilder:
-            (context, index) => CustomPaint(painter: _CardPainter(tags[index])),
+            (context, index) => CustomPaint(
+              painter: _CardPainter(tags[index], backSkinId: backSkinId),
+            ),
       ),
     );
   }
 }
 
 class _CardPainter extends CustomPainter {
-  const _CardPainter(this.tag);
+  const _CardPainter(this.tag, {required this.backSkinId});
 
   final String? tag;
+  final String backSkinId;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -62,9 +72,11 @@ class _CardPainter extends CustomPainter {
       tag: tag,
       visible: tag != null,
       sizeOverride: Vector2(size.width, size.height),
+      backSkinId: backSkinId,
     ).render(canvas);
   }
 
   @override
-  bool shouldRepaint(_CardPainter oldDelegate) => oldDelegate.tag != tag;
+  bool shouldRepaint(_CardPainter oldDelegate) =>
+      oldDelegate.tag != tag || oldDelegate.backSkinId != backSkinId;
 }

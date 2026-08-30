@@ -33,9 +33,19 @@ class GameSessionController extends Notifier<GameSessionState> {
   }
 
   Map<String, dynamic> get _identityPayload {
-    final profile = ref.read(playerProfileRepositoryProvider).load();
-    if (profile.isEmpty) return const {};
-    return {'playerId': profile.playerId, 'displayName': profile.name};
+    final asyncProfile = ref.read(playerProfileProvider).asData?.value;
+    final repoProfile = ref.read(playerProfileRepositoryProvider).load();
+    final activeProfile =
+        (asyncProfile != null && !asyncProfile.isEmpty)
+            ? asyncProfile
+            : repoProfile;
+    if (activeProfile.isEmpty) return const {};
+    return {
+      'playerId': activeProfile.playerId,
+      'displayName': activeProfile.name,
+      'avatarId': activeProfile.avatarId,
+      'deckId': activeProfile.deckId,
+    };
   }
 
   void connect() {
@@ -54,7 +64,12 @@ class GameSessionController extends Notifier<GameSessionState> {
   void playVsRobot({String robotName = 'Robot'}) {
     _disposeSocket();
     _offlineMode = true;
-    final profile = ref.read(playerProfileRepositoryProvider).load();
+    final asyncProfile = ref.read(playerProfileProvider).asData?.value;
+    final repoProfile = ref.read(playerProfileRepositoryProvider).load();
+    final profile =
+        (asyncProfile != null && !asyncProfile.isEmpty)
+            ? asyncProfile
+            : repoProfile;
     final displayName =
         profile.isEmpty || profile.name.trim().isEmpty
             ? 'Player'
@@ -73,6 +88,7 @@ class GameSessionController extends Notifier<GameSessionState> {
     final socket = OfflineGameSocket(
       humanDisplayName: displayName,
       humanPlayerId: profile.isEmpty ? null : profile.playerId,
+      humanDeckId: profile.deckId.isNotEmpty ? profile.deckId : 'default',
       robotDisplayName: robotName,
     );
     _attachSocket(socket);
@@ -136,9 +152,11 @@ class GameSessionController extends Notifier<GameSessionState> {
         sentInvitePlayerIds: const {},
       );
       connect();
+      ref.read(playerProfileProvider.notifier).refreshInventory().ignore();
       return;
     }
     _send('leaveRoom');
+    ref.read(playerProfileProvider.notifier).refreshInventory().ignore();
   }
 
   void sendTableInvite({
@@ -284,6 +302,9 @@ class GameSessionController extends Notifier<GameSessionState> {
           clientId: message['clientId'] as String?,
           message: null,
         );
+        if (_identityPayload.isNotEmpty) {
+          _send('identity', _identityPayload);
+        }
         break;
       case 'snapshot':
         final snapshot = GameSnapshot.fromJson(message);
@@ -302,6 +323,9 @@ class GameSessionController extends Notifier<GameSessionState> {
             replaceFirstSide: keepQueen ? state.replaceFirstSide : null,
             replaceFirstIndex: keepQueen ? state.replaceFirstIndex : null,
           );
+          if (snapshot.status == GameStatus.ended) {
+            _syncBalancesFromSnapshot(snapshot);
+          }
         }
         break;
       case 'leftRoom':
@@ -315,6 +339,7 @@ class GameSessionController extends Notifier<GameSessionState> {
           replaceFirstIndex: null,
           sentInvitePlayerIds: const {},
         );
+        ref.read(playerProfileProvider.notifier).refreshInventory().ignore();
         break;
       case 'leftQueue':
         state = state.copyWith(searchingMatch: false, message: null);
@@ -349,6 +374,26 @@ class GameSessionController extends Notifier<GameSessionState> {
         );
         break;
     }
+  }
+
+  void _syncBalancesFromSnapshot(GameSnapshot snapshot) {
+    final youId = snapshot.you.playerId;
+    final ratings = snapshot.result?.ratings;
+    if (youId != null && ratings != null) {
+      for (final rating in ratings) {
+        if (rating.playerId == youId && rating.moneyAfter != null) {
+          ref
+              .read(playerProfileProvider.notifier)
+              .updateBalances(
+                money: rating.moneyAfter!,
+                chips: rating.chipsAfter,
+              )
+              .ignore();
+          break;
+        }
+      }
+    }
+    ref.read(playerProfileProvider.notifier).refreshInventory().ignore();
   }
 
   void _send(String type, [Map<String, dynamic> payload = const {}]) {

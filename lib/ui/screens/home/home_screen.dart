@@ -845,6 +845,7 @@ class _GameBoardState extends ConsumerState<GameBoard> {
       (previous, ended) {
         if (ended && previous != true) {
           unawaited(ref.read(interstitialAdProvider).show());
+          ref.read(playerProfileProvider.notifier).refreshInventory().ignore();
         }
       },
     );

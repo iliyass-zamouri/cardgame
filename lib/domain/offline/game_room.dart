@@ -91,6 +91,7 @@ class OfflineGameRoom {
   Map<String, dynamic>? result;
   _LastAction? _lastAction;
   String? discardSource;
+  String? discardDeckId;
 
   final Map<String, Timer> _launchTimers = {};
   _ActivePeek? _activePeek;
@@ -100,12 +101,16 @@ class OfflineGameRoom {
     String clientId, {
     String? playerId,
     String? displayName,
+    String avatarId = 'default',
+    String deckId = 'default',
   }) {
     final existing = _player(clientId);
     if (existing != null) {
       existing.connected = true;
       if (playerId != null) existing.playerId = playerId;
       if (displayName != null) existing.displayName = displayName;
+      existing.avatarId = avatarId;
+      existing.deckId = deckId;
       _changed();
       return existing;
     }
@@ -116,6 +121,8 @@ class OfflineGameRoom {
       id: clientId,
       playerId: playerId,
       displayName: displayName ?? 'Player',
+      avatarId: avatarId,
+      deckId: deckId,
     );
     players.add(player);
     _changed();
@@ -136,6 +143,7 @@ class OfflineGameRoom {
     rematchReady = [false, false];
     deck = [];
     discard = [];
+    discardDeckId = null;
     turnIndex = null;
     result = null;
     _lastAction = null;
@@ -180,6 +188,7 @@ class OfflineGameRoom {
     _clearTimers();
     deck = shuffle(createDeck(), random);
     discard = [];
+    discardDeckId = null;
     result = null;
     _lastAction = null;
     discardSource = null;
@@ -381,6 +390,7 @@ class OfflineGameRoom {
       if (cardValue(selected) == cardValue(discard.last)) {
         player.cards.removeAt(cardIndex);
         discard.add(selected);
+        discardDeckId = player.deckId;
         discardSource = 'hand';
         _lastAction = _LastAction(
           playerId: clientId,
@@ -407,6 +417,7 @@ class OfflineGameRoom {
       final drawnTag = player.handCard!;
       player.cards.removeAt(cardIndex);
       discard.addAll([selected, drawnTag]);
+      discardDeckId = player.deckId;
       discardSource = 'hand';
       _lastAction = _LastAction(
         playerId: clientId,
@@ -419,6 +430,7 @@ class OfflineGameRoom {
       final drawnTag = player.handCard!;
       player.cards[cardIndex] = drawnTag;
       discard.add(selected);
+      discardDeckId = player.deckId;
       discardSource = 'hand';
       _lastAction = _LastAction(
         playerId: clientId,
@@ -485,6 +497,7 @@ class OfflineGameRoom {
           discard.length <= 2
               ? List<String>.from(discard)
               : discard.sublist(discard.length - 2),
+      'discardDeckId': discardDeckId,
       'turn':
           turnIndex == null
               ? null
@@ -523,6 +536,8 @@ class OfflineGameRoom {
     return {
       'connected': player.connected,
       'displayName': player.displayName,
+      'avatarId': player.avatarId,
+      'deckId': player.deckId,
       'playerId': player.playerId,
       'seriesWins': seriesWins[seatIndex],
       'lobbyReady': lobbyReady[seatIndex],
@@ -696,6 +711,7 @@ class OfflineGameRoom {
       cardTag: cardTag,
     );
     discardSource = 'drawn';
+    discardDeckId = player.deckId;
     discard.add(cardTag);
     player.handCard = null;
     player.jackPeekAvailable = false;

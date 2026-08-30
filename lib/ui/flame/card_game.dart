@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/flame/court_svg_art.dart';
@@ -91,6 +92,11 @@ class CardGame extends FlameGame {
   int? _replaceFirstIndex;
   LastAction? _lastZoomCue;
   LastAction? _lastQueenAnim;
+
+  String _youBackSkinId = CardBackSkins.ornateBlue.id;
+  String _opponentBackSkinId = CardBackSkins.ornateBlue.id;
+  String _turnBackSkinId = CardBackSkins.ornateBlue.id;
+  String? _discardBackSkinId;
 
   /// Hand slot this client last tapped. The server only reports public state,
   /// so the tap index is what lets the board animate the right card.
@@ -362,6 +368,23 @@ class CardGame extends FlameGame {
       opponentSnapIndices.add(snapshot.opponent!.cards.last.index);
     }
 
+    _youBackSkinId = DeckCatalog.skinIdFor(snapshot.you.deckId);
+    _opponentBackSkinId = DeckCatalog.skinIdFor(snapshot.opponent?.deckId);
+    _turnBackSkinId =
+        snapshot.isYourTurn ? _youBackSkinId : _opponentBackSkinId;
+
+    if (snapshot.discardDeckId != null) {
+      _discardBackSkinId = DeckCatalog.skinIdFor(snapshot.discardDeckId);
+    } else {
+      final lastActionActor = snapshot.lastAction?.actor;
+      if (lastActionActor == LastActionActor.you) {
+        _discardBackSkinId = _youBackSkinId;
+      } else if (lastActionActor == LastActionActor.opponent) {
+        _discardBackSkinId = _opponentBackSkinId;
+      }
+    }
+    final currentDiscardSkin = _discardBackSkinId ?? _turnBackSkinId;
+
     _opponentHand.syncCards(
       snapshot.opponent?.cards ?? const [],
       highlight:
@@ -372,6 +395,7 @@ class CardGame extends FlameGame {
       animateDeal: previous == null || previous.version > snapshot.version,
       snapToPositionIndices: opponentSnapIndices,
       peekIndices: _jackPeekIndices(snapshot, side: 'opponent'),
+      backSkinId: _opponentBackSkinId,
     );
     _localHand.syncCards(
       snapshot.you.cards,
@@ -381,6 +405,7 @@ class CardGame extends FlameGame {
       animateDeal: previous == null || previous.status != GameStatus.playing,
       snapToPositionIndices: localSnapIndices,
       peekIndices: _localPeekIndices(snapshot),
+      backSkinId: _youBackSkinId,
     );
     _wireHandTaps(snapshot);
     _syncShuffleLabels();
@@ -394,6 +419,8 @@ class CardGame extends FlameGame {
           snapshot.bothRevealed &&
           !_peekSelecting &&
           _queenMode == QueenMode.none,
+      deckBackSkinId: _turnBackSkinId,
+      discardBackSkinId: currentDiscardSkin,
     );
     _localDrawn.sync(
       snapshot.you.handCardTag,
@@ -403,11 +430,13 @@ class CardGame extends FlameGame {
           snapshot.isYourTurn &&
           !snapshot.abilityLockActive &&
           _queenMode == QueenMode.none,
+      backSkinId: _youBackSkinId,
     );
     _remoteDrawn.sync(
       snapshot.opponent?.hasHandCard == true ? 'BACK' : null,
       faceUp: false,
       animateAppear: _suppressDrawnAppearSelf != false,
+      backSkinId: _opponentBackSkinId,
     );
     _suppressDrawnAppearSelf = null;
     _layoutHands();
@@ -548,11 +577,13 @@ class CardGame extends FlameGame {
       localCard.tag,
       localStart,
       faceUp: localCard.tag != null,
+      backSkinId: _youBackSkinId,
     );
     final ghostB = _ghostCard(
       oppCard.tag,
       oppStart,
       faceUp: oppCard.tag != null,
+      backSkinId: _opponentBackSkinId,
     );
     world.addAll([ghostA, ghostB]);
 
@@ -1011,13 +1042,24 @@ class CardGame extends FlameGame {
     final pileRevealTag = tappedTag ?? drawnTag;
     final hand = _handFor(plan);
     final drawnSlot = _drawnFor(plan);
+    final throwerSkin = _handSkin(isSelf: plan.isSelf);
+    _discardBackSkinId = throwerSkin;
 
     hand.cardAt(plan.cardIndex)?.opacityOverride = 0;
     drawnSlot.setCardOpacity(0);
-    _table.holdDiscard(plan.previousDiscardTop, pendingTag: pileRevealTag);
+    _table.holdDiscard(
+      plan.previousDiscardTop,
+      pendingTag: pileRevealTag,
+      pendingBackSkinId: throwerSkin,
+    );
 
     // Phase A: tapped hand card lifts, flips when known, holds, then travels.
-    final thrown = _ghostCard(tappedTag, plan.handStart, faceUp: false);
+    final thrown = _ghostCard(
+      tappedTag,
+      plan.handStart,
+      faceUp: false,
+      backSkinId: _handSkin(isSelf: plan.isSelf),
+    );
     world.add(thrown);
     if (tappedTag != null) {
       thrown.flipTo(tag: tappedTag, visible: true, delay: 0.1, duration: 0.2);
@@ -1065,6 +1107,7 @@ class CardGame extends FlameGame {
       drawnTag,
       plan.drawnStart!,
       faceUp: plan.drawnFaceUp,
+      backSkinId: _handSkin(isSelf: plan.isSelf),
     );
     world.add(drawn);
     if (!plan.drawnFaceUp) {
@@ -1106,10 +1149,22 @@ class CardGame extends FlameGame {
     final tapped = plan.tappedTag!;
     final hand = _handFor(plan);
     final hidden = hand.cardAt(plan.cardIndex);
-    hidden?.opacityOverride = 0;
-    _table.holdDiscard(plan.previousDiscardTop, pendingTag: tapped);
+    final throwerSkin = _handSkin(isSelf: plan.isSelf);
+    _discardBackSkinId = throwerSkin;
 
-    final card = _ghostCard(tapped, plan.handStart, faceUp: false);
+    hidden?.opacityOverride = 0;
+    _table.holdDiscard(
+      plan.previousDiscardTop,
+      pendingTag: tapped,
+      pendingBackSkinId: throwerSkin,
+    );
+
+    final card = _ghostCard(
+      tapped,
+      plan.handStart,
+      faceUp: false,
+      backSkinId: _handSkin(isSelf: plan.isSelf),
+    );
     world.add(card);
     card.flipTo(tag: tapped, visible: true, delay: 0.1, duration: 0.2);
     card.add(
@@ -1175,7 +1230,12 @@ class CardGame extends FlameGame {
     );
 
     final landing = plan.handOrigin!;
-    final penalty = _ghostCard(null, plan.deckStart!, faceUp: false);
+    final penalty = _ghostCard(
+      null,
+      plan.deckStart!,
+      faceUp: false,
+      backSkinId: _turnBackSkinId,
+    );
     _expectingPenaltyAppendSelf = plan.isSelf;
     world.add(penalty);
     penalty.add(
@@ -1201,13 +1261,24 @@ class CardGame extends FlameGame {
     final drawnSlot = _drawnFor(plan);
     final landing = hand.cardAt(plan.cardIndex);
     final swappedTag = plan.tappedTag!;
+    final throwerSkin = _handSkin(isSelf: plan.isSelf);
+    _discardBackSkinId = throwerSkin;
+
     landing?.opacityOverride = 0;
-    _table.holdDiscard(plan.previousDiscardTop, pendingTag: swappedTag);
+    _table.holdDiscard(
+      plan.previousDiscardTop,
+      pendingTag: swappedTag,
+      pendingBackSkinId: throwerSkin,
+    );
 
     // Phase A: chosen hand card lifts, flips face-up to reveal, holds, then
     // travels to discard — identical motion language to a matching discard.
-    final thrown = _ghostCard(swappedTag, plan.handStart, faceUp: false)
-      ..priority = 200;
+    final thrown = _ghostCard(
+      swappedTag,
+      plan.handStart,
+      faceUp: false,
+      backSkinId: _handSkin(isSelf: plan.isSelf),
+    )..priority = 200;
     world.add(thrown);
     thrown.flipTo(tag: swappedTag, visible: true, delay: 0.1, duration: 0.2);
     thrown.add(
@@ -1251,6 +1322,7 @@ class CardGame extends FlameGame {
       plan.drawnTag,
       plan.drawnStart!,
       faceUp: plan.drawnFaceUp,
+      backSkinId: _handSkin(isSelf: plan.isSelf),
     )..priority = 200;
     world.add(placed);
     placed.add(
@@ -1293,6 +1365,7 @@ class CardGame extends FlameGame {
       plan.drawnTag,
       plan.deckStart!,
       faceUp: plan.drawnFaceUp,
+      backSkinId: _turnBackSkinId,
     );
     world.add(card);
     card.add(
@@ -1314,13 +1387,21 @@ class CardGame extends FlameGame {
   void _runThrow(_CardActionPlan plan, VoidCallback onComplete) {
     final drawnSlot = _drawnFor(plan);
     final tag = plan.tappedTag!;
+    final throwerSkin = _handSkin(isSelf: plan.isSelf);
+    _discardBackSkinId = throwerSkin;
+
     drawnSlot.setCardOpacity(0);
-    _table.holdDiscard(plan.previousDiscardTop, pendingTag: tag);
+    _table.holdDiscard(
+      plan.previousDiscardTop,
+      pendingTag: tag,
+      pendingBackSkinId: throwerSkin,
+    );
 
     final card = _ghostCard(
       plan.drawnTag ?? tag,
       plan.drawnStart!,
       faceUp: plan.drawnFaceUp,
+      backSkinId: _handSkin(isSelf: plan.isSelf),
     );
     world.add(card);
     if (!plan.drawnFaceUp) {
@@ -1365,16 +1446,21 @@ class CardGame extends FlameGame {
     );
   }
 
+  String _handSkin({required bool isSelf}) =>
+      isSelf ? _youBackSkinId : _opponentBackSkinId;
+
   PlayingCardComponent _ghostCard(
     String? tag,
     Vector2 start, {
     required bool faceUp,
+    required String backSkinId,
   }) {
     return PlayingCardComponent(
         cardIndex: -20,
         tag: faceUp ? tag : null,
         visible: faceUp,
         sizeOverride: Vector2(86, 124),
+        backSkinId: backSkinId,
       )
       ..position = start
       ..priority = 100;
@@ -1442,6 +1528,7 @@ class HandArea extends PositionComponent {
     required bool animateDeal,
     Set<int> snapToPositionIndices = const {},
     required Set<int> peekIndices,
+    required String backSkinId,
   }) {
     final keep = <PlayingCardComponent>[];
     final used = <PlayingCardComponent>{};
@@ -1461,6 +1548,7 @@ class HandArea extends PositionComponent {
       // Prefer same slot index so replace/shuffle keep cards in place.
       for (final card in _cards) {
         if (used.contains(card)) continue;
+        if (card.opacityOverride < 1) continue;
         if (card.cardIndex == snapshot.index) {
           existing = card;
           break;
@@ -1479,6 +1567,7 @@ class HandArea extends PositionComponent {
       existing ??= takeNextUnused();
       if (existing != null) {
         used.add(existing);
+        existing.backSkinId = backSkinId;
         existing.updateFromSnapshot(snapshot, tappable: onTap != null);
         existing.onTap = onTap;
         existing.highlighted = highlight;
@@ -1495,6 +1584,7 @@ class HandArea extends PositionComponent {
                 tag: snapshot.tag,
                 visible: snapshot.visible,
                 onTap: onTap,
+                backSkinId: backSkinId,
               )
               ..highlighted = highlight
               ..peeking = peekIndices.contains(snapshot.index);
@@ -1683,8 +1773,10 @@ class TableArea extends PositionComponent {
 
   bool _showDeck = true;
   String? _discardHoldTag;
+  String? _discardHoldSkinId;
   bool _holdingDiscard = false;
   String? _pendingDiscardTag;
+  String? _pendingDiscardSkinId;
 
   Vector2 get worldDiscardPosition =>
       _discard.absolutePositionOfAnchor(Anchor.center);
@@ -1699,40 +1791,69 @@ class TableArea extends PositionComponent {
 
   void setHintFontFamily(String? family) => _hint.setFontFamily(family);
 
-  void holdDiscard(String? tag, {required String pendingTag}) {
+  void holdDiscard(
+    String? tag, {
+    required String pendingTag,
+    String? currentBackSkinId,
+    String? pendingBackSkinId,
+  }) {
     _holdingDiscard = true;
     _discardHoldTag = tag;
+    _discardHoldSkinId = currentBackSkinId ?? _discard.backSkinId;
     _pendingDiscardTag = pendingTag;
-    _applyDiscard(_discardHoldTag, animate: false);
+    _pendingDiscardSkinId = pendingBackSkinId;
+    _applyDiscard(
+      _discardHoldTag,
+      backSkinId: _discardHoldSkinId,
+      animate: false,
+    );
   }
 
   void releaseDiscard() {
     if (!_holdingDiscard) return;
     _holdingDiscard = false;
     final tag = _pendingDiscardTag ?? _discardHoldTag;
+    final skinId = _pendingDiscardSkinId ?? _discardHoldSkinId;
     _discardHoldTag = null;
-    _applyDiscard(tag, animate: true);
+    _discardHoldSkinId = null;
+    _pendingDiscardTag = null;
+    _pendingDiscardSkinId = null;
+    _applyDiscard(tag, backSkinId: skinId, animate: true);
   }
 
   void sync({
     required int deckCount,
     required String? discardTag,
     required bool canDraw,
+    required String deckBackSkinId,
+    required String discardBackSkinId,
   }) {
     _showDeck = deckCount > 0;
+    _deck.backSkinId = deckBackSkinId;
     _deck.opacityOverride = _showDeck ? 1 : 0;
     _deck.highlighted = canDraw && _showDeck;
     _deck.onPressed = canDraw && _showDeck ? onDraw : null;
     _pendingDiscardTag = discardTag;
     if (_holdingDiscard) {
-      _applyDiscard(_discardHoldTag, animate: false);
+      _applyDiscard(
+        _discardHoldTag,
+        backSkinId: _discardHoldSkinId,
+        animate: false,
+      );
       return;
     }
-    _applyDiscard(discardTag, animate: true);
+    _applyDiscard(discardTag, backSkinId: discardBackSkinId, animate: true);
   }
 
-  void _applyDiscard(String? discardTag, {required bool animate}) {
+  void _applyDiscard(
+    String? discardTag, {
+    String? backSkinId,
+    required bool animate,
+  }) {
     final previous = _discard.tag;
+    if (backSkinId != null) {
+      _discard.backSkinId = backSkinId;
+    }
     _discard.updateFromSnapshot(
       CardSnapshot(index: -2, tag: discardTag, visible: discardTag != null),
       tappable: false,
@@ -1770,6 +1891,7 @@ class DrawnCardSlot extends PositionComponent {
     required bool faceUp,
     bool animateAppear = true,
     bool throwable = true,
+    String backSkinId = 'ornate_blue',
   }) {
     if (tag == null) {
       _card?.removeFromParent();
@@ -1784,6 +1906,7 @@ class DrawnCardSlot extends PositionComponent {
         tag: visibleTag,
         visible: faceUp && visibleTag != null,
         sizeOverride: Vector2(isSelf ? 86 : 48, isSelf ? 124 : 70),
+        backSkinId: backSkinId,
       )..onPressed = canThrow ? () => onThrow?.call() : null;
       add(_card!);
       if (animateAppear) {
@@ -1797,6 +1920,7 @@ class DrawnCardSlot extends PositionComponent {
           );
       }
     } else {
+      _card!.backSkinId = backSkinId;
       _card!.onPressed = canThrow ? () => onThrow?.call() : null;
       _card!.updateFromSnapshot(
         CardSnapshot(
@@ -1817,8 +1941,10 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     required bool visible,
     this.onTap,
     Vector2? sizeOverride,
+    String? backSkinId,
   }) : _tag = tag,
-       _visible = visible {
+       _visible = visible,
+       backSkinId = backSkinId ?? CardBackSkins.ornateBlue.id {
     size = sizeOverride ?? Vector2(78, 112);
     anchor = Anchor.center;
   }
@@ -1826,6 +1952,7 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
   int cardIndex;
   String? _tag;
   bool _visible;
+  String backSkinId;
   bool highlighted = false;
   bool peeking = false;
   bool _tappable = false;
@@ -1999,6 +2126,7 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
         width: size.x,
         height: size.y,
         highlighted: highlighted,
+        backSkinId: backSkinId,
       ),
     );
     canvas.restore();
@@ -2052,16 +2180,23 @@ class _CardArt {
     required double width,
     required double height,
     required bool highlighted,
+    required String backSkinId,
   }) {
-    final face = tag ?? 'back:${CardBackSkins.activeId}';
-    final key = '$face|$width|$height|$highlighted';
+    final face = tag ?? 'back';
+    final key = '$face|$backSkinId|$width|$height|$highlighted';
     return _cache.putIfAbsent(
       key,
-      () => _record(tag, width, height, highlighted),
+      () => _record(tag, width, height, highlighted, backSkinId),
     );
   }
 
-  static Picture _record(String? tag, double w, double h, bool highlighted) {
+  static Picture _record(
+    String? tag,
+    double w,
+    double h,
+    bool highlighted,
+    String backSkinId,
+  ) {
     final recorder = PictureRecorder();
     final canvas = Canvas(recorder);
     final rect = RRect.fromRectAndRadius(
@@ -2082,10 +2217,20 @@ class _CardArt {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
     );
 
+    final skin = CardBackSkins.byId(backSkinId);
+    final faceTheme = skin.faceTheme;
+
     if (tag == null) {
-      _paintBack(canvas, rect, w, h);
+      _paintBack(canvas, rect, w, h, skin);
     } else {
-      _paintFace(canvas, rect, w, h, _CardMeta.fromTag(tag));
+      _paintFace(
+        canvas,
+        rect,
+        w,
+        h,
+        _CardMeta.fromTag(tag, faceTheme: faceTheme),
+        faceTheme,
+      );
     }
 
     canvas.drawRRect(
@@ -2094,18 +2239,26 @@ class _CardArt {
         ..style = PaintingStyle.stroke
         ..strokeWidth = highlighted ? 3 : 1.5
         ..color =
-            highlighted ? const Color(0xFFFFD54F) : const Color(0x33263238),
+            highlighted
+                ? faceTheme.highlightBorderColor
+                : faceTheme.borderColor,
     );
     return recorder.endRecording();
   }
 
   /// Hands the back over to the selected skin in a space one unit wide, so a
   /// single skin definition renders every card size on the board.
-  static void _paintBack(Canvas canvas, RRect rect, double w, double h) {
+  static void _paintBack(
+    Canvas canvas,
+    RRect rect,
+    double w,
+    double h,
+    CardBackSkin skin,
+  ) {
     canvas.save();
     canvas.clipRRect(rect);
     canvas.scale(w);
-    CardBackSkins.active.paintUnit(canvas, h / w);
+    skin.paintUnit(canvas, h / w);
     canvas.restore();
   }
 
@@ -2115,14 +2268,19 @@ class _CardArt {
     double w,
     double h,
     _CardMeta meta,
+    CardFaceTheme faceTheme,
   ) {
+    final bgColors = faceTheme.backgroundGradientColors;
     canvas.drawRRect(
       rect,
       Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment(-0.7, -1),
-          end: Alignment(0.7, 1),
-          colors: [Color(0xFFFFFFFF), Color(0xFFFDF8EF)],
+        ..shader = LinearGradient(
+          begin: const Alignment(-0.7, -1),
+          end: const Alignment(0.7, 1),
+          colors:
+              bgColors.length >= 2
+                  ? bgColors
+                  : [bgColors.first, bgColors.first],
         ).createShader(Rect.fromLTWH(0, 0, w, h)),
     );
 
@@ -2136,7 +2294,7 @@ class _CardArt {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = math.max(0.6, w * 0.008)
-        ..color = meta.color.withValues(alpha: 0.14),
+        ..color = meta.color.withValues(alpha: faceTheme.frameAlpha),
     );
 
     if (meta.isJoker) {
@@ -2444,7 +2602,10 @@ class _CardMeta {
   /// Suit outline inside a unit square.
   Path get path => suitPath(suit);
 
-  factory _CardMeta.fromTag(String tag) {
+  factory _CardMeta.fromTag(
+    String tag, {
+    CardFaceTheme faceTheme = CardFaceTheme.classic,
+  }) {
     final value = int.parse(tag.substring(1));
     final suit = switch (tag[0]) {
       'B' => SuitShape.diamonds,
@@ -2464,7 +2625,7 @@ class _CardMeta {
     return _CardMeta(
       rank,
       suit,
-      red ? const Color(0xFFA31819) : const Color(0xFF1A1A1A),
+      red ? faceTheme.redColor : faceTheme.blackColor,
       value,
     );
   }

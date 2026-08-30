@@ -4,7 +4,13 @@ const { getPool } = require('./pool');
 const STARTING_MONEY = 500;
 const STARTING_CHIPS = 1;
 const MONEY_PER_CHIP = 1000;
-const AD_REWARD_MONEY = 50;
+
+function getAdRewardMoney() {
+  const envVal = Number.parseInt(process.env.AD_REWARD_MONEY, 10);
+  return Number.isNaN(envVal) || envVal < 0 ? 50 : envVal;
+}
+
+const AD_REWARD_MONEY = getAdRewardMoney();
 
 const AVATAR_CATALOG = [
   { id: 'default', name: 'Default', price: 0, currency: 'money', requiredLevel: 1 },
@@ -17,6 +23,11 @@ const AVATAR_CATALOG = [
   { id: 'violet-queen', name: 'Violet Queen', price: 3, currency: 'chips', requiredLevel: 15 },
   { id: 'queen-of-heart', name: 'Queen of Hearts', price: 4, currency: 'chips', requiredLevel: 18 },
   { id: 'golden-king', name: 'Golden King', price: 5, currency: 'chips', requiredLevel: 20 },
+];
+
+const DECK_CATALOG = [
+  { id: 'default', name: 'Classic Blue', price: 0, currency: 'chips' },
+  { id: 'black_onyx', name: 'Onyx Black', price: 20, currency: 'chips' },
 ];
 
 async function addColumnIfMissing(conn, table, column, definition) {
@@ -74,6 +85,17 @@ async function ensureMarketplaceSchema() {
         CONSTRAINT fk_pi_player FOREIGN KEY (player_id) REFERENCES players (id) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS iap_redemptions (
+        transaction_id VARCHAR(191) NOT NULL PRIMARY KEY,
+        player_id VARCHAR(64) NOT NULL,
+        product_id VARCHAR(64) NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_iap_player (player_id),
+        CONSTRAINT fk_iap_player FOREIGN KEY (player_id) REFERENCES players (id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
   } finally {
     conn.release();
   }
@@ -122,6 +144,7 @@ async function getPlayerInventory(playerId) {
     playerId: player.id,
     money: Number(player.money) || 0,
     chips: Number(player.chips) || 0,
+    adRewardMoney: getAdRewardMoney(),
     ownedAvatars: Array.from(ownedAvatars),
     ownedDecks: Array.from(ownedDecks),
   };
@@ -242,17 +265,30 @@ async function purchaseItem({ playerId, itemType, itemId, currency, price }) {
     throw error;
   }
 
-  if (!['money', 'chips'].includes(currency)) {
-    const error = new Error('Invalid currency');
-    error.code = 'invalid_currency';
-    throw error;
-  }
+  let resolvedCurrency = currency;
+  let parsedPrice = Number.parseInt(price, 10);
 
-  const parsedPrice = Number.parseInt(price, 10);
-  if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
-    const error = new Error('Invalid price');
-    error.code = 'invalid_price';
-    throw error;
+  if (itemType === 'deck') {
+    const catalogItem = DECK_CATALOG.find((deck) => deck.id === itemId);
+    if (!catalogItem) {
+      const error = new Error('Unknown deck');
+      error.code = 'invalid_item_id';
+      throw error;
+    }
+    resolvedCurrency = catalogItem.currency;
+    parsedPrice = catalogItem.price;
+  } else {
+    if (!['money', 'chips'].includes(currency)) {
+      const error = new Error('Invalid currency');
+      error.code = 'invalid_currency';
+      throw error;
+    }
+
+    if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+      const error = new Error('Invalid price');
+      error.code = 'invalid_price';
+      throw error;
+    }
   }
 
   const pool = getPool();
@@ -291,7 +327,7 @@ async function purchaseItem({ playerId, itemType, itemId, currency, price }) {
     let newMoney = currentMoney;
     let newChips = currentChips;
 
-    if (currency === 'money') {
+    if (resolvedCurrency === 'money') {
       if (currentMoney < parsedPrice) {
         await conn.rollback();
         const error = new Error('Insufficient money');
@@ -366,9 +402,10 @@ async function claimRewardedAdBonus(playerId) {
       throw error;
     }
 
+    const rewardAmount = getAdRewardMoney();
     const currentMoney = Number(rows[0].money) || 0;
     const currentChips = Number(rows[0].chips) || 0;
-    const newMoney = currentMoney + AD_REWARD_MONEY;
+    const newMoney = currentMoney + rewardAmount;
 
     await conn.execute(
       `UPDATE players SET money = :money, last_seen_at = CURRENT_TIMESTAMP WHERE id = :playerId`,
@@ -381,7 +418,136 @@ async function claimRewardedAdBonus(playerId) {
       playerId,
       money: newMoney,
       chips: currentChips,
-      reward: AD_REWARD_MONEY,
+      reward: rewardAmount,
+    };
+  } catch (error) {
+    await conn.rollback().catch(() => {});
+    throw error;
+  } finally {
+    conn.release();
+  }
+}
+
+const IAP_CATALOG = {
+  chips_1: { type: 'chips', amount: 1 },
+  chips_5: { type: 'chips', amount: 5 },
+  chips_10: { type: 'chips', amount: 10 },
+  chips_25: { type: 'chips', amount: 25 },
+  chips_50: { type: 'chips', amount: 50 },
+  cash_1000: { type: 'money', amount: 1000 },
+  cash_5000: { type: 'money', amount: 5000 },
+  cash_10000: { type: 'money', amount: 10000 },
+  cash_25000: { type: 'money', amount: 25000 },
+  // Legacy aliases
+  gems_100: { type: 'chips', amount: 100 },
+  gems_500: { type: 'chips', amount: 500 },
+  gems_1200: { type: 'chips', amount: 1200 },
+  coins_1000: { type: 'money', amount: 1000 },
+  coins_5000: { type: 'money', amount: 5000 },
+  pro_monthly: { type: 'pro', amount: 0 },
+};
+
+/**
+ * Redeem an IAP purchase idempotently based on store transactionId.
+ */
+async function redeemIapPurchase({ playerId, productId, transactionId }) {
+  if (!playerId) {
+    const error = new Error('playerId is required');
+    error.code = 'invalid_player_id';
+    throw error;
+  }
+  if (!productId) {
+    const error = new Error('productId is required');
+    error.code = 'invalid_product_id';
+    throw error;
+  }
+  if (!transactionId) {
+    const error = new Error('transactionId is required');
+    error.code = 'invalid_transaction_id';
+    throw error;
+  }
+
+  const catalogEntry = IAP_CATALOG[productId];
+  if (!catalogEntry) {
+    const error = new Error(`Unknown product: ${productId}`);
+    error.code = 'invalid_product_id';
+    throw error;
+  }
+
+  const pool = getPool();
+  const conn = await pool.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // Check if already redeemed
+    const [existing] = await conn.execute(
+      `SELECT transaction_id, player_id, product_id, created_at
+       FROM iap_redemptions
+       WHERE transaction_id = :transactionId
+       LIMIT 1`,
+      { transactionId },
+    );
+
+    const [playerRows] = await conn.execute(
+      `SELECT id, money, chips FROM players WHERE id = :playerId FOR UPDATE`,
+      { playerId },
+    );
+
+    if (playerRows.length === 0) {
+      await conn.rollback();
+      const error = new Error('Player not found');
+      error.code = 'player_not_found';
+      throw error;
+    }
+
+    const currentMoney = Number(playerRows[0].money) || 0;
+    const currentChips = Number(playerRows[0].chips) || 0;
+
+    if (existing.length > 0) {
+      await conn.commit();
+      return {
+        playerId,
+        productId,
+        transactionId,
+        money: currentMoney,
+        chips: currentChips,
+        alreadyRedeemed: true,
+      };
+    }
+
+    let newMoney = currentMoney;
+    let newChips = currentChips;
+
+    if (catalogEntry.type === 'chips') {
+      newChips = currentChips + catalogEntry.amount;
+    } else if (catalogEntry.type === 'money') {
+      newMoney = currentMoney + catalogEntry.amount;
+    }
+
+    await conn.execute(
+      `UPDATE players
+       SET money = :money, chips = :chips, last_seen_at = CURRENT_TIMESTAMP
+       WHERE id = :playerId`,
+      { money: newMoney, chips: newChips, playerId },
+    );
+
+    await conn.execute(
+      `INSERT INTO iap_redemptions (transaction_id, player_id, product_id)
+       VALUES (:transactionId, :playerId, :productId)`,
+      { transactionId, playerId, productId },
+    );
+
+    await conn.commit();
+
+    return {
+      playerId,
+      productId,
+      transactionId,
+      money: newMoney,
+      chips: newChips,
+      alreadyRedeemed: false,
+      granted: catalogEntry,
     };
   } catch (error) {
     await conn.rollback().catch(() => {});
@@ -397,9 +563,13 @@ module.exports = {
   MONEY_PER_CHIP,
   AD_REWARD_MONEY,
   AVATAR_CATALOG,
+  DECK_CATALOG,
+  IAP_CATALOG,
+  getAdRewardMoney,
   ensureMarketplaceSchema,
   getPlayerInventory,
   exchangeCurrency,
   purchaseItem,
   claimRewardedAdBonus,
+  redeemIapPurchase,
 };

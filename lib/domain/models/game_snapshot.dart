@@ -42,6 +42,7 @@ class PlayerSnapshot {
   final bool connected;
   final String displayName;
   final String avatarId;
+  final String deckId;
   final String? playerId;
   final int seriesWins;
   final bool lobbyReady;
@@ -58,6 +59,7 @@ class PlayerSnapshot {
     required this.connected,
     this.displayName = 'Player',
     this.avatarId = 'default',
+    this.deckId = 'default',
     this.playerId,
     this.seriesWins = 0,
     this.lobbyReady = false,
@@ -76,6 +78,7 @@ class PlayerSnapshot {
       connected: json['connected'] as bool? ?? false,
       displayName: json['displayName'] as String? ?? 'Player',
       avatarId: json['avatarId'] as String? ?? 'default',
+      deckId: json['deckId'] as String? ?? 'default',
       playerId: json['playerId'] as String?,
       seriesWins: json['seriesWins'] as int? ?? 0,
       lobbyReady: json['lobbyReady'] as bool? ?? false,
@@ -116,6 +119,8 @@ class PlayerResultRating {
   final int eloDelta;
   final int? eloBefore;
   final int? eloAfter;
+  final int? moneyAfter;
+  final int? chipsAfter;
 
   const PlayerResultRating({
     this.playerId,
@@ -124,6 +129,8 @@ class PlayerResultRating {
     required this.eloDelta,
     this.eloBefore,
     this.eloAfter,
+    this.moneyAfter,
+    this.chipsAfter,
   });
 
   factory PlayerResultRating.fromJson(Map<String, dynamic> json) {
@@ -134,6 +141,8 @@ class PlayerResultRating {
       eloDelta: (json['eloDelta'] as num?)?.toInt() ?? 0,
       eloBefore: (json['eloBefore'] as num?)?.toInt(),
       eloAfter: (json['eloAfter'] as num?)?.toInt(),
+      moneyAfter: (json['moneyAfter'] as num?)?.toInt(),
+      chipsAfter: (json['chipsAfter'] as num?)?.toInt(),
     );
   }
 }
@@ -278,6 +287,7 @@ class GameSnapshot {
 
   /// Public discard pile, oldest first, capped to the two most recent cards.
   final List<String> discardRecentTags;
+  final String? discardDeckId;
   final bool isYourTurn;
   final PlayerSnapshot you;
   final PlayerSnapshot? opponent;
@@ -299,6 +309,7 @@ class GameSnapshot {
     required this.deckCount,
     required this.discardTopTag,
     required this.discardRecentTags,
+    this.discardDeckId,
     required this.isYourTurn,
     required this.you,
     required this.opponent,
@@ -328,6 +339,7 @@ class GameSnapshot {
       discardTopTag: json['discardTop'] as String?,
       discardRecentTags:
           (json['discardRecent'] as List<dynamic>? ?? const []).cast<String>(),
+      discardDeckId: json['discardDeckId'] as String?,
       isYourTurn: json['turn'] == 'you',
       you: PlayerSnapshot.fromJson(json['you'] as Map<String, dynamic>),
       opponent:

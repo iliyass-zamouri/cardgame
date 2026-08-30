@@ -183,7 +183,7 @@ async function recordRankedMatch({
     await conn.beginTransaction();
 
     const [rows] = await conn.execute(
-      `SELECT id, elo, total_points, wins, losses, draws, money
+      `SELECT id, elo, total_points, wins, losses, draws, money, chips
        FROM players
        WHERE id IN (:id0, :id1)
        FOR UPDATE`,
@@ -270,15 +270,25 @@ async function recordRankedMatch({
         playerId: seat.playerId,
       };
 
+      const playerRow = byId.get(seat.playerId);
+      const currentMoney = Number(playerRow?.money) || 0;
+      const currentChips = Number(playerRow?.chips) || 0;
+      let moneyAfter = currentMoney;
+
       if (safeStake > 0) {
         if (seat.result === 'win') {
           moneyUpdate = ', money = money + :stake';
           updateParams.stake = safeStake;
+          moneyAfter = currentMoney + safeStake;
         } else if (seat.result === 'loss') {
           moneyUpdate = ', money = GREATEST(0, money - :stake)';
           updateParams.stake = safeStake;
+          moneyAfter = Math.max(0, currentMoney - safeStake);
         }
       }
+
+      seat.moneyAfter = moneyAfter;
+      seat.chipsAfter = currentChips;
 
       await conn.execute(
         `UPDATE players
@@ -303,6 +313,8 @@ async function recordRankedMatch({
         eloBefore: seat.eloBefore,
         eloAfter: seat.eloAfter,
         eloDelta: seat.eloDelta,
+        moneyAfter: seat.moneyAfter,
+        chipsAfter: seat.chipsAfter,
       })),
     };
   } catch (error) {

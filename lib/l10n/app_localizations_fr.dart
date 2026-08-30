@@ -817,16 +817,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get classicDeckDesc => 'Cartes standard de casino';
 
   @override
-  String get goldLuxuryDeck => 'Luxe Doré';
+  String get onyxBlackDeck => 'Onyx Noir';
 
   @override
-  String get goldLuxuryDeckDesc => 'Jeu de cartes premium bordé d\'or';
-
-  @override
-  String get shadowNeonDeck => 'Néon Sombre';
-
-  @override
-  String get shadowNeonDeckDesc => 'Jeu luminescent style cyberpunk';
+  String get onyxBlackDeckDesc => 'Dos obsidienne à filigrane doré';
 
   @override
   String get price => 'Prix';

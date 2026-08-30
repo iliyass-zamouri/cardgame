@@ -5,6 +5,7 @@ import 'package:cardgame/app/locale_provider.dart';
 import 'package:cardgame/app/locale_repository.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
+import 'package:cardgame/core/monetization/purchases_service.dart';
 import 'package:cardgame/firebase_options.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/analytics_service.dart';
@@ -50,6 +51,13 @@ Future<void> main() async {
       debugPrint('MobileAds init failed: $e');
     }
   }
+
+  try {
+    await PurchasesService.instance.configure();
+  } catch (e) {
+    debugPrint('PurchasesService init failed: $e');
+  }
+
   await Hive.initFlutter();
   await Future.wait([ensureCardFontsLoaded(), ensureArabicUiFontLoaded()]);
 

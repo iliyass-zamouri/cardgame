@@ -39,6 +39,7 @@ const {
   exchangeCurrency,
   purchaseItem,
   claimRewardedAdBonus,
+  redeemIapPurchase,
 } = require('./db/marketplace');
 const { acquireBotUser } = require('./db/bots');
 const { ServerRobotPlayer } = require('./bot_player');
@@ -219,6 +220,14 @@ class GameServer {
 
     if (request.method === 'POST' && url.pathname === '/marketplace/claim-ad-reward') {
       await this.#handleClaimAdReward(request, response);
+      return;
+    }
+
+    if (
+      request.method === 'POST' &&
+      (url.pathname === '/economy/iap/verify' || url.pathname === '/marketplace/iap/verify')
+    ) {
+      await this.#handleVerifyIap(request, response);
       return;
     }
 
@@ -655,6 +664,41 @@ class GameServer {
     }
   }
 
+  async #handleVerifyIap(request, response) {
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+
+    const { playerId, productId, transactionId } = body || {};
+    if (!playerId || !productId || !transactionId) {
+      sendJson(response, 400, {
+        error: 'missing_parameters',
+        message: 'playerId, productId, and transactionId are required',
+      });
+      return;
+    }
+
+    try {
+      const result = await redeemIapPurchase({ playerId, productId, transactionId });
+      sendJson(response, 200, result);
+    } catch (error) {
+      if (error.code === 'player_not_found') {
+        sendJson(response, 404, { error: error.code, message: error.message });
+        return;
+      }
+      if (error.code === 'invalid_product_id' || error.code === 'invalid_player_id' || error.code === 'invalid_transaction_id') {
+        sendJson(response, 400, { error: error.code, message: error.message });
+        return;
+      }
+      console.error('[economy/iap/verify]', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Failed to verify IAP purchase' });
+    }
+  }
+
   async #handleGuestAuth(request, response) {
     let body;
     try {
@@ -853,7 +897,11 @@ class GameServer {
       typeof command.avatarId === 'string' && command.avatarId.trim()
         ? command.avatarId.trim().slice(0, 64)
         : 'default';
-    return { playerId, displayName, avatarId };
+    const deckId =
+      typeof command.deckId === 'string' && command.deckId.trim()
+        ? command.deckId.trim().slice(0, 64)
+        : 'default';
+    return { playerId, displayName, avatarId, deckId };
   }
 
   #handle(context, command) {
@@ -866,6 +914,7 @@ class GameServer {
       context.playerId = identity.playerId;
       context.displayName = identity.displayName;
       context.avatarId = identity.avatarId;
+      context.deckId = identity.deckId;
       this.#send(context.socket, { type: 'identityAck', playerId: context.playerId });
       return;
     }
@@ -877,6 +926,7 @@ class GameServer {
       context.playerId = identity.playerId;
       context.displayName = identity.displayName;
       context.avatarId = identity.avatarId;
+      context.deckId = identity.deckId;
       const allowedStakes = [20, 50, 100, 200, 500];
       const reqStake = Number(command.stakePool ?? command.stake ?? 50);
       context.stakePool = allowedStakes.includes(reqStake) ? reqStake : 50;
@@ -898,6 +948,7 @@ class GameServer {
       context.playerId = identity.playerId;
       context.displayName = identity.displayName;
       context.avatarId = identity.avatarId;
+      context.deckId = identity.deckId;
       let roomId;
       do roomId = createRoomCode(); while (this.rooms.has(roomId));
       const room = this.#createRoom(roomId, 'private');
@@ -906,6 +957,7 @@ class GameServer {
         playerId: context.playerId,
         displayName: context.displayName,
         avatarId: context.avatarId,
+        deckId: context.deckId,
       });
       return;
     }
@@ -920,11 +972,13 @@ class GameServer {
       context.playerId = identity.playerId;
       context.displayName = identity.displayName;
       context.avatarId = identity.avatarId;
+      context.deckId = identity.deckId;
       context.roomId = roomId;
       room.addPlayer(context.id, {
         playerId: context.playerId,
         displayName: context.displayName,
         avatarId: context.avatarId,
+        deckId: context.deckId,
       });
       return;
     }
@@ -1066,11 +1120,13 @@ class GameServer {
       playerId: context.playerId,
       displayName: context.displayName,
       avatarId: context.avatarId || 'default',
+      deckId: context.deckId || 'default',
     });
     room.addPlayer(botClientId, {
       playerId: botUser.playerId,
       displayName: botUser.displayName,
       avatarId: botUser.avatarId || 'default',
+      deckId: 'default',
     });
 
     const bot = new ServerRobotPlayer({
@@ -1119,11 +1175,13 @@ class GameServer {
           playerId: first.playerId,
           displayName: first.displayName,
           avatarId: first.avatarId || 'default',
+          deckId: first.deckId || 'default',
         });
         room.addPlayer(second.id, {
           playerId: second.playerId,
           displayName: second.displayName,
           avatarId: second.avatarId || 'default',
+          deckId: second.deckId || 'default',
         });
         room.start(first.id);
       }

@@ -64,6 +64,15 @@ CREATE TABLE IF NOT EXISTS player_items (
   CONSTRAINT fk_pi_player FOREIGN KEY (player_id) REFERENCES players (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS iap_redemptions (
+  transaction_id VARCHAR(191) NOT NULL PRIMARY KEY,
+  player_id VARCHAR(64) NOT NULL,
+  product_id VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_iap_player (player_id),
+  CONSTRAINT fk_iap_player FOREIGN KEY (player_id) REFERENCES players (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS friendships (
   id VARCHAR(64) NOT NULL PRIMARY KEY,
   player_id VARCHAR(64) NOT NULL,

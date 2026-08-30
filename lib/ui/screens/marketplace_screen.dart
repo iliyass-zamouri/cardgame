@@ -1,15 +1,21 @@
 import 'package:cardgame/ads/rewarded_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
+import 'package:cardgame/core/monetization/purchases_config.dart';
+import 'package:cardgame/core/monetization/purchases_service.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/data/marketplace/marketplace_api.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/ui/flame/card_back_skins.dart';
+import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 class MarketplaceScreen extends ConsumerStatefulWidget {
   const MarketplaceScreen({super.key, this.initialTabIndex = 0});
@@ -235,12 +241,444 @@ class _ExchangeTab extends ConsumerStatefulWidget {
 }
 
 class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
+  Future<void> _buyIapPack(_IapPackItem pack) async {
+    widget.onBusy(true);
+    try {
+      final customerInfo = await PurchasesService.instance.purchaseProduct(
+        pack.productId,
+      );
+      if (customerInfo == null) {
+        throw Exception('Purchase did not complete');
+      }
+
+      String txId =
+          'rc_${DateTime.now().millisecondsSinceEpoch}_${widget.profile.playerId}';
+      try {
+        final txs =
+            customerInfo.nonSubscriptionTransactions
+                .where((tx) => tx.productIdentifier == pack.productId)
+                .toList();
+        if (txs.isNotEmpty) {
+          txId = txs.last.transactionIdentifier;
+        }
+      } catch (_) {}
+
+      await ref
+          .read(playerProfileProvider.notifier)
+          .redeemIapPurchase(productId: pack.productId, transactionId: txId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Purchased ${pack.title}!')));
+      }
+    } on PlatformException catch (e) {
+      final code = PurchasesErrorHelper.getErrorCode(e);
+      if (code != PurchasesErrorCode.purchaseCancelledError) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message ?? 'Purchase failed')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is MarketplaceApiException ? e.message : 'Purchase failed: $e',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) widget.onBusy(false);
+    }
+  }
+
+  Future<void> _watchAdForMoney() async {
+    final l10n = context.l10n;
+    widget.onBusy(true);
+    try {
+      final adService = ref.read(rewardedAdProvider);
+      final result = await adService.show();
+      if (result == RewardedShowResult.rewarded) {
+        final reward =
+            await ref.read(playerProfileProvider.notifier).claimAdReward();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${l10n.adRewardEarned}: +$reward 💵')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l10n.adNotAvailable)));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.adNotAvailable)));
+      }
+    } finally {
+      if (mounted) widget.onBusy(false);
+    }
+  }
+
+  Future<void> _showConversionModal() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _CurrencyConversionModal(onBusy: widget.onBusy),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Stack(
+      children: [
+        ListView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 90),
+          children: [
+            // Rate banner
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: CasinoColors.gold.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: CasinoColors.gold.withValues(alpha: 0.3),
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ChipIcon(size: 18),
+                  SizedBox(width: 6),
+                  Text(
+                    '1  =  ',
+                    style: TextStyle(
+                      color: CasinoColors.gold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  CashIcon(size: 18),
+                  SizedBox(width: 6),
+                  Text(
+                    '1,000',
+                    style: TextStyle(
+                      color: CasinoColors.gold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Rewarded Ad Free Money Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: CasinoColors.bgElevated,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7ED50E).withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.play_circle_fill_rounded,
+                        color: Color(0xFF7ED50E),
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.watchAdForMoney,
+                          style: const TextStyle(
+                            color: CasinoColors.text,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Text(
+                              '+${widget.profile.adRewardMoney} ',
+                              style: const TextStyle(
+                                color: CasinoColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const CashIcon(size: 13),
+                            Text(
+                              ' ${l10n.freeStashBonus}',
+                              style: const TextStyle(
+                                color: CasinoColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: _watchAdForMoney,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7ED50E),
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                    ),
+                    child: Text(
+                      l10n.claim,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Real Money Store Packs
+            const Row(
+              children: [
+                Icon(
+                  Icons.shopping_bag_rounded,
+                  color: CasinoColors.gold,
+                  size: 20,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Store Packs',
+                  style: TextStyle(
+                    color: CasinoColors.gold,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: CasinoFonts.display,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ..._iapPacks.map(
+              (pack) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _IapPackCard(pack: pack, onBuy: () => _buyIapPack(pack)),
+              ),
+            ),
+          ],
+        ),
+        Positioned(
+          bottom: 20,
+          left: 20,
+          child: FloatingActionButton.extended(
+            onPressed: _showConversionModal,
+            backgroundColor: CasinoColors.gold,
+            foregroundColor: Colors.black,
+            elevation: 6,
+            icon: const Icon(Icons.swap_horiz_rounded, size: 24),
+            label: Text(
+              l10n.exchange,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _IapPackItem {
+  const _IapPackItem({
+    required this.productId,
+    required this.title,
+    required this.currency,
+    required this.amount,
+    required this.priceUsd,
+    required this.icon,
+  });
+
+  final String productId;
+  final String title;
+  final CurrencyType currency;
+  final int amount;
+  final String priceUsd;
+  final IconData icon;
+}
+
+const _iapPacks = [
+  _IapPackItem(
+    productId: PurchasesConfig.chips1,
+    title: '1 Chip',
+    currency: CurrencyType.chips,
+    amount: 1,
+    priceUsd: '\$0.99',
+    icon: Icons.stars_rounded,
+  ),
+  _IapPackItem(
+    productId: PurchasesConfig.chips5,
+    title: '5 Chips',
+    currency: CurrencyType.chips,
+    amount: 5,
+    priceUsd: '\$3.99',
+    icon: Icons.military_tech_rounded,
+  ),
+  _IapPackItem(
+    productId: PurchasesConfig.chips10,
+    title: '10 Chips',
+    currency: CurrencyType.chips,
+    amount: 10,
+    priceUsd: '\$8.99',
+    icon: Icons.diamond_rounded,
+  ),
+  _IapPackItem(
+    productId: PurchasesConfig.chips25,
+    title: '25 Chips',
+    currency: CurrencyType.chips,
+    amount: 25,
+    priceUsd: '\$19.99',
+    icon: Icons.workspace_premium_rounded,
+  ),
+  _IapPackItem(
+    productId: PurchasesConfig.chips50,
+    title: '50 Chips',
+    currency: CurrencyType.chips,
+    amount: 50,
+    priceUsd: '\$34.99',
+    icon: Icons.shield_rounded,
+  ),
+];
+
+class _IapPackCard extends StatelessWidget {
+  const _IapPackCard({required this.pack, required this.onBuy});
+
+  final _IapPackItem pack;
+  final VoidCallback onBuy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CasinoColors.bgElevated,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: CasinoColors.gold.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Icon(pack.icon, color: CasinoColors.gold, size: 24),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  pack.title,
+                  style: const TextStyle(
+                    color: CasinoColors.text,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      '+${pack.amount} ',
+                      style: const TextStyle(
+                        color: CasinoColors.goldSoft,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    CurrencyIcon(currency: pack.currency, size: 13),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: onBuy,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: CasinoColors.gold,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: Text(
+              pack.priceUsd,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CurrencyConversionModal extends ConsumerStatefulWidget {
+  const _CurrencyConversionModal({required this.onBusy});
+
+  final void Function(bool) onBusy;
+
+  @override
+  ConsumerState<_CurrencyConversionModal> createState() =>
+      _CurrencyConversionModalState();
+}
+
+class _CurrencyConversionModalState
+    extends ConsumerState<_CurrencyConversionModal> {
   int _chipsToConvert = 1;
   int _moneyChipsToBuy = 1;
 
-  Future<void> _convertChipsToMoney() async {
+  Future<void> _convertChipsToMoney(PlayerProfile profile) async {
     final l10n = context.l10n;
-    if (widget.profile.chips < _chipsToConvert) {
+    if (profile.chips < _chipsToConvert) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l10n.insufficientChips)));
@@ -256,6 +694,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
             amount: _chipsToConvert,
           );
       if (mounted) {
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -279,10 +718,10 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
     }
   }
 
-  Future<void> _convertMoneyToChips() async {
+  Future<void> _convertMoneyToChips(PlayerProfile profile) async {
     final l10n = context.l10n;
     final cost = _moneyChipsToBuy * 1000;
-    if (widget.profile.money < cost) {
+    if (profile.money < cost) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l10n.insufficientMoney)));
@@ -298,6 +737,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
             amount: _moneyChipsToBuy,
           );
       if (mounted) {
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${l10n.exchangedSuccess}: +$_moneyChipsToBuy 🪙'),
@@ -319,134 +759,113 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
     }
   }
 
-  Future<void> _watchAdForMoney() async {
-    final l10n = context.l10n;
-    widget.onBusy(true);
-    try {
-      final adService = ref.read(rewardedAdProvider);
-      final result = await adService.show();
-      if (result == RewardedShowResult.rewarded) {
-        await ref.read(playerProfileProvider.notifier).claimAdReward();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${l10n.adRewardEarned}: +50 💵')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(l10n.adNotAvailable)));
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.adNotAvailable)));
-      }
-    } finally {
-      if (mounted) widget.onBusy(false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final profile =
+        ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        // Rate banner
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: CasinoColors.gold.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.3)),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+    return Container(
+      padding: EdgeInsets.only(
+        top: 20,
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+      ),
+      decoration: const BoxDecoration(
+        color: CasinoColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(top: BorderSide(color: CasinoColors.gold, width: 1.5)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ChipIcon(size: 18),
-              SizedBox(width: 6),
-              Text(
-                '1  =  ',
-                style: TextStyle(
-                  color: CasinoColors.gold,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              CashIcon(size: 18),
-              SizedBox(width: 6),
-              Text(
-                '1,000',
-                style: TextStyle(
-                  color: CasinoColors.gold,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Rewarded Ad Free Money Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: CasinoColors.bgElevated,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF7ED50E).withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.play_circle_fill_rounded,
-                    color: Color(0xFF7ED50E),
-                    size: 28,
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.watchAdForMoney,
-                      style: const TextStyle(
-                        color: CasinoColors.text,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.swap_horiz_rounded,
+                        color: CasinoColors.gold,
+                        size: 24,
                       ),
+                      const SizedBox(width: 8),
+                      Text(
+                        l10n.exchange,
+                        style: const TextStyle(
+                          color: CasinoColors.gold,
+                          fontWeight: FontWeight.w800,
+                          fontFamily: CasinoFonts.display,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: CasinoColors.textMuted,
                     ),
-                    const SizedBox(height: 2),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Current balances bar
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: CasinoColors.bgElevated,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
                     Row(
                       children: [
-                        const Text(
-                          '+50 ',
-                          style: TextStyle(
-                            color: CasinoColors.textMuted,
-                            fontSize: 12,
+                        const CashIcon(size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${profile.money}',
+                          style: const TextStyle(
+                            color: CasinoColors.text,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
                           ),
                         ),
-                        const CashIcon(size: 13),
+                      ],
+                    ),
+                    Container(width: 1, height: 20, color: Colors.white12),
+                    Row(
+                      children: [
+                        const ChipIcon(size: 16),
+                        const SizedBox(width: 6),
                         Text(
-                          ' ${l10n.freeStashBonus}',
+                          '${profile.chips}',
                           style: const TextStyle(
-                            color: CasinoColors.textMuted,
-                            fontSize: 12,
+                            color: CasinoColors.goldSoft,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
                           ),
                         ),
                       ],
@@ -454,70 +873,52 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
                   ],
                 ),
               ),
-              ElevatedButton(
-                onPressed: _watchAdForMoney,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7ED50E),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                ),
-                child: Text(
-                  l10n.claim,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
+              const SizedBox(height: 16),
+
+              // Chips -> Money
+              _ExchangeCard(
+                title: l10n.chipsToMoney,
+                sourceCurrency: CurrencyType.chips,
+                targetCurrency: CurrencyType.money,
+                amount: _chipsToConvert,
+                targetAmount: _chipsToConvert * 1000,
+                onDecrement: () {
+                  if (_chipsToConvert > 1) {
+                    setState(() => _chipsToConvert--);
+                  }
+                },
+                onIncrement: () {
+                  setState(() => _chipsToConvert++);
+                },
+                onAction: () => _convertChipsToMoney(profile),
+                actionLabel: l10n.convert,
+                canAfford: profile.chips >= _chipsToConvert,
+              ),
+              const SizedBox(height: 14),
+
+              // Money -> Chips
+              _ExchangeCard(
+                title: l10n.moneyToChips,
+                sourceCurrency: CurrencyType.money,
+                targetCurrency: CurrencyType.chips,
+                amount: _moneyChipsToBuy * 1000,
+                targetAmount: _moneyChipsToBuy,
+                onDecrement: () {
+                  if (_moneyChipsToBuy > 1) {
+                    setState(() => _moneyChipsToBuy--);
+                  }
+                },
+                onIncrement: () {
+                  setState(() => _moneyChipsToBuy++);
+                },
+                onAction: () => _convertMoneyToChips(profile),
+                actionLabel: l10n.convert,
+                canAfford: profile.money >= (_moneyChipsToBuy * 1000),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 20),
-
-        // Exchange Chips -> Money
-        _ExchangeCard(
-          title: l10n.chipsToMoney,
-          sourceCurrency: CurrencyType.chips,
-          targetCurrency: CurrencyType.money,
-          amount: _chipsToConvert,
-          targetAmount: _chipsToConvert * 1000,
-          onDecrement: () {
-            if (_chipsToConvert > 1) {
-              setState(() => _chipsToConvert--);
-            }
-          },
-          onIncrement: () {
-            setState(() => _chipsToConvert++);
-          },
-          onAction: _convertChipsToMoney,
-          actionLabel: l10n.convert,
-          canAfford: widget.profile.chips >= _chipsToConvert,
-        ),
-        const SizedBox(height: 16),
-
-        // Exchange Money -> Chips
-        _ExchangeCard(
-          title: l10n.moneyToChips,
-          sourceCurrency: CurrencyType.money,
-          targetCurrency: CurrencyType.chips,
-          amount: _moneyChipsToBuy * 1000,
-          targetAmount: _moneyChipsToBuy,
-          onDecrement: () {
-            if (_moneyChipsToBuy > 1) {
-              setState(() => _moneyChipsToBuy--);
-            }
-          },
-          onIncrement: () {
-            setState(() => _moneyChipsToBuy++);
-          },
-          onAction: _convertMoneyToChips,
-          actionLabel: l10n.convert,
-          canAfford: widget.profile.money >= (_moneyChipsToBuy * 1000),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -1115,12 +1516,40 @@ class _DecksTab extends ConsumerWidget {
     switch (nameKey) {
       case 'classicDeck':
         return l10n.classicDeck;
-      case 'goldLuxuryDeck':
-        return l10n.goldLuxuryDeck;
-      case 'shadowNeonDeck':
-        return l10n.shadowNeonDeck;
+      case 'onyxBlackDeck':
+        return l10n.onyxBlackDeck;
       default:
         return nameKey;
+    }
+  }
+
+  String _getDeckDesc(BuildContext context, String descriptionKey) {
+    final l10n = context.l10n;
+    switch (descriptionKey) {
+      case 'classicDeckDesc':
+        return l10n.classicDeckDesc;
+      case 'onyxBlackDeckDesc':
+        return l10n.onyxBlackDeckDesc;
+      default:
+        return descriptionKey;
+    }
+  }
+
+  Future<void> _equipDeck(
+    BuildContext context,
+    WidgetRef ref,
+    DeckItem deck,
+  ) async {
+    final l10n = context.l10n;
+    await ref.read(playerProfileProvider.notifier).updateDeck(deck.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${l10n.equipped}: ${_getDeckName(context, deck.nameKey)}',
+          ),
+        ),
+      );
     }
   }
 
@@ -1182,181 +1611,237 @@ class _DecksTab extends ConsumerWidget {
       itemBuilder: (context, index) {
         final deck = decks[index];
         final isOwned = profile.ownsDeck(deck.id);
+        final isEquipped = profile.deckId == deck.id;
         final name = _getDeckName(context, deck.nameKey);
+        final desc = _getDeckDesc(context, deck.descriptionKey);
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: CasinoColors.bgElevated,
-            borderRadius: BorderRadius.circular(18),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                if (isOwned) ...[
-                  CasinoColors.gold.withValues(alpha: 0.12),
-                  CasinoColors.bgElevated,
-                ] else ...[
-                  CasinoColors.surfaceHi,
-                  CasinoColors.bgElevated,
-                ],
-              ],
-            ),
-            border: Border.all(
-              color:
-                  isOwned
-                      ? CasinoColors.gold.withValues(alpha: 0.4)
-                      : Colors.white12,
-              width: isOwned ? 1.5 : 1,
-            ),
-            boxShadow: [
-              if (isOwned)
-                BoxShadow(
-                  color: CasinoColors.gold.withValues(alpha: 0.12),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: CasinoColors.surfaceHi,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color:
-                        isOwned
-                            ? CasinoColors.gold.withValues(alpha: 0.4)
-                            : Colors.white12,
-                    width: 1.5,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    deck.previewCardTags.firstOrNull ?? '🃏',
-                    style: const TextStyle(
-                      color: CasinoColors.gold,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap:
+                  () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder:
+                          (context) => DeckPreviewScreen(
+                            title: name,
+                            backSkinId: deck.skinId,
+                          ),
                     ),
                   ),
+              borderRadius: BorderRadius.circular(22),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+                decoration: BoxDecoration(
+                  color: CasinoColors.bgElevated,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color:
+                        isEquipped
+                            ? CasinoColors.gold
+                            : CasinoColors.gold.withValues(alpha: 0.35),
+                    width: isEquipped ? 1.5 : 1,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _DeckFan(skinId: deck.skinId),
+                    const SizedBox(height: 18),
                     Text(
                       name,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: CasinoColors.text,
                         fontWeight: FontWeight.w800,
-                        fontSize: 15,
+                        fontSize: 20,
                       ),
                     ),
-                    const SizedBox(height: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: CasinoColors.surface,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: CasinoColors.goldSoft.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Text(
-                        deck.rarity.name.toUpperCase(),
-                        style: const TextStyle(
-                          color: CasinoColors.goldSoft,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
-                        ),
+                    const SizedBox(height: 6),
+                    Text(
+                      desc,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: CasinoColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        height: 1.35,
                       ),
                     ),
+                    const SizedBox(height: 18),
+                    if (isEquipped)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: CasinoColors.gold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: CasinoColors.gold.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.check_rounded,
+                              size: 16,
+                              color: CasinoColors.gold,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              l10n.equipped,
+                              style: const TextStyle(
+                                color: CasinoColors.gold,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (isOwned)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => _equipDeck(context, ref, deck),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: CasinoColors.check,
+                            foregroundColor: CasinoColors.text,
+                            minimumSize: const Size.fromHeight(48),
+                            elevation: 0,
+                            shape: const StadiumBorder(),
+                          ),
+                          child: Text(
+                            l10n.equip,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => _buyDeck(context, ref, deck),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: CasinoColors.gold,
+                            foregroundColor: CasinoColors.bg,
+                            minimumSize: const Size.fromHeight(48),
+                            elevation: 0,
+                            shape: const StadiumBorder(),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const ChipIcon(size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${deck.chipPrice} · ${l10n.buy}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-              if (isOwned)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: CasinoColors.gold.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: CasinoColors.gold.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.check_rounded,
-                        size: 14,
-                        color: CasinoColors.gold,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        l10n.owned,
-                        style: const TextStyle(
-                          color: CasinoColors.gold,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                ElevatedButton(
-                  onPressed: () => _buyDeck(context, ref, deck),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: CasinoColors.raise,
-                    foregroundColor: CasinoColors.text,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    elevation: 2,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const ChipIcon(size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${deck.chipPrice} · ${l10n.buy}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+            ),
           ),
         );
       },
     );
   }
+}
+
+class _DeckFan extends StatelessWidget {
+  const _DeckFan({required this.skinId});
+
+  final String skinId;
+
+  static const _count = 5;
+  static const _cardWidth = 108.0;
+  static const _cardHeight = _cardWidth * 112 / 78;
+  static const _spread = 16.0;
+  static const _tilt = 0.06;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: _cardHeight + 16,
+      width: _cardWidth + _spread * (_count - 1),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          for (var i = 0; i < _count; i++)
+            Transform.translate(
+              offset: Offset((i - (_count - 1) / 2) * _spread, 0),
+              child: Transform.rotate(
+                angle: (i - (_count - 1) / 2) * _tilt,
+                child: Container(
+                  width: _cardWidth,
+                  height: _cardHeight,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.42),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _DeckBackPreview(skinId: skinId),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeckBackPreview extends StatelessWidget {
+  const _DeckBackPreview({required this.skinId});
+
+  final String skinId;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _DeckBackPreviewPainter(skinId),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+class _DeckBackPreviewPainter extends CustomPainter {
+  _DeckBackPreviewPainter(this.skinId);
+
+  final String skinId;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+    final rect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(size.width * 0.1),
+    );
+    canvas.save();
+    canvas.clipRRect(rect);
+    canvas.scale(size.width);
+    CardBackSkins.byId(skinId).paintUnit(canvas, size.height / size.width);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _DeckBackPreviewPainter oldDelegate) =>
+      oldDelegate.skinId != skinId;
 }

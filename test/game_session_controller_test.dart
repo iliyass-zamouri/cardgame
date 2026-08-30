@@ -106,8 +106,76 @@ void main() {
       'type': 'createRoom',
       'playerId': 'guest-test',
       'displayName': 'Test Ace',
+      'avatarId': 'default',
+      'deckId': 'default',
     });
   });
+
+  test(
+    'syncs player balances when ended snapshot includes rating with balances',
+    () async {
+      final socket = FakeGameSocket();
+      final profileRepo = PlayerProfileRepository.memory(
+        const PlayerProfile(
+          playerId: 'guest-1',
+          name: 'Lucky Ace',
+          username: 'lucky_ace',
+          money: 100,
+          chips: 5,
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          gameSocketFactoryProvider.overrideWithValue(() => socket),
+          sessionAuthRepositoryProvider.overrideWithValue(
+            SessionAuthRepository.memory(SessionAuthStatus.guest),
+          ),
+          playerProfileRepositoryProvider.overrideWithValue(profileRepo),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(gameSessionProvider);
+      await Future<void>.delayed(Duration.zero);
+      await container.read(playerProfileProvider.future);
+
+      socket.emit({
+        'type': 'connected',
+        'protocolVersion': 1,
+        'clientId': 'client-1',
+      });
+      socket.emit({
+        ..._snapshot(),
+        'status': 'ended',
+        'result': {
+          'scores': [5, 8],
+          'winnerIndex': 0,
+          'ratings': [
+            {
+              'playerId': 'guest-1',
+              'result': 'win',
+              'pointsEarned': 30,
+              'eloDelta': 16,
+              'moneyAfter': 150,
+              'chipsAfter': 5,
+            },
+            {
+              'playerId': 'guest-2',
+              'result': 'loss',
+              'pointsEarned': 2,
+              'eloDelta': -16,
+              'moneyAfter': 50,
+              'chipsAfter': 1,
+            },
+          ],
+        },
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final updatedProfile = container.read(playerProfileProvider).value;
+      expect(updatedProfile?.money, 150);
+      expect(updatedProfile?.chips, 5);
+    },
+  );
 
   test('handles tableInvite sending and receiving', () async {
     final socket = FakeGameSocket();

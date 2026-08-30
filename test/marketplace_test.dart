@@ -1,8 +1,11 @@
+import 'dart:ui';
+
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/data/marketplace/marketplace_api.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
+import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -31,11 +34,42 @@ void main() {
       expect(defaultDeck.id, 'default');
       expect(defaultDeck.chipPrice, 0);
       expect(defaultDeck.rarity, DeckRarity.standard);
+      expect(defaultDeck.skinId, 'ornate_blue');
 
-      final gold = DeckCatalog.getById('gold_luxury');
-      expect(gold.chipPrice, 2);
-      expect(gold.rarity, DeckRarity.rare);
+      final onyx = DeckCatalog.getById('black_onyx');
+      expect(onyx.chipPrice, 20);
+      expect(onyx.rarity, DeckRarity.legendary);
+      expect(onyx.skinId, 'black_onyx');
+      expect(DeckCatalog.skinIdFor('black_onyx'), 'black_onyx');
+      expect(DeckCatalog.skinIdFor('unknown'), 'ornate_blue');
+      expect(DeckCatalog.all.map((d) => d.id), ['default', 'black_onyx']);
     });
+
+    test('Onyx Black skin is registered for in-game backs', () {
+      expect(CardBackSkins.byId('black_onyx').id, 'black_onyx');
+      expect(CardBackSkins.byId('ornate_blue').id, 'ornate_blue');
+    });
+
+    test(
+      'CardFaceTheme customizes black onyx card face and preserves classic default',
+      () {
+        final defaultSkin = CardBackSkins.byId('ornate_blue');
+        expect(defaultSkin.faceTheme.blackColor, const Color(0xFF1A1A1A));
+        expect(defaultSkin.faceTheme.redColor, const Color(0xFFA31819));
+
+        final onyxSkin = CardBackSkins.byId('black_onyx');
+        expect(onyxSkin.faceTheme.blackColor, const Color(0xFFF5F5F7));
+        expect(onyxSkin.faceTheme.redColor, const Color(0xFFFF453A));
+        expect(
+          onyxSkin.faceTheme.backgroundGradientColors.length,
+          greaterThanOrEqualTo(2),
+        );
+        expect(
+          onyxSkin.faceTheme.backgroundGradientColors.first,
+          const Color(0xFF16171E),
+        );
+      },
+    );
   });
 
   group('PlayerProfile Currency and Inventory', () {
@@ -46,7 +80,8 @@ void main() {
       expect(profile.ownsAvatar('default'), isTrue);
       expect(profile.ownsAvatar('silver'), isFalse);
       expect(profile.ownsDeck('default'), isTrue);
-      expect(profile.ownsDeck('gold_luxury'), isFalse);
+      expect(profile.ownsDeck('black_onyx'), isFalse);
+      expect(profile.deckId, 'default');
     });
 
     test('PlayerProfile accurately checks owned items', () {
@@ -57,37 +92,44 @@ void main() {
         money: 1000,
         chips: 5,
         ownedAvatars: ['default', 'silver', 'king'],
-        ownedDecks: ['default', 'shadow_neon'],
+        ownedDecks: ['default', 'black_onyx'],
+        deckId: 'black_onyx',
       );
 
       expect(profile.ownsAvatar('silver'), isTrue);
       expect(profile.ownsAvatar('king'), isTrue);
       expect(profile.ownsAvatar('blue'), isFalse);
-      expect(profile.ownsDeck('shadow_neon'), isTrue);
+      expect(profile.ownsDeck('black_onyx'), isTrue);
       expect(profile.ownsDeck('gold_luxury'), isFalse);
+      expect(profile.deckId, 'black_onyx');
     });
 
-    test('PlayerProfileRepository memory stores and restores inventory', () async {
-      final repo = PlayerProfileRepository.memory();
-      const profile = PlayerProfile(
-        playerId: 'p100',
-        name: 'Rich Player',
-        username: 'rich',
-        money: 2500,
-        chips: 8,
-        ownedAvatars: ['default', 'queen'],
-        ownedDecks: ['default', 'gold_luxury'],
-      );
+    test(
+      'PlayerProfileRepository memory stores and restores inventory',
+      () async {
+        final repo = PlayerProfileRepository.memory();
+        const profile = PlayerProfile(
+          playerId: 'p100',
+          name: 'Rich Player',
+          username: 'rich',
+          money: 2500,
+          chips: 8,
+          ownedAvatars: ['default', 'queen'],
+          ownedDecks: ['default', 'black_onyx'],
+          deckId: 'black_onyx',
+        );
 
-      await repo.save(profile);
-      final loaded = repo.load();
+        await repo.save(profile);
+        final loaded = repo.load();
 
-      expect(loaded.playerId, 'p100');
-      expect(loaded.money, 2500);
-      expect(loaded.chips, 8);
-      expect(loaded.ownsAvatar('queen'), isTrue);
-      expect(loaded.ownsDeck('gold_luxury'), isTrue);
-    });
+        expect(loaded.playerId, 'p100');
+        expect(loaded.money, 2500);
+        expect(loaded.chips, 8);
+        expect(loaded.ownsAvatar('queen'), isTrue);
+        expect(loaded.ownsDeck('black_onyx'), isTrue);
+        expect(loaded.deckId, 'black_onyx');
+      },
+    );
   });
 
   group('Marketplace API Models', () {
@@ -96,6 +138,7 @@ void main() {
         'playerId': 'user-123',
         'money': 1500,
         'chips': 3,
+        'adRewardMoney': 100,
         'ownedAvatars': ['default', 'blue'],
         'ownedDecks': ['default'],
       };
@@ -104,6 +147,7 @@ void main() {
       expect(inv.playerId, 'user-123');
       expect(inv.money, 1500);
       expect(inv.chips, 3);
+      expect(inv.adRewardMoney, 100);
       expect(inv.ownedAvatars, ['default', 'blue']);
       expect(inv.ownedDecks, ['default']);
     });
@@ -121,10 +165,14 @@ void main() {
         'stakePerPlayer': 50,
         'potAmount': 100,
         'deckCount': 20,
+        'discardTop': 'D10',
+        'discardRecent': ['D10'],
+        'discardDeckId': 'black_onyx',
         'turn': 'you',
         'you': {
           'connected': true,
           'displayName': 'Alice',
+          'deckId': 'black_onyx',
           'cards': [],
         },
       };
@@ -134,6 +182,21 @@ void main() {
       expect(snapshot.stakePerPlayer, 50);
       expect(snapshot.potAmount, 100);
       expect(snapshot.matchType, 'random');
+      expect(snapshot.you.deckId, 'black_onyx');
+      expect(snapshot.discardDeckId, 'black_onyx');
+    });
+
+    test('PlayerResultRating parses moneyAfter and chipsAfter', () {
+      final rating = PlayerResultRating.fromJson({
+        'playerId': 'player-1',
+        'result': 'win',
+        'pointsEarned': 30,
+        'eloDelta': 16,
+        'moneyAfter': 1050,
+        'chipsAfter': 10,
+      });
+      expect(rating.moneyAfter, 1050);
+      expect(rating.chipsAfter, 10);
     });
   });
 }

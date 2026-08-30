@@ -806,16 +806,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get classicDeckDesc => 'أوراق كازينو قياسية';
 
   @override
-  String get goldLuxuryDeck => 'الذهب الفاخر';
+  String get onyxBlackDeck => 'أونيكس أسود';
 
   @override
-  String get goldLuxuryDeckDesc => 'حزمة أوراق ذهبية فاخرة';
-
-  @override
-  String get shadowNeonDeck => 'نيون الظل';
-
-  @override
-  String get shadowNeonDeckDesc => 'حزمة أوراق سايبربانك مشعة';
+  String get onyxBlackDeckDesc => 'ظهر أسود أونيكس بزخارف ذهبية';
 
   @override
   String get price => 'السعر';

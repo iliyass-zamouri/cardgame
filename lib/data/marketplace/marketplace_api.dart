@@ -17,6 +17,7 @@ class PlayerInventory {
     required this.playerId,
     required this.money,
     required this.chips,
+    this.adRewardMoney = 50,
     required this.ownedAvatars,
     required this.ownedDecks,
   });
@@ -24,6 +25,7 @@ class PlayerInventory {
   final String playerId;
   final int money;
   final int chips;
+  final int adRewardMoney;
   final List<String> ownedAvatars;
   final List<String> ownedDecks;
 
@@ -32,11 +34,14 @@ class PlayerInventory {
       playerId: json['playerId'] as String? ?? '',
       money: (json['money'] as num?)?.toInt() ?? 0,
       chips: (json['chips'] as num?)?.toInt() ?? 0,
-      ownedAvatars: (json['ownedAvatars'] as List<dynamic>?)
+      adRewardMoney: (json['adRewardMoney'] as num?)?.toInt() ?? 50,
+      ownedAvatars:
+          (json['ownedAvatars'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const ['default'],
-      ownedDecks: (json['ownedDecks'] as List<dynamic>?)
+      ownedDecks:
+          (json['ownedDecks'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const ['default'],
@@ -46,14 +51,15 @@ class PlayerInventory {
 
 class MarketplaceApi {
   MarketplaceApi({required this.baseUrl, http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   final String baseUrl;
   final http.Client _client;
 
   Future<PlayerInventory> getInventory(String playerId) async {
-    final uri = Uri.parse('$baseUrl/marketplace/inventory')
-        .replace(queryParameters: {'playerId': playerId});
+    final uri = Uri.parse(
+      '$baseUrl/marketplace/inventory',
+    ).replace(queryParameters: {'playerId': playerId});
     final response = await _client.get(uri).timeout(const Duration(seconds: 8));
     final body = _decodeMap(response);
     return PlayerInventory.fromJson(body);
@@ -112,6 +118,26 @@ class MarketplaceApi {
           body: jsonEncode({'playerId': playerId}),
         )
         .timeout(const Duration(seconds: 8));
+    return _decodeMap(response);
+  }
+
+  Future<Map<String, dynamic>> verifyIap({
+    required String playerId,
+    required String productId,
+    required String transactionId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/economy/iap/verify');
+    final response = await _client
+        .post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'playerId': playerId,
+            'productId': productId,
+            'transactionId': transactionId,
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
     return _decodeMap(response);
   }
 

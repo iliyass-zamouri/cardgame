@@ -7,8 +7,10 @@ class PlayerProfile {
     required this.username,
     this.authType = 'guest',
     this.avatarId = 'default',
+    this.deckId = 'default',
     this.money = 500,
     this.chips = 1,
+    this.adRewardMoney = 50,
     this.ownedAvatars = const ['default'],
     this.ownedDecks = const ['default'],
   });
@@ -18,8 +20,10 @@ class PlayerProfile {
   final String username;
   final String authType;
   final String avatarId;
+  final String deckId;
   final int money;
   final int chips;
+  final int adRewardMoney;
   final List<String> ownedAvatars;
   final List<String> ownedDecks;
 
@@ -29,8 +33,10 @@ class PlayerProfile {
     username: 'player',
     authType: 'guest',
     avatarId: 'default',
+    deckId: 'default',
     money: 500,
     chips: 1,
+    adRewardMoney: 50,
     ownedAvatars: ['default'],
     ownedDecks: ['default'],
   );
@@ -53,8 +59,10 @@ class PlayerProfile {
     String? username,
     String? authType,
     String? avatarId,
+    String? deckId,
     int? money,
     int? chips,
+    int? adRewardMoney,
     List<String>? ownedAvatars,
     List<String>? ownedDecks,
   }) {
@@ -64,8 +72,10 @@ class PlayerProfile {
       username: username ?? this.username,
       authType: authType ?? this.authType,
       avatarId: avatarId ?? this.avatarId,
+      deckId: deckId ?? this.deckId,
       money: money ?? this.money,
       chips: chips ?? this.chips,
+      adRewardMoney: adRewardMoney ?? this.adRewardMoney,
       ownedAvatars: ownedAvatars ?? this.ownedAvatars,
       ownedDecks: ownedDecks ?? this.ownedDecks,
     );
@@ -81,8 +91,10 @@ class PlayerProfileRepository {
   static const _keyUsername = 'username';
   static const _keyAuthType = 'authType';
   static const _keyAvatarId = 'avatarId';
+  static const _keyDeckId = 'deckId';
   static const _keyMoney = 'money';
   static const _keyChips = 'chips';
+  static const _keyAdRewardMoney = 'adRewardMoney';
   static const _keyOwnedAvatars = 'ownedAvatars';
   static const _keyOwnedDecks = 'ownedDecks';
 
@@ -105,11 +117,13 @@ class PlayerProfileRepository {
     if (_memory != null) return _memory!;
     final playerId = _box!.get(_keyPlayerId) as String? ?? '';
     if (playerId.isEmpty) return PlayerProfile.empty;
-    final storedAvatars = (_box.get(_keyOwnedAvatars) as List<dynamic>?)
+    final storedAvatars =
+        (_box.get(_keyOwnedAvatars) as List<dynamic>?)
             ?.map((e) => e.toString())
             .toList() ??
         const ['default'];
-    final storedDecks = (_box.get(_keyOwnedDecks) as List<dynamic>?)
+    final storedDecks =
+        (_box.get(_keyOwnedDecks) as List<dynamic>?)
             ?.map((e) => e.toString())
             .toList() ??
         const ['default'];
@@ -120,8 +134,10 @@ class PlayerProfileRepository {
       username: _box.get(_keyUsername) as String? ?? 'player',
       authType: _box.get(_keyAuthType) as String? ?? 'guest',
       avatarId: _box.get(_keyAvatarId) as String? ?? 'default',
+      deckId: _box.get(_keyDeckId) as String? ?? 'default',
       money: (_box.get(_keyMoney) as num?)?.toInt() ?? 500,
       chips: (_box.get(_keyChips) as num?)?.toInt() ?? 1,
+      adRewardMoney: (_box.get(_keyAdRewardMoney) as num?)?.toInt() ?? 50,
       ownedAvatars: storedAvatars.isEmpty ? const ['default'] : storedAvatars,
       ownedDecks: storedDecks.isEmpty ? const ['default'] : storedDecks,
     );
@@ -137,8 +153,10 @@ class PlayerProfileRepository {
     await _box.put(_keyUsername, profile.username);
     await _box.put(_keyAuthType, profile.authType);
     await _box.put(_keyAvatarId, profile.avatarId);
+    await _box.put(_keyDeckId, profile.deckId);
     await _box.put(_keyMoney, profile.money);
     await _box.put(_keyChips, profile.chips);
+    await _box.put(_keyAdRewardMoney, profile.adRewardMoney);
     await _box.put(_keyOwnedAvatars, profile.ownedAvatars);
     await _box.put(_keyOwnedDecks, profile.ownedDecks);
   }

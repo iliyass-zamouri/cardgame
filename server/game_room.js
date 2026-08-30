@@ -36,6 +36,7 @@ class GameRoom {
     this.players = [];
     this.deck = [];
     this.discard = [];
+    this.discardDeckId = null;
     this.turnIndex = null;
     this.result = null;
     this.lastAction = null;
@@ -45,13 +46,14 @@ class GameRoom {
     this.activeQueenAbility = null;
   }
 
-  addPlayer(clientId, { playerId = null, displayName = null, avatarId = 'default' } = {}) {
+  addPlayer(clientId, { playerId = null, displayName = null, avatarId = 'default', deckId = 'default' } = {}) {
     const existing = this.players.find((player) => player.id === clientId);
     if (existing) {
       existing.connected = true;
       if (playerId) existing.playerId = playerId;
       if (displayName) existing.displayName = displayName;
       if (avatarId) existing.avatarId = avatarId;
+      if (deckId) existing.deckId = deckId;
       this.#changed();
       return existing;
     }
@@ -63,6 +65,7 @@ class GameRoom {
       playerId: playerId || null,
       displayName: displayName || 'Player',
       avatarId: avatarId || 'default',
+      deckId: deckId || 'default',
       connected: true,
       cards: [],
       handCard: null,
@@ -95,6 +98,7 @@ class GameRoom {
     this.rankedSaved = false;
     this.deck = [];
     this.discard = [];
+    this.discardDeckId = null;
     this.turnIndex = null;
     this.result = null;
     this.lastAction = null;
@@ -140,6 +144,7 @@ class GameRoom {
     this.#clearTimers();
     this.deck = shuffle(createDeck(), this.random);
     this.discard = [];
+    this.discardDeckId = null;
     this.result = null;
     this.lastAction = null;
     this.discardSource = null;
@@ -353,6 +358,7 @@ class GameRoom {
       if (cardValue(selected) === cardValue(this.discard.at(-1))) {
         player.cards.splice(index, 1);
         this.discard.push(selected);
+        this.discardDeckId = player.deckId || 'default';
         this.discardSource = 'hand';
         this.lastAction = {
           playerId: clientId,
@@ -379,6 +385,7 @@ class GameRoom {
       const drawnTag = player.handCard;
       player.cards.splice(index, 1);
       this.discard.push(selected, drawnTag);
+      this.discardDeckId = player.deckId || 'default';
       this.discardSource = 'hand';
       this.lastAction = {
         playerId: clientId,
@@ -391,6 +398,7 @@ class GameRoom {
       const drawnTag = player.handCard;
       player.cards[index] = drawnTag;
       this.discard.push(selected);
+      this.discardDeckId = player.deckId || 'default';
       this.discardSource = 'hand';
       this.lastAction = {
         playerId: clientId,
@@ -442,6 +450,7 @@ class GameRoom {
       deckCount: this.deck.length,
       discardTop: this.discard.at(-1) ?? null,
       discardRecent: this.discard.slice(-2),
+      discardDeckId: this.discardDeckId ?? null,
       turn: this.turnIndex === null
         ? null
         : this.turnIndex === viewerIndex ? 'you' : 'opponent',
@@ -483,6 +492,7 @@ class GameRoom {
       connected: player.connected,
       displayName: player.displayName || 'Player',
       avatarId: player.avatarId || 'default',
+      deckId: player.deckId || 'default',
       playerId: player.playerId || null,
       seriesWins: this.seriesWins[seatIndex] ?? 0,
       lobbyReady: Boolean(this.lobbyReady[seatIndex]),
@@ -656,6 +666,7 @@ class GameRoom {
       cardTag,
     };
     this.discardSource = 'drawn';
+    this.discardDeckId = player.deckId || 'default';
     this.discard.push(cardTag);
     player.handCard = null;
     player.jackPeekAvailable = false;

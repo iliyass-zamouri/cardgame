@@ -22,6 +22,7 @@ void main() {
       onTap: null,
       animateDeal: false,
       peekIndices: const {},
+      backSkinId: 'ornate_blue',
     );
 
     final discarded = hand.cardAt(1)!;
@@ -37,6 +38,7 @@ void main() {
       onTap: null,
       animateDeal: false,
       peekIndices: const {},
+      backSkinId: 'ornate_blue',
     );
 
     final kept = hand.cards;

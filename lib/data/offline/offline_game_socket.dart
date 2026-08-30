@@ -14,6 +14,7 @@ class OfflineGameSocket implements GameSocket {
   OfflineGameSocket({
     required this.humanDisplayName,
     this.humanPlayerId,
+    this.humanDeckId = 'default',
     this.robotDisplayName = 'Robot',
     OfflineGameRoom Function(void Function(OfflineGameRoom) onChange)?
     roomFactory,
@@ -27,6 +28,7 @@ class OfflineGameSocket implements GameSocket {
       kOfflineHumanId,
       playerId: humanPlayerId,
       displayName: humanDisplayName,
+      deckId: humanDeckId,
     );
     _room.addPlayer(
       kOfflineRobotId,
@@ -46,6 +48,7 @@ class OfflineGameSocket implements GameSocket {
 
   final String humanDisplayName;
   final String? humanPlayerId;
+  final String humanDeckId;
   final String robotDisplayName;
 
   late final StreamController<String> _controller;

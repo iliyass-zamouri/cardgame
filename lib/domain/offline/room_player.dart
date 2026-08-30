@@ -2,6 +2,8 @@ class RoomPlayer {
   final String id;
   String? playerId;
   String displayName;
+  String avatarId;
+  String deckId;
   bool connected;
   List<String> cards;
   String? handCard;
@@ -14,6 +16,8 @@ class RoomPlayer {
     required this.id,
     this.playerId,
     this.displayName = 'Player',
+    this.avatarId = 'default',
+    this.deckId = 'default',
     this.connected = true,
     List<String>? cards,
     this.handCard,
