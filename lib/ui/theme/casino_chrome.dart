@@ -370,6 +370,47 @@ class CasinoPlayerSeat extends StatelessWidget {
   }
 }
 
+/// Single player frosted glass HUD pill.
+class CasinoPlayerPill extends StatelessWidget {
+  const CasinoPlayerPill({
+    super.key,
+    required this.name,
+    required this.connected,
+    required this.active,
+    this.avatarId,
+    this.points,
+    this.height = 38,
+  });
+
+  final String name;
+  final bool connected;
+  final bool active;
+  final String? avatarId;
+  final int? points;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    // return CasinoGlass(
+    //   shape: const StadiumBorder(),
+    //   child: SizedBox(
+    //     height: height,
+    //     child: Padding(
+    //       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+    return CasinoPlayerSeat(
+      name: name,
+      avatarId: avatarId,
+      connected: connected,
+      active: active,
+      points: points,
+      avatarSize: 34,
+      // ),
+      //   ),
+      // ),
+    );
+  }
+}
+
 /// VS players pill (frosted glass HUD).
 class CasinoMenuPlayersPill extends StatelessWidget {
   const CasinoMenuPlayersPill({
