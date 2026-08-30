@@ -1402,6 +1402,30 @@ abstract class AppLocalizations {
   /// **'Joker Girl'**
   String get jokerGirlAvatar;
 
+  /// No description provided for @violetJokerGirlAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Violet Joker'**
+  String get violetJokerGirlAvatar;
+
+  /// No description provided for @violetQueenAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Violet Queen'**
+  String get violetQueenAvatar;
+
+  /// No description provided for @queenOfHeartAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Queen of Hearts'**
+  String get queenOfHeartAvatar;
+
+  /// No description provided for @goldenKingAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Golden King'**
+  String get goldenKingAvatar;
+
   /// No description provided for @queenAvatar.
   ///
   /// In en, this message translates to:

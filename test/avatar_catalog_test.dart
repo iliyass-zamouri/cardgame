@@ -15,7 +15,17 @@ void main() {
     test('getById returns matching avatar or fallback to default', () {
       expect(AvatarCatalog.getById('default').id, 'default');
       expect(AvatarCatalog.getById('blue').id, 'blue');
-      expect(AvatarCatalog.getById('queen').id, 'queen');
+      expect(AvatarCatalog.getById('violet-queen').id, 'violet-queen');
+      expect(AvatarCatalog.getById('queen').id, 'violet-queen');
+      expect(AvatarCatalog.getById('golden-king').id, 'golden-king');
+      expect(AvatarCatalog.getById('king').id, 'golden-king');
+      expect(AvatarCatalog.getById('joker-girl').id, 'joker-girl');
+      expect(AvatarCatalog.getById('joker_girl').id, 'joker-girl');
+      expect(AvatarCatalog.getById('queen-of-heart').id, 'queen-of-heart');
+      expect(
+        AvatarCatalog.getById('violet-joker-girl').id,
+        'violet-joker-girl',
+      );
       expect(AvatarCatalog.getById('non_existent').id, 'default');
       expect(AvatarCatalog.getById(null).id, 'default');
     });

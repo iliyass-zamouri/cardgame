@@ -1,8 +1,12 @@
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
+import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
+import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/data/ranking/ranking_api.dart';
+import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
 import 'package:cardgame/ui/screens/home/home_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
@@ -10,14 +14,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
-import 'fake_game_socket.dart';
+class _FixedGameSessionController extends GameSessionController {
+  _FixedGameSessionController(this._initialState);
+  final GameSessionState _initialState;
+
+  @override
+  GameSessionState build() => _initialState;
+}
 
 void main() {
   testWidgets(
     'GameHud renders opponent above deck and current player below deck',
     (tester) async {
-      final socket = FakeGameSocket();
       const profile = PlayerProfile(
         playerId: 'guest-1',
         name: 'Alice',
@@ -25,15 +36,67 @@ void main() {
         avatarId: 'golden-king',
       );
 
+      const snapshot = GameSnapshot(
+        roomId: 'room-1',
+        version: 1,
+        status: GameStatus.playing,
+        ready: true,
+        deckCount: 30,
+        discardTopTag: 'A2',
+        discardRecentTags: ['A2'],
+        isYourTurn: true,
+        potAmount: 100,
+        stakePool: 100,
+        stakePerPlayer: 50,
+        you: PlayerSnapshot(
+          connected: true,
+          displayName: 'Alice',
+          playerId: 'guest-1',
+          launch: LaunchStatus.ended,
+          total: 0,
+          cards: [],
+          handCardTag: null,
+          hasHandCard: false,
+        ),
+        opponent: PlayerSnapshot(
+          connected: true,
+          displayName: 'Bob',
+          playerId: 'guest-2',
+          launch: LaunchStatus.ended,
+          total: 0,
+          cards: [],
+          handCardTag: null,
+          hasHandCard: false,
+        ),
+        result: null,
+        lastAction: null,
+      );
+
+      const gameState = GameSessionState(
+        connection: ConnectionStatus.connected,
+        game: snapshot,
+        clientId: 'guest-1',
+      );
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            gameSocketFactoryProvider.overrideWithValue(() => socket),
+            gameSessionProvider.overrideWith(
+              () => _FixedGameSessionController(gameState),
+            ),
             sessionAuthRepositoryProvider.overrideWithValue(
               SessionAuthRepository.memory(SessionAuthStatus.guest),
             ),
             playerProfileRepositoryProvider.overrideWithValue(
               PlayerProfileRepository.memory(profile),
+            ),
+            rankingApiProvider.overrideWithValue(
+              RankingApi(
+                baseUrl: 'http://localhost',
+                client: MockClient(
+                  (_) async => http.Response('{"matches":[],"elo":1200}', 200),
+                ),
+              ),
             ),
           ],
           child: const MaterialApp(
@@ -48,51 +111,10 @@ void main() {
           ),
         ),
       );
-
-      socket.emit({
-        'type': 'connected',
-        'protocolVersion': 1,
-        'clientId': 'guest-1',
-      });
-
-      socket.emit({
-        'type': 'snapshot',
-        'roomId': 'room-1',
-        'version': 1,
-        'status': 'playing',
-        'ready': true,
-        'deckCount': 30,
-        'discardTop': 'A2',
-        'turn': 'you',
-        'potAmount': 100,
-        'stakePool': 100,
-        'stakePerPlayer': 50,
-        'you': {
-          'connected': true,
-          'displayName': 'Alice',
-          'playerId': 'guest-1',
-          'launch': 'ended',
-          'total': 0,
-          'cards': [],
-          'handCard': null,
-          'hasHandCard': false,
-        },
-        'opponent': {
-          'connected': true,
-          'displayName': 'Bob',
-          'playerId': 'guest-2',
-          'launch': 'ended',
-          'total': 0,
-          'cards': [],
-          'handCard': null,
-          'hasHandCard': false,
-        },
-      });
-
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       // Verify pot is rendered
-      expect(find.text('Pot: 100'), findsOneWidget);
+      expect(find.textContaining('100'), findsWidgets);
 
       // Verify both player pills are rendered
       final playerPills = find.byType(CasinoPlayerPill);

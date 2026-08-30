@@ -223,7 +223,7 @@ class CardGame extends FlameGame {
     _opponentHand.position = Vector2(size.x * 0.5, size.y * 0.25);
     _localHand.position = Vector2(size.x * 0.5, size.y * 0.75);
     _table.position = Vector2(size.x * 0.5, size.y * 0.5);
-    _localDrawn.position = Vector2(size.x * 0.5, size.y - 92);
+    _localDrawn.position = Vector2(56, size.y - 92);
     _remoteDrawn.position = Vector2(size.x * 0.5, 52);
     _localShuffleLabel.position = Vector2(size.x * 0.5, size.y * 0.75 - 90);
     _opponentShuffleLabel.position = Vector2(size.x * 0.5, size.y * 0.25 + 90);

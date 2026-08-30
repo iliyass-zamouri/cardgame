@@ -66,6 +66,14 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
         return l10n.silverAvatar;
       case 'jokerGirlAvatar':
         return l10n.jokerGirlAvatar;
+      case 'violetJokerGirlAvatar':
+        return l10n.violetJokerGirlAvatar;
+      case 'violetQueenAvatar':
+        return l10n.violetQueenAvatar;
+      case 'queenOfHeartAvatar':
+        return l10n.queenOfHeartAvatar;
+      case 'goldenKingAvatar':
+        return l10n.goldenKingAvatar;
       case 'queenAvatar':
         return l10n.queenAvatar;
       case 'kingAvatar':

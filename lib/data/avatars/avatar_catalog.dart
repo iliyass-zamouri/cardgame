@@ -76,30 +76,46 @@ class AvatarCatalog {
       id: 'silver',
       assetPath: 'assets/avatars/silver.png',
       nameKey: 'silverAvatar',
-      requiredLevel: 9,
+      requiredLevel: 8,
       currency: CurrencyType.chips,
       price: 1,
     ),
     AvatarItem(
-      id: 'joker_girl',
+      id: 'joker-girl',
       assetPath: 'assets/avatars/joker-girl.png',
       nameKey: 'jokerGirlAvatar',
+      requiredLevel: 10,
+      currency: CurrencyType.chips,
+      price: 2,
+    ),
+    AvatarItem(
+      id: 'violet-joker-girl',
+      assetPath: 'assets/avatars/violet-joker-girl.png',
+      nameKey: 'violetJokerGirlAvatar',
       requiredLevel: 12,
       currency: CurrencyType.chips,
       price: 2,
     ),
     AvatarItem(
-      id: 'queen',
-      assetPath: 'assets/avatars/queen.png',
-      nameKey: 'queenAvatar',
-      requiredLevel: 16,
+      id: 'violet-queen',
+      assetPath: 'assets/avatars/violet-queen.png',
+      nameKey: 'violetQueenAvatar',
+      requiredLevel: 15,
       currency: CurrencyType.chips,
       price: 3,
     ),
     AvatarItem(
-      id: 'king',
-      assetPath: 'assets/avatars/king.png',
-      nameKey: 'kingAvatar',
+      id: 'queen-of-heart',
+      assetPath: 'assets/avatars/queen-of-heart.png',
+      nameKey: 'queenOfHeartAvatar',
+      requiredLevel: 18,
+      currency: CurrencyType.chips,
+      price: 4,
+    ),
+    AvatarItem(
+      id: 'golden-king',
+      assetPath: 'assets/avatars/golden-king.png',
+      nameKey: 'goldenKingAvatar',
       requiredLevel: 20,
       currency: CurrencyType.chips,
       price: 5,
@@ -108,8 +124,16 @@ class AvatarCatalog {
 
   static AvatarItem getById(String? id) {
     if (id == null || id.isEmpty) return defaultAvatar;
+    final normalized = switch (id) {
+      'joker_girl' => 'joker-girl',
+      'violet_joker_girl' => 'violet-joker-girl',
+      'violet_queen' || 'queen' => 'violet-queen',
+      'queen_of_heart' || 'queen-of-hearts' => 'queen-of-heart',
+      'golden_king' || 'king' => 'golden-king',
+      _ => id,
+    };
     return all.firstWhere(
-      (avatar) => avatar.id == id,
+      (avatar) => avatar.id == normalized || avatar.id == id,
       orElse: () => defaultAvatar,
     );
   }

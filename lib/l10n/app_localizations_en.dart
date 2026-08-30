@@ -710,6 +710,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get jokerGirlAvatar => 'Joker Girl';
 
   @override
+  String get violetJokerGirlAvatar => 'Violet Joker';
+
+  @override
+  String get violetQueenAvatar => 'Violet Queen';
+
+  @override
+  String get queenOfHeartAvatar => 'Queen of Hearts';
+
+  @override
+  String get goldenKingAvatar => 'Golden King';
+
+  @override
   String get queenAvatar => 'Queen';
 
   @override

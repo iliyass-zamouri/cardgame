@@ -6,6 +6,19 @@ const STARTING_CHIPS = 1;
 const MONEY_PER_CHIP = 1000;
 const AD_REWARD_MONEY = 50;
 
+const AVATAR_CATALOG = [
+  { id: 'default', name: 'Default', price: 0, currency: 'money', requiredLevel: 1 },
+  { id: 'blue', name: 'Sapphire', price: 200, currency: 'money', requiredLevel: 2 },
+  { id: 'red', name: 'Ruby', price: 400, currency: 'money', requiredLevel: 4 },
+  { id: 'bronze', name: 'Bronze', price: 600, currency: 'money', requiredLevel: 6 },
+  { id: 'silver', name: 'Silver', price: 1, currency: 'chips', requiredLevel: 8 },
+  { id: 'joker-girl', name: 'Joker Girl', price: 2, currency: 'chips', requiredLevel: 10 },
+  { id: 'violet-joker-girl', name: 'Violet Joker', price: 2, currency: 'chips', requiredLevel: 12 },
+  { id: 'violet-queen', name: 'Violet Queen', price: 3, currency: 'chips', requiredLevel: 15 },
+  { id: 'queen-of-heart', name: 'Queen of Hearts', price: 4, currency: 'chips', requiredLevel: 18 },
+  { id: 'golden-king', name: 'Golden King', price: 5, currency: 'chips', requiredLevel: 20 },
+];
+
 async function addColumnIfMissing(conn, table, column, definition) {
   const [rows] = await conn.query(
     `SELECT 1 AS ok
@@ -383,6 +396,7 @@ module.exports = {
   STARTING_CHIPS,
   MONEY_PER_CHIP,
   AD_REWARD_MONEY,
+  AVATAR_CATALOG,
   ensureMarketplaceSchema,
   getPlayerInventory,
   exchangeCurrency,

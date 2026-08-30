@@ -16,6 +16,7 @@ import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
+import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -992,7 +993,7 @@ class GameHud extends ConsumerWidget {
               ),
               Positioned(
                 left: 12,
-                bottom: height * 0.25 + 64,
+                top: height * 0.75 - 102,
                 child: CasinoPlayerPill(
                   name: game.you.displayName,
                   connected: game.you.connected,
@@ -1108,10 +1109,13 @@ class GameOverPanel extends ConsumerWidget {
     final game = ref.watch(gameSessionProvider.select((state) => state.game));
     if (game == null) return const SizedBox.shrink();
     final notifier = ref.read(gameSessionProvider.notifier);
+    final youAvatarId =
+        ref.watch(playerProfileProvider).asData?.value.avatarId ?? 'default';
     final yourTotal = game.you.total;
     final opponentTotal = game.opponent?.total;
     final youWin = opponentTotal != null && yourTotal < opponentTotal;
     final theyWin = opponentTotal != null && yourTotal > opponentTotal;
+    final isDraw = opponentTotal != null && yourTotal == opponentTotal;
     final yourName = game.you.displayName;
     final opponentName = game.opponent?.displayName ?? l10n.opponent;
     final yourSeries = game.you.seriesWins;
@@ -1126,6 +1130,15 @@ class GameOverPanel extends ConsumerWidget {
             : theyWin
             ? l10n.defeat
             : l10n.draw;
+
+    final youId = game.you.playerId ?? '';
+    final ratings = game.result?.ratings;
+    final youRating = _findRating(ratings, youId);
+
+    final youXp =
+        youRating?.pointsEarned ??
+        _calculateXp(youWin, isDraw, yourTotal, opponentTotal);
+    final youEloDelta = youRating?.eloDelta ?? _calculateElo(youWin, isDraw);
 
     return Center(
       child: Container(
@@ -1160,7 +1173,7 @@ class GameOverPanel extends ConsumerWidget {
                 letterSpacing: 1.2,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 40),
             Row(
               children: [
                 Expanded(
@@ -1169,19 +1182,63 @@ class GameOverPanel extends ConsumerWidget {
                     score: yourTotal,
                     connected: game.you.connected,
                     winner: youWin,
+                    avatarId: youAvatarId,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    l10n.vs,
-                    style: const TextStyle(
-                      color: CasinoColors.goldSoft,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
+                Column(
+                  children: [
+                    if (game.potAmount > 0) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: CasinoColors.surfaceHi,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              youWin
+                                  ? '${game.potAmount}'
+                                  : theyWin
+                                  ? '${game.potAmount}'
+                                  : '${game.potAmount} (${l10n.draw})',
+                              style: TextStyle(
+                                color:
+                                    youWin
+                                        ? CasinoColors.gold
+                                        : theyWin
+                                        ? CasinoColors.foldHi
+                                        : CasinoColors.textMuted,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 24,
+                                height: 0.8,
+                              ),
+                            ),
+                            const CashIcon(size: 24),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ] else
+                      const SizedBox(height: 50),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        l10n.vs,
+                        style: const TextStyle(
+                          color: CasinoColors.goldSoft,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
                 Expanded(
                   child: _ResultSeat(
@@ -1189,7 +1246,46 @@ class GameOverPanel extends ConsumerWidget {
                     score: opponentTotal ?? 0,
                     connected: game.opponent?.connected ?? false,
                     winner: theyWin,
+                    avatarId: 'default',
                     missing: opponentTotal == null,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 40),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '+$youXp ${l10n.xp}',
+                  style: const TextStyle(
+                    color: CasinoColors.gold,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    '•',
+                    style: TextStyle(
+                      color: CasinoColors.textMuted,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${youEloDelta >= 0 ? '+$youEloDelta' : '$youEloDelta'} ${l10n.elo}',
+                  style: TextStyle(
+                    color:
+                        youEloDelta >= 0
+                            ? const Color(0xFF7ED50E)
+                            : CasinoColors.foldHi,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
                   ),
                 ),
               ],
@@ -1348,12 +1444,34 @@ class _GameOverHeadlineState extends State<_GameOverHeadline>
   }
 }
 
+int _calculateXp(bool isWin, bool isDraw, int score, int? oppScore) {
+  if (isDraw) return 8;
+  if (!isWin) return 2;
+  final diff = oppScore != null ? (oppScore - score).clamp(0, 100) : 0;
+  final bonus = (diff * 1.5).round().clamp(0, 15);
+  return 20 + bonus;
+}
+
+int _calculateElo(bool isWin, bool isDraw) {
+  if (isDraw) return 0;
+  return isWin ? 16 : -16;
+}
+
+PlayerResultRating? _findRating(List<PlayerResultRating>? ratings, String id) {
+  if (ratings == null || id.isEmpty) return null;
+  for (final r in ratings) {
+    if (r.playerId == id) return r;
+  }
+  return null;
+}
+
 class _ResultSeat extends StatelessWidget {
   const _ResultSeat({
     required this.name,
     required this.score,
     required this.connected,
     required this.winner,
+    this.avatarId,
     this.missing = false,
   });
 
@@ -1361,6 +1479,7 @@ class _ResultSeat extends StatelessWidget {
   final int score;
   final bool connected;
   final bool winner;
+  final String? avatarId;
   final bool missing;
 
   @override
@@ -1380,46 +1499,15 @@ class _ResultSeat extends StatelessWidget {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                Container(
-                  width: avatarSize,
-                  height: avatarSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: CasinoColors.bgElevated,
-                    border: Border.all(color: ring, width: winner ? 2.5 : 1.5),
-                    boxShadow:
-                        winner
-                            ? [
-                              BoxShadow(
-                                color: CasinoColors.gold.withValues(
-                                  alpha: 0.35,
-                                ),
-                                blurRadius: 12,
-                              ),
-                            ]
-                            : null,
-                  ),
-                  child: Icon(
-                    Icons.person,
-                    size: avatarSize * 0.5,
-                    color: CasinoColors.text.withValues(alpha: 0.9),
-                  ),
-                ),
-                Positioned(
-                  right: -1,
-                  bottom: -1,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color:
-                          connected
-                              ? const Color(0xFF7ED50E)
-                              : CasinoColors.foldHi,
-                      border: Border.all(color: CasinoColors.surface, width: 2),
-                    ),
-                  ),
+                PlayerAvatar(
+                  avatarId: avatarId ?? 'default',
+                  size: avatarSize,
+                  borderWidth: winner ? 0.5 : 0.0,
+                  borderColor: ring,
+                  showGlow: winner,
+                  glowColor: CasinoColors.gold.withValues(alpha: 0.35),
+                  statusDotColor:
+                      connected ? const Color(0xFF7ED50E) : CasinoColors.foldHi,
                 ),
                 if (winner)
                   Positioned(

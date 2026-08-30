@@ -704,6 +704,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get jokerGirlAvatar => 'فتاة الجوكر';
 
   @override
+  String get violetJokerGirlAvatar => 'الجوكر البنفسجي';
+
+  @override
+  String get violetQueenAvatar => 'الملكة البنفسجية';
+
+  @override
+  String get queenOfHeartAvatar => 'ملكة القلوب';
+
+  @override
+  String get goldenKingAvatar => 'الملك الذهبي';
+
+  @override
   String get queenAvatar => 'الملكة';
 
   @override

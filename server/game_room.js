@@ -45,12 +45,13 @@ class GameRoom {
     this.activeQueenAbility = null;
   }
 
-  addPlayer(clientId, { playerId = null, displayName = null } = {}) {
+  addPlayer(clientId, { playerId = null, displayName = null, avatarId = 'default' } = {}) {
     const existing = this.players.find((player) => player.id === clientId);
     if (existing) {
       existing.connected = true;
       if (playerId) existing.playerId = playerId;
       if (displayName) existing.displayName = displayName;
+      if (avatarId) existing.avatarId = avatarId;
       this.#changed();
       return existing;
     }
@@ -61,6 +62,7 @@ class GameRoom {
       id: clientId,
       playerId: playerId || null,
       displayName: displayName || 'Player',
+      avatarId: avatarId || 'default',
       connected: true,
       cards: [],
       handCard: null,
@@ -480,6 +482,7 @@ class GameRoom {
     return {
       connected: player.connected,
       displayName: player.displayName || 'Player',
+      avatarId: player.avatarId || 'default',
       playerId: player.playerId || null,
       seriesWins: this.seriesWins[seatIndex] ?? 0,
       lobbyReady: Boolean(this.lobbyReady[seatIndex]),
@@ -560,6 +563,15 @@ class GameRoom {
     };
     Promise.resolve()
       .then(() => this.onRankedEnd(payload))
+      .then((rankedResult) => {
+        if (rankedResult && Array.isArray(rankedResult.players) && this.result) {
+          this.result = {
+            ...this.result,
+            ratings: rankedResult.players,
+          };
+          this.#changed();
+        }
+      })
       .catch((error) => {
         console.error('[ranking] record failed', error);
       });

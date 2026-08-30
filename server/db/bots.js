@@ -1,6 +1,15 @@
 const { randomUUID } = require('crypto');
 const { getPool } = require('./pool');
 const { generateGuestIdentity } = require('../auth/guest_name');
+const { AVATAR_CATALOG } = require('./marketplace');
+
+const BOT_AVATAR_IDS = AVATAR_CATALOG && AVATAR_CATALOG.length > 0
+  ? AVATAR_CATALOG.map((a) => a.id)
+  : ['default', 'blue', 'red', 'bronze', 'silver', 'joker-girl', 'violet-joker-girl', 'violet-queen', 'queen-of-heart', 'golden-king'];
+
+function getRandomBotAvatarId() {
+  return BOT_AVATAR_IDS[Math.floor(Math.random() * BOT_AVATAR_IDS.length)] || 'default';
+}
 
 async function addColumnIfMissing(conn, table, column, definition) {
   const [rows] = await conn.query(
@@ -77,6 +86,7 @@ async function acquireBotUser(activeBotPlayerIds = new Set()) {
       playerId: id,
       displayName: identity.name,
       username: identity.username,
+      avatarId: getRandomBotAvatarId(),
       elo: 1000,
     };
   }
@@ -99,6 +109,7 @@ async function acquireBotUser(activeBotPlayerIds = new Set()) {
       playerId: selected.id,
       displayName: selected.display_name || 'Bot',
       username: selected.username || 'bot',
+      avatarId: getRandomBotAvatarId(),
       elo: selected.elo ?? 1000,
     };
   }
@@ -107,6 +118,7 @@ async function acquireBotUser(activeBotPlayerIds = new Set()) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const id = `bot-${randomUUID()}`;
     const identity = generateGuestIdentity();
+    const avatarId = getRandomBotAvatarId();
     try {
       await pool.execute(
         `INSERT INTO players (
@@ -124,6 +136,7 @@ async function acquireBotUser(activeBotPlayerIds = new Set()) {
         playerId: id,
         displayName: identity.name,
         username: identity.username,
+        avatarId,
         elo: 1000,
       };
     } catch (err) {

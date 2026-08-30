@@ -41,6 +41,7 @@ class CardSnapshot {
 class PlayerSnapshot {
   final bool connected;
   final String displayName;
+  final String avatarId;
   final String? playerId;
   final int seriesWins;
   final bool lobbyReady;
@@ -56,6 +57,7 @@ class PlayerSnapshot {
   const PlayerSnapshot({
     required this.connected,
     this.displayName = 'Player',
+    this.avatarId = 'default',
     this.playerId,
     this.seriesWins = 0,
     this.lobbyReady = false,
@@ -73,6 +75,7 @@ class PlayerSnapshot {
     return PlayerSnapshot(
       connected: json['connected'] as bool? ?? false,
       displayName: json['displayName'] as String? ?? 'Player',
+      avatarId: json['avatarId'] as String? ?? 'default',
       playerId: json['playerId'] as String?,
       seriesWins: json['seriesWins'] as int? ?? 0,
       lobbyReady: json['lobbyReady'] as bool? ?? false,
@@ -106,16 +109,54 @@ class PlayerSnapshot {
   }
 }
 
+class PlayerResultRating {
+  final String? playerId;
+  final String result;
+  final int pointsEarned;
+  final int eloDelta;
+  final int? eloBefore;
+  final int? eloAfter;
+
+  const PlayerResultRating({
+    this.playerId,
+    required this.result,
+    required this.pointsEarned,
+    required this.eloDelta,
+    this.eloBefore,
+    this.eloAfter,
+  });
+
+  factory PlayerResultRating.fromJson(Map<String, dynamic> json) {
+    return PlayerResultRating(
+      playerId: json['playerId'] as String?,
+      result: json['result'] as String? ?? 'draw',
+      pointsEarned: (json['pointsEarned'] as num?)?.toInt() ?? 0,
+      eloDelta: (json['eloDelta'] as num?)?.toInt() ?? 0,
+      eloBefore: (json['eloBefore'] as num?)?.toInt(),
+      eloAfter: (json['eloAfter'] as num?)?.toInt(),
+    );
+  }
+}
+
 class GameResult {
   final List<int> scores;
   final int? winnerIndex;
+  final List<PlayerResultRating>? ratings;
 
-  const GameResult({required this.scores, required this.winnerIndex});
+  const GameResult({
+    required this.scores,
+    required this.winnerIndex,
+    this.ratings,
+  });
 
   factory GameResult.fromJson(Map<String, dynamic> json) {
+    final ratingsJson = json['ratings'] as List<dynamic>?;
     return GameResult(
       scores: (json['scores'] as List<dynamic>).cast<int>(),
       winnerIndex: json['winnerIndex'] as int?,
+      ratings: ratingsJson
+          ?.map((r) => PlayerResultRating.fromJson(r as Map<String, dynamic>))
+          .toList(growable: false),
     );
   }
 }

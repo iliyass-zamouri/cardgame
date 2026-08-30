@@ -664,6 +664,14 @@ class _AvatarsTab extends ConsumerWidget {
         return l10n.silverAvatar;
       case 'jokerGirlAvatar':
         return l10n.jokerGirlAvatar;
+      case 'violetJokerGirlAvatar':
+        return l10n.violetJokerGirlAvatar;
+      case 'violetQueenAvatar':
+        return l10n.violetQueenAvatar;
+      case 'queenOfHeartAvatar':
+        return l10n.queenOfHeartAvatar;
+      case 'goldenKingAvatar':
+        return l10n.goldenKingAvatar;
       case 'queenAvatar':
         return l10n.queenAvatar;
       case 'kingAvatar':
@@ -755,12 +763,12 @@ class _AvatarsTab extends ConsumerWidget {
     final avatars = AvatarCatalog.all;
 
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.76,
+        childAspectRatio: 0.65,
       ),
       itemCount: avatars.length,
       itemBuilder: (context, index) {
@@ -770,79 +778,264 @@ class _AvatarsTab extends ConsumerWidget {
         final name = _getAvatarName(context, avatar.nameKey);
 
         return Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
             color: CasinoColors.bgElevated,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                if (isEquipped) ...[
+                  CasinoColors.gold.withValues(alpha: 0.18),
+                  CasinoColors.bgElevated,
+                ] else if (isOwned) ...[
+                  CasinoColors.check.withValues(alpha: 0.08),
+                  CasinoColors.bgElevated,
+                ] else if (avatar.isPremium) ...[
+                  CasinoColors.goldSoft.withValues(alpha: 0.06),
+                  CasinoColors.bgElevated,
+                ] else ...[
+                  CasinoColors.surfaceHi,
+                  CasinoColors.bgElevated,
+                ],
+              ],
+            ),
             border: Border.all(
               color:
                   isEquipped
                       ? CasinoColors.gold
                       : isOwned
-                      ? Colors.white24
-                      : Colors.white10,
+                      ? CasinoColors.gold.withValues(alpha: 0.35)
+                      : avatar.isPremium
+                      ? CasinoColors.goldSoft.withValues(alpha: 0.25)
+                      : Colors.white12,
               width: isEquipped ? 2 : 1,
             ),
+            boxShadow: [
+              if (isEquipped)
+                BoxShadow(
+                  color: CasinoColors.gold.withValues(alpha: 0.22),
+                  blurRadius: 12,
+                  spreadRadius: 1,
+                ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              PlayerAvatar(avatarId: avatar.id, size: 68),
-              Text(
-                name,
-                style: const TextStyle(
-                  color: CasinoColors.text,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              if (!isOwned)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
+              // Top badge row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: CasinoColors.surface.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Text(
+                      avatar.requiredLevel <= 1
+                          ? 'FREE'
+                          : 'LV. ${avatar.requiredLevel}',
+                      style: const TextStyle(
+                        color: CasinoColors.goldSoft,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
-                  decoration: BoxDecoration(
-                    color: CasinoColors.surfaceHi,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CurrencyIcon(currency: avatar.currency, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${avatar.price}',
-                        style: TextStyle(
-                          color:
-                              avatar.isPremium
-                                  ? CasinoColors.goldSoft
-                                  : CasinoColors.text,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
+                  if (isEquipped)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CasinoColors.gold.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: CasinoColors.gold),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 10,
+                            color: CasinoColors.gold,
+                          ),
+                          SizedBox(width: 3),
+                          Text(
+                            'ACTIVE',
+                            style: TextStyle(
+                              color: CasinoColors.gold,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (isOwned)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CasinoColors.check.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: CasinoColors.check.withValues(alpha: 0.4),
                         ),
                       ),
-                    ],
+                      child: const Text(
+                        'OWNED',
+                        style: TextStyle(
+                          color: CasinoColors.check,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    )
+                  else if (avatar.isPremium)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CasinoColors.goldSoft.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: CasinoColors.goldSoft.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: const Text(
+                        'CHIPS',
+                        style: TextStyle(
+                          color: CasinoColors.goldSoft,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 14),
+                ],
+              ),
+
+              // Avatar preview
+              PlayerAvatar(
+                avatarId: avatar.id,
+                size: 64,
+                borderWidth: isEquipped ? 2 : 1.5,
+                borderColor:
+                    isEquipped
+                        ? CasinoColors.gold
+                        : isOwned
+                        ? CasinoColors.gold.withValues(alpha: 0.4)
+                        : Colors.white12,
+                showGlow: isEquipped || avatar.isPremium,
+                glowColor:
+                    isEquipped
+                        ? CasinoColors.gold.withValues(alpha: 0.35)
+                        : CasinoColors.goldSoft.withValues(alpha: 0.18),
+              ),
+
+              // Title and Price
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isEquipped ? CasinoColors.gold : CasinoColors.text,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                ),
+                  const SizedBox(height: 3),
+                  if (!isOwned)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CasinoColors.surfaceHi,
+                        borderRadius: BorderRadius.circular(7),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CurrencyIcon(currency: avatar.currency, size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${avatar.price}',
+                            style: TextStyle(
+                              color:
+                                  avatar.isPremium
+                                      ? CasinoColors.goldSoft
+                                      : CasinoColors.text,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+
+              // Bottom Action button
               if (isEquipped)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  height: 34,
                   decoration: BoxDecoration(
                     color: CasinoColors.gold.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: CasinoColors.gold.withValues(alpha: 0.4),
+                    ),
                   ),
                   child: Center(
-                    child: Text(
-                      l10n.equipped,
-                      style: const TextStyle(
-                        color: CasinoColors.gold,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.check_rounded,
+                          size: 14,
+                          color: CasinoColors.gold,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          l10n.equipped,
+                          style: const TextStyle(
+                            color: CasinoColors.gold,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 )
@@ -852,10 +1045,12 @@ class _AvatarsTab extends ConsumerWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: CasinoColors.check,
                     foregroundColor: CasinoColors.text,
-                    minimumSize: const Size.fromHeight(36),
+                    minimumSize: const Size.fromHeight(34),
+                    padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    elevation: 2,
                   ),
                   child: Text(
                     l10n.equip,
@@ -869,19 +1064,36 @@ class _AvatarsTab extends ConsumerWidget {
                 ElevatedButton(
                   onPressed: () => _buyAvatar(context, ref, avatar),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: CasinoColors.raise,
-                    foregroundColor: CasinoColors.text,
-                    minimumSize: const Size.fromHeight(36),
+                    backgroundColor:
+                        avatar.isPremium
+                            ? CasinoColors.gold
+                            : CasinoColors.raise,
+                    foregroundColor:
+                        avatar.isPremium ? CasinoColors.bg : CasinoColors.text,
+                    minimumSize: const Size.fromHeight(34),
+                    padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
+                    elevation: 2,
                   ),
-                  child: Text(
-                    l10n.buy,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CurrencyIcon(currency: avatar.currency, size: 12),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${avatar.price} · ${l10n.buy}',
+                        style: TextStyle(
+                          color:
+                              avatar.isPremium
+                                  ? CasinoColors.bg
+                                  : CasinoColors.text,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
             ],
@@ -978,23 +1190,55 @@ class _DecksTab extends ConsumerWidget {
           decoration: BoxDecoration(
             color: CasinoColors.bgElevated,
             borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                if (isOwned) ...[
+                  CasinoColors.gold.withValues(alpha: 0.12),
+                  CasinoColors.bgElevated,
+                ] else ...[
+                  CasinoColors.surfaceHi,
+                  CasinoColors.bgElevated,
+                ],
+              ],
+            ),
             border: Border.all(
               color:
                   isOwned
                       ? CasinoColors.gold.withValues(alpha: 0.4)
-                      : Colors.white10,
-              width: 1,
+                      : Colors.white12,
+              width: isOwned ? 1.5 : 1,
             ),
+            boxShadow: [
+              if (isOwned)
+                BoxShadow(
+                  color: CasinoColors.gold.withValues(alpha: 0.12),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: Row(
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: 58,
+                height: 58,
                 decoration: BoxDecoration(
                   color: CasinoColors.surfaceHi,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(
+                    color:
+                        isOwned
+                            ? CasinoColors.gold.withValues(alpha: 0.4)
+                            : Colors.white12,
+                    width: 1.5,
+                  ),
                 ),
                 child: Center(
                   child: Text(
@@ -1002,7 +1246,7 @@ class _DecksTab extends ConsumerWidget {
                     style: const TextStyle(
                       color: CasinoColors.gold,
                       fontWeight: FontWeight.w900,
-                      fontSize: 16,
+                      fontSize: 18,
                     ),
                   ),
                 ),
@@ -1020,14 +1264,27 @@ class _DecksTab extends ConsumerWidget {
                         fontSize: 15,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      deck.rarity.name.toUpperCase(),
-                      style: const TextStyle(
-                        color: CasinoColors.goldSoft,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
+                    const SizedBox(height: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CasinoColors.surface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: CasinoColors.goldSoft.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        deck.rarity.name.toUpperCase(),
+                        style: const TextStyle(
+                          color: CasinoColors.goldSoft,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.0,
+                        ),
                       ),
                     ),
                   ],
@@ -1042,14 +1299,28 @@ class _DecksTab extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: CasinoColors.gold.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    l10n.owned,
-                    style: const TextStyle(
-                      color: CasinoColors.gold,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
+                    border: Border.all(
+                      color: CasinoColors.gold.withValues(alpha: 0.4),
                     ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.check_rounded,
+                        size: 14,
+                        color: CasinoColors.gold,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        l10n.owned,
+                        style: const TextStyle(
+                          color: CasinoColors.gold,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 )
               else
@@ -1065,6 +1336,7 @@ class _DecksTab extends ConsumerWidget {
                       horizontal: 16,
                       vertical: 10,
                     ),
+                    elevation: 2,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

@@ -849,7 +849,11 @@ class GameServer {
       typeof command.displayName === 'string' && command.displayName.trim()
         ? command.displayName.trim().slice(0, 64)
         : null;
-    return { playerId, displayName };
+    const avatarId =
+      typeof command.avatarId === 'string' && command.avatarId.trim()
+        ? command.avatarId.trim().slice(0, 64)
+        : 'default';
+    return { playerId, displayName, avatarId };
   }
 
   #handle(context, command) {
@@ -861,6 +865,7 @@ class GameServer {
       const identity = this.#identityFromCommand(command);
       context.playerId = identity.playerId;
       context.displayName = identity.displayName;
+      context.avatarId = identity.avatarId;
       this.#send(context.socket, { type: 'identityAck', playerId: context.playerId });
       return;
     }
@@ -871,6 +876,7 @@ class GameServer {
       const identity = this.#identityFromCommand(command);
       context.playerId = identity.playerId;
       context.displayName = identity.displayName;
+      context.avatarId = identity.avatarId;
       const allowedStakes = [20, 50, 100, 200, 500];
       const reqStake = Number(command.stakePool ?? command.stake ?? 50);
       context.stakePool = allowedStakes.includes(reqStake) ? reqStake : 50;
@@ -891,6 +897,7 @@ class GameServer {
       const identity = this.#identityFromCommand(command);
       context.playerId = identity.playerId;
       context.displayName = identity.displayName;
+      context.avatarId = identity.avatarId;
       let roomId;
       do roomId = createRoomCode(); while (this.rooms.has(roomId));
       const room = this.#createRoom(roomId, 'private');
@@ -898,6 +905,7 @@ class GameServer {
       room.addPlayer(context.id, {
         playerId: context.playerId,
         displayName: context.displayName,
+        avatarId: context.avatarId,
       });
       return;
     }
@@ -911,10 +919,12 @@ class GameServer {
       const identity = this.#identityFromCommand(command);
       context.playerId = identity.playerId;
       context.displayName = identity.displayName;
+      context.avatarId = identity.avatarId;
       context.roomId = roomId;
       room.addPlayer(context.id, {
         playerId: context.playerId,
         displayName: context.displayName,
+        avatarId: context.avatarId,
       });
       return;
     }
@@ -1055,10 +1065,12 @@ class GameServer {
     room.addPlayer(context.id, {
       playerId: context.playerId,
       displayName: context.displayName,
+      avatarId: context.avatarId || 'default',
     });
     room.addPlayer(botClientId, {
       playerId: botUser.playerId,
       displayName: botUser.displayName,
+      avatarId: botUser.avatarId || 'default',
     });
 
     const bot = new ServerRobotPlayer({
@@ -1106,10 +1118,12 @@ class GameServer {
         room.addPlayer(first.id, {
           playerId: first.playerId,
           displayName: first.displayName,
+          avatarId: first.avatarId || 'default',
         });
         room.addPlayer(second.id, {
           playerId: second.playerId,
           displayName: second.displayName,
+          avatarId: second.avatarId || 'default',
         });
         room.start(first.id);
       }
