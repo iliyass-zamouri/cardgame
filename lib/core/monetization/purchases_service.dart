@@ -98,7 +98,8 @@ class PurchasesService {
   Future<CustomerInfo?> purchaseStoreProduct(StoreProduct product) async {
     if (!_isConfigured) return null;
     try {
-      return await Purchases.purchaseStoreProduct(product);
+      final result = await Purchases.purchaseStoreProduct(product);
+      return result.customerInfo;
     } catch (e) {
       debugPrint('[PurchasesService] purchaseStoreProduct failed: $e');
       rethrow;
@@ -108,7 +109,8 @@ class PurchasesService {
   Future<CustomerInfo?> purchasePackage(Package package) async {
     if (!_isConfigured) return null;
     try {
-      return await Purchases.purchasePackage(package);
+      final result = await Purchases.purchasePackage(package);
+      return result.customerInfo;
     } catch (e) {
       debugPrint('[PurchasesService] purchasePackage failed: $e');
       rethrow;
