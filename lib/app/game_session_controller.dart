@@ -111,9 +111,9 @@ class GameSessionController extends Notifier<GameSessionState> {
     _send('joinRoom', {'roomId': normalized, ..._identityPayload});
   }
 
-  void findMatch() {
+  void findMatch({int stakePool = 50}) {
     state = state.copyWith(searchingMatch: true, message: null, game: null);
-    _send('findMatch', _identityPayload);
+    _send('findMatch', {'stakePool': stakePool, ..._identityPayload});
   }
 
   void cancelFindMatch() {
@@ -133,11 +133,36 @@ class GameSessionController extends Notifier<GameSessionState> {
         queenMode: QueenMode.none,
         replaceFirstSide: null,
         replaceFirstIndex: null,
+        sentInvitePlayerIds: const {},
       );
       connect();
       return;
     }
     _send('leaveRoom');
+  }
+
+  void sendTableInvite({
+    required String targetPlayerId,
+    required String roomId,
+  }) {
+    final trimmedId = targetPlayerId.trim();
+    if (trimmedId.isEmpty) return;
+    state = state.copyWith(
+      sentInvitePlayerIds: {...state.sentInvitePlayerIds, trimmedId},
+    );
+    _send('tableInvite', {
+      'targetPlayerId': trimmedId,
+      'roomId': roomId.trim().toUpperCase(),
+    });
+  }
+
+  void dismissIncomingInvite() {
+    state = state.copyWith(incomingInvite: null);
+  }
+
+  void acceptIncomingInvite(String roomId) {
+    state = state.copyWith(incomingInvite: null);
+    joinRoom(roomId);
   }
 
   void readyUp() => _send('startGame');
@@ -288,10 +313,34 @@ class GameSessionController extends Notifier<GameSessionState> {
           queenMode: QueenMode.none,
           replaceFirstSide: null,
           replaceFirstIndex: null,
+          sentInvitePlayerIds: const {},
         );
         break;
       case 'leftQueue':
         state = state.copyWith(searchingMatch: false, message: null);
+        break;
+      case 'tableInviteReceived':
+        final roomId = message['roomId'] as String? ?? '';
+        final inviterName = message['inviterName'] as String? ?? 'Friend';
+        final inviterPlayerId = message['inviterPlayerId'] as String? ?? '';
+        if (roomId.isNotEmpty &&
+            (state.game == null || state.game!.status == GameStatus.ended)) {
+          state = state.copyWith(
+            incomingInvite: TableInviteNotification(
+              roomId: roomId,
+              inviterName: inviterName,
+              inviterPlayerId: inviterPlayerId,
+            ),
+          );
+        }
+        break;
+      case 'tableInviteSent':
+        final targetPlayerId = message['targetPlayerId'] as String?;
+        if (targetPlayerId != null && targetPlayerId.isNotEmpty) {
+          state = state.copyWith(
+            sentInvitePlayerIds: {...state.sentInvitePlayerIds, targetPlayerId},
+          );
+        }
         break;
       case 'error':
         final code = message['code'] as String?;

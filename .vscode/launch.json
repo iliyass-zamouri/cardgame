@@ -96,6 +96,17 @@
       ]
     },
     {
+      "name": "Flutter: Android Emulator (prod)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "deviceId": "emulator-5554",
+      "toolArgs": [
+        "--dart-define-from-file=flavors/prod.json"
+      ]
+    },
+    {
       "name": "Flutter: Android Device (prod)",
       "request": "launch",
       "type": "dart",

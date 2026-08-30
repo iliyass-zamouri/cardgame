@@ -42,6 +42,15 @@ async function initDb() {
   const { ensureRankingSchema } = require('./ranking');
   await ensureRankingSchema();
 
+  const { ensureFriendsSchema } = require('./friends');
+  await ensureFriendsSchema();
+
+  const { ensureBotSchema } = require('./bots');
+  await ensureBotSchema();
+
+  const { ensureMarketplaceSchema } = require('./marketplace');
+  await ensureMarketplaceSchema();
+
   return pool;
 }
 

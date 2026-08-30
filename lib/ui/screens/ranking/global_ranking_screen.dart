@@ -3,7 +3,9 @@ import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/data/ranking/ranking_api.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/ui/screens/profile/player_profile_screen.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,11 +77,22 @@ class _LeaderboardTab extends ConsumerWidget {
             if (myRank != null)
               Material(
                 color: CasinoColors.surface,
-                child: _RankRow(
-                  entry: myRank,
-                  highlight: true,
-                  isSelf: true,
-                  selfLabel: l10n.you,
+                child: InkWell(
+                  onTap:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder:
+                              (_) => PlayerProfileScreen(
+                                targetPlayerId: myRank.playerId,
+                              ),
+                        ),
+                      ),
+                  child: _RankRow(
+                    entry: myRank,
+                    highlight: true,
+                    isSelf: true,
+                    selfLabel: l10n.you,
+                  ),
                 ),
               ),
             Expanded(
@@ -98,11 +111,22 @@ class _LeaderboardTab extends ConsumerWidget {
                           const Divider(height: 1, color: Color(0x22FFFFFF)),
                   itemBuilder: (context, index) {
                     final entry = entries[index];
-                    return _RankRow(
-                      entry: entry,
-                      highlight: entry.playerId == myId,
-                      isSelf: entry.playerId == myId,
-                      selfLabel: l10n.you,
+                    return InkWell(
+                      onTap:
+                          () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder:
+                                  (_) => PlayerProfileScreen(
+                                    targetPlayerId: entry.playerId,
+                                  ),
+                            ),
+                          ),
+                      child: _RankRow(
+                        entry: entry,
+                        highlight: entry.playerId == myId,
+                        isSelf: entry.playerId == myId,
+                        selfLabel: l10n.you,
+                      ),
                     );
                   },
                 ),
@@ -208,17 +232,7 @@ class _RankRow extends StatelessWidget {
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: CasinoColors.surfaceHi,
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      color: CasinoColors.gold,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+                const PlayerAvatar(avatarId: 'default', size: 36),
                 if (crownColor != null)
                   Positioned(
                     top: -12,

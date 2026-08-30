@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:cardgame/gen/assets.gen.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 
 /// Frosted glass shell for HUD chrome over the felt table.
@@ -311,6 +312,7 @@ class CasinoPlayerSeat extends StatelessWidget {
     required this.name,
     required this.connected,
     required this.active,
+    this.avatarId,
     this.points,
     this.avatarSize = 28,
   });
@@ -318,62 +320,23 @@ class CasinoPlayerSeat extends StatelessWidget {
   final String name;
   final bool connected;
   final bool active;
+  final String? avatarId;
   final int? points;
   final double avatarSize;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final dotSize = avatarSize * 0.32;
     return Opacity(
       opacity: connected ? 1 : 0.55,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: avatarSize,
-            height: avatarSize,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: avatarSize,
-                  height: avatarSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: CasinoColors.bgElevated,
-                    border: Border.all(
-                      color: active ? CasinoColors.gold : Colors.white24,
-                      width: active ? 2 : 1.2,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.person,
-                    size: avatarSize * 0.55,
-                    color: CasinoColors.text.withValues(alpha: 0.9),
-                  ),
-                ),
-                Positioned(
-                  right: -1,
-                  bottom: -1,
-                  child: Container(
-                    width: dotSize,
-                    height: dotSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color:
-                          connected
-                              ? const Color(0xFF7ED50E)
-                              : CasinoColors.foldHi,
-                      border: Border.all(
-                        color: CasinoColors.surfaceHi,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          PlayerAvatar(
+            avatarId: avatarId ?? 'default',
+            size: avatarSize,
+            statusDotColor:
+                connected ? const Color(0xFF7ED50E) : CasinoColors.foldHi,
           ),
           const SizedBox(width: 6),
           Column(

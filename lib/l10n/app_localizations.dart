@@ -1017,6 +1017,648 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You {myScore} · Opp {oppScore}'**
   String matchScoreLine(int myScore, int oppScore);
+
+  /// No description provided for @friends.
+  ///
+  /// In en, this message translates to:
+  /// **'Friends'**
+  String get friends;
+
+  /// No description provided for @friendsComingSoonBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect with friends and invite them to matches soon.'**
+  String get friendsComingSoonBody;
+
+  /// No description provided for @requests.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests'**
+  String get requests;
+
+  /// No description provided for @addFriend.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Friend'**
+  String get addFriend;
+
+  /// No description provided for @searchByUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by @username or name...'**
+  String get searchByUsername;
+
+  /// No description provided for @noFriendsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No friends added yet.'**
+  String get noFriendsYet;
+
+  /// No description provided for @noFriendsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search player usernames in Add Friend tab to connect!'**
+  String get noFriendsHint;
+
+  /// No description provided for @noRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending friend requests.'**
+  String get noRequests;
+
+  /// No description provided for @incomingRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Incoming Requests'**
+  String get incomingRequests;
+
+  /// No description provided for @outgoingRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Outgoing Requests'**
+  String get outgoingRequests;
+
+  /// No description provided for @accept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get accept;
+
+  /// No description provided for @decline.
+  ///
+  /// In en, this message translates to:
+  /// **'Decline'**
+  String get decline;
+
+  /// No description provided for @removeFriend.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Friend'**
+  String get removeFriend;
+
+  /// No description provided for @removeFriendConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove {name} from friends?'**
+  String removeFriendConfirm(String name);
+
+  /// No description provided for @friendRequestSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend request sent!'**
+  String get friendRequestSent;
+
+  /// No description provided for @friendRequestAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend request accepted!'**
+  String get friendRequestAccepted;
+
+  /// No description provided for @friendRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend removed.'**
+  String get friendRemoved;
+
+  /// No description provided for @requestSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get requestSent;
+
+  /// No description provided for @youTag.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get youTag;
+
+  /// No description provided for @alreadyFriends.
+  ///
+  /// In en, this message translates to:
+  /// **'Friends'**
+  String get alreadyFriends;
+
+  /// No description provided for @changeUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Username'**
+  String get changeUsername;
+
+  /// No description provided for @usernameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'unique_username'**
+  String get usernameHint;
+
+  /// No description provided for @usernameAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Username is available'**
+  String get usernameAvailable;
+
+  /// No description provided for @usernameTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'Username is already taken'**
+  String get usernameTaken;
+
+  /// No description provided for @usernameInvalidFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'3-20 characters: lowercase letters, numbers, _'**
+  String get usernameInvalidFormat;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @displayName.
+  ///
+  /// In en, this message translates to:
+  /// **'Display Name'**
+  String get displayName;
+
+  /// No description provided for @editProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Profile'**
+  String get editProfile;
+
+  /// No description provided for @profileUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile updated successfully!'**
+  String get profileUpdated;
+
+  /// No description provided for @searching.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching...'**
+  String get searching;
+
+  /// No description provided for @noPlayersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No players found matching your search.'**
+  String get noPlayersFound;
+
+  /// No description provided for @profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profile;
+
+  /// No description provided for @level.
+  ///
+  /// In en, this message translates to:
+  /// **'Level {lvl}'**
+  String level(int lvl);
+
+  /// No description provided for @levelNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Level {lvl}'**
+  String levelNumber(int lvl);
+
+  /// No description provided for @xp.
+  ///
+  /// In en, this message translates to:
+  /// **'XP'**
+  String get xp;
+
+  /// No description provided for @winRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Win Rate'**
+  String get winRate;
+
+  /// No description provided for @matchesPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches'**
+  String get matchesPlayed;
+
+  /// No description provided for @totalXp.
+  ///
+  /// In en, this message translates to:
+  /// **'Total XP'**
+  String get totalXp;
+
+  /// No description provided for @copiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get copiedToClipboard;
+
+  /// No description provided for @rankTitleNovice.
+  ///
+  /// In en, this message translates to:
+  /// **'Novice'**
+  String get rankTitleNovice;
+
+  /// No description provided for @rankTitleCardShark.
+  ///
+  /// In en, this message translates to:
+  /// **'Card Shark'**
+  String get rankTitleCardShark;
+
+  /// No description provided for @rankTitleHighRoller.
+  ///
+  /// In en, this message translates to:
+  /// **'High Roller'**
+  String get rankTitleHighRoller;
+
+  /// No description provided for @rankTitleTableMaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Table Master'**
+  String get rankTitleTableMaster;
+
+  /// No description provided for @rankTitleGrandAce.
+  ///
+  /// In en, this message translates to:
+  /// **'Grand Ace'**
+  String get rankTitleGrandAce;
+
+  /// No description provided for @rankTitleShadowLegend.
+  ///
+  /// In en, this message translates to:
+  /// **'Shadow Legend'**
+  String get rankTitleShadowLegend;
+
+  /// No description provided for @inviteFriends.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite Friends'**
+  String get inviteFriends;
+
+  /// No description provided for @invite.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite'**
+  String get invite;
+
+  /// No description provided for @invited.
+  ///
+  /// In en, this message translates to:
+  /// **'Invited'**
+  String get invited;
+
+  /// No description provided for @inviteSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite sent!'**
+  String get inviteSent;
+
+  /// No description provided for @tableInviteFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} invited you to private table {code}'**
+  String tableInviteFrom(String name, String code);
+
+  /// No description provided for @joinTable.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Table'**
+  String get joinTable;
+
+  /// No description provided for @ignore.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore'**
+  String get ignore;
+
+  /// No description provided for @noFriendsToInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'No friends added yet to invite.'**
+  String get noFriendsToInvite;
+
+  /// No description provided for @customizeAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize Avatar'**
+  String get customizeAvatar;
+
+  /// No description provided for @locked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get locked;
+
+  /// No description provided for @equipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Equipped'**
+  String get equipped;
+
+  /// No description provided for @equip.
+  ///
+  /// In en, this message translates to:
+  /// **'Equip'**
+  String get equip;
+
+  /// No description provided for @unlockAtLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocks at Level {lvl}'**
+  String unlockAtLevel(int lvl);
+
+  /// No description provided for @defaultAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultAvatar;
+
+  /// No description provided for @blueAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Sapphire'**
+  String get blueAvatar;
+
+  /// No description provided for @redAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Ruby'**
+  String get redAvatar;
+
+  /// No description provided for @bronzeAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Bronze'**
+  String get bronzeAvatar;
+
+  /// No description provided for @silverAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Silver'**
+  String get silverAvatar;
+
+  /// No description provided for @jokerGirlAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Joker Girl'**
+  String get jokerGirlAvatar;
+
+  /// No description provided for @queenAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Queen'**
+  String get queenAvatar;
+
+  /// No description provided for @kingAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'King'**
+  String get kingAvatar;
+
+  /// No description provided for @money.
+  ///
+  /// In en, this message translates to:
+  /// **'Money'**
+  String get money;
+
+  /// No description provided for @chips.
+  ///
+  /// In en, this message translates to:
+  /// **'Chips'**
+  String get chips;
+
+  /// No description provided for @exchange.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange'**
+  String get exchange;
+
+  /// No description provided for @avatarShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatars'**
+  String get avatarShop;
+
+  /// No description provided for @deckShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Decks'**
+  String get deckShop;
+
+  /// No description provided for @selectMatchStake.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Match Stake'**
+  String get selectMatchStake;
+
+  /// No description provided for @stake.
+  ///
+  /// In en, this message translates to:
+  /// **'Stake'**
+  String get stake;
+
+  /// No description provided for @pot.
+  ///
+  /// In en, this message translates to:
+  /// **'Pot'**
+  String get pot;
+
+  /// No description provided for @winnerTakesAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Winner takes all'**
+  String get winnerTakesAll;
+
+  /// No description provided for @getMoreMoney.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Money'**
+  String get getMoreMoney;
+
+  /// No description provided for @insufficientChips.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough chips'**
+  String get insufficientChips;
+
+  /// No description provided for @insufficientMoney.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough money'**
+  String get insufficientMoney;
+
+  /// No description provided for @exchangedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange successful'**
+  String get exchangedSuccess;
+
+  /// No description provided for @exchangeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange failed'**
+  String get exchangeFailed;
+
+  /// No description provided for @watchAdForMoney.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch Video Ad'**
+  String get watchAdForMoney;
+
+  /// No description provided for @freeStashBonus.
+  ///
+  /// In en, this message translates to:
+  /// **'Free Money Bonus'**
+  String get freeStashBonus;
+
+  /// No description provided for @adRewardEarned.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward earned!'**
+  String get adRewardEarned;
+
+  /// No description provided for @adNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Ad not ready, try again later'**
+  String get adNotAvailable;
+
+  /// No description provided for @chipsToMoney.
+  ///
+  /// In en, this message translates to:
+  /// **'Convert Chips to Money'**
+  String get chipsToMoney;
+
+  /// No description provided for @moneyToChips.
+  ///
+  /// In en, this message translates to:
+  /// **'Convert Money to Chips'**
+  String get moneyToChips;
+
+  /// No description provided for @convert.
+  ///
+  /// In en, this message translates to:
+  /// **'Convert'**
+  String get convert;
+
+  /// No description provided for @claim.
+  ///
+  /// In en, this message translates to:
+  /// **'Claim'**
+  String get claim;
+
+  /// No description provided for @buy.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy'**
+  String get buy;
+
+  /// No description provided for @owned.
+  ///
+  /// In en, this message translates to:
+  /// **'Owned'**
+  String get owned;
+
+  /// No description provided for @unlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocked'**
+  String get unlocked;
+
+  /// No description provided for @purchaseFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase failed'**
+  String get purchaseFailed;
+
+  /// No description provided for @classicDeck.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic Blue'**
+  String get classicDeck;
+
+  /// No description provided for @classicDeckDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard casino playing cards'**
+  String get classicDeckDesc;
+
+  /// No description provided for @goldLuxuryDeck.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold Luxury'**
+  String get goldLuxuryDeck;
+
+  /// No description provided for @goldLuxuryDeckDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Shining gold-rimmed premium deck'**
+  String get goldLuxuryDeckDesc;
+
+  /// No description provided for @shadowNeonDeck.
+  ///
+  /// In en, this message translates to:
+  /// **'Shadow Neon'**
+  String get shadowNeonDeck;
+
+  /// No description provided for @shadowNeonDeckDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Cyberpunk neon glow deck'**
+  String get shadowNeonDeckDesc;
+
+  /// No description provided for @price.
+  ///
+  /// In en, this message translates to:
+  /// **'Price'**
+  String get price;
+
+  /// No description provided for @play.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get play;
+
+  /// No description provided for @cityLondon.
+  ///
+  /// In en, this message translates to:
+  /// **'London'**
+  String get cityLondon;
+
+  /// No description provided for @cityParis.
+  ///
+  /// In en, this message translates to:
+  /// **'Paris'**
+  String get cityParis;
+
+  /// No description provided for @cityMoscow.
+  ///
+  /// In en, this message translates to:
+  /// **'Moscow'**
+  String get cityMoscow;
+
+  /// No description provided for @cityCairo.
+  ///
+  /// In en, this message translates to:
+  /// **'Cairo'**
+  String get cityCairo;
+
+  /// No description provided for @cityMarrakech.
+  ///
+  /// In en, this message translates to:
+  /// **'Marrakech'**
+  String get cityMarrakech;
+
+  /// No description provided for @prize.
+  ///
+  /// In en, this message translates to:
+  /// **'Prize'**
+  String get prize;
+
+  /// No description provided for @entryFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Entry fee'**
+  String get entryFee;
 }
 
 class _AppLocalizationsDelegate

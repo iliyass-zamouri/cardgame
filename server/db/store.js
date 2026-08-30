@@ -19,7 +19,8 @@ class InvalidOAuthProviderError extends Error {
 
 const PLAYER_SELECT = `
   p.id, p.display_name, p.username, p.device_id,
-  p.created_ip, p.last_ip, p.auth_type, p.google_sub
+  p.created_ip, p.last_ip, p.auth_type, p.google_sub,
+  p.money, p.chips
 `;
 
 function mapPlayerRow(row) {
@@ -29,6 +30,8 @@ function mapPlayerRow(row) {
     name: row.display_name,
     username: row.username,
     authType: row.auth_type || 'guest',
+    money: row.money != null ? Number(row.money) : 500,
+    chips: row.chips != null ? Number(row.chips) : 1,
   };
 }
 

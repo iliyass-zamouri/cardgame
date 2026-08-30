@@ -161,6 +161,62 @@ test('rematch requires both players and preserves series wins', () => {
   assert.equal(room.rematchReady[1], false);
 });
 
+test('tableInvite relays invitation to online target player and acknowledges sender', async (t) => {
+  const server = new GameServer({ port: 0 });
+  const address = await server.start();
+  t.after(() => server.stop());
+
+  const host = await connect(address.port);
+  const friend = await connect(address.port);
+  t.after(() => host.close());
+  t.after(() => friend.close());
+
+  // Establish friend identity
+  const friendAck = waitFor(friend, (m) => m.type === 'identityAck');
+  friend.send(JSON.stringify({
+    type: 'identity',
+    playerId: 'friend-123',
+    displayName: 'Bob',
+  }));
+  await friendAck;
+
+  // Host creates private room
+  const created = waitFor(host, (message) => message.type === 'snapshot');
+  host.send(JSON.stringify({
+    type: 'createRoom',
+    playerId: 'host-456',
+    displayName: 'Alice',
+  }));
+  const hostWaiting = await created;
+
+  const inviteReceivedPromise = waitFor(
+    friend,
+    (message) => message.type === 'tableInviteReceived',
+  );
+  const inviteSentPromise = waitFor(
+    host,
+    (message) => message.type === 'tableInviteSent',
+  );
+
+  host.send(JSON.stringify({
+    type: 'tableInvite',
+    targetPlayerId: 'friend-123',
+    roomId: hostWaiting.roomId,
+  }));
+
+  const received = await inviteReceivedPromise;
+  const sent = await inviteSentPromise;
+
+  assert.equal(received.type, 'tableInviteReceived');
+  assert.equal(received.roomId, hostWaiting.roomId);
+  assert.equal(received.inviterName, 'Alice');
+  assert.equal(received.inviterPlayerId, 'host-456');
+
+  assert.equal(sent.type, 'tableInviteSent');
+  assert.equal(sent.targetPlayerId, 'friend-123');
+  assert.equal(sent.delivered, true);
+});
+
 async function connect(port) {
   const socket = new WebSocket(`ws://127.0.0.1:${port}`);
   await new Promise((resolve, reject) => {
@@ -177,11 +233,15 @@ function waitFor(socket, predicate, timeout = 2000) {
       reject(new Error('Timed out waiting for server message'));
     }, timeout);
     function onMessage(raw) {
-      const message = JSON.parse(raw.toString());
-      if (!predicate(message)) return;
-      clearTimeout(timer);
-      socket.off('message', onMessage);
-      resolve(message);
+      try {
+        const message = JSON.parse(raw.toString());
+        if (!predicate(message)) return;
+        clearTimeout(timer);
+        socket.off('message', onMessage);
+        resolve(message);
+      } catch (err) {
+        // ignore JSON parse error in test harness
+      }
     }
     socket.on('message', onMessage);
   });

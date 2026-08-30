@@ -108,6 +108,52 @@ void main() {
       'displayName': 'Test Ace',
     });
   });
+
+  test('handles tableInvite sending and receiving', () async {
+    final socket = FakeGameSocket();
+    final container = ProviderContainer(
+      overrides: [
+        gameSocketFactoryProvider.overrideWithValue(() => socket),
+        ..._authOverrides(),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(gameSessionProvider.notifier);
+    await Future<void>.delayed(Duration.zero);
+    socket.emit({
+      'type': 'connected',
+      'protocolVersion': 1,
+      'clientId': 'client-1',
+    });
+    await Future<void>.delayed(Duration.zero);
+
+    notifier.sendTableInvite(targetPlayerId: 'p2-friend', roomId: 'XYZ789');
+    expect(
+      container.read(gameSessionProvider).sentInvitePlayerIds,
+      contains('p2-friend'),
+    );
+    expect(jsonDecode(socket.sent.last), {
+      'type': 'tableInvite',
+      'targetPlayerId': 'p2-friend',
+      'roomId': 'XYZ789',
+    });
+
+    socket.emit({
+      'type': 'tableInviteReceived',
+      'roomId': 'TBL999',
+      'inviterName': 'QueenPlayer',
+      'inviterPlayerId': 'host-001',
+    });
+    await Future<void>.delayed(Duration.zero);
+
+    final incoming = container.read(gameSessionProvider).incomingInvite;
+    expect(incoming?.roomId, 'TBL999');
+    expect(incoming?.inviterName, 'QueenPlayer');
+    expect(incoming?.inviterPlayerId, 'host-001');
+
+    notifier.dismissIncomingInvite();
+    expect(container.read(gameSessionProvider).incomingInvite, isNull);
+  });
 }
 
 Map<String, dynamic> _snapshot() {

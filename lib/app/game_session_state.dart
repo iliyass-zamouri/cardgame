@@ -2,6 +2,18 @@ import 'package:cardgame/domain/models/game_snapshot.dart';
 
 enum ConnectionStatus { disconnected, connecting, connected }
 
+class TableInviteNotification {
+  final String roomId;
+  final String inviterName;
+  final String inviterPlayerId;
+
+  const TableInviteNotification({
+    required this.roomId,
+    required this.inviterName,
+    required this.inviterPlayerId,
+  });
+}
+
 class GameSessionState {
   static const _unset = Object();
 
@@ -12,6 +24,8 @@ class GameSessionState {
   final bool peekSelecting;
   final QueenMode queenMode;
   final bool searchingMatch;
+  final TableInviteNotification? incomingInvite;
+  final Set<String> sentInvitePlayerIds;
 
   /// Replace pick: first selection side (`you` / `opponent`) and index.
   final String? replaceFirstSide;
@@ -25,6 +39,8 @@ class GameSessionState {
     this.peekSelecting = false,
     this.queenMode = QueenMode.none,
     this.searchingMatch = false,
+    this.incomingInvite,
+    this.sentInvitePlayerIds = const {},
     this.replaceFirstSide,
     this.replaceFirstIndex,
   });
@@ -37,6 +53,8 @@ class GameSessionState {
     bool? peekSelecting,
     QueenMode? queenMode,
     bool? searchingMatch,
+    Object? incomingInvite = _unset,
+    Set<String>? sentInvitePlayerIds,
     Object? replaceFirstSide = _unset,
     Object? replaceFirstIndex = _unset,
   }) {
@@ -49,6 +67,11 @@ class GameSessionState {
       peekSelecting: peekSelecting ?? this.peekSelecting,
       queenMode: queenMode ?? this.queenMode,
       searchingMatch: searchingMatch ?? this.searchingMatch,
+      incomingInvite:
+          identical(incomingInvite, _unset)
+              ? this.incomingInvite
+              : incomingInvite as TableInviteNotification?,
+      sentInvitePlayerIds: sentInvitePlayerIds ?? this.sentInvitePlayerIds,
       replaceFirstSide:
           identical(replaceFirstSide, _unset)
               ? this.replaceFirstSide

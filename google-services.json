@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "52368643344",
+    "project_id": "shadow-hand",
+    "storage_bucket": "shadow-hand.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:52368643344:android:265f570ea20ac9bf510195",
+        "android_client_info": {
+          "package_name": "com.hailsom.shadowhand"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBvQiqtNGZJCbRkiOZs30Sy6VjaLk7xIkk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

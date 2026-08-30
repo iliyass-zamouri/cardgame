@@ -163,10 +163,19 @@ async function ensureRankingSchema() {
  *   winnerIndex: 0|1|null,
  * }} input
  */
-async function recordRankedMatch({ roomId, players, winnerIndex }) {
+async function recordRankedMatch({
+  roomId,
+  players,
+  winnerIndex,
+  stakePerPlayer = 0,
+  potAmount = 0,
+}) {
   if (!Array.isArray(players) || players.length !== 2) return null;
   const [p0, p1] = players;
   if (!p0?.playerId || !p1?.playerId) return null;
+
+  const safeStake = Math.max(0, Number(stakePerPlayer) || 0);
+  const safePot = Math.max(0, Number(potAmount) || 0);
 
   const pool = getPool();
   const conn = await pool.getConnection();
@@ -174,7 +183,7 @@ async function recordRankedMatch({ roomId, players, winnerIndex }) {
     await conn.beginTransaction();
 
     const [rows] = await conn.execute(
-      `SELECT id, elo, total_points, wins, losses, draws
+      `SELECT id, elo, total_points, wins, losses, draws, money
        FROM players
        WHERE id IN (:id0, :id1)
        FOR UPDATE`,
@@ -209,9 +218,15 @@ async function recordRankedMatch({ roomId, players, winnerIndex }) {
           : null;
 
     await conn.execute(
-      `INSERT INTO matches (id, room_id, match_type, winner_player_id)
-       VALUES (:id, :roomId, 'random', :winnerPlayerId)`,
-      { id: matchId, roomId, winnerPlayerId },
+      `INSERT INTO matches (id, room_id, match_type, stake_per_player, pot_amount, winner_player_id)
+       VALUES (:id, :roomId, 'random', :stakePerPlayer, :potAmount, :winnerPlayerId)`,
+      {
+        id: matchId,
+        roomId,
+        stakePerPlayer: safeStake,
+        potAmount: safePot,
+        winnerPlayerId,
+      },
     );
 
     const seats = [
@@ -245,6 +260,26 @@ async function recordRankedMatch({ roomId, players, winnerIndex }) {
       const lossInc = seat.result === 'loss' ? 1 : 0;
       const drawInc = seat.result === 'draw' ? 1 : 0;
 
+      let moneyUpdate = '';
+      const updateParams = {
+        elo: seat.eloAfter,
+        points: seat.pointsEarned,
+        wins: winInc,
+        losses: lossInc,
+        draws: drawInc,
+        playerId: seat.playerId,
+      };
+
+      if (safeStake > 0) {
+        if (seat.result === 'win') {
+          moneyUpdate = ', money = money + :stake';
+          updateParams.stake = safeStake;
+        } else if (seat.result === 'loss') {
+          moneyUpdate = ', money = GREATEST(0, money - :stake)';
+          updateParams.stake = safeStake;
+        }
+      }
+
       await conn.execute(
         `UPDATE players
          SET elo = :elo,
@@ -252,15 +287,9 @@ async function recordRankedMatch({ roomId, players, winnerIndex }) {
              wins = wins + :wins,
              losses = losses + :losses,
              draws = draws + :draws
+             ${moneyUpdate}
          WHERE id = :playerId`,
-        {
-          elo: seat.eloAfter,
-          points: seat.pointsEarned,
-          wins: winInc,
-          losses: lossInc,
-          draws: drawInc,
-          playerId: seat.playerId,
-        },
+        updateParams,
       );
     }
 

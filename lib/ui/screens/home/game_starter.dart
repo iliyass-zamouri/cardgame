@@ -1,16 +1,20 @@
-import 'package:cardgame/ads/interstitial_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
-import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/ui/screens/friends_screen.dart';
+import 'package:cardgame/ui/screens/home/stake_selector_modal.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
+import 'package:cardgame/ui/screens/profile/player_profile_screen.dart';
 import 'package:cardgame/ui/screens/ranking/global_ranking_screen.dart';
 import 'package:cardgame/ui/screens/settings_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/widgets/currency_icon.dart';
+import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,13 +32,8 @@ class StartGameWidget extends ConsumerWidget {
     final connected = connection == ConnectionStatus.connected;
     final profile =
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
-    final authStatus = ref.watch(sessionAuthProvider).value;
-    final authLabel = switch (authStatus) {
-      SessionAuthStatus.guest => l10n.guest,
-      SessionAuthStatus.google => l10n.google,
-      _ => l10n.guest,
-    };
     final displayName = profile.isEmpty ? l10n.player : profile.name;
+    final connectedFriendsCount = ref.watch(connectedFriendsCountProvider);
     final notifier = ref.read(gameSessionProvider.notifier);
 
     return Scaffold(
@@ -47,9 +46,24 @@ class StartGameWidget extends ConsumerWidget {
             children: [
               _TopBar(
                 name: displayName,
-                authLabel: authLabel,
+                username: profile.username,
+                avatarId: profile.avatarId,
+                money: profile.money,
+                chips: profile.chips,
                 connected: connected,
                 connection: connection,
+                onProfile:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (context) => const PlayerProfileScreen(),
+                      ),
+                    ),
+                onMarketplace:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (context) => const MarketplaceScreen(),
+                      ),
+                    ),
                 onSettings:
                     () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -93,12 +107,7 @@ class StartGameWidget extends ConsumerWidget {
                                 height: 58,
                                 onPressed:
                                     connected
-                                        ? () async {
-                                          await ref
-                                              .read(interstitialAdProvider)
-                                              .show();
-                                          notifier.findMatch();
-                                        }
+                                        ? () => showStakeSelectorModal(context)
                                         : null,
                               ),
                             ),
@@ -161,6 +170,35 @@ class StartGameWidget extends ConsumerWidget {
                                     ),
                                 icon: const Icon(Icons.style_rounded, size: 18),
                                 label: Text(l10n.marketplace),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: CasinoColors.textMuted,
+                                ),
+                              ),
+                            ),
+                            Center(
+                              child: TextButton.icon(
+                                onPressed:
+                                    () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder:
+                                            (context) => const FriendsScreen(),
+                                      ),
+                                    ),
+                                icon: Badge.count(
+                                  count: connectedFriendsCount,
+                                  isLabelVisible: connectedFriendsCount > 0,
+                                  backgroundColor: CasinoColors.gold,
+                                  textColor: CasinoColors.bg,
+                                  textStyle: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  child: const Icon(
+                                    Icons.people_alt_rounded,
+                                    size: 18,
+                                  ),
+                                ),
+                                label: Text(l10n.friends),
                                 style: TextButton.styleFrom(
                                   foregroundColor: CasinoColors.textMuted,
                                 ),
@@ -368,16 +406,26 @@ class _JoinRoomDialogState extends ConsumerState<_JoinRoomDialog> {
 class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.name,
-    required this.authLabel,
+    required this.username,
+    required this.avatarId,
+    required this.money,
+    required this.chips,
     required this.connected,
     required this.connection,
+    required this.onProfile,
+    required this.onMarketplace,
     required this.onSettings,
   });
 
   final String name;
-  final String authLabel;
+  final String username;
+  final String avatarId;
+  final int money;
+  final int chips;
   final bool connected;
   final ConnectionStatus connection;
+  final VoidCallback onProfile;
+  final VoidCallback onMarketplace;
   final VoidCallback onSettings;
 
   @override
@@ -396,74 +444,110 @@ class _TopBar extends StatelessWidget {
 
     return Row(
       children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: CasinoColors.bgElevated,
-          ),
-          child: const Icon(
-            Icons.person_rounded,
-            size: 20,
-            color: CasinoColors.textMuted,
-          ),
-        ),
-        const SizedBox(width: 10),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: CasinoColors.text,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: onProfile,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                child: Row(
+                  children: [
+                    PlayerAvatar(avatarId: avatarId, size: 38),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: CasinoColors.text,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            '@$username',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: CasinoColors.goldSoft,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                authLabel,
-                style: const TextStyle(
-                  color: CasinoColors.textMuted,
-                  fontSize: 12,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: CasinoColors.bgElevated.withValues(alpha: 0.7),
+        const SizedBox(width: 6),
+        // Currency pills / Marketplace button
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
             borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: statusColor,
+            onTap: onMarketplace,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: CasinoColors.bgElevated.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: CasinoColors.gold.withValues(alpha: 0.3),
                 ),
               ),
-              const SizedBox(width: 6),
-              Text(
-                statusLabel,
-                style: TextStyle(
-                  color: connected ? CasinoColors.text : CasinoColors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CashIcon(size: 22),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$money',
+                    style: const TextStyle(
+                      color: CasinoColors.text,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const ChipIcon(size: 22),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$chips',
+                    style: const TextStyle(
+                      color: CasinoColors.goldSoft,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 6),
         IconButton(
           tooltip: l10n.settings,
           onPressed: onSettings,

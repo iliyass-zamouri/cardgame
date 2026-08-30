@@ -1,15 +1,20 @@
 import 'dart:async';
 
 import 'package:cardgame/ads/interstitial_ad_service.dart';
+import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
+import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/ranking_providers.dart';
+import 'package:cardgame/data/friends/friends_api.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/card_game_view.dart';
+import 'package:cardgame/ui/screens/friends_screen.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -44,6 +49,92 @@ class HomeScreen extends ConsumerWidget {
       );
       ref.read(gameSessionProvider.notifier).clearMessage();
     });
+
+    ref.listen<TableInviteNotification?>(
+      gameSessionProvider.select((state) => state.incomingInvite),
+      (previous, invite) {
+        if (invite == null || invite == previous) return;
+        final l10n = context.l10n;
+        final notifier = ref.read(gameSessionProvider.notifier);
+
+        showDialog<void>(
+          context: context,
+          barrierDismissible: true,
+          builder: (dialogCtx) {
+            return AlertDialog(
+              backgroundColor: CasinoColors.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: CasinoColors.surfaceHi),
+              ),
+              title: Row(
+                children: [
+                  const Icon(
+                    Icons.mark_email_unread_rounded,
+                    color: CasinoColors.gold,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      l10n.privateTable,
+                      style: const TextStyle(
+                        color: CasinoColors.gold,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.tableInviteFrom(invite.inviterName, invite.roomId),
+                    style: const TextStyle(
+                      color: CasinoColors.text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogCtx).pop();
+                    notifier.dismissIncomingInvite();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: CasinoColors.textMuted,
+                  ),
+                  child: Text(l10n.ignore),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(dialogCtx).pop();
+                    notifier.acceptIncomingInvite(invite.roomId);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: CasinoColors.raise,
+                    foregroundColor: CasinoColors.text,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    l10n.joinTable,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
 
     final session = ref.watch(gameSessionProvider);
     final game = session.game;
@@ -131,21 +222,21 @@ class WaitingRoom extends ConsumerWidget {
       backgroundColor: CasinoColors.surfaceHi,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+          padding: const EdgeInsets.fromLTRB(28, 16, 28, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(flex: 1),
+              if (bothJoined) const Spacer(flex: 1),
               Text(
                 l10n.privateTable,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: CasinoColors.gold,
-                  fontSize: 26,
+                  fontSize: 24,
                   letterSpacing: 0.8,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 bothJoined
                     ? (youReady && !opponentReady
@@ -161,14 +252,14 @@ class WaitingRoom extends ConsumerWidget {
                           ? CasinoColors.raiseHi
                           : CasinoColors.textMuted,
                   fontWeight: FontWeight.w600,
-                  fontSize: 14,
+                  fontSize: 13,
                 ),
               ),
               if (bothJoined && youReady && !opponentReady) ...[
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 const Center(child: SuitCardLoader(height: 24)),
               ],
-              const SizedBox(height: 28),
+              const SizedBox(height: 16),
               if (bothJoined) ...[
                 Row(
                   children: [
@@ -202,7 +293,7 @@ class WaitingRoom extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
               ],
               GestureDetector(
                 onTap: () async {
@@ -219,7 +310,7 @@ class WaitingRoom extends ConsumerWidget {
                   );
                 },
                 child: Container(
-                  padding: EdgeInsets.symmetric(vertical: bothJoined ? 14 : 22),
+                  padding: EdgeInsets.symmetric(vertical: bothJoined ? 12 : 18),
                   decoration: BoxDecoration(
                     color: CasinoColors.bgElevated,
                     borderRadius: BorderRadius.circular(16),
@@ -230,12 +321,12 @@ class WaitingRoom extends ConsumerWidget {
                         game.roomId,
                         style: TextStyle(
                           color: CasinoColors.text,
-                          fontSize: bothJoined ? 28 : 40,
+                          fontSize: bothJoined ? 26 : 36,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: bothJoined ? 8 : 10,
+                          letterSpacing: bothJoined ? 6 : 8,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         l10n.tapToCopy,
                         style: const TextStyle(
@@ -248,7 +339,13 @@ class WaitingRoom extends ConsumerWidget {
                   ),
                 ),
               ),
-              const Spacer(flex: 2),
+              if (!bothJoined) ...[
+                const SizedBox(height: 16),
+                Expanded(child: _InviteFriendsSection(roomId: game.roomId)),
+                const SizedBox(height: 12),
+              ] else ...[
+                const Spacer(flex: 2),
+              ],
               Row(
                 children: [
                   CasinoActionButton(
@@ -263,7 +360,7 @@ class WaitingRoom extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Center(
                 child: TextButton(
                   onPressed: notifier.leaveRoom,
@@ -276,6 +373,349 @@ class WaitingRoom extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _InviteFriendsSection extends ConsumerWidget {
+  const _InviteFriendsSection({required this.roomId});
+
+  final String roomId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final friendsAsync = ref.watch(friendsDataProvider);
+    final sentInviteIds = ref.watch(
+      gameSessionProvider.select((s) => s.sentInvitePlayerIds),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: CasinoColors.bgElevated.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: CasinoColors.surfaceHi),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.people_alt_rounded,
+                size: 16,
+                color: CasinoColors.gold,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                l10n.inviteFriends,
+                style: const TextStyle(
+                  color: CasinoColors.gold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const Spacer(),
+              friendsAsync.when(
+                data: (data) {
+                  final online = data.onlineCount;
+                  if (online == 0) return const SizedBox.shrink();
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7ED50E).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFF7ED50E).withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFF7ED50E),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '$online ${l10n.online}',
+                          style: const TextStyle(
+                            color: Color(0xFF7ED50E),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: friendsAsync.when(
+              loading: () => const Center(child: SuitCardLoader(height: 20)),
+              error:
+                  (_, __) => Center(
+                    child: Text(
+                      l10n.rankingLoadError,
+                      style: const TextStyle(
+                        color: CasinoColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+              data: (data) {
+                if (data.friends.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          l10n.noFriendsToInvite,
+                          style: const TextStyle(
+                            color: CasinoColors.textMuted,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const FriendsScreen(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            l10n.addFriend,
+                            style: const TextStyle(
+                              color: CasinoColors.gold,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final sortedFriends = List<FriendItem>.from(data.friends)
+                  ..sort((a, b) {
+                    if (a.isOnline && !b.isOnline) return -1;
+                    if (!a.isOnline && b.isOnline) return 1;
+                    return a.displayName.compareTo(b.displayName);
+                  });
+
+                return ListView.separated(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: sortedFriends.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final friend = sortedFriends[index];
+                    final isInvited = sentInviteIds.contains(friend.playerId);
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CasinoColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: CasinoColors.surfaceHi),
+                      ),
+                      child: Row(
+                        children: [
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: CasinoColors.bgElevated,
+                                  border: Border.all(
+                                    color:
+                                        friend.isOnline
+                                            ? const Color(0xFF7ED50E)
+                                            : Colors.white24,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.person_rounded,
+                                  size: 18,
+                                  color: CasinoColors.text,
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 9,
+                                  height: 9,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color:
+                                        friend.isOnline
+                                            ? const Color(0xFF7ED50E)
+                                            : CasinoColors.textMuted,
+                                    border: Border.all(
+                                      color: CasinoColors.surface,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  friend.displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: CasinoColors.text,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                if (friend.username.isNotEmpty)
+                                  Text(
+                                    '@${friend.username}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: CasinoColors.textMuted,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (isInvited)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: CasinoColors.gold.withValues(
+                                  alpha: 0.15,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: CasinoColors.gold.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.check_rounded,
+                                    size: 14,
+                                    color: CasinoColors.gold,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    l10n.invited,
+                                    style: const TextStyle(
+                                      color: CasinoColors.gold,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    friend.isOnline
+                                        ? CasinoColors.raise
+                                        : CasinoColors.surfaceHi,
+                                foregroundColor: CasinoColors.text,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                elevation: 0,
+                              ),
+                              onPressed: () {
+                                ref
+                                    .read(gameSessionProvider.notifier)
+                                    .sendTableInvite(
+                                      targetPlayerId: friend.playerId,
+                                      roomId: roomId,
+                                    );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    backgroundColor: Colors.transparent,
+                                    elevation: 0,
+                                    behavior: SnackBarBehavior.floating,
+                                    margin: const EdgeInsets.fromLTRB(
+                                      8,
+                                      0,
+                                      8,
+                                      12,
+                                    ),
+                                    duration: const Duration(seconds: 2),
+                                    content: CasinoToast(
+                                      message:
+                                          '${l10n.inviteSent} (${friend.displayName})',
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                l10n.invite,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -477,6 +917,32 @@ class GameHud extends ConsumerWidget {
                     youPoints: youElo,
                     opponentPoints: opponentElo,
                   ),
+                  if (game.potAmount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: CasinoColors.surfaceHi,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: CasinoColors.gold, width: 1.2),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CashIcon(size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${l10n.pot}: ${game.potAmount}',
+                            style: const TextStyle(
+                              color: CasinoColors.gold,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const Spacer(),
                   if (playing)
                     CasinoCircleButton(

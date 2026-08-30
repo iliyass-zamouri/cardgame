@@ -7,6 +7,8 @@ class ServerIdentity {
     required this.isNew,
     this.authType = 'guest',
     this.linkedFromGuest = false,
+    this.money = 500,
+    this.chips = 1,
   });
 
   final String playerId;
@@ -15,6 +17,8 @@ class ServerIdentity {
   final bool isNew;
   final String authType;
   final bool linkedFromGuest;
+  final int money;
+  final int chips;
 
   factory ServerIdentity.fromJson(Map<String, dynamic> json) {
     return ServerIdentity(
@@ -24,6 +28,8 @@ class ServerIdentity {
       isNew: json['isNew'] == true,
       authType: json['authType'] as String? ?? 'guest',
       linkedFromGuest: json['linkedFromGuest'] == true,
+      money: (json['money'] as num?)?.toInt() ?? 500,
+      chips: (json['chips'] as num?)?.toInt() ?? 1,
     );
   }
 }

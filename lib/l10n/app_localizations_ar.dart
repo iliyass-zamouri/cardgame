@@ -498,4 +498,337 @@ class AppLocalizationsAr extends AppLocalizations {
   String matchScoreLine(int myScore, int oppScore) {
     return 'أنت $myScore · الخصم $oppScore';
   }
+
+  @override
+  String get friends => 'الأصدقاء';
+
+  @override
+  String get friendsComingSoonBody =>
+      'تواصل مع الأصدقاء وادعهم للمباريات قريبًا.';
+
+  @override
+  String get requests => 'الطلبات';
+
+  @override
+  String get addFriend => 'إضافة صديق';
+
+  @override
+  String get searchByUsername => 'ابحث باسم المستخدم أو الاسم...';
+
+  @override
+  String get noFriendsYet => 'لا يوجد أصدقاء بعد.';
+
+  @override
+  String get noFriendsHint =>
+      'ابحث عن أسماء المستخدمين في تبويب إضافة صديق للتواصل!';
+
+  @override
+  String get noRequests => 'لا توجد طلبات صداقة معلقة.';
+
+  @override
+  String get incomingRequests => 'الطلبات الواردة';
+
+  @override
+  String get outgoingRequests => 'الطلبات المرسلة';
+
+  @override
+  String get accept => 'قبول';
+
+  @override
+  String get decline => 'رفض';
+
+  @override
+  String get removeFriend => 'إزالة صديق';
+
+  @override
+  String removeFriendConfirm(String name) {
+    return 'هل أنت متأكد من رغبتك في إزالة $name من الأصدقاء؟';
+  }
+
+  @override
+  String get friendRequestSent => 'تم إرسال طلب الصداقة!';
+
+  @override
+  String get friendRequestAccepted => 'تم قبول طلب الصداقة!';
+
+  @override
+  String get friendRemoved => 'تمت إزالة الصديق.';
+
+  @override
+  String get requestSent => 'تم الإرسال';
+
+  @override
+  String get youTag => 'أنت';
+
+  @override
+  String get alreadyFriends => 'أصدقاء';
+
+  @override
+  String get changeUsername => 'تغيير اسم المستخدم';
+
+  @override
+  String get usernameHint => 'اسم_مستخدم_فريد';
+
+  @override
+  String get usernameAvailable => 'اسم المستخدم متاح';
+
+  @override
+  String get usernameTaken => 'اسم المستخدم مأخوذ بالفعل';
+
+  @override
+  String get usernameInvalidFormat => '3-20 حرف: حروف صغيرة، أرقام، _';
+
+  @override
+  String get save => 'حفظ';
+
+  @override
+  String get displayName => 'الاسم الظاهر';
+
+  @override
+  String get editProfile => 'تعديل الملف الشخصي';
+
+  @override
+  String get profileUpdated => 'تم تحديث الملف الشخصي بنجاح!';
+
+  @override
+  String get searching => 'جارٍ البحث...';
+
+  @override
+  String get noPlayersFound => 'لم يتم العثور على لاعبين مطابقين للبحث.';
+
+  @override
+  String get profile => 'الملف الشخصي';
+
+  @override
+  String level(int lvl) {
+    return 'المستوى $lvl';
+  }
+
+  @override
+  String levelNumber(int lvl) {
+    return 'المستوى $lvl';
+  }
+
+  @override
+  String get xp => 'خبرة';
+
+  @override
+  String get winRate => 'نسبة الفوز';
+
+  @override
+  String get matchesPlayed => 'المباريات';
+
+  @override
+  String get totalXp => 'إجمالي الخبرة';
+
+  @override
+  String get copiedToClipboard => 'تم النسخ إلى الحافظة';
+
+  @override
+  String get rankTitleNovice => 'المبتدئ';
+
+  @override
+  String get rankTitleCardShark => 'قرش الورق';
+
+  @override
+  String get rankTitleHighRoller => 'المقامر المحترف';
+
+  @override
+  String get rankTitleTableMaster => 'سيد الطاولة';
+
+  @override
+  String get rankTitleGrandAce => 'الآس العظيم';
+
+  @override
+  String get rankTitleShadowLegend => 'أسطورة الظل';
+
+  @override
+  String get inviteFriends => 'دعوة الأصدقاء';
+
+  @override
+  String get invite => 'دعوة';
+
+  @override
+  String get invited => 'تمت الدعوة';
+
+  @override
+  String get inviteSent => 'تم إرسال الدعوة!';
+
+  @override
+  String tableInviteFrom(String name, String code) {
+    return 'دعاك $name للانضمام إلى طاولة خاصة $code';
+  }
+
+  @override
+  String get joinTable => 'انضم للطاولة';
+
+  @override
+  String get ignore => 'تجاهل';
+
+  @override
+  String get noFriendsToInvite => 'لم يتم إضافة أصدقاء بعد لدعوتهم.';
+
+  @override
+  String get customizeAvatar => 'تخصيص الصورة الرمزية';
+
+  @override
+  String get locked => 'مغلق';
+
+  @override
+  String get equipped => 'مفعل';
+
+  @override
+  String get equip => 'استخدام';
+
+  @override
+  String unlockAtLevel(int lvl) {
+    return 'يُفتح عند المستوى $lvl';
+  }
+
+  @override
+  String get defaultAvatar => 'الافتراضي';
+
+  @override
+  String get blueAvatar => 'الياقوت الأزرق';
+
+  @override
+  String get redAvatar => 'الياقوت الأحمر';
+
+  @override
+  String get bronzeAvatar => 'برونزي';
+
+  @override
+  String get silverAvatar => 'فضي';
+
+  @override
+  String get jokerGirlAvatar => 'فتاة الجوكر';
+
+  @override
+  String get queenAvatar => 'الملكة';
+
+  @override
+  String get kingAvatar => 'الملك';
+
+  @override
+  String get money => 'نقود';
+
+  @override
+  String get chips => 'رقائق';
+
+  @override
+  String get exchange => 'تبديل';
+
+  @override
+  String get avatarShop => 'الصور الرمزية';
+
+  @override
+  String get deckShop => 'أوراق اللعب';
+
+  @override
+  String get selectMatchStake => 'اختر الرهان';
+
+  @override
+  String get stake => 'الرهان';
+
+  @override
+  String get pot => 'المجموع';
+
+  @override
+  String get winnerTakesAll => 'الفائز يأخذ المجموع';
+
+  @override
+  String get getMoreMoney => 'الحصول على نقود';
+
+  @override
+  String get insufficientChips => 'الرقائق غير كافية';
+
+  @override
+  String get insufficientMoney => 'النقود غير كافية';
+
+  @override
+  String get exchangedSuccess => 'تم التبديل بنجاح';
+
+  @override
+  String get exchangeFailed => 'فشل التبديل';
+
+  @override
+  String get watchAdForMoney => 'مشاهدة إعلان';
+
+  @override
+  String get freeStashBonus => 'مكافأة نقود مجانية';
+
+  @override
+  String get adRewardEarned => 'تم الحصول على المكافأة!';
+
+  @override
+  String get adNotAvailable => 'الإعلان غير متوفر حالياً';
+
+  @override
+  String get chipsToMoney => 'تحويل الرقائق إلى نقود';
+
+  @override
+  String get moneyToChips => 'تحويل النقود إلى رقائق';
+
+  @override
+  String get convert => 'تحويل';
+
+  @override
+  String get claim => 'استلام';
+
+  @override
+  String get buy => 'شراء';
+
+  @override
+  String get owned => 'مملوك';
+
+  @override
+  String get unlocked => 'متاح';
+
+  @override
+  String get purchaseFailed => 'فشلت عملية الشراء';
+
+  @override
+  String get classicDeck => 'الأزرق الكلاسيكي';
+
+  @override
+  String get classicDeckDesc => 'أوراق كازينو قياسية';
+
+  @override
+  String get goldLuxuryDeck => 'الذهب الفاخر';
+
+  @override
+  String get goldLuxuryDeckDesc => 'حزمة أوراق ذهبية فاخرة';
+
+  @override
+  String get shadowNeonDeck => 'نيون الظل';
+
+  @override
+  String get shadowNeonDeckDesc => 'حزمة أوراق سايبربانك مشعة';
+
+  @override
+  String get price => 'السعر';
+
+  @override
+  String get play => 'لعب';
+
+  @override
+  String get cityLondon => 'لندن';
+
+  @override
+  String get cityParis => 'باريس';
+
+  @override
+  String get cityMoscow => 'موسكو';
+
+  @override
+  String get cityCairo => 'القاهرة';
+
+  @override
+  String get cityMarrakech => 'مراكش';
+
+  @override
+  String get prize => 'الجائزة';
+
+  @override
+  String get entryFee => 'رسوم الدخول';
 }

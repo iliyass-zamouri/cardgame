@@ -71,10 +71,13 @@ class GoogleSignInService {
       );
     } on PlatformException catch (error) {
       final details = '${error.message ?? ''} ${error.details ?? ''}'.trim();
-      if (details.contains('ApiException: 10') || details.contains(': 10:')) {
+      if (details.contains('ApiException: 10') ||
+          details.contains(': 10:') ||
+          details.contains('28444') ||
+          error.code.contains('28444')) {
         throw GoogleSignInFailedException(
-          'Google Android setup incomplete (error 10). Add an Android OAuth '
-          'client for this package with this build\'s SHA-1.',
+          'Google Android setup incomplete (error 10/28444). Android OAuth '
+          'client SHA-1 mismatch or package mismatch.',
         );
       }
       throw GoogleSignInFailedException(

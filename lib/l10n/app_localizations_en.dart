@@ -503,4 +503,338 @@ class AppLocalizationsEn extends AppLocalizations {
   String matchScoreLine(int myScore, int oppScore) {
     return 'You $myScore · Opp $oppScore';
   }
+
+  @override
+  String get friends => 'Friends';
+
+  @override
+  String get friendsComingSoonBody =>
+      'Connect with friends and invite them to matches soon.';
+
+  @override
+  String get requests => 'Requests';
+
+  @override
+  String get addFriend => 'Add Friend';
+
+  @override
+  String get searchByUsername => 'Search by @username or name...';
+
+  @override
+  String get noFriendsYet => 'No friends added yet.';
+
+  @override
+  String get noFriendsHint =>
+      'Search player usernames in Add Friend tab to connect!';
+
+  @override
+  String get noRequests => 'No pending friend requests.';
+
+  @override
+  String get incomingRequests => 'Incoming Requests';
+
+  @override
+  String get outgoingRequests => 'Outgoing Requests';
+
+  @override
+  String get accept => 'Accept';
+
+  @override
+  String get decline => 'Decline';
+
+  @override
+  String get removeFriend => 'Remove Friend';
+
+  @override
+  String removeFriendConfirm(String name) {
+    return 'Are you sure you want to remove $name from friends?';
+  }
+
+  @override
+  String get friendRequestSent => 'Friend request sent!';
+
+  @override
+  String get friendRequestAccepted => 'Friend request accepted!';
+
+  @override
+  String get friendRemoved => 'Friend removed.';
+
+  @override
+  String get requestSent => 'Sent';
+
+  @override
+  String get youTag => 'You';
+
+  @override
+  String get alreadyFriends => 'Friends';
+
+  @override
+  String get changeUsername => 'Change Username';
+
+  @override
+  String get usernameHint => 'unique_username';
+
+  @override
+  String get usernameAvailable => 'Username is available';
+
+  @override
+  String get usernameTaken => 'Username is already taken';
+
+  @override
+  String get usernameInvalidFormat =>
+      '3-20 characters: lowercase letters, numbers, _';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get displayName => 'Display Name';
+
+  @override
+  String get editProfile => 'Edit Profile';
+
+  @override
+  String get profileUpdated => 'Profile updated successfully!';
+
+  @override
+  String get searching => 'Searching...';
+
+  @override
+  String get noPlayersFound => 'No players found matching your search.';
+
+  @override
+  String get profile => 'Profile';
+
+  @override
+  String level(int lvl) {
+    return 'Level $lvl';
+  }
+
+  @override
+  String levelNumber(int lvl) {
+    return 'Level $lvl';
+  }
+
+  @override
+  String get xp => 'XP';
+
+  @override
+  String get winRate => 'Win Rate';
+
+  @override
+  String get matchesPlayed => 'Matches';
+
+  @override
+  String get totalXp => 'Total XP';
+
+  @override
+  String get copiedToClipboard => 'Copied to clipboard';
+
+  @override
+  String get rankTitleNovice => 'Novice';
+
+  @override
+  String get rankTitleCardShark => 'Card Shark';
+
+  @override
+  String get rankTitleHighRoller => 'High Roller';
+
+  @override
+  String get rankTitleTableMaster => 'Table Master';
+
+  @override
+  String get rankTitleGrandAce => 'Grand Ace';
+
+  @override
+  String get rankTitleShadowLegend => 'Shadow Legend';
+
+  @override
+  String get inviteFriends => 'Invite Friends';
+
+  @override
+  String get invite => 'Invite';
+
+  @override
+  String get invited => 'Invited';
+
+  @override
+  String get inviteSent => 'Invite sent!';
+
+  @override
+  String tableInviteFrom(String name, String code) {
+    return '$name invited you to private table $code';
+  }
+
+  @override
+  String get joinTable => 'Join Table';
+
+  @override
+  String get ignore => 'Ignore';
+
+  @override
+  String get noFriendsToInvite => 'No friends added yet to invite.';
+
+  @override
+  String get customizeAvatar => 'Customize Avatar';
+
+  @override
+  String get locked => 'Locked';
+
+  @override
+  String get equipped => 'Equipped';
+
+  @override
+  String get equip => 'Equip';
+
+  @override
+  String unlockAtLevel(int lvl) {
+    return 'Unlocks at Level $lvl';
+  }
+
+  @override
+  String get defaultAvatar => 'Default';
+
+  @override
+  String get blueAvatar => 'Sapphire';
+
+  @override
+  String get redAvatar => 'Ruby';
+
+  @override
+  String get bronzeAvatar => 'Bronze';
+
+  @override
+  String get silverAvatar => 'Silver';
+
+  @override
+  String get jokerGirlAvatar => 'Joker Girl';
+
+  @override
+  String get queenAvatar => 'Queen';
+
+  @override
+  String get kingAvatar => 'King';
+
+  @override
+  String get money => 'Money';
+
+  @override
+  String get chips => 'Chips';
+
+  @override
+  String get exchange => 'Exchange';
+
+  @override
+  String get avatarShop => 'Avatars';
+
+  @override
+  String get deckShop => 'Decks';
+
+  @override
+  String get selectMatchStake => 'Select Match Stake';
+
+  @override
+  String get stake => 'Stake';
+
+  @override
+  String get pot => 'Pot';
+
+  @override
+  String get winnerTakesAll => 'Winner takes all';
+
+  @override
+  String get getMoreMoney => 'Get Money';
+
+  @override
+  String get insufficientChips => 'Not enough chips';
+
+  @override
+  String get insufficientMoney => 'Not enough money';
+
+  @override
+  String get exchangedSuccess => 'Exchange successful';
+
+  @override
+  String get exchangeFailed => 'Exchange failed';
+
+  @override
+  String get watchAdForMoney => 'Watch Video Ad';
+
+  @override
+  String get freeStashBonus => 'Free Money Bonus';
+
+  @override
+  String get adRewardEarned => 'Reward earned!';
+
+  @override
+  String get adNotAvailable => 'Ad not ready, try again later';
+
+  @override
+  String get chipsToMoney => 'Convert Chips to Money';
+
+  @override
+  String get moneyToChips => 'Convert Money to Chips';
+
+  @override
+  String get convert => 'Convert';
+
+  @override
+  String get claim => 'Claim';
+
+  @override
+  String get buy => 'Buy';
+
+  @override
+  String get owned => 'Owned';
+
+  @override
+  String get unlocked => 'Unlocked';
+
+  @override
+  String get purchaseFailed => 'Purchase failed';
+
+  @override
+  String get classicDeck => 'Classic Blue';
+
+  @override
+  String get classicDeckDesc => 'Standard casino playing cards';
+
+  @override
+  String get goldLuxuryDeck => 'Gold Luxury';
+
+  @override
+  String get goldLuxuryDeckDesc => 'Shining gold-rimmed premium deck';
+
+  @override
+  String get shadowNeonDeck => 'Shadow Neon';
+
+  @override
+  String get shadowNeonDeckDesc => 'Cyberpunk neon glow deck';
+
+  @override
+  String get price => 'Price';
+
+  @override
+  String get play => 'Play';
+
+  @override
+  String get cityLondon => 'London';
+
+  @override
+  String get cityParis => 'Paris';
+
+  @override
+  String get cityMoscow => 'Moscow';
+
+  @override
+  String get cityCairo => 'Cairo';
+
+  @override
+  String get cityMarrakech => 'Marrakech';
+
+  @override
+  String get prize => 'Prize';
+
+  @override
+  String get entryFee => 'Entry fee';
 }

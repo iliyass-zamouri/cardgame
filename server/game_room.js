@@ -26,6 +26,9 @@ class GameRoom {
     this.version = 0;
     this.status = 'waiting';
     this.matchType = 'private';
+    this.stakePool = 0;
+    this.stakePerPlayer = 0;
+    this.potAmount = 0;
     this.seriesWins = [0, 0];
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
@@ -81,6 +84,9 @@ class GameRoom {
     this.players.splice(index, 1);
     this.status = 'waiting';
     this.matchType = 'private';
+    this.stakePool = 0;
+    this.stakePerPlayer = 0;
+    this.potAmount = 0;
     this.seriesWins = [0, 0];
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
@@ -428,6 +434,9 @@ class GameRoom {
       status: this.status,
       ready: this.players.length === 2,
       matchType: this.matchType,
+      stakePool: this.stakePool,
+      stakePerPlayer: this.stakePerPlayer,
+      potAmount: this.potAmount,
       deckCount: this.deck.length,
       discardTop: this.discard.at(-1) ?? null,
       discardRecent: this.discard.slice(-2),
@@ -541,6 +550,8 @@ class GameRoom {
     this.rankedSaved = true;
     const payload = {
       roomId: this.id,
+      stakePerPlayer: this.stakePerPlayer,
+      potAmount: this.potAmount,
       players: this.players.map((player) => ({
         playerId: player.playerId,
         cardTotal: player.total,

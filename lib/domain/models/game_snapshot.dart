@@ -229,6 +229,9 @@ class GameSnapshot {
   final GameStatus status;
   final bool ready;
   final String matchType;
+  final int stakePool;
+  final int stakePerPlayer;
+  final int potAmount;
   final int deckCount;
   final String? discardTopTag;
 
@@ -249,6 +252,9 @@ class GameSnapshot {
     required this.status,
     required this.ready,
     this.matchType = 'private',
+    this.stakePool = 0,
+    this.stakePerPlayer = 0,
+    this.potAmount = 0,
     required this.deckCount,
     required this.discardTopTag,
     required this.discardRecentTags,
@@ -274,6 +280,9 @@ class GameSnapshot {
       },
       ready: json['ready'] as bool? ?? false,
       matchType: json['matchType'] as String? ?? 'private',
+      stakePool: (json['stakePool'] as num?)?.toInt() ?? 0,
+      stakePerPlayer: (json['stakePerPlayer'] as num?)?.toInt() ?? 0,
+      potAmount: (json['potAmount'] as num?)?.toInt() ?? 0,
       deckCount: json['deckCount'] as int? ?? 0,
       discardTopTag: json['discardTop'] as String?,
       discardRecentTags:
