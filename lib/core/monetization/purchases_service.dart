@@ -85,10 +85,27 @@ class PurchasesService {
     }
   }
 
+  ProductCategory _categoryFor(String productId) {
+    if (productId == PurchasesConfig.proMonthly) {
+      return ProductCategory.subscription;
+    }
+    return ProductCategory.nonSubscription;
+  }
+
   Future<List<StoreProduct>> getProducts(List<String> productIds) async {
     if (!_isConfigured) return [];
     try {
-      return await Purchases.getProducts(productIds);
+      final byCategory = <ProductCategory, List<String>>{};
+      for (final id in productIds) {
+        (byCategory[_categoryFor(id)] ??= []).add(id);
+      }
+      final results = <StoreProduct>[];
+      for (final entry in byCategory.entries) {
+        results.addAll(
+          await Purchases.getProducts(entry.value, productCategory: entry.key),
+        );
+      }
+      return results;
     } catch (e) {
       debugPrint('[PurchasesService] getProducts failed: $e');
       return [];
@@ -119,6 +136,19 @@ class PurchasesService {
 
   Future<CustomerInfo?> purchaseProduct(String productId) async {
     if (!_isConfigured) return null;
+
+    try {
+      final offerings = await Purchases.getOfferings();
+      final packages = offerings.current?.availablePackages ?? const [];
+      for (final package in packages) {
+        if (package.storeProduct.identifier == productId) {
+          return purchasePackage(package);
+        }
+      }
+    } catch (e) {
+      debugPrint('[PurchasesService] offerings lookup failed: $e');
+    }
+
     final products = await getProducts([productId]);
     if (products.isEmpty) {
       throw Exception('Product $productId not found');

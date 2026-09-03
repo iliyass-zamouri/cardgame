@@ -74,6 +74,14 @@ npm test
 
 Android emulator uses `WS_HOST=10.0.2.2` (see `.vscode/launch.json`).
 
+### Android release (Play app bundle)
+
+```bash
+./scripts/build-appbundle.sh
+```
+
+Builds release AAB with `flavors/prod.json` (prod host, Google client ID, RevenueCat). Extra flags pass through.
+
 ### Docker
 
 ```bash
