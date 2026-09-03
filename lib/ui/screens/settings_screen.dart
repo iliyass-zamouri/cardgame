@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/locale_provider.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/core/monetization/purchases_config.dart';
@@ -17,6 +18,7 @@ import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -623,39 +625,71 @@ class _ProCardState extends ConsumerState<_ProCard> {
   }
 }
 
-class _LanguageCard extends StatelessWidget {
+class _LanguageCard extends ConsumerWidget {
   const _LanguageCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CasinoColors.surfaceHi),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.language_rounded,
-            color: CasinoColors.goldSoft,
-            size: 22,
+    final current = LanguageSwitcher.optionFor(
+      ref.watch(localeProvider).languageCode,
+    );
+    return Material(
+      color: CasinoColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => LanguageSwitcher.openPicker(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: CasinoColors.surfaceHi),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              l10n.language,
-              style: const TextStyle(
-                color: CasinoColors.text,
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: SvgPicture.asset(
+                  current.flagAsset,
+                  width: 28,
+                  height: 20,
+                  fit: BoxFit.cover,
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.language,
+                      style: const TextStyle(
+                        color: CasinoColors.text,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      current.name,
+                      style: const TextStyle(
+                        color: CasinoColors.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.public_rounded,
+                color: CasinoColors.goldSoft,
+                size: 22,
+              ),
+            ],
           ),
-          const LanguageSwitcher(),
-        ],
+        ),
       ),
     );
   }

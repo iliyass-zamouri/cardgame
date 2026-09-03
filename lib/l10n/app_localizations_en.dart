@@ -75,6 +75,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get language => 'Language';
 
   @override
+  String get changeLanguage => 'Change language';
+
+  @override
   String get signOut => 'Sign out';
 
   @override

@@ -12,13 +12,10 @@ import 'package:flutter/widgets.dart';
 class Assets {
   Assets._();
 
-  static const AssetGenImage background =
-      AssetGenImage('assets/background.jpg');
-  static const AssetGenImage logo = AssetGenImage('assets/logo.png');
   static const AssetGenImage table = AssetGenImage('assets/table.jpg');
 
   /// List of all assets
-  List<AssetGenImage> get values => [background, logo, table];
+  List<AssetGenImage> get values => [table];
 }
 
 class AssetGenImage {
@@ -79,15 +76,8 @@ class AssetGenImage {
     );
   }
 
-  ImageProvider provider({
-    AssetBundle? bundle,
-    String? package,
-  }) {
-    return AssetImage(
-      _assetName,
-      bundle: bundle,
-      package: package,
-    );
+  ImageProvider provider({AssetBundle? bundle, String? package}) {
+    return AssetImage(_assetName, bundle: bundle, package: package);
   }
 
   String get path => _assetName;

@@ -17,9 +17,18 @@ class LocaleNotifier extends Notifier<Locale> {
 
   @override
   Locale build() {
-    return LocaleRepository.resolveInitial(
+    final observer = _LocaleObserver((locales) {
+      // Only track system while user has not picked an override.
+      if (_repo.loadCode() != null) return;
+      state = LocaleRepository.fromDeviceLocales(locales ?? const []);
+    });
+    final binding = WidgetsBinding.instance;
+    binding.addObserver(observer);
+    ref.onDispose(() => binding.removeObserver(observer));
+
+    return LocaleRepository.resolve(
       storedCode: _repo.loadCode(),
-      deviceLocales: WidgetsBinding.instance.platformDispatcher.locales,
+      deviceLocales: binding.platformDispatcher.locales,
     );
   }
 
@@ -28,4 +37,13 @@ class LocaleNotifier extends Notifier<Locale> {
     await _repo.saveCode(languageCode);
     state = Locale(languageCode);
   }
+}
+
+class _LocaleObserver with WidgetsBindingObserver {
+  _LocaleObserver(this._onLocalesChanged);
+
+  final void Function(List<Locale>? locales) _onLocalesChanged;
+
+  @override
+  void didChangeLocales(List<Locale>? locales) => _onLocalesChanged(locales);
 }

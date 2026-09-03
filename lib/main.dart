@@ -92,6 +92,10 @@ class MyApp extends ConsumerWidget {
       locale: locale,
       navigatorObservers: [if (analyticsObserver != null) analyticsObserver],
       supportedLocales: AppLocalizations.supportedLocales,
+      localeListResolutionCallback: (deviceLocales, supported) {
+        // Prefer system match; never fall through to first supported (ar).
+        return LocaleRepository.fromDeviceLocales(deviceLocales ?? const []);
+      },
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

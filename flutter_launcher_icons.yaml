@@ -1,6 +1,8 @@
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/logo.png
+  image_path: cleanup/assets/new-logo/logo.png
   adaptive_icon_background: "#0a0a0a"
-  adaptive_icon_foreground: assets/logo.png
+  adaptive_icon_foreground: cleanup/assets/new-logo/logo.png
+  adaptive_icon_foreground_inset: 16
+  remove_alpha_ios: true

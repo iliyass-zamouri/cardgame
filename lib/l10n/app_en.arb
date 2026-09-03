@@ -26,6 +26,7 @@
   "deck": "Deck",
   "settings": "Settings",
   "language": "Language",
+  "changeLanguage": "Change language",
   "signOut": "Sign out",
   "guest": "Guest",
   "google": "Google",

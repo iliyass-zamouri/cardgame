@@ -76,6 +76,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get language => 'Langue';
 
   @override
+  String get changeLanguage => 'Changer de langue';
+
+  @override
   String get signOut => 'Déconnexion';
 
   @override

@@ -1,7 +1,7 @@
 name: cardgame
 description: Multiplayer card game with authoritative WebSocket rooms.
 publish_to: "none"
-version: 1.0.0+7
+version: 1.0.0+8
 
 environment:
   sdk: ">=3.7.0 <4.0.0"
@@ -50,15 +50,14 @@ flutter:
   generate: true
   uses-material-design: true
   assets:
-    - assets/background.jpg
     - assets/table.jpg
-    - assets/logo.png
-    - assets/logo.svg
     - assets/crown.svg
     - assets/hailsom.png
     - assets/avatars/
     - assets/icons/
+    - assets/flags/
     - assets/pots/
+    - assets/logo/
   fonts:
     - family: Cinzel
       fonts:

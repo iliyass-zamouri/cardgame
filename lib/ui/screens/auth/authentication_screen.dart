@@ -9,7 +9,6 @@ import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/language_switcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class AuthenticationScreen extends ConsumerStatefulWidget {
   const AuthenticationScreen({super.key});
@@ -110,12 +109,12 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
               alignment: AlignmentDirectional.topEnd,
               child: Padding(
                 padding: EdgeInsets.only(top: 8),
-                child: LanguageSwitcher(),
+                child: LanguageSwitcher(showLabel: true),
               ),
             ),
             const Spacer(flex: 2),
-            SvgPicture.asset(
-              'assets/logo.svg',
+            Image.asset(
+              'assets/logo/text.png',
               height: 168,
               fit: BoxFit.contain,
             ),

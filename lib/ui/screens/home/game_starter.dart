@@ -83,9 +83,9 @@ class StartGameWidget extends ConsumerWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            SvgPicture.asset(
-                              'assets/logo.svg',
-                              height: compact ? 110 : 160,
+                            Image.asset(
+                              'assets/logo/text.png',
+                              width: compact ? 260 : 320,
                               fit: BoxFit.contain,
                             ),
                             Text(
@@ -97,7 +97,7 @@ class StartGameWidget extends ConsumerWidget {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            SizedBox(height: compact ? 20 : 36),
+                            SizedBox(height: compact ? 40 : 60),
                             Center(
                               child: CasinoActionButton(
                                 label: l10n.findMatch,

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-/// Persists in-app language (`en` / `fr` / `ar`).
+/// Persists in-app language override (`en` / `fr` / `es` / `pt` / `ar`).
+///
+/// No saved preference → match system language; unsupported → English.
 class LocaleRepository {
   LocaleRepository._(this._box, this._memory);
 
   static const boxName = 'locale_prefs';
   static const _keyLanguage = 'languageCode';
-  static const supportedCodes = {'en', 'fr', 'ar'};
+  static const supportedCodes = {'en', 'fr', 'es', 'pt', 'ar'};
 
   final Box<dynamic>? _box;
   String? _memory;
@@ -21,10 +23,10 @@ class LocaleRepository {
     return LocaleRepository._(null, initial);
   }
 
-  /// Stored code, or null if never chosen (use device default).
+  /// Stored override, or null if never chosen (follow system).
   String? loadCode() {
-    if (_memory != null) return _memory;
-    final raw = _box!.get(_keyLanguage) as String?;
+    if (_box == null) return _memory;
+    final raw = _box.get(_keyLanguage) as String?;
     if (raw == null || !supportedCodes.contains(raw)) return null;
     return raw;
   }
@@ -38,18 +40,31 @@ class LocaleRepository {
     await _box.put(_keyLanguage, code);
   }
 
-  static Locale resolveInitial({
+  /// Prefer explicit user pick, else first supported system locale, else `en`.
+  static Locale resolve({
     required String? storedCode,
     required List<Locale> deviceLocales,
   }) {
     if (storedCode != null && supportedCodes.contains(storedCode)) {
       return Locale(storedCode);
     }
+    return fromDeviceLocales(deviceLocales);
+  }
+
+  /// First device locale whose language we support, else English.
+  static Locale fromDeviceLocales(List<Locale> deviceLocales) {
     for (final locale in deviceLocales) {
-      if (supportedCodes.contains(locale.languageCode)) {
-        return Locale(locale.languageCode);
+      final code = locale.languageCode.toLowerCase();
+      if (supportedCodes.contains(code)) {
+        return Locale(code);
       }
     }
     return const Locale('en');
   }
+
+  /// Kept for older call sites / tests.
+  static Locale resolveInitial({
+    required String? storedCode,
+    required List<Locale> deviceLocales,
+  }) => resolve(storedCode: storedCode, deviceLocales: deviceLocales);
 }
