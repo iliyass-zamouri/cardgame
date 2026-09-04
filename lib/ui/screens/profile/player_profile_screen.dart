@@ -2,13 +2,16 @@ import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/data/ranking/ranking_api.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:cardgame/ui/screens/profile/avatar_selection_modal.dart';
 import 'package:cardgame/ui/screens/settings_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +30,16 @@ class PlayerProfileScreen extends ConsumerWidget {
     if (level <= 14) return l10n.rankTitleTableMaster;
     if (level <= 19) return l10n.rankTitleGrandAce;
     return l10n.rankTitleShadowLegend;
+  }
+
+  static String _deckDisplayName(AppLocalizations l10n, String nameKey) {
+    switch (nameKey) {
+      case 'onyxBlackDeck':
+        return l10n.onyxBlackDeck;
+      case 'classicDeck':
+      default:
+        return l10n.classicDeck;
+    }
   }
 
   @override
@@ -99,6 +112,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                             : l10n.player,
                     username: isSelf ? myProfile.username : 'player',
                     avatarId: isSelf ? myProfile.avatarId : 'default',
+                    deckId: isSelf ? myProfile.deckId : 'default',
                     elo: 1000,
                     totalPoints: 0,
                     rank: null,
@@ -123,6 +137,11 @@ class PlayerProfileScreen extends ConsumerWidget {
                         ? entry!.username!
                         : (isSelf ? myProfile.username : 'player');
                 final avatarId = isSelf ? myProfile.avatarId : 'default';
+                final remoteDeckId = entry?.deckId;
+                final deckId =
+                    (remoteDeckId != null && remoteDeckId.isNotEmpty)
+                        ? remoteDeckId
+                        : (isSelf ? myProfile.deckId : 'default');
                 final elo = entry?.elo ?? 1000;
                 final totalPoints = entry?.totalPoints ?? 0;
                 final rank = entry?.rank;
@@ -135,6 +154,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                   name: name,
                   username: username,
                   avatarId: avatarId,
+                  deckId: deckId,
                   elo: elo,
                   totalPoints: totalPoints,
                   rank: rank,
@@ -229,6 +249,7 @@ class PlayerProfileScreen extends ConsumerWidget {
     required String name,
     required String username,
     required String avatarId,
+    required String deckId,
     required int elo,
     required int totalPoints,
     required int? rank,
@@ -250,6 +271,8 @@ class PlayerProfileScreen extends ConsumerWidget {
     const nextLevelXp = 100;
     final progress = (currentLevelXp / nextLevelXp).clamp(0.0, 1.0);
     final rankTitle = getRankTitle(level, l10n);
+    final deck = DeckCatalog.getById(deckId);
+    final deckName = _deckDisplayName(l10n, deck.nameKey);
 
     final authLabel = switch (authStatus) {
       SessionAuthStatus.guest => l10n.guest,
@@ -356,6 +379,35 @@ class PlayerProfileScreen extends ConsumerWidget {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap:
+                        () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder:
+                                (context) => DeckPreviewScreen(
+                                  title: deckName,
+                                  backSkinId: deck.skinId,
+                                ),
+                          ),
+                        ),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
+                      child: DeckFanPreview(
+                        skinId: deck.skinId,
+                        cardWidth: 52,
+                        spread: 8,
+                        heightPadding: 8,
+                      ),
+                    ),
                   ),
                 ),
               ],

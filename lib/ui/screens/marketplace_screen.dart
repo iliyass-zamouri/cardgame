@@ -8,11 +8,11 @@ import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/data/marketplace/marketplace_api.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/sfx_service.dart';
-import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
+import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1611,7 +1611,7 @@ class _DecksTab extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
-                    _DeckFan(skinId: deck.skinId),
+                    DeckFanPreview(skinId: deck.skinId),
                     const SizedBox(height: 18),
                     Text(
                       name,
@@ -1723,90 +1723,4 @@ class _DecksTab extends ConsumerWidget {
       },
     );
   }
-}
-
-class _DeckFan extends StatelessWidget {
-  const _DeckFan({required this.skinId});
-
-  final String skinId;
-
-  static const _count = 5;
-  static const _cardWidth = 108.0;
-  static const _cardHeight = _cardWidth * 112 / 78;
-  static const _spread = 16.0;
-  static const _tilt = 0.06;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: _cardHeight + 16,
-      width: _cardWidth + _spread * (_count - 1),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          for (var i = 0; i < _count; i++)
-            Transform.translate(
-              offset: Offset((i - (_count - 1) / 2) * _spread, 0),
-              child: Transform.rotate(
-                angle: (i - (_count - 1) / 2) * _tilt,
-                child: Container(
-                  width: _cardWidth,
-                  height: _cardHeight,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.42),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: _DeckBackPreview(skinId: skinId),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DeckBackPreview extends StatelessWidget {
-  const _DeckBackPreview({required this.skinId});
-
-  final String skinId;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _DeckBackPreviewPainter(skinId),
-      child: const SizedBox.expand(),
-    );
-  }
-}
-
-class _DeckBackPreviewPainter extends CustomPainter {
-  _DeckBackPreviewPainter(this.skinId);
-
-  final String skinId;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 || size.height <= 0) return;
-    final rect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      Radius.circular(size.width * 0.1),
-    );
-    canvas.save();
-    canvas.clipRRect(rect);
-    canvas.scale(size.width);
-    CardBackSkins.byId(skinId).paintUnit(canvas, size.height / size.width);
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _DeckBackPreviewPainter oldDelegate) =>
-      oldDelegate.skinId != skinId;
 }

@@ -26,6 +26,7 @@ class RankingEntry {
     required this.wins,
     required this.losses,
     required this.draws,
+    this.deckId = 'default',
   });
 
   final int rank;
@@ -37,6 +38,7 @@ class RankingEntry {
   final int wins;
   final int losses;
   final int draws;
+  final String deckId;
 
   String get displayName {
     final n = name?.trim();
@@ -57,6 +59,7 @@ class RankingEntry {
       wins: (json['wins'] as num?)?.toInt() ?? 0,
       losses: (json['losses'] as num?)?.toInt() ?? 0,
       draws: (json['draws'] as num?)?.toInt() ?? 0,
+      deckId: json['deckId'] as String? ?? 'default',
     );
   }
 }

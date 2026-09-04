@@ -49,6 +49,7 @@ class FriendItem {
     required this.draws,
     required this.isOnline,
     this.avatarId = 'default',
+    this.deckId = 'default',
     this.since,
   });
 
@@ -57,6 +58,7 @@ class FriendItem {
   final String name;
   final String username;
   final String avatarId;
+  final String deckId;
   final int elo;
   final int totalPoints;
   final int wins;
@@ -74,6 +76,7 @@ class FriendItem {
       name: json['name'] as String? ?? '',
       username: json['username'] as String? ?? '',
       avatarId: json['avatarId'] as String? ?? 'default',
+      deckId: json['deckId'] as String? ?? 'default',
       elo: (json['elo'] as num?)?.toInt() ?? 1000,
       totalPoints: (json['totalPoints'] as num?)?.toInt() ?? 0,
       wins: (json['wins'] as num?)?.toInt() ?? 0,
@@ -98,6 +101,7 @@ class FriendRequestItem {
     required this.draws,
     required this.isOnline,
     this.avatarId = 'default',
+    this.deckId = 'default',
     this.createdAt,
   });
 
@@ -106,6 +110,7 @@ class FriendRequestItem {
   final String name;
   final String username;
   final String avatarId;
+  final String deckId;
   final int elo;
   final int totalPoints;
   final int wins;
@@ -123,6 +128,7 @@ class FriendRequestItem {
       name: json['name'] as String? ?? '',
       username: json['username'] as String? ?? '',
       avatarId: json['avatarId'] as String? ?? 'default',
+      deckId: json['deckId'] as String? ?? 'default',
       elo: (json['elo'] as num?)?.toInt() ?? 1000,
       totalPoints: (json['totalPoints'] as num?)?.toInt() ?? 0,
       wins: (json['wins'] as num?)?.toInt() ?? 0,
@@ -148,12 +154,14 @@ class SearchedPlayerItem {
     this.friendshipId,
     required this.isOnline,
     this.avatarId = 'default',
+    this.deckId = 'default',
   });
 
   final String playerId;
   final String name;
   final String username;
   final String avatarId;
+  final String deckId;
   final int elo;
   final int totalPoints;
   final int wins;
@@ -169,12 +177,14 @@ class SearchedPlayerItem {
     FriendshipRelationship? relationship,
     String? friendshipId,
     String? avatarId,
+    String? deckId,
   }) {
     return SearchedPlayerItem(
       playerId: playerId,
       name: name,
       username: username,
       avatarId: avatarId ?? this.avatarId,
+      deckId: deckId ?? this.deckId,
       elo: elo,
       totalPoints: totalPoints,
       wins: wins,
@@ -192,6 +202,7 @@ class SearchedPlayerItem {
       name: json['name'] as String? ?? '',
       username: json['username'] as String? ?? '',
       avatarId: json['avatarId'] as String? ?? 'default',
+      deckId: json['deckId'] as String? ?? 'default',
       elo: (json['elo'] as num?)?.toInt() ?? 1000,
       totalPoints: (json['totalPoints'] as num?)?.toInt() ?? 0,
       wins: (json['wins'] as num?)?.toInt() ?? 0,
