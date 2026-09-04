@@ -60,6 +60,7 @@ flutter:
     - assets/pots/
     - assets/logo/
     - assets/sounds/
+    - assets/ranking/
   fonts:
     - family: Cinzel
       fonts:

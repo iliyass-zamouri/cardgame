@@ -9,7 +9,6 @@ import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class GlobalRankingScreen extends ConsumerWidget {
   const GlobalRankingScreen({super.key});
@@ -54,7 +53,7 @@ class _LeaderboardTab extends ConsumerStatefulWidget {
 }
 
 class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
-  static const _approxRow = 57.0;
+  static const _approxRow = 64.0;
 
   final _viewportKey = GlobalKey();
   final _selfKey = GlobalKey();
@@ -165,7 +164,8 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
         final selfIndex =
             myId.isEmpty ? -1 : entries.indexWhere((e) => e.playerId == myId);
         final stickyEntry = selfIndex >= 0 ? entries[selfIndex] : myRank;
-        final showSticky = stickyEntry != null && _sticky != _SelfSticky.none;
+        final showStickyOverlay =
+            stickyEntry != null && _sticky != _SelfSticky.none;
 
         _scheduleStickyUpdate(selfIndex: selfIndex);
 
@@ -195,7 +195,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                         padding: EdgeInsets.only(
                           top: 4,
                           bottom:
-                              showSticky && _sticky == _SelfSticky.bottom
+                              showStickyOverlay && _sticky == _SelfSticky.bottom
                                   ? _approxRow + 8
                                   : 4,
                         ),
@@ -230,7 +230,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                       ),
                     ),
                   ),
-                  if (showSticky && stickyEntry != null)
+                  if (stickyEntry != null && showStickyOverlay)
                     Positioned(
                       left: 0,
                       right: 0,
@@ -298,7 +298,7 @@ class _HistoryTab extends ConsumerWidget {
 /// Shared column widths for header + rows.
 abstract final class _LbCols {
   static const rank = 36.0;
-  static const avatar = 36.0;
+  static const avatar = 56.0;
   static const gap = 10.0;
   static const stat = 36.0;
   static const elo = 48.0;
@@ -375,11 +375,18 @@ class _RankRow extends StatelessWidget {
   final bool isSelf;
   final String selfLabel;
 
-  static Color? _crownColor(int rank) => switch (rank) {
-    1 => CasinoColors.gold,
-    2 => const Color(0xFFC0C0C0), // silver
-    3 => const Color(0xFFCD7F32), // bronze
+  static String? _badgeAsset(int rank) => switch (rank) {
+    1 => 'assets/ranking/rank_1.png',
+    2 => 'assets/ranking/rank_2.png',
+    3 => 'assets/ranking/rank_3.png',
     _ => null,
+  };
+
+  static Color _rankColor(int rank) => switch (rank) {
+    1 => CasinoColors.gold,
+    2 => CasinoColors.silver,
+    3 => CasinoColors.checkHi,
+    _ => CasinoColors.textMuted,
   };
 
   static const _statStyle = TextStyle(
@@ -392,14 +399,16 @@ class _RankRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = isSelf ? selfLabel : entry.displayName;
-    final crownColor = _crownColor(entry.rank);
+    final badge = _badgeAsset(entry.rank);
+    final rankColor = _rankColor(entry.rank);
+    final isPodium = badge != null;
     return Container(
       color: highlight ? CasinoColors.gold.withValues(alpha: 0.08) : null,
       padding: EdgeInsets.fromLTRB(
         _LbCols.hPad,
-        crownColor != null ? 14 : 10,
+        isPodium ? 8 : 10,
         _LbCols.hPad,
-        10,
+        isPodium ? 8 : 10,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -409,36 +418,38 @@ class _RankRow extends StatelessWidget {
             child: Text(
               '#${entry.rank}',
               style: TextStyle(
-                color: highlight ? CasinoColors.gold : CasinoColors.textMuted,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
+                color: rankColor,
+                fontWeight: isPodium ? FontWeight.w800 : FontWeight.w700,
+                fontSize: isPodium ? 16 : 13,
               ),
             ),
           ),
           SizedBox(
             width: _LbCols.avatar,
-            height: _LbCols.avatar,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                const PlayerAvatar(avatarId: 'default', size: 36),
-                if (crownColor != null)
-                  Positioned(
-                    top: -12,
-                    child: SvgPicture.asset(
-                      'assets/crown.svg',
-                      width: 20,
-                      height: 16,
-                      fit: BoxFit.contain,
-                      colorFilter: ColorFilter.mode(
-                        crownColor,
-                        BlendMode.srcIn,
-                      ),
+            child:
+                isPodium
+                    ? Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        Image.asset(
+                          badge,
+                          width: 54,
+                          height: 54,
+                          fit: BoxFit.contain,
+                        ),
+                        Transform.translate(
+                          offset: const Offset(0, 4),
+                          child: const PlayerAvatar(
+                            avatarId: 'default',
+                            size: 34,
+                          ),
+                        ),
+                      ],
+                    )
+                    : const Center(
+                      child: PlayerAvatar(avatarId: 'default', size: 36),
                     ),
-                  ),
-              ],
-            ),
           ),
           const SizedBox(width: _LbCols.gap),
           Expanded(

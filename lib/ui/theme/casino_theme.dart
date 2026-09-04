@@ -21,6 +21,7 @@ abstract final class CasinoColors {
   static const raiseHi = Color(0xFF26A69A);
   static const success = Color(0xFF2E7D32);
   static const borderGlow = Color(0xFF3D8B5F);
+  static const silver = Color(0xFFD9D9D9);
 }
 
 /// [display] = Cinzel (Latin brand). [ui] = DM Sans. [arabicUi] = Cairo.
