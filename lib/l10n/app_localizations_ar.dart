@@ -475,6 +475,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get elo => 'إيلو';
 
   @override
+  String get colWins => 'ف';
+
+  @override
+  String get colLosses => 'خ';
+
+  @override
+  String get colDraws => 'ت';
+
+  @override
   String get rankingEmpty => 'لا لاعبين مصنّفين بعد. العب مباراة عشوائية!';
 
   @override

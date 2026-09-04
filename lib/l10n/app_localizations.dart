@@ -980,6 +980,24 @@ abstract class AppLocalizations {
   /// **'Elo'**
   String get elo;
 
+  /// No description provided for @colWins.
+  ///
+  /// In en, this message translates to:
+  /// **'W'**
+  String get colWins;
+
+  /// No description provided for @colLosses.
+  ///
+  /// In en, this message translates to:
+  /// **'L'**
+  String get colLosses;
+
+  /// No description provided for @colDraws.
+  ///
+  /// In en, this message translates to:
+  /// **'D'**
+  String get colDraws;
+
   /// No description provided for @rankingEmpty.
   ///
   /// In en, this message translates to:

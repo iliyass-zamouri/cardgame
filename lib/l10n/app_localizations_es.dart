@@ -482,6 +482,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get elo => 'Elo';
 
   @override
+  String get colWins => 'V';
+
+  @override
+  String get colLosses => 'D';
+
+  @override
+  String get colDraws => 'E';
+
+  @override
   String get rankingEmpty =>
       'Aún no hay jugadores clasificados. ¡Juega una partida aleatoria!';
 

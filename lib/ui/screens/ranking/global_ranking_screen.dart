@@ -74,6 +74,7 @@ class _LeaderboardTab extends ConsumerWidget {
         }
         return Column(
           children: [
+            const _LeaderboardHeader(),
             if (myRank != null)
               Material(
                 color: CasinoColors.surface,
@@ -104,7 +105,7 @@ class _LeaderboardTab extends ConsumerWidget {
                   await ref.read(leaderboardProvider.future);
                 },
                 child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
                   itemCount: entries.length,
                   separatorBuilder:
                       (_, _) =>
@@ -183,6 +184,73 @@ class _HistoryTab extends ConsumerWidget {
   }
 }
 
+/// Shared column widths for header + rows.
+abstract final class _LbCols {
+  static const rank = 36.0;
+  static const avatar = 36.0;
+  static const gap = 10.0;
+  static const stat = 36.0;
+  static const elo = 48.0;
+  static const hPad = 12.0;
+}
+
+class _LeaderboardHeader extends StatelessWidget {
+  const _LeaderboardHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    const style = TextStyle(
+      color: CasinoColors.textMuted,
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.4,
+    );
+    return Container(
+      color: CasinoColors.bgElevated,
+      padding: const EdgeInsets.symmetric(
+        horizontal: _LbCols.hPad,
+        vertical: 8,
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: _LbCols.rank),
+          const SizedBox(width: _LbCols.avatar + _LbCols.gap),
+          const Expanded(child: SizedBox.shrink()),
+          SizedBox(
+            width: _LbCols.stat,
+            child: Text(
+              l10n.colWins,
+              textAlign: TextAlign.center,
+              style: style,
+            ),
+          ),
+          SizedBox(
+            width: _LbCols.stat,
+            child: Text(
+              l10n.colLosses,
+              textAlign: TextAlign.center,
+              style: style,
+            ),
+          ),
+          SizedBox(
+            width: _LbCols.stat,
+            child: Text(
+              l10n.colDraws,
+              textAlign: TextAlign.center,
+              style: style,
+            ),
+          ),
+          SizedBox(
+            width: _LbCols.elo,
+            child: Text(l10n.elo, textAlign: TextAlign.end, style: style),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RankRow extends StatelessWidget {
   const _RankRow({
     required this.entry,
@@ -204,30 +272,42 @@ class _RankRow extends StatelessWidget {
     _ => null,
   };
 
+  static const _statStyle = TextStyle(
+    color: CasinoColors.text,
+    fontWeight: FontWeight.w600,
+    fontSize: 13,
+    fontFeatures: [FontFeature.tabularFigures()],
+  );
+
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final name = isSelf ? selfLabel : entry.displayName;
     final crownColor = _crownColor(entry.rank);
     return Container(
       color: highlight ? CasinoColors.gold.withValues(alpha: 0.08) : null,
-      padding: EdgeInsets.fromLTRB(16, crownColor != null ? 14 : 10, 16, 10),
+      padding: EdgeInsets.fromLTRB(
+        _LbCols.hPad,
+        crownColor != null ? 14 : 10,
+        _LbCols.hPad,
+        10,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: 36,
+            width: _LbCols.rank,
             child: Text(
               '#${entry.rank}',
               style: TextStyle(
                 color: highlight ? CasinoColors.gold : CasinoColors.textMuted,
                 fontWeight: FontWeight.w700,
+                fontSize: 13,
               ),
             ),
           ),
           SizedBox(
-            width: 40,
-            height: 36,
+            width: _LbCols.avatar,
+            height: _LbCols.avatar,
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
@@ -250,54 +330,54 @@ class _RankRow extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: _LbCols.gap),
           Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: highlight ? CasinoColors.gold : CasinoColors.text,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  l10n.recordWinsLossesDraws(
-                    entry.wins,
-                    entry.losses,
-                    entry.draws,
-                  ),
-                  style: const TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: highlight ? CasinoColors.gold : CasinoColors.text,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${l10n.elo} ${entry.elo}',
-                style: const TextStyle(
-                  color: CasinoColors.goldSoft,
-                  fontWeight: FontWeight.w700,
-                ),
+          SizedBox(
+            width: _LbCols.stat,
+            child: Text(
+              '${entry.wins}',
+              textAlign: TextAlign.center,
+              style: _statStyle.copyWith(color: const Color(0xFF5DCF8A)),
+            ),
+          ),
+          SizedBox(
+            width: _LbCols.stat,
+            child: Text(
+              '${entry.losses}',
+              textAlign: TextAlign.center,
+              style: _statStyle.copyWith(color: const Color(0xFFE07070)),
+            ),
+          ),
+          SizedBox(
+            width: _LbCols.stat,
+            child: Text(
+              '${entry.draws}',
+              textAlign: TextAlign.center,
+              style: _statStyle.copyWith(color: CasinoColors.textMuted),
+            ),
+          ),
+          SizedBox(
+            width: _LbCols.elo,
+            child: Text(
+              '${entry.elo}',
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                color: CasinoColors.goldSoft,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                fontFeatures: [FontFeature.tabularFigures()],
               ),
-              Text(
-                '${l10n.points} ${entry.totalPoints}',
-                style: const TextStyle(
-                  color: CasinoColors.textMuted,
-                  fontSize: 12,
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
