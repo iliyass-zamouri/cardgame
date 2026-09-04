@@ -150,10 +150,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
   Future<void> updateBalances({required int money, int? chips}) async {
     final current = await future;
     if (current.isEmpty) return;
-    final next = current.copyWith(
-      money: money,
-      chips: chips ?? current.chips,
-    );
+    final next = current.copyWith(money: money, chips: chips ?? current.chips);
     await _repo.save(next);
     state = AsyncData(next);
   }
@@ -292,6 +289,16 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
     final next = current.copyWith(avatarId: avatarId);
     await _repo.save(next);
     state = AsyncData(next);
+
+    if (current.playerId.isNotEmpty) {
+      try {
+        await ref
+            .read(profileApiServiceProvider)
+            .updateProfile(playerId: current.playerId, avatarId: avatarId);
+      } catch (_) {
+        // Local equip still applied; server sync retries on next identity.
+      }
+    }
   }
 
   Future<void> updateDeck(String deckId) async {
@@ -299,6 +306,14 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
     final next = current.copyWith(deckId: deckId);
     await _repo.save(next);
     state = AsyncData(next);
+
+    if (current.playerId.isNotEmpty) {
+      try {
+        await ref
+            .read(profileApiServiceProvider)
+            .updateProfile(playerId: current.playerId, deckId: deckId);
+      } catch (_) {}
+    }
   }
 
   Future<void> updateProfile({String? name, String? username}) async {

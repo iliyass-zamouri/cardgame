@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
+import 'package:cardgame/services/sfx_service.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/flame/court_svg_art.dart';
 import 'package:cardgame/ui/flame/joker_svg_art.dart';
@@ -662,6 +664,7 @@ class CardGame extends FlameGame {
 
     // Own-card peek: flip/lift only (no zoom icon).
     if (action.actor == LastActionActor.you && action.side == 'you') {
+      SfxService.instance.flip();
       return;
     }
 
@@ -676,6 +679,7 @@ class CardGame extends FlameGame {
       hand = action.side == 'you' ? _opponentHand : _localHand;
       showFace = false;
     }
+    SfxService.instance.flip();
     hand.playZoomCue(action.cardIndex!, showFace: showFace);
   }
 
@@ -987,8 +991,10 @@ class CardGame extends FlameGame {
       case _CardActionKind.discardMatch:
         _runDiscardMatch(plan, onComplete);
       case _CardActionKind.penaltyDraw:
+        SfxService.instance.draw();
         _runPenaltyDraw(plan, onComplete);
       case _CardActionKind.draw:
+        SfxService.instance.draw();
         _runDraw(plan, onComplete);
       case _CardActionKind.throwHand:
         _runThrow(plan, onComplete);
@@ -1031,6 +1037,24 @@ class CardGame extends FlameGame {
   static const _peekScale = 1.35;
   static const _liftForward = 60.0;
 
+  /// Put SFX before card fully settles on discard (~55% through travel).
+  static const _putEarlyFraction = 0.55;
+
+  /// Fire put mid-flight toward discard (after optional lift+read).
+  void _schedulePutSfx({required bool withLiftRead, double extraPause = 0}) {
+    final beforeTravel =
+        (withLiftRead ? _liftDuration + _readDuration : 0.0) + extraPause;
+    final early = beforeTravel + _travelDuration * _putEarlyFraction;
+    // Attach to world so it survives ghost card removal timing.
+    world.add(
+      TimerComponent(
+        period: early,
+        removeOnFinish: true,
+        onTick: () => SfxService.instance.throwCard(),
+      ),
+    );
+  }
+
   /// Lift toward table centre so opponent hand mirrors local hand motion.
   Vector2 _liftPos(Vector2 from, {required bool isSelf}) =>
       from + Vector2(0, isSelf ? -_liftForward : _liftForward);
@@ -1061,8 +1085,15 @@ class CardGame extends FlameGame {
       backSkinId: _handSkin(isSelf: plan.isSelf),
     );
     world.add(thrown);
+    _schedulePutSfx(withLiftRead: true);
     if (tappedTag != null) {
-      thrown.flipTo(tag: tappedTag, visible: true, delay: 0.1, duration: 0.2);
+      thrown.flipTo(
+        tag: tappedTag,
+        visible: true,
+        delay: 0.1,
+        duration: 0.2,
+        sfx: false,
+      );
     }
     thrown.add(
       SequenceEffect([
@@ -1111,8 +1142,15 @@ class CardGame extends FlameGame {
     );
     world.add(drawn);
     if (!plan.drawnFaceUp) {
-      drawn.flipTo(tag: drawnTag, visible: true, delay: 0.05, duration: 0.2);
+      drawn.flipTo(
+        tag: drawnTag,
+        visible: true,
+        delay: 0.05,
+        duration: 0.2,
+        sfx: false,
+      );
     }
+    _schedulePutSfx(withLiftRead: false, extraPause: phaseA);
     drawn.add(
       SequenceEffect([
         _PauseEffect(phaseA),
@@ -1166,7 +1204,14 @@ class CardGame extends FlameGame {
       backSkinId: _handSkin(isSelf: plan.isSelf),
     );
     world.add(card);
-    card.flipTo(tag: tapped, visible: true, delay: 0.1, duration: 0.2);
+    card.flipTo(
+      tag: tapped,
+      visible: true,
+      delay: 0.1,
+      duration: 0.2,
+      sfx: false,
+    );
+    _schedulePutSfx(withLiftRead: true);
     card.add(
       SequenceEffect([
         MoveEffect.to(
@@ -1280,7 +1325,14 @@ class CardGame extends FlameGame {
       backSkinId: _handSkin(isSelf: plan.isSelf),
     )..priority = 200;
     world.add(thrown);
-    thrown.flipTo(tag: swappedTag, visible: true, delay: 0.1, duration: 0.2);
+    thrown.flipTo(
+      tag: swappedTag,
+      visible: true,
+      delay: 0.1,
+      duration: 0.2,
+      sfx: false,
+    );
+    _schedulePutSfx(withLiftRead: true);
     thrown.add(
       SequenceEffect([
         MoveEffect.to(
@@ -1295,7 +1347,9 @@ class CardGame extends FlameGame {
             curve: Curves.easeInOutCubic,
           ),
         ),
-        _CallbackEffect(_table.releaseDiscard),
+        _CallbackEffect(() {
+          _table.releaseDiscard();
+        }),
         RemoveEffect(),
       ]),
     );
@@ -1405,8 +1459,15 @@ class CardGame extends FlameGame {
     );
     world.add(card);
     if (!plan.drawnFaceUp) {
-      card.flipTo(tag: tag, visible: true, delay: 0.1, duration: 0.2);
+      card.flipTo(
+        tag: tag,
+        visible: true,
+        delay: 0.1,
+        duration: 0.2,
+        sfx: false,
+      );
     }
+    _schedulePutSfx(withLiftRead: true);
     card.add(
       SequenceEffect([
         MoveEffect.to(
@@ -1642,6 +1703,7 @@ class HandArea extends PositionComponent {
       onComplete();
       return;
     }
+    unawaited(SfxService.instance.startShuffle());
     final count = _cards.length;
     final pileCenter = Vector2(0, isSelf ? 8 : -8);
     var pending = count;
@@ -1653,6 +1715,7 @@ class HandArea extends PositionComponent {
         card.priority = 0;
       }
       layout();
+      unawaited(SfxService.instance.stopShuffle());
       onComplete();
     }
 
@@ -2048,7 +2111,21 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     required bool visible,
     double delay = 0,
     double duration = 0.12,
+    bool sfx = true,
   }) {
+    if (sfx) {
+      // Delay-matched cue so sound lines up with the half-flip.
+      if (delay <= 0) {
+        SfxService.instance.flip();
+      } else {
+        add(
+          SequenceEffect([
+            _PauseEffect(delay),
+            _CallbackEffect(SfxService.instance.flip),
+          ]),
+        );
+      }
+    }
     final effects = <Effect>[
       if (delay > 0) _PauseEffect(delay),
       _FlipEffect(to: 0, duration: duration),
@@ -2072,7 +2149,8 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     final faceChanged = _visible != snapshot.visible || _tag != snapshot.tag;
     _tappable = tappable;
     if (faceChanged) {
-      flipTo(tag: snapshot.tag, visible: snapshot.visible);
+      // Sync/deal flips stay silent — action anims + peek own their SFX.
+      flipTo(tag: snapshot.tag, visible: snapshot.visible, sfx: false);
     } else {
       _tag = snapshot.tag;
       _visible = snapshot.visible;

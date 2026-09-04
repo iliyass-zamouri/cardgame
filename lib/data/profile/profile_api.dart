@@ -62,6 +62,8 @@ class ProfileApi {
     required String playerId,
     String? name,
     String? username,
+    String? avatarId,
+    String? deckId,
   }) async {
     final uri = Uri.parse('$baseUrl/player/profile');
     final response = await _client
@@ -72,6 +74,8 @@ class ProfileApi {
             'playerId': playerId,
             if (name != null) 'name': name,
             if (username != null) 'username': username,
+            if (avatarId != null) 'avatarId': avatarId,
+            if (deckId != null) 'deckId': deckId,
           }),
         )
         .timeout(const Duration(seconds: 8));

@@ -150,7 +150,7 @@ class StartGameWidget extends ConsumerWidget {
                                     ),
                                 icon: const Icon(
                                   Icons.trending_up_rounded,
-                                  size: 18,
+                                  size: 24,
                                 ),
                                 label: Text(l10n.globalRanking),
                                 style: TextButton.styleFrom(
@@ -168,7 +168,7 @@ class StartGameWidget extends ConsumerWidget {
                                                 const MarketplaceScreen(),
                                       ),
                                     ),
-                                icon: const Icon(Icons.style_rounded, size: 18),
+                                icon: const Icon(Icons.style_rounded, size: 24),
                                 label: Text(l10n.marketplace),
                                 style: TextButton.styleFrom(
                                   foregroundColor: CasinoColors.textMuted,
@@ -195,7 +195,7 @@ class StartGameWidget extends ConsumerWidget {
                                   ),
                                   child: const Icon(
                                     Icons.people_alt_rounded,
-                                    size: 18,
+                                    size: 24,
                                   ),
                                 ),
                                 label: Text(l10n.friends),
@@ -212,7 +212,7 @@ class StartGameWidget extends ConsumerWidget {
                                   onPressed: notifier.connect,
                                   icon: const Icon(
                                     Icons.refresh_rounded,
-                                    size: 18,
+                                    size: 24,
                                   ),
                                   label: Text(l10n.retryConnection),
                                   style: TextButton.styleFrom(

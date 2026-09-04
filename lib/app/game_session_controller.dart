@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/data/game_socket.dart';
 import 'package:cardgame/data/offline/offline_game_socket.dart';
@@ -176,6 +177,12 @@ class GameSessionController extends Notifier<GameSessionState> {
 
   void dismissIncomingInvite() {
     state = state.copyWith(incomingInvite: null);
+  }
+
+  void clearFriendAlert() {
+    if (state.friendAlert != null) {
+      state = state.copyWith(friendAlert: null);
+    }
   }
 
   void acceptIncomingInvite(String roomId) {
@@ -364,6 +371,39 @@ class GameSessionController extends Notifier<GameSessionState> {
         if (targetPlayerId != null && targetPlayerId.isNotEmpty) {
           state = state.copyWith(
             sentInvitePlayerIds: {...state.sentInvitePlayerIds, targetPlayerId},
+          );
+        }
+        break;
+      case 'friendRequestReceived':
+        final fromPlayerId = message['fromPlayerId'] as String? ?? '';
+        final fromName = message['fromName'] as String? ?? 'Player';
+        if (fromPlayerId.isNotEmpty) {
+          state = state.copyWith(
+            friendAlert: FriendAlertNotification(
+              kind: 'request',
+              playerId: fromPlayerId,
+              playerName: fromName,
+              requestId: message['requestId'] as String?,
+            ),
+          );
+          unawaited(
+            ref.read(friendsDataProvider.notifier).refresh(silent: true),
+          );
+        }
+        break;
+      case 'friendRequestAccepted':
+        final byPlayerId = message['byPlayerId'] as String? ?? '';
+        final byName = message['byName'] as String? ?? 'Player';
+        if (byPlayerId.isNotEmpty) {
+          state = state.copyWith(
+            friendAlert: FriendAlertNotification(
+              kind: 'accepted',
+              playerId: byPlayerId,
+              playerName: byName,
+            ),
+          );
+          unawaited(
+            ref.read(friendsDataProvider.notifier).refresh(silent: true),
           );
         }
         break;

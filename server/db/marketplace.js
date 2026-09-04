@@ -72,6 +72,18 @@ async function ensureMarketplaceSchema() {
       'pot_amount',
       'pot_amount INT NOT NULL DEFAULT 0',
     );
+    await addColumnIfMissing(
+      conn,
+      'players',
+      'avatar_id',
+      `avatar_id VARCHAR(64) NOT NULL DEFAULT 'default'`,
+    );
+    await addColumnIfMissing(
+      conn,
+      'players',
+      'deck_id',
+      `deck_id VARCHAR(64) NOT NULL DEFAULT 'default'`,
+    );
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS player_items (
@@ -99,6 +111,40 @@ async function ensureMarketplaceSchema() {
   } finally {
     conn.release();
   }
+}
+
+/**
+ * Persist equipped avatar/deck for a player (identity sync / equip).
+ */
+async function updatePlayerCosmetics({ playerId, avatarId, deckId }) {
+  if (!playerId) return null;
+  const pool = getPool();
+  const updates = [];
+  const params = { playerId };
+
+  if (typeof avatarId === 'string' && avatarId.trim()) {
+    const id = avatarId.trim().slice(0, 64);
+    const known = AVATAR_CATALOG.some((a) => a.id === id);
+    if (known) {
+      updates.push('avatar_id = :avatarId');
+      params.avatarId = id;
+    }
+  }
+  if (typeof deckId === 'string' && deckId.trim()) {
+    const id = deckId.trim().slice(0, 64);
+    const known = DECK_CATALOG.some((d) => d.id === id);
+    if (known) {
+      updates.push('deck_id = :deckId');
+      params.deckId = id;
+    }
+  }
+  if (updates.length === 0) return null;
+
+  await pool.execute(
+    `UPDATE players SET ${updates.join(', ')}, last_seen_at = CURRENT_TIMESTAMP WHERE id = :playerId`,
+    params,
+  );
+  return { playerId, avatarId: params.avatarId, deckId: params.deckId };
 }
 
 /**
@@ -572,4 +618,5 @@ module.exports = {
   purchaseItem,
   claimRewardedAdBonus,
   redeemIapPurchase,
+  updatePlayerCosmetics,
 };

@@ -1124,6 +1124,18 @@ abstract class AppLocalizations {
   /// **'Friend request accepted!'**
   String get friendRequestAccepted;
 
+  /// No description provided for @friendRequestFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} sent you a friend request'**
+  String friendRequestFrom(String name);
+
+  /// No description provided for @friendRequestAcceptedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} accepted your friend request'**
+  String friendRequestAcceptedBy(String name);
+
   /// No description provided for @friendRemoved.
   ///
   /// In en, this message translates to:

@@ -97,21 +97,20 @@ class SettingsScreen extends ConsumerWidget {
                           .all[PurchasesConfig.entitlementPro]
                           ?.isActive ??
                       false;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        hasPro
-                            ? 'Purchases restored. PRO active!'
-                            : 'Purchases restored.',
-                      ),
-                    ),
+                  CasinoToast.show(
+                    context,
+                    hasPro
+                        ? 'Purchases restored. PRO active!'
+                        : 'Purchases restored.',
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(
+                  CasinoToast.show(
                     context,
-                  ).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
+                    'Restore failed: $e',
+                    success: false,
+                  );
                 }
               }
             },
@@ -313,13 +312,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            content: CasinoToast(message: l10n.profileUpdated),
-          ),
-        );
+        CasinoToast.show(context, l10n.profileUpdated);
       }
     } on ProfileApiException catch (e) {
       if (mounted) {
@@ -471,25 +464,23 @@ class _ProCardState extends ConsumerState<_ProCard> {
       if (info != null) {
         await ref.read(customerInfoProvider.notifier).refresh();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Welcome to ShadowHand PRO!')),
-          );
+          CasinoToast.show(context, 'Welcome to ShadowHand PRO!');
         }
       }
     } on PlatformException catch (e) {
       final code = PurchasesErrorHelper.getErrorCode(e);
       if (code != PurchasesErrorCode.purchaseCancelledError) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message ?? 'Purchase failed')),
+          CasinoToast.show(
+            context,
+            e.message ?? 'Purchase failed',
+            success: false,
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Subscription failed: $e')));
+        CasinoToast.show(context, 'Subscription failed: $e', success: false);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

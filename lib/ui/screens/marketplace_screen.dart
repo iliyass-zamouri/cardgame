@@ -7,8 +7,10 @@ import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/data/marketplace/marketplace_api.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/services/sfx_service.dart';
 import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:cardgame/ui/screens/deck_preview_screen.dart';
+import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
@@ -267,28 +269,27 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
           .read(playerProfileProvider.notifier)
           .redeemIapPurchase(productId: pack.productId, transactionId: txId);
 
+      SfxService.instance.buy();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Purchased ${pack.title}!')));
+        CasinoToast.show(context, 'Purchased ${pack.title}!');
       }
     } on PlatformException catch (e) {
       final code = PurchasesErrorHelper.getErrorCode(e);
       if (code != PurchasesErrorCode.purchaseCancelledError) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message ?? 'Purchase failed')),
+          CasinoToast.show(
+            context,
+            e.message ?? 'Purchase failed',
+            success: false,
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e is MarketplaceApiException ? e.message : 'Purchase failed: $e',
-            ),
-          ),
+        CasinoToast.show(
+          context,
+          e is MarketplaceApiException ? e.message : 'Purchase failed: $e',
+          success: false,
         );
       }
     } finally {
@@ -306,22 +307,16 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
         final reward =
             await ref.read(playerProfileProvider.notifier).claimAdReward();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${l10n.adRewardEarned}: +$reward 💵')),
-          );
+          CasinoToast.show(context, '${l10n.adRewardEarned}: +$reward 💵');
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(l10n.adNotAvailable)));
+          CasinoToast.show(context, l10n.adNotAvailable, success: false);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.adNotAvailable)));
+        CasinoToast.show(context, l10n.adNotAvailable, success: false);
       }
     } finally {
       if (mounted) widget.onBusy(false);
@@ -679,9 +674,7 @@ class _CurrencyConversionModalState
   Future<void> _convertChipsToMoney(PlayerProfile profile) async {
     final l10n = context.l10n;
     if (profile.chips < _chipsToConvert) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.insufficientChips)));
+      CasinoToast.show(context, l10n.insufficientChips, success: false);
       return;
     }
 
@@ -695,22 +688,17 @@ class _CurrencyConversionModalState
           );
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${l10n.exchangedSuccess}: +${_chipsToConvert * 1000} 💵',
-            ),
-          ),
+        CasinoToast.show(
+          context,
+          '${l10n.exchangedSuccess}: +${_chipsToConvert * 1000} 💵',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e is MarketplaceApiException ? e.message : l10n.exchangeFailed,
-            ),
-          ),
+        CasinoToast.show(
+          context,
+          e is MarketplaceApiException ? e.message : l10n.exchangeFailed,
+          success: false,
         );
       }
     } finally {
@@ -722,9 +710,7 @@ class _CurrencyConversionModalState
     final l10n = context.l10n;
     final cost = _moneyChipsToBuy * 1000;
     if (profile.money < cost) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.insufficientMoney)));
+      CasinoToast.show(context, l10n.insufficientMoney, success: false);
       return;
     }
 
@@ -738,20 +724,17 @@ class _CurrencyConversionModalState
           );
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${l10n.exchangedSuccess}: +$_moneyChipsToBuy 🪙'),
-          ),
+        CasinoToast.show(
+          context,
+          '${l10n.exchangedSuccess}: +$_moneyChipsToBuy 🪙',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e is MarketplaceApiException ? e.message : l10n.exchangeFailed,
-            ),
-          ),
+        CasinoToast.show(
+          context,
+          e is MarketplaceApiException ? e.message : l10n.exchangeFailed,
+          success: false,
         );
       }
     } finally {
@@ -1094,14 +1077,12 @@ class _AvatarsTab extends ConsumerWidget {
             : profile.chips >= avatar.price;
 
     if (!canAfford) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            avatar.currency == CurrencyType.money
-                ? l10n.insufficientMoney
-                : l10n.insufficientChips,
-          ),
-        ),
+      CasinoToast.show(
+        context,
+        avatar.currency == CurrencyType.money
+            ? l10n.insufficientMoney
+            : l10n.insufficientChips,
+        success: false,
       );
       return;
     }
@@ -1116,23 +1097,19 @@ class _AvatarsTab extends ConsumerWidget {
             currency: avatar.currency.name,
             price: avatar.price,
           );
+      SfxService.instance.buy();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${l10n.unlocked}! ${_getAvatarName(context, avatar.nameKey)}',
-            ),
-          ),
+        CasinoToast.show(
+          context,
+          '${l10n.unlocked}! ${_getAvatarName(context, avatar.nameKey)}',
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e is MarketplaceApiException ? e.message : l10n.purchaseFailed,
-            ),
-          ),
+        CasinoToast.show(
+          context,
+          e is MarketplaceApiException ? e.message : l10n.purchaseFailed,
+          success: false,
         );
       }
     } finally {
@@ -1148,12 +1125,9 @@ class _AvatarsTab extends ConsumerWidget {
     final l10n = context.l10n;
     await ref.read(playerProfileProvider.notifier).updateAvatar(avatar.id);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${l10n.equipped}: ${_getAvatarName(context, avatar.nameKey)}',
-          ),
-        ),
+      CasinoToast.show(
+        context,
+        '${l10n.equipped}: ${_getAvatarName(context, avatar.nameKey)}',
       );
     }
   }
@@ -1342,7 +1316,7 @@ class _AvatarsTab extends ConsumerWidget {
               // Avatar preview
               PlayerAvatar(
                 avatarId: avatar.id,
-                size: 64,
+                size: 124,
                 borderWidth: isEquipped ? 2 : 1.5,
                 borderColor:
                     isEquipped
@@ -1543,12 +1517,9 @@ class _DecksTab extends ConsumerWidget {
     final l10n = context.l10n;
     await ref.read(playerProfileProvider.notifier).updateDeck(deck.id);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${l10n.equipped}: ${_getDeckName(context, deck.nameKey)}',
-          ),
-        ),
+      CasinoToast.show(
+        context,
+        '${l10n.equipped}: ${_getDeckName(context, deck.nameKey)}',
       );
     }
   }
@@ -1560,9 +1531,7 @@ class _DecksTab extends ConsumerWidget {
   ) async {
     final l10n = context.l10n;
     if (profile.chips < deck.chipPrice) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.insufficientChips)));
+      CasinoToast.show(context, l10n.insufficientChips, success: false);
       return;
     }
 
@@ -1576,23 +1545,19 @@ class _DecksTab extends ConsumerWidget {
             currency: 'chips',
             price: deck.chipPrice,
           );
+      SfxService.instance.buy();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${l10n.unlocked}! ${_getDeckName(context, deck.nameKey)}',
-            ),
-          ),
+        CasinoToast.show(
+          context,
+          '${l10n.unlocked}! ${_getDeckName(context, deck.nameKey)}',
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e is MarketplaceApiException ? e.message : l10n.purchaseFailed,
-            ),
-          ),
+        CasinoToast.show(
+          context,
+          e is MarketplaceApiException ? e.message : l10n.purchaseFailed,
+          success: false,
         );
       }
     } finally {

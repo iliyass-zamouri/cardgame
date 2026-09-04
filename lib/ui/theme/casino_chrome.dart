@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:cardgame/gen/assets.gen.dart';
@@ -248,10 +249,97 @@ class CasinoActionButton extends StatelessWidget {
 
 /// Screenshot-style toast: dark rounded banner + green check + dismiss.
 class CasinoToast extends StatelessWidget {
-  const CasinoToast({super.key, required this.message, this.onClose});
+  const CasinoToast({
+    super.key,
+    required this.message,
+    this.onClose,
+    this.success = true,
+    this.actionLabel,
+    this.onAction,
+  });
 
   final String message;
   final VoidCallback? onClose;
+  final bool success;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  static OverlayEntry? _entry;
+  static Timer? _timer;
+
+  static void hide() {
+    _timer?.cancel();
+    _timer = null;
+    _entry?.remove();
+    _entry = null;
+  }
+
+  /// Top-of-screen toast via root [Overlay].
+  /// Never use floating [SnackBar] + huge bottom margin — AppBar makes it assert.
+  static void show(
+    BuildContext context,
+    String message, {
+    Duration duration = const Duration(seconds: 3),
+    bool dismissible = true,
+    bool success = true,
+    String? actionLabel,
+    VoidCallback? onAction,
+    VoidCallback? onDismiss,
+  }) {
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) return;
+
+    // Kill any leftover SnackBar (hot-reload / old callers).
+    ScaffoldMessenger.maybeOf(context)?.clearSnackBars();
+    hide();
+
+    final hasAction = actionLabel != null && onAction != null;
+    final effectiveDuration =
+        hasAction && duration == const Duration(seconds: 3)
+            ? const Duration(seconds: 8)
+            : duration;
+
+    var acted = false;
+    void dismissWithoutAction() {
+      hide();
+      if (!acted) onDismiss?.call();
+    }
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (ctx) {
+        final top = MediaQuery.viewPaddingOf(ctx).top + 8;
+        return Positioned(
+          top: top,
+          left: 8,
+          right: 8,
+          child: Material(
+            color: Colors.transparent,
+            child: _ToastSlide(
+              child: CasinoToast(
+                message: message,
+                success: success,
+                actionLabel: actionLabel,
+                onAction:
+                    hasAction
+                        ? () {
+                          acted = true;
+                          hide();
+                          onAction();
+                        }
+                        : null,
+                onClose: dismissible ? dismissWithoutAction : null,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    overlay.insert(entry);
+    _entry = entry;
+    _timer = Timer(effectiveDuration, dismissWithoutAction);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -270,16 +358,20 @@ class CasinoToast extends StatelessWidget {
         ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 28,
             height: 28,
-            decoration: const BoxDecoration(
-              color: CasinoColors.success,
+            decoration: BoxDecoration(
+              color: success ? CasinoColors.success : CasinoColors.fold,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check, size: 18, color: Colors.white),
+            child: Icon(
+              success ? Icons.check : Icons.close,
+              size: 18,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -292,6 +384,25 @@ class CasinoToast extends StatelessWidget {
               ),
             ),
           ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(width: 4),
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                foregroundColor: CasinoColors.gold,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                minimumSize: const Size(0, 32),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                actionLabel!,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
           if (onClose != null)
             IconButton(
               onPressed: onClose,
@@ -301,6 +412,47 @@ class CasinoToast extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _ToastSlide extends StatefulWidget {
+  const _ToastSlide({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ToastSlide> createState() => _ToastSlideState();
+}
+
+class _ToastSlideState extends State<_ToastSlide>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  )..forward();
+
+  late final Animation<Offset> _offset = Tween<Offset>(
+    begin: const Offset(0, -0.4),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+  late final Animation<double> _opacity = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOut,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: SlideTransition(position: _offset, child: widget.child),
     );
   }
 }

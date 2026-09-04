@@ -243,6 +243,18 @@
   },
   "friendRequestSent": "Friend request sent!",
   "friendRequestAccepted": "Friend request accepted!",
+  "friendRequestFrom": "{name} sent you a friend request",
+  "@friendRequestFrom": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "friendRequestAcceptedBy": "{name} accepted your friend request",
+  "@friendRequestAcceptedBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "friendRemoved": "Friend removed.",
   "requestSent": "Sent",
   "youTag": "You",

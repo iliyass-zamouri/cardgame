@@ -101,7 +101,8 @@ ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {
         color: CasinoColors.text,
         fontSize: 13,
       ),
-      behavior: SnackBarBehavior.floating,
+      // fixed — floating + tall content/AppBar triggers off-screen assert
+      behavior: SnackBarBehavior.fixed,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       elevation: 0,
     ),

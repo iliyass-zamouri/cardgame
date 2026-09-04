@@ -171,6 +171,18 @@
   "removeFriendConfirm": "Êtes-vous sûr de vouloir supprimer {name} de vos amis ?",
   "friendRequestSent": "Demande d'ami envoyée !",
   "friendRequestAccepted": "Demande d'ami acceptée !",
+  "friendRequestFrom": "{name} vous a envoyé une demande d'ami",
+  "@friendRequestFrom": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "friendRequestAcceptedBy": "{name} a accepté votre demande d'ami",
+  "@friendRequestAcceptedBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "friendRemoved": "Ami supprimé.",
   "requestSent": "Envoyée",
   "youTag": "Vous",

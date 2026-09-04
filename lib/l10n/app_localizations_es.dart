@@ -564,6 +564,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get friendRequestAccepted => '¡Solicitud de amistad aceptada!';
 
   @override
+  String friendRequestFrom(String name) {
+    return '$name te envió una solicitud de amistad';
+  }
+
+  @override
+  String friendRequestAcceptedBy(String name) {
+    return '$name aceptó tu solicitud de amistad';
+  }
+
+  @override
   String get friendRemoved => 'Amigo eliminado.';
 
   @override

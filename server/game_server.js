@@ -40,6 +40,7 @@ const {
   purchaseItem,
   claimRewardedAdBonus,
   redeemIapPurchase,
+  updatePlayerCosmetics,
 } = require('./db/marketplace');
 const { acquireBotUser } = require('./db/bots');
 const { ServerRobotPlayer } = require('./bot_player');
@@ -48,8 +49,8 @@ class GameServer {
   constructor({
     port = 8080,
     host = '127.0.0.1',
-    botMatchMinDelayMs = 10000,
-    botMatchMaxDelayMs = 30000,
+    botMatchMinDelayMs = 2000,
+    botMatchMaxDelayMs = 6000,
   } = {}) {
     this.port = port;
     this.host = host;
@@ -345,7 +346,7 @@ class GameServer {
       return;
     }
 
-    const { playerId, name, username } = body || {};
+    const { playerId, name, username, avatarId, deckId } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
@@ -357,6 +358,9 @@ class GameServer {
         sendJson(response, 404, { error: 'not_found', message: 'Player not found' });
         return;
       }
+      if (avatarId || deckId) {
+        await updatePlayerCosmetics({ playerId, avatarId, deckId });
+      }
       sendJson(response, 200, {
         playerId: updated.id,
         name: updated.display_name,
@@ -364,6 +368,8 @@ class GameServer {
         authType: updated.auth_type,
         elo: updated.elo,
         totalPoints: updated.total_points,
+        avatarId: avatarId || updated.avatar_id || 'default',
+        deckId: deckId || updated.deck_id || 'default',
       });
     } catch (error) {
       if (error.code === 'invalid_format' || error.code === 'username_taken') {
@@ -391,6 +397,7 @@ class GameServer {
         limit,
         onlinePlayerIds,
       });
+      this.#enrichAvatarsFromLiveClients(results.players);
       sendJson(response, 200, results);
     } catch (error) {
       console.error('[friends/search]', error);
@@ -408,6 +415,9 @@ class GameServer {
     try {
       const onlinePlayerIds = this.#getOnlinePlayerIds();
       const payload = await getPlayerFriends({ playerId, onlinePlayerIds });
+      this.#enrichAvatarsFromLiveClients(payload.friends);
+      this.#enrichAvatarsFromLiveClients(payload.incomingRequests);
+      this.#enrichAvatarsFromLiveClients(payload.outgoingRequests);
       sendJson(response, 200, payload);
     } catch (error) {
       console.error('[friends]', error);
@@ -433,6 +443,24 @@ class GameServer {
     try {
       const result = await sendFriendRequest({ playerId, targetPlayerId, targetUsername });
       sendJson(response, 200, result);
+
+      if (result.status === 'pending' && !result.alreadyPending && result.targetPlayerId) {
+        this.#notifyPlayer(result.targetPlayerId, {
+          type: 'friendRequestReceived',
+          requestId: result.requestId || null,
+          fromPlayerId: result.fromPlayerId || playerId,
+          fromName: result.fromName || 'Player',
+          fromUsername: result.fromUsername || '',
+        });
+      } else if (result.autoAccepted && result.notifyPlayerId) {
+        this.#notifyPlayer(result.notifyPlayerId, {
+          type: 'friendRequestAccepted',
+          friendshipId: result.friendshipId || null,
+          byPlayerId: result.fromPlayerId || playerId,
+          byName: result.fromName || 'Player',
+          byUsername: result.fromUsername || '',
+        });
+      }
     } catch (error) {
       if (
         error.code === 'player_not_found' ||
@@ -465,6 +493,16 @@ class GameServer {
     try {
       const result = await acceptFriendRequest({ playerId, requesterId, requestId });
       sendJson(response, 200, result);
+
+      if (result.requesterId) {
+        this.#notifyPlayer(result.requesterId, {
+          type: 'friendRequestAccepted',
+          friendshipId: result.friendshipId || null,
+          byPlayerId: result.byPlayerId || playerId,
+          byName: result.byName || 'Player',
+          byUsername: result.byUsername || '',
+        });
+      }
     } catch (error) {
       if (error.code === 'request_not_found') {
         sendJson(response, 404, { error: error.code, message: error.message });
@@ -916,6 +954,13 @@ class GameServer {
       context.avatarId = identity.avatarId;
       context.deckId = identity.deckId;
       this.#send(context.socket, { type: 'identityAck', playerId: context.playerId });
+      if (context.playerId) {
+        updatePlayerCosmetics({
+          playerId: context.playerId,
+          avatarId: context.avatarId,
+          deckId: context.deckId,
+        }).catch((err) => console.error('[identity cosmetics]', err));
+      }
       return;
     }
 
@@ -927,6 +972,13 @@ class GameServer {
       context.displayName = identity.displayName;
       context.avatarId = identity.avatarId;
       context.deckId = identity.deckId;
+      if (context.playerId) {
+        updatePlayerCosmetics({
+          playerId: context.playerId,
+          avatarId: context.avatarId,
+          deckId: context.deckId,
+        }).catch((err) => console.error('[findMatch cosmetics]', err));
+      }
       const allowedStakes = [20, 50, 100, 200, 500];
       const reqStake = Number(command.stakePool ?? command.stake ?? 50);
       context.stakePool = allowedStakes.includes(reqStake) ? reqStake : 50;
@@ -949,6 +1001,13 @@ class GameServer {
       context.displayName = identity.displayName;
       context.avatarId = identity.avatarId;
       context.deckId = identity.deckId;
+      if (context.playerId) {
+        updatePlayerCosmetics({
+          playerId: context.playerId,
+          avatarId: context.avatarId,
+          deckId: context.deckId,
+        }).catch((err) => console.error('[createRoom cosmetics]', err));
+      }
       let roomId;
       do roomId = createRoomCode(); while (this.rooms.has(roomId));
       const room = this.#createRoom(roomId, 'private');
@@ -973,6 +1032,13 @@ class GameServer {
       context.displayName = identity.displayName;
       context.avatarId = identity.avatarId;
       context.deckId = identity.deckId;
+      if (context.playerId) {
+        updatePlayerCosmetics({
+          playerId: context.playerId,
+          avatarId: context.avatarId,
+          deckId: context.deckId,
+        }).catch((err) => console.error('[joinRoom cosmetics]', err));
+      }
       context.roomId = roomId;
       room.addPlayer(context.id, {
         playerId: context.playerId,
@@ -1220,6 +1286,36 @@ class GameServer {
         this.#send(client.socket, room.snapshotFor(player.id));
       }
     }
+  }
+
+  #notifyPlayer(playerId, payload) {
+    if (!playerId) return;
+    for (const ctx of this.clients.values()) {
+      if (ctx.playerId === playerId && ctx.socket?.readyState === WebSocket.OPEN) {
+        this.#send(ctx.socket, payload);
+      }
+    }
+  }
+
+  /** Prefer live WS cosmetics over stale DB default for online players. */
+  #enrichAvatarsFromLiveClients(entries) {
+    if (!Array.isArray(entries) || entries.length === 0) return;
+    const live = new Map();
+    for (const ctx of this.clients.values()) {
+      if (!ctx.playerId) continue;
+      if (ctx.avatarId && ctx.avatarId !== 'default') {
+        live.set(ctx.playerId, ctx.avatarId);
+      }
+    }
+    for (const entry of entries) {
+      const liveAvatar = live.get(entry.playerId);
+      if (liveAvatar) entry.avatarId = liveAvatar;
+    }
+  }
+
+  /** @internal Test-only alias for #notifyPlayer. */
+  notifyPlayerForTest(playerId, payload) {
+    this.#notifyPlayer(playerId, payload);
   }
 
   #leaveCurrentRoom(context) {

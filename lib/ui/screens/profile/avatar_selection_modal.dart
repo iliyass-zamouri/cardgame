@@ -4,6 +4,7 @@ import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/marketplace/marketplace_api.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
+import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
@@ -243,12 +244,10 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
       } catch (e) {
         if (mounted) {
           setState(() => _isSaving = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                e is MarketplaceApiException ? e.message : l10n.purchaseFailed,
-              ),
-            ),
+          CasinoToast.show(
+            context,
+            e is MarketplaceApiException ? e.message : l10n.purchaseFailed,
+            success: false,
           );
         }
       }

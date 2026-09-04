@@ -33,8 +33,10 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
     return data;
   }
 
-  Future<void> refresh() async {
-    state = const AsyncLoading();
+  Future<void> refresh({bool silent = false}) async {
+    if (!silent) {
+      state = const AsyncLoading();
+    }
     state = await AsyncValue.guard(() async {
       final profile = await ref.read(playerProfileProvider.future);
       if (profile.isEmpty) {

@@ -222,6 +222,59 @@ void main() {
     notifier.dismissIncomingInvite();
     expect(container.read(gameSessionProvider).incomingInvite, isNull);
   });
+
+  test(
+    'handles friendRequestReceived and friendRequestAccepted alerts',
+    () async {
+      final socket = FakeGameSocket();
+      final container = ProviderContainer(
+        overrides: [
+          gameSocketFactoryProvider.overrideWithValue(() => socket),
+          ..._authOverrides(),
+        ],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(gameSessionProvider.notifier);
+      await Future<void>.delayed(Duration.zero);
+      socket.emit({
+        'type': 'connected',
+        'protocolVersion': 1,
+        'clientId': 'client-1',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      socket.emit({
+        'type': 'friendRequestReceived',
+        'requestId': 'friendship-1',
+        'fromPlayerId': 'sender-9',
+        'fromName': 'ShadowAce',
+        'fromUsername': 'shadow_ace',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      final requestAlert = container.read(gameSessionProvider).friendAlert;
+      expect(requestAlert?.kind, 'request');
+      expect(requestAlert?.playerId, 'sender-9');
+      expect(requestAlert?.playerName, 'ShadowAce');
+      expect(requestAlert?.requestId, 'friendship-1');
+
+      notifier.clearFriendAlert();
+      expect(container.read(gameSessionProvider).friendAlert, isNull);
+
+      socket.emit({
+        'type': 'friendRequestAccepted',
+        'friendshipId': 'friendship-2',
+        'byPlayerId': 'accepter-3',
+        'byName': 'QueenBee',
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      final acceptedAlert = container.read(gameSessionProvider).friendAlert;
+      expect(acceptedAlert?.kind, 'accepted');
+      expect(acceptedAlert?.playerId, 'accepter-3');
+      expect(acceptedAlert?.playerName, 'QueenBee');
+    },
+  );
 }
 
 Map<String, dynamic> _snapshot() {

@@ -237,7 +237,10 @@ class _FriendCard extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              _PlayerAvatar(isOnline: friend.isOnline),
+              _PlayerAvatar(
+                avatarId: friend.avatarId,
+                isOnline: friend.isOnline,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -506,7 +509,10 @@ class _IncomingRequestCard extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          _PlayerAvatar(isOnline: request.isOnline),
+          _PlayerAvatar(
+            avatarId: request.avatarId,
+            isOnline: request.isOnline,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -587,7 +593,10 @@ class _OutgoingRequestCard extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          _PlayerAvatar(isOnline: request.isOnline),
+          _PlayerAvatar(
+            avatarId: request.avatarId,
+            isOnline: request.isOnline,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -869,7 +878,10 @@ class _SearchResultCard extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          _PlayerAvatar(isOnline: player.isOnline),
+          _PlayerAvatar(
+            avatarId: player.avatarId,
+            isOnline: player.isOnline,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -929,14 +941,15 @@ class _SearchResultCard extends ConsumerWidget {
 }
 
 class _PlayerAvatar extends StatelessWidget {
-  const _PlayerAvatar({required this.isOnline});
+  const _PlayerAvatar({required this.isOnline, this.avatarId = 'default'});
 
   final bool isOnline;
+  final String avatarId;
 
   @override
   Widget build(BuildContext context) {
     return PlayerAvatar(
-      avatarId: 'default',
+      avatarId: avatarId,
       size: 44,
       statusDotColor: isOnline ? const Color(0xFF7ED50E) : CasinoColors.foldHi,
     );

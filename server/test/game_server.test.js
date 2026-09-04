@@ -217,6 +217,43 @@ test('tableInvite relays invitation to online target player and acknowledges sen
   assert.equal(sent.delivered, true);
 });
 
+test('friend request notify reaches online target via websocket', async (t) => {
+  const server = new GameServer({ port: 0 });
+  const address = await server.start();
+  t.after(() => server.stop());
+
+  const target = await connect(address.port);
+  t.after(() => target.close());
+
+  const ack = waitFor(target, (m) => m.type === 'identityAck');
+  target.send(JSON.stringify({
+    type: 'identity',
+    playerId: 'target-player',
+    displayName: 'Target',
+  }));
+  await ack;
+
+  const receivedPromise = waitFor(
+    target,
+    (message) => message.type === 'friendRequestReceived',
+  );
+
+  // Invoke private notify helper through the same path HTTP handlers use.
+  server.notifyPlayerForTest('target-player', {
+    type: 'friendRequestReceived',
+    requestId: 'friendship-test',
+    fromPlayerId: 'sender-player',
+    fromName: 'Sender',
+    fromUsername: 'sender',
+  });
+
+  const received = await receivedPromise;
+  assert.equal(received.type, 'friendRequestReceived');
+  assert.equal(received.requestId, 'friendship-test');
+  assert.equal(received.fromPlayerId, 'sender-player');
+  assert.equal(received.fromName, 'Sender');
+});
+
 async function connect(port) {
   const socket = new WebSocket(`ws://127.0.0.1:${port}`);
   await new Promise((resolve, reject) => {

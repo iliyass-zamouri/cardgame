@@ -171,6 +171,18 @@
   "removeFriendConfirm": "هل أنت متأكد من رغبتك في إزالة {name} من الأصدقاء؟",
   "friendRequestSent": "تم إرسال طلب الصداقة!",
   "friendRequestAccepted": "تم قبول طلب الصداقة!",
+  "friendRequestFrom": "{name} أرسل لك طلب صداقة",
+  "@friendRequestFrom": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "friendRequestAcceptedBy": "{name} قبل طلب الصداقة",
+  "@friendRequestAcceptedBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "friendRemoved": "تمت إزالة الصديق.",
   "requestSent": "تم الإرسال",
   "youTag": "أنت",

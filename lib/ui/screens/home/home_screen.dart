@@ -9,6 +9,7 @@ import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/data/friends/friends_api.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/services/sfx_service.dart';
 import 'package:cardgame/ui/flame/card_game_view.dart';
 import 'package:cardgame/ui/screens/friends_screen.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
@@ -33,24 +34,22 @@ class HomeScreen extends ConsumerWidget {
       message,
     ) {
       if (message == null || message == previous) return;
-      final messenger = ScaffoldMessenger.of(context);
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          padding: EdgeInsets.zero,
-          margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-          content: CasinoToast(
-            message: localizeErrorCode(context.l10n, message),
-            onClose: messenger.hideCurrentSnackBar,
-          ),
-        ),
+      CasinoToast.show(
+        context,
+        localizeErrorCode(context.l10n, message),
+        success: false,
       );
       ref.read(gameSessionProvider.notifier).clearMessage();
     });
+
+    ref.listen<GameStatus?>(
+      gameSessionProvider.select((state) => state.game?.status),
+      (previous, next) {
+        if (next == GameStatus.playing && previous != GameStatus.playing) {
+          unawaited(SfxService.instance.playMatchStart());
+        }
+      },
+    );
 
     ref.listen<TableInviteNotification?>(
       gameSessionProvider.select((state) => state.incomingInvite),
@@ -59,82 +58,50 @@ class HomeScreen extends ConsumerWidget {
         final l10n = context.l10n;
         final notifier = ref.read(gameSessionProvider.notifier);
 
-        showDialog<void>(
-          context: context,
-          barrierDismissible: true,
-          builder: (dialogCtx) {
-            return AlertDialog(
-              backgroundColor: CasinoColors.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(color: CasinoColors.surfaceHi),
-              ),
-              title: Row(
-                children: [
-                  const Icon(
-                    Icons.mark_email_unread_rounded,
-                    color: CasinoColors.gold,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      l10n.privateTable,
-                      style: const TextStyle(
-                        color: CasinoColors.gold,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.tableInviteFrom(invite.inviterName, invite.roomId),
-                    style: const TextStyle(
-                      color: CasinoColors.text,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(dialogCtx).pop();
-                    notifier.dismissIncomingInvite();
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: CasinoColors.textMuted,
-                  ),
-                  child: Text(l10n.ignore),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(dialogCtx).pop();
-                    notifier.acceptIncomingInvite(invite.roomId);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: CasinoColors.raise,
-                    foregroundColor: CasinoColors.text,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(
-                    l10n.joinTable,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            );
-          },
+        CasinoToast.show(
+          context,
+          l10n.tableInviteFrom(invite.inviterName, invite.roomId),
+          actionLabel: l10n.joinTable,
+          onAction: () => notifier.acceptIncomingInvite(invite.roomId),
+          onDismiss: notifier.dismissIncomingInvite,
         );
+      },
+    );
+
+    ref.listen<FriendAlertNotification?>(
+      gameSessionProvider.select((state) => state.friendAlert),
+      (previous, alert) {
+        if (alert == null || alert == previous) return;
+        final l10n = context.l10n;
+        final session = ref.read(gameSessionProvider.notifier);
+        if (alert.kind == 'accepted') {
+          CasinoToast.show(
+            context,
+            l10n.friendRequestAcceptedBy(alert.playerName),
+          );
+        } else {
+          CasinoToast.show(
+            context,
+            l10n.friendRequestFrom(alert.playerName),
+            actionLabel: l10n.accept,
+            onAction: () async {
+              try {
+                await ref
+                    .read(friendsDataProvider.notifier)
+                    .acceptRequest(
+                      requesterId: alert.playerId,
+                      requestId: alert.requestId,
+                    );
+                if (context.mounted) {
+                  CasinoToast.show(context, l10n.friendRequestAccepted);
+                }
+              } catch (_) {
+                // Request may already be gone; friends list refresh still runs.
+              }
+            },
+          );
+        }
+        session.clearFriendAlert();
       },
     );
 
@@ -151,11 +118,28 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class MatchmakingWaiting extends ConsumerWidget {
+class MatchmakingWaiting extends ConsumerStatefulWidget {
   const MatchmakingWaiting({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MatchmakingWaiting> createState() => _MatchmakingWaitingState();
+}
+
+class _MatchmakingWaitingState extends ConsumerState<MatchmakingWaiting> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(SfxService.instance.startSearch());
+  }
+
+  @override
+  void dispose() {
+    unawaited(SfxService.instance.stopSearch());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final notifier = ref.read(gameSessionProvider.notifier);
 
@@ -271,6 +255,7 @@ class WaitingRoom extends ConsumerWidget {
                         connected: game.you.connected,
                         ready: youReady,
                         isYou: true,
+                        avatarId: game.you.avatarId,
                       ),
                     ),
                     Padding(
@@ -291,6 +276,7 @@ class WaitingRoom extends ConsumerWidget {
                         connected: game.opponent?.connected ?? false,
                         ready: opponentReady,
                         isYou: false,
+                        avatarId: game.opponent?.avatarId ?? 'default',
                       ),
                     ),
                   ],
@@ -301,15 +287,7 @@ class WaitingRoom extends ConsumerWidget {
                 onTap: () async {
                   await Clipboard.setData(ClipboardData(text: game.roomId));
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      behavior: SnackBarBehavior.floating,
-                      margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-                      content: CasinoToast(message: context.l10n.codeCopied),
-                    ),
-                  );
+                  CasinoToast.show(context, context.l10n.codeCopied);
                 },
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: bothJoined ? 12 : 18),
@@ -545,49 +523,18 @@ class _InviteFriendsSection extends ConsumerWidget {
                       ),
                       child: Row(
                         children: [
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: CasinoColors.bgElevated,
-                                  border: Border.all(
-                                    color:
-                                        friend.isOnline
-                                            ? const Color(0xFF7ED50E)
-                                            : Colors.white24,
-                                    width: 1.2,
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.person_rounded,
-                                  size: 18,
-                                  color: CasinoColors.text,
-                                ),
-                              ),
-                              Positioned(
-                                right: 0,
-                                bottom: 0,
-                                child: Container(
-                                  width: 9,
-                                  height: 9,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color:
-                                        friend.isOnline
-                                            ? const Color(0xFF7ED50E)
-                                            : CasinoColors.textMuted,
-                                    border: Border.all(
-                                      color: CasinoColors.surface,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                          PlayerAvatar(
+                            avatarId: friend.avatarId,
+                            size: 34,
+                            borderWidth: 1.2,
+                            borderColor:
+                                friend.isOnline
+                                    ? const Color(0xFF7ED50E)
+                                    : Colors.white24,
+                            statusDotColor:
+                                friend.isOnline
+                                    ? const Color(0xFF7ED50E)
+                                    : CasinoColors.textMuted,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -682,23 +629,10 @@ class _InviteFriendsSection extends ConsumerWidget {
                                       targetPlayerId: friend.playerId,
                                       roomId: roomId,
                                     );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: Colors.transparent,
-                                    elevation: 0,
-                                    behavior: SnackBarBehavior.floating,
-                                    margin: const EdgeInsets.fromLTRB(
-                                      8,
-                                      0,
-                                      8,
-                                      12,
-                                    ),
-                                    duration: const Duration(seconds: 2),
-                                    content: CasinoToast(
-                                      message:
-                                          '${l10n.inviteSent} (${friend.displayName})',
-                                    ),
-                                  ),
+                                CasinoToast.show(
+                                  context,
+                                  '${l10n.inviteSent} (${friend.displayName})',
+                                  duration: const Duration(seconds: 2),
                                 );
                               },
                               child: Text(
@@ -729,12 +663,14 @@ class _LobbySeat extends StatelessWidget {
     required this.connected,
     required this.ready,
     required this.isYou,
+    this.avatarId = 'default',
   });
 
   final String name;
   final bool connected;
   final bool ready;
   final bool isYou;
+  final String avatarId;
 
   @override
   Widget build(BuildContext context) {
@@ -748,38 +684,13 @@ class _LobbySeat extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: CasinoColors.bgElevated,
-                  border: Border.all(
-                    color: ready ? CasinoColors.gold : Colors.white24,
-                    width: ready ? 2.5 : 1.5,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  size: 32,
-                  color: CasinoColors.text,
-                ),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color:
-                        connected
-                            ? const Color(0xFF7ED50E)
-                            : CasinoColors.foldHi,
-                    border: Border.all(color: CasinoColors.surfaceHi, width: 2),
-                  ),
-                ),
+              PlayerAvatar(
+                avatarId: avatarId,
+                size: 64,
+                borderWidth: ready ? 2.5 : 1.5,
+                borderColor: ready ? CasinoColors.gold : Colors.white24,
+                statusDotColor:
+                    connected ? const Color(0xFF7ED50E) : CasinoColors.foldHi,
               ),
               if (ready)
                 Positioned(
@@ -844,8 +755,41 @@ class _GameBoardState extends ConsumerState<GameBoard> {
       ),
       (previous, ended) {
         if (ended && previous != true) {
+          SfxService.instance.cancelScheduledChangeTurn();
           unawaited(ref.read(interstitialAdProvider).show());
           ref.read(playerProfileProvider.notifier).refreshInventory().ignore();
+          final game = ref.read(gameSessionProvider).game;
+          final oppTotal = game?.opponent?.total;
+          if (game != null && oppTotal != null) {
+            if (game.you.total < oppTotal) {
+              SfxService.instance.win();
+            } else if (game.you.total > oppTotal) {
+              SfxService.instance.lose();
+            }
+          }
+        }
+      },
+    );
+
+    ref.listen<bool?>(
+      gameSessionProvider.select((state) {
+        final game = state.game;
+        if (game == null || game.status != GameStatus.playing) return null;
+        return game.isYourTurn;
+      }),
+      (previous, next) {
+        // Only cue when turn comes back to the local player.
+        if (previous != false || next != true) return;
+        SfxService.instance.scheduleChangeTurn();
+      },
+    );
+
+    ref.listen<LaunchStatus?>(
+      gameSessionProvider.select((state) => state.game?.you.launch),
+      (previous, next) {
+        if (next == LaunchStatus.launched &&
+            previous == LaunchStatus.notLaunched) {
+          SfxService.instance.reveal();
         }
       },
     );
@@ -1635,19 +1579,11 @@ Future<void> _showGameMenu(
                           : l10n.codeRoomId(roomId),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: Colors.transparent,
-                        elevation: 0,
-                        behavior: SnackBarBehavior.floating,
-                        margin: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-                        content: CasinoToast(
-                          message:
-                              playing
-                                  ? l10n.roomToastPlaying(roomId, turn)
-                                  : l10n.roomToast(roomId),
-                        ),
-                      ),
+                    CasinoToast.show(
+                      context,
+                      playing
+                          ? l10n.roomToastPlaying(roomId, turn)
+                          : l10n.roomToast(roomId),
                     );
                   },
                 ),

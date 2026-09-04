@@ -14,6 +14,20 @@ class TableInviteNotification {
   });
 }
 
+class FriendAlertNotification {
+  final String kind; // 'request' | 'accepted'
+  final String playerId;
+  final String playerName;
+  final String? requestId;
+
+  const FriendAlertNotification({
+    required this.kind,
+    required this.playerId,
+    required this.playerName,
+    this.requestId,
+  });
+}
+
 class GameSessionState {
   static const _unset = Object();
 
@@ -26,6 +40,7 @@ class GameSessionState {
   final bool searchingMatch;
   final TableInviteNotification? incomingInvite;
   final Set<String> sentInvitePlayerIds;
+  final FriendAlertNotification? friendAlert;
 
   /// Replace pick: first selection side (`you` / `opponent`) and index.
   final String? replaceFirstSide;
@@ -41,6 +56,7 @@ class GameSessionState {
     this.searchingMatch = false,
     this.incomingInvite,
     this.sentInvitePlayerIds = const {},
+    this.friendAlert,
     this.replaceFirstSide,
     this.replaceFirstIndex,
   });
@@ -55,6 +71,7 @@ class GameSessionState {
     bool? searchingMatch,
     Object? incomingInvite = _unset,
     Set<String>? sentInvitePlayerIds,
+    Object? friendAlert = _unset,
     Object? replaceFirstSide = _unset,
     Object? replaceFirstIndex = _unset,
   }) {
@@ -72,6 +89,10 @@ class GameSessionState {
               ? this.incomingInvite
               : incomingInvite as TableInviteNotification?,
       sentInvitePlayerIds: sentInvitePlayerIds ?? this.sentInvitePlayerIds,
+      friendAlert:
+          identical(friendAlert, _unset)
+              ? this.friendAlert
+              : friendAlert as FriendAlertNotification?,
       replaceFirstSide:
           identical(replaceFirstSide, _unset)
               ? this.replaceFirstSide

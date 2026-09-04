@@ -13,6 +13,19 @@ function normalizeUsername(username) {
   return username.trim().toLowerCase();
 }
 
+async function loadPlayerMeta(pool, playerId) {
+  if (!playerId) return { name: 'Player', username: '' };
+  const [rows] = await pool.execute(
+    `SELECT display_name, username FROM players WHERE id = :playerId LIMIT 1`,
+    { playerId },
+  );
+  if (rows.length === 0) return { name: 'Player', username: '' };
+  return {
+    name: rows[0].display_name || 'Player',
+    username: rows[0].username || '',
+  };
+}
+
 async function ensureFriendsSchema() {
   const pool = getPool();
   const conn = await pool.getConnection();
@@ -94,7 +107,7 @@ async function updatePlayerProfile({ playerId, name, username }) {
   if (updates.length === 0) {
     // Return existing
     const [rows] = await pool.execute(
-      `SELECT id, display_name, username, auth_type, money, chips, elo, total_points, wins, losses, draws FROM players WHERE id = :playerId LIMIT 1`,
+      `SELECT id, display_name, username, auth_type, money, chips, avatar_id, deck_id, elo, total_points, wins, losses, draws FROM players WHERE id = :playerId LIMIT 1`,
       { playerId },
     );
     return rows[0] || null;
@@ -106,7 +119,7 @@ async function updatePlayerProfile({ playerId, name, username }) {
   );
 
   const [rows] = await pool.execute(
-    `SELECT id, display_name, username, auth_type, money, chips, elo, total_points, wins, losses, draws FROM players WHERE id = :playerId LIMIT 1`,
+    `SELECT id, display_name, username, auth_type, money, chips, avatar_id, deck_id, elo, total_points, wins, losses, draws FROM players WHERE id = :playerId LIMIT 1`,
     { playerId },
   );
   return rows[0] || null;
@@ -128,7 +141,7 @@ async function searchPlayers({ query, playerId, limit = 20, onlinePlayerIds = ne
 
   // Search by username prefix, username substring, or display_name substring
   const [rows] = await pool.execute(
-    `SELECT id, display_name, username, elo, total_points, wins, losses, draws
+    `SELECT id, display_name, username, avatar_id, deck_id, elo, total_points, wins, losses, draws
      FROM players
      WHERE LOWER(username) LIKE :pattern OR LOWER(display_name) LIKE :pattern
      ORDER BY
@@ -195,6 +208,8 @@ async function searchPlayers({ query, playerId, limit = 20, onlinePlayerIds = ne
       playerId: row.id,
       name: row.display_name,
       username: row.username,
+      avatarId: row.avatar_id || 'default',
+      deckId: row.deck_id || 'default',
       elo: row.elo,
       totalPoints: row.total_points,
       wins: row.wins,
@@ -225,6 +240,8 @@ async function getPlayerFriends({ playerId, onlinePlayerIds = new Set() }) {
        p.id AS player_id,
        p.display_name,
        p.username,
+       p.avatar_id,
+       p.deck_id,
        p.elo,
        p.total_points,
        p.wins,
@@ -247,6 +264,8 @@ async function getPlayerFriends({ playerId, onlinePlayerIds = new Set() }) {
        p.id AS player_id,
        p.display_name,
        p.username,
+       p.avatar_id,
+       p.deck_id,
        p.elo,
        p.total_points,
        p.wins,
@@ -267,6 +286,8 @@ async function getPlayerFriends({ playerId, onlinePlayerIds = new Set() }) {
        p.id AS player_id,
        p.display_name,
        p.username,
+       p.avatar_id,
+       p.deck_id,
        p.elo,
        p.total_points,
        p.wins,
@@ -284,6 +305,8 @@ async function getPlayerFriends({ playerId, onlinePlayerIds = new Set() }) {
     playerId: r.player_id,
     name: r.display_name,
     username: r.username,
+    avatarId: r.avatar_id || 'default',
+    deckId: r.deck_id || 'default',
     elo: r.elo,
     totalPoints: r.total_points,
     wins: r.wins,
@@ -305,6 +328,8 @@ async function getPlayerFriends({ playerId, onlinePlayerIds = new Set() }) {
     playerId: r.player_id,
     name: r.display_name,
     username: r.username,
+    avatarId: r.avatar_id || 'default',
+    deckId: r.deck_id || 'default',
     elo: r.elo,
     totalPoints: r.total_points,
     wins: r.wins,
@@ -319,6 +344,8 @@ async function getPlayerFriends({ playerId, onlinePlayerIds = new Set() }) {
     playerId: r.player_id,
     name: r.display_name,
     username: r.username,
+    avatarId: r.avatar_id || 'default',
+    deckId: r.deck_id || 'default',
     elo: r.elo,
     totalPoints: r.total_points,
     wins: r.wins,
@@ -372,9 +399,19 @@ async function sendFriendRequest({ playerId, targetPlayerId, targetUsername }) {
     { targetId: resolvedTargetId, playerId },
   );
 
+  const fromMeta = await loadPlayerMeta(pool, playerId);
+
   if (recip.length > 0) {
     if (recip[0].status === 'accepted') {
-      return { status: 'accepted', friendshipId: recip[0].id, alreadyFriends: true };
+      return {
+        status: 'accepted',
+        friendshipId: recip[0].id,
+        alreadyFriends: true,
+        targetPlayerId: resolvedTargetId,
+        fromPlayerId: playerId,
+        fromName: fromMeta.name,
+        fromUsername: fromMeta.username,
+      };
     }
     if (recip[0].status === 'pending') {
       // Reciprocal pending exists -> Auto-accept!
@@ -382,7 +419,16 @@ async function sendFriendRequest({ playerId, targetPlayerId, targetUsername }) {
         `UPDATE friendships SET status = 'accepted' WHERE id = :id`,
         { id: recip[0].id },
       );
-      return { status: 'accepted', friendshipId: recip[0].id, autoAccepted: true };
+      return {
+        status: 'accepted',
+        friendshipId: recip[0].id,
+        autoAccepted: true,
+        targetPlayerId: resolvedTargetId,
+        fromPlayerId: playerId,
+        fromName: fromMeta.name,
+        fromUsername: fromMeta.username,
+        notifyPlayerId: resolvedTargetId,
+      };
     }
   }
 
@@ -394,17 +440,41 @@ async function sendFriendRequest({ playerId, targetPlayerId, targetUsername }) {
 
   if (existing.length > 0) {
     if (existing[0].status === 'accepted') {
-      return { status: 'accepted', friendshipId: existing[0].id, alreadyFriends: true };
+      return {
+        status: 'accepted',
+        friendshipId: existing[0].id,
+        alreadyFriends: true,
+        targetPlayerId: resolvedTargetId,
+        fromPlayerId: playerId,
+        fromName: fromMeta.name,
+        fromUsername: fromMeta.username,
+      };
     }
     if (existing[0].status === 'pending') {
-      return { status: 'pending', requestId: existing[0].id, alreadyPending: true };
+      return {
+        status: 'pending',
+        requestId: existing[0].id,
+        alreadyPending: true,
+        targetPlayerId: resolvedTargetId,
+        fromPlayerId: playerId,
+        fromName: fromMeta.name,
+        fromUsername: fromMeta.username,
+      };
     }
     // Re-open declined/canceled
     await pool.execute(
       `UPDATE friendships SET status = 'pending' WHERE id = :id`,
       { id: existing[0].id },
     );
-    return { status: 'pending', requestId: existing[0].id, reOpened: true };
+    return {
+      status: 'pending',
+      requestId: existing[0].id,
+      reOpened: true,
+      targetPlayerId: resolvedTargetId,
+      fromPlayerId: playerId,
+      fromName: fromMeta.name,
+      fromUsername: fromMeta.username,
+    };
   }
 
   const id = `friendship-${randomUUID()}`;
@@ -414,7 +484,14 @@ async function sendFriendRequest({ playerId, targetPlayerId, targetUsername }) {
     { id, playerId, targetId: resolvedTargetId },
   );
 
-  return { status: 'pending', requestId: id };
+  return {
+    status: 'pending',
+    requestId: id,
+    targetPlayerId: resolvedTargetId,
+    fromPlayerId: playerId,
+    fromName: fromMeta.name,
+    fromUsername: fromMeta.username,
+  };
 }
 
 /**
@@ -424,26 +501,44 @@ async function acceptFriendRequest({ playerId, requesterId, requestId }) {
   if (!playerId) throw new Error('playerId is required');
   const pool = getPool();
 
-  let query = `UPDATE friendships SET status = 'accepted' WHERE status = 'pending' AND friend_id = :playerId`;
+  let selectQuery =
+    `SELECT id, player_id FROM friendships
+     WHERE status = 'pending' AND friend_id = :playerId`;
   const params = { playerId };
 
   if (requestId) {
-    query += ` AND id = :requestId`;
+    selectQuery += ` AND id = :requestId`;
     params.requestId = requestId;
   } else if (requesterId) {
-    query += ` AND player_id = :requesterId`;
+    selectQuery += ` AND player_id = :requesterId`;
     params.requesterId = requesterId;
   } else {
     throw new Error('requestId or requesterId required');
   }
+  selectQuery += ` LIMIT 1`;
 
-  const [result] = await pool.execute(query, params);
-  if (result.affectedRows === 0) {
+  const [rows] = await pool.execute(selectQuery, params);
+  if (rows.length === 0) {
     const err = new Error('Friend request not found');
     err.code = 'request_not_found';
     throw err;
   }
-  return { success: true };
+
+  const friendship = rows[0];
+  await pool.execute(
+    `UPDATE friendships SET status = 'accepted' WHERE id = :id AND status = 'pending'`,
+    { id: friendship.id },
+  );
+
+  const acceptorMeta = await loadPlayerMeta(pool, playerId);
+  return {
+    success: true,
+    friendshipId: friendship.id,
+    requesterId: friendship.player_id,
+    byPlayerId: playerId,
+    byName: acceptorMeta.name,
+    byUsername: acceptorMeta.username,
+  };
 }
 
 /**

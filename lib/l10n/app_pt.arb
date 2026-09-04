@@ -170,6 +170,18 @@
   "removeFriendConfirm": "Tem certeza de que quer remover {name} dos amigos?",
   "friendRequestSent": "Pedido de amizade enviado!",
   "friendRequestAccepted": "Pedido de amizade aceito!",
+  "friendRequestFrom": "{name} enviou um pedido de amizade",
+  "@friendRequestFrom": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "friendRequestAcceptedBy": "{name} aceitou seu pedido de amizade",
+  "@friendRequestAcceptedBy": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
   "friendRemoved": "Amigo removido.",
   "requestSent": "Enviado",
   "youTag": "Você",

@@ -324,15 +324,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                     GestureDetector(
                       onTap: () {
                         Clipboard.setData(ClipboardData(text: '@$username'));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            backgroundColor: Colors.transparent,
-                            elevation: 0,
-                            content: CasinoToast(
-                              message: l10n.copiedToClipboard,
-                            ),
-                          ),
-                        );
+                        CasinoToast.show(context, l10n.copiedToClipboard);
                       },
                       child: Row(
                         mainAxisSize: MainAxisSize.min,

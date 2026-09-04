@@ -555,6 +555,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get friendRequestAccepted => 'تم قبول طلب الصداقة!';
 
   @override
+  String friendRequestFrom(String name) {
+    return '$name أرسل لك طلب صداقة';
+  }
+
+  @override
+  String friendRequestAcceptedBy(String name) {
+    return '$name قبل طلب الصداقة';
+  }
+
+  @override
   String get friendRemoved => 'تمت إزالة الصديق.';
 
   @override
