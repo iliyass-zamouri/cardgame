@@ -258,141 +258,207 @@ class PlayerProfileScreen extends ConsumerWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: CasinoColors.surface),
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      decoration: const BoxDecoration(
+        color: CasinoColors.surface,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(26),
+          bottomRight: Radius.circular(26),
+        ),
+        border: Border(bottom: BorderSide(color: CasinoColors.surfaceHi)),
+      ),
       child: Column(
         children: [
-          Row(
-            children: [
-              PlayerAvatar(
-                avatarId: avatarId,
-                size: 64,
-                showGlow: true,
-                showEditBadge: isSelf,
-                onTap:
-                    isSelf
-                        ? () => showAvatarSelectionModal(
-                          context,
-                          currentAvatarId: avatarId,
-                          playerLevel: level,
-                        )
-                        : null,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: CasinoColors.text,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ),
-                        if (authLabel != null) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: CasinoColors.bgElevated,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            child: Row(
+              children: [
+                PlayerAvatar(
+                  avatarId: avatarId,
+                  size: 74,
+                  showGlow: true,
+                  showEditBadge: isSelf,
+                  onTap:
+                      isSelf
+                          ? () => showAvatarSelectionModal(
+                            context,
+                            currentAvatarId: avatarId,
+                            playerLevel: level,
+                          )
+                          : null,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
                             child: Text(
-                              authLabel,
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: CasinoColors.textMuted,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
+                                color: CasinoColors.text,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
                               ),
                             ),
                           ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    GestureDetector(
-                      onTap: () {
-                        Clipboard.setData(ClipboardData(text: '@$username'));
-                        CasinoToast.show(context, l10n.copiedToClipboard);
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '@$username',
-                            style: const TextStyle(
-                              color: CasinoColors.goldSoft,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                          if (authLabel != null) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: CasinoColors.bgElevated,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                authLabel,
+                                style: const TextStyle(
+                                  color: CasinoColors.textMuted,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.copy_rounded,
-                            size: 12,
-                            color: CasinoColors.textMuted,
-                          ),
+                          ],
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: CasinoColors.gold.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: CasinoColors.gold.withValues(alpha: 0.4),
+                      const SizedBox(height: 2),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: '@$username'));
+                          CasinoToast.show(context, l10n.copiedToClipboard);
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '@$username',
+                              style: const TextStyle(
+                                color: CasinoColors.goldSoft,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.copy_rounded,
+                              size: 12,
+                              color: CasinoColors.textMuted,
+                            ),
+                          ],
                         ),
                       ),
-                      child: Text(
-                        '${l10n.levelNumber(level)} · $rankTitle',
-                        style: const TextStyle(
-                          color: CasinoColors.gold,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 18),
+          // Stats Row
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _StatBox(
+                    icon: Icons.trending_up_rounded,
+                    iconColor: CasinoColors.gold,
+                    value: '$elo',
+                    label: l10n.elo,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _StatBox(
+                    icon: Icons.emoji_events_rounded,
+                    iconColor: CasinoColors.goldSoft,
+                    value: rank != null ? '#$rank' : '—',
+                    label: l10n.leaderboard,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _StatBox(
+                    icon: Icons.pie_chart_rounded,
+                    iconColor: CasinoColors.raiseHi,
+                    value: '$winRate%',
+                    label: l10n.winRate,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Records Pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            margin: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: CasinoColors.bgElevated,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.sports_esports_rounded,
+                  size: 16,
+                  color: CasinoColors.goldSoft,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${l10n.matchesPlayed}: $totalMatches   ·   ${l10n.recordWinsLossesDraws(wins, losses, draws)}',
+                  style: const TextStyle(
+                    color: CasinoColors.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
           // XP Progress Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            margin: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
               color: CasinoColors.bgElevated,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '${l10n.xp}: $currentLevelXp / $nextLevelXp',
-                      style: const TextStyle(
-                        color: CasinoColors.text,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          '${l10n.levelNumber(level)} · $rankTitle',
+                          style: const TextStyle(
+                            color: CasinoColors.gold,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${l10n.xp}: $currentLevelXp / $nextLevelXp',
+                          style: const TextStyle(
+                            color: CasinoColors.text,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                     Text(
                       '${l10n.totalXp}: $totalPoints',
@@ -414,66 +480,6 @@ class PlayerProfileScreen extends ConsumerWidget {
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       CasinoColors.gold,
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          // Stats Row
-          Row(
-            children: [
-              Expanded(
-                child: _StatBox(
-                  icon: Icons.trending_up_rounded,
-                  iconColor: CasinoColors.gold,
-                  value: '$elo',
-                  label: l10n.elo,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StatBox(
-                  icon: Icons.emoji_events_rounded,
-                  iconColor: CasinoColors.goldSoft,
-                  value: rank != null ? '#$rank' : '—',
-                  label: l10n.leaderboard,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StatBox(
-                  icon: Icons.pie_chart_rounded,
-                  iconColor: CasinoColors.raiseHi,
-                  value: '$winRate%',
-                  label: l10n.winRate,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Records Pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: CasinoColors.bgElevated,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.sports_esports_rounded,
-                  size: 16,
-                  color: CasinoColors.goldSoft,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${l10n.matchesPlayed}: $totalMatches   ·   ${l10n.recordWinsLossesDraws(wins, losses, draws)}',
-                  style: const TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],

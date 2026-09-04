@@ -282,25 +282,29 @@ class _FriendCard extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      '@${friend.username}',
-                      style: const TextStyle(
-                        color: CasinoColors.textMuted,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      l10n.recordWinsLossesDraws(
-                        friend.wins,
-                        friend.losses,
-                        friend.draws,
-                      ),
-                      style: const TextStyle(
-                        color: CasinoColors.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          '@${friend.username}',
+                          style: const TextStyle(
+                            color: CasinoColors.gold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          l10n.recordWinsLossesDraws(
+                            friend.wins,
+                            friend.losses,
+                            friend.draws,
+                          ),
+                          style: const TextStyle(
+                            color: CasinoColors.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -509,10 +513,7 @@ class _IncomingRequestCard extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          _PlayerAvatar(
-            avatarId: request.avatarId,
-            isOnline: request.isOnline,
-          ),
+          _PlayerAvatar(avatarId: request.avatarId, isOnline: request.isOnline),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -593,10 +594,7 @@ class _OutgoingRequestCard extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          _PlayerAvatar(
-            avatarId: request.avatarId,
-            isOnline: request.isOnline,
-          ),
+          _PlayerAvatar(avatarId: request.avatarId, isOnline: request.isOnline),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -878,10 +876,7 @@ class _SearchResultCard extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          _PlayerAvatar(
-            avatarId: player.avatarId,
-            isOnline: player.isOnline,
-          ),
+          _PlayerAvatar(avatarId: player.avatarId, isOnline: player.isOnline),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

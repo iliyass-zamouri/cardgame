@@ -1591,6 +1591,14 @@ class HandArea extends PositionComponent {
     required Set<int> peekIndices,
     required String backSkinId,
   }) {
+    // Despawn shells from a prior sync can linger mid-scale-to-zero. Kill them
+    // before reuse logic runs or a neighbor looks permanently undersized.
+    for (final child in children.whereType<PlayingCardComponent>().toList()) {
+      if (!_cards.contains(child)) {
+        child.removeFromParent();
+      }
+    }
+
     final keep = <PlayingCardComponent>[];
     final used = <PlayingCardComponent>{};
     PlayingCardComponent? takeNextUnused() {
@@ -1653,13 +1661,8 @@ class HandArea extends PositionComponent {
           card.position = _slotCenter(snapshot.index, cards.length);
         }
         if (animateDeal) {
-          card.scale = Vector2.zero();
-          card.add(
-            ScaleEffect.to(
-              Vector2.all(1),
-              EffectController(duration: 0.28, curve: Curves.easeOutBack),
-            ),
-          );
+          card.snapScale(0);
+          card.scaleTo(1, duration: 0.28);
         }
         add(card);
         keep.add(card);
@@ -1805,7 +1808,9 @@ class HandArea extends PositionComponent {
       }
       card.priority = card.peeking ? 10 : 0;
       card.moveTo(target);
-      card.scaleTo(card.peeking ? peekScale : 1);
+      // Normalize (don't blindly re-tween): hot reload / resize was leaving
+      // cards mid-ScaleEffect at mixed sizes.
+      card.normalizeScale(card.peeking ? peekScale : 1);
     }
   }
 }
@@ -1922,13 +1927,8 @@ class TableArea extends PositionComponent {
       tappable: false,
     );
     if (animate && discardTag != null && discardTag != previous) {
-      _discard.scale = Vector2.all(0.7);
-      _discard.add(
-        ScaleEffect.to(
-          Vector2.all(1),
-          EffectController(duration: 0.2, curve: Curves.easeOutBack),
-        ),
-      );
+      _discard.snapScale(0.7);
+      _discard.scaleTo(1, duration: 0.2);
     }
   }
 }
@@ -1974,13 +1974,8 @@ class DrawnCardSlot extends PositionComponent {
       add(_card!);
       if (animateAppear) {
         _card!
-          ..scale = Vector2.zero()
-          ..add(
-            ScaleEffect.to(
-              Vector2.all(1),
-              EffectController(duration: 0.25, curve: Curves.easeOutBack),
-            ),
-          );
+          ..snapScale(0)
+          ..scaleTo(1, duration: 0.25);
       }
     } else {
       _card!.backSkinId = backSkinId;
@@ -2049,9 +2044,10 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
         },
       ),
     );
+    final rest = peeking ? 1.18 : 1.0;
     if (showFace) {
       // Face already flipped via snapshot; bump scale for lens feel.
-      scaleTo(_targetScale * 1.12);
+      scaleTo(rest * 1.12);
       add(
         SequenceEffect([
           _PauseEffect(2.8),
@@ -2059,17 +2055,11 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
         ]),
       );
     } else {
+      scaleTo(rest * 1.08, duration: 0.2);
       add(
         SequenceEffect([
-          ScaleEffect.to(
-            Vector2.all(_targetScale * 1.08),
-            EffectController(duration: 0.2, curve: Curves.easeOut),
-          ),
-          _PauseEffect(2.6),
-          ScaleEffect.to(
-            Vector2.all(_targetScale),
-            EffectController(duration: 0.25, curve: Curves.easeIn),
-          ),
+          _PauseEffect(2.8),
+          _CallbackEffect(() => scaleTo(peeking ? 1.18 : 1, duration: 0.25)),
         ]),
       );
     }
@@ -2095,15 +2085,56 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     );
   }
 
-  void scaleTo(double value) {
-    if ((_targetScale - value).abs() < 0.01) return;
+  /// Snap scale + bookkeeping with no animation (deal start, hard reset).
+  void snapScale(double value) {
+    _clearScaleEffects();
     _targetScale = value;
+    scale = Vector2.all(value);
+  }
+
+  /// Bring scale in line with [value] without restarting tweens on every layout.
+  ///
+  /// - Same target + in-flight ScaleEffect → leave it (deal pop, peek tween).
+  /// - Same target + drifted actual scale → hard snap (hot reload / interrupted).
+  /// - New target → animated [scaleTo].
+  void normalizeScale(double value) {
+    if ((_targetScale - value).abs() < 0.01) {
+      final animating =
+          children.whereType<ScaleEffect>().isNotEmpty ||
+          children.whereType<_ScaleBounceEffect>().isNotEmpty;
+      if (animating) return;
+      if ((scale.x - value).abs() > 0.02 || (scale.y - value).abs() > 0.02) {
+        snapScale(value);
+      }
+      return;
+    }
+    scaleTo(value);
+  }
+
+  void scaleTo(double value, {double duration = 0.26}) {
+    _clearScaleEffects();
+    final reached =
+        (scale.x - value).abs() < 0.01 && (scale.y - value).abs() < 0.01;
+    _targetScale = value;
+    if (reached) {
+      scale = Vector2.all(value);
+      return;
+    }
     add(
       ScaleEffect.to(
         Vector2.all(value),
-        EffectController(duration: 0.26, curve: Curves.easeOutBack),
+        EffectController(duration: duration, curve: Curves.easeOutCubic),
       ),
     );
+  }
+
+  void _clearScaleEffects() {
+    for (final effect in children.whereType<ScaleEffect>().toList()) {
+      effect.removeFromParent();
+    }
+    for (final effect in children.whereType<_ScaleBounceEffect>().toList()) {
+      effect.removeFromParent();
+    }
   }
 
   void flipTo({
@@ -2170,18 +2201,8 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
   }
 
   void _bounce() {
-    add(
-      SequenceEffect([
-        ScaleEffect.to(
-          Vector2.all(_targetScale * 0.94),
-          EffectController(duration: 0.07),
-        ),
-        ScaleEffect.to(
-          Vector2.all(_targetScale),
-          EffectController(duration: 0.07),
-        ),
-      ]),
-    );
+    _clearScaleEffects();
+    add(_ScaleBounceEffect(restScale: _targetScale));
   }
 
   @override
@@ -2926,6 +2947,44 @@ class _PauseEffect extends Effect {
 
   @override
   void apply(double progress) {}
+}
+
+/// Tap feedback scale pulse — cancellable by type so layout `scaleTo` wins.
+class _ScaleBounceEffect extends Effect {
+  _ScaleBounceEffect({required this.restScale})
+    : super(EffectController(duration: 0.14));
+
+  final double restScale;
+
+  @override
+  void apply(double progress) {
+    final target = parent;
+    if (target is! PositionComponent) return;
+    final dip = restScale * 0.94;
+    // 0→0.5 squeeze to dip, 0.5→1 release to rest.
+    final value =
+        progress < 0.5
+            ? lerpDouble(
+              restScale,
+              dip,
+              Curves.easeOut.transform(progress * 2),
+            )!
+            : lerpDouble(
+              dip,
+              restScale,
+              Curves.easeOut.transform((progress - 0.5) * 2),
+            )!;
+    target.scale = Vector2.all(value);
+  }
+
+  @override
+  void onFinish() {
+    final target = parent;
+    if (target is PositionComponent) {
+      target.scale = Vector2.all(restScale);
+    }
+    super.onFinish();
+  }
 }
 
 class _ZoomCueEffect extends Effect {
