@@ -44,11 +44,100 @@ class GlobalRankingScreen extends ConsumerWidget {
   }
 }
 
-class _LeaderboardTab extends ConsumerWidget {
+enum _SelfSticky { none, top, bottom }
+
+class _LeaderboardTab extends ConsumerStatefulWidget {
   const _LeaderboardTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_LeaderboardTab> createState() => _LeaderboardTabState();
+}
+
+class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
+  static const _approxRow = 57.0;
+
+  final _viewportKey = GlobalKey();
+  final _selfKey = GlobalKey();
+  final _scrollController = ScrollController();
+  _SelfSticky _sticky = _SelfSticky.bottom;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _updateSticky({required int selfIndex}) {
+    late final _SelfSticky next;
+
+    if (selfIndex < 0) {
+      next = _SelfSticky.bottom;
+    } else {
+      final selfCtx = _selfKey.currentContext;
+      final vpCtx = _viewportKey.currentContext;
+      final selfBox = selfCtx?.findRenderObject() as RenderBox?;
+      final vpBox = vpCtx?.findRenderObject() as RenderBox?;
+
+      if (selfBox != null &&
+          vpBox != null &&
+          selfBox.hasSize &&
+          vpBox.hasSize) {
+        final vpTop = vpBox.localToGlobal(Offset.zero).dy;
+        final vpBottom = vpTop + vpBox.size.height;
+        final selfTop = selfBox.localToGlobal(Offset.zero).dy;
+        final selfBottom = selfTop + selfBox.size.height;
+
+        next =
+            selfBottom <= vpTop
+                ? _SelfSticky.top
+                : selfTop >= vpBottom
+                ? _SelfSticky.bottom
+                : _SelfSticky.none;
+      } else if (_scrollController.hasClients) {
+        // Row not built (recycled) → off-screen; pick top vs bottom.
+        final itemCenter = selfIndex * _approxRow + _approxRow / 2;
+        final offset = _scrollController.offset;
+        next = itemCenter < offset ? _SelfSticky.top : _SelfSticky.bottom;
+      } else {
+        return;
+      }
+    }
+
+    if (next != _sticky) setState(() => _sticky = next);
+  }
+
+  void _scheduleStickyUpdate({required int selfIndex}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _updateSticky(selfIndex: selfIndex);
+    });
+  }
+
+  Widget _stickyRow({required RankingEntry entry, required String selfLabel}) {
+    return Material(
+      color: CasinoColors.surface,
+      elevation: 6,
+      shadowColor: Colors.black54,
+      child: InkWell(
+        onTap:
+            () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder:
+                    (_) => PlayerProfileScreen(targetPlayerId: entry.playerId),
+              ),
+            ),
+        child: _RankRow(
+          entry: entry,
+          highlight: true,
+          isSelf: true,
+          selfLabel: selfLabel,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final async = ref.watch(leaderboardProvider);
     final myId =
@@ -72,65 +161,87 @@ class _LeaderboardTab extends ConsumerWidget {
             ),
           );
         }
+
+        final selfIndex =
+            myId.isEmpty ? -1 : entries.indexWhere((e) => e.playerId == myId);
+        final stickyEntry = selfIndex >= 0 ? entries[selfIndex] : myRank;
+        final showSticky = stickyEntry != null && _sticky != _SelfSticky.none;
+
+        _scheduleStickyUpdate(selfIndex: selfIndex);
+
         return Column(
           children: [
             const _LeaderboardHeader(),
-            if (myRank != null)
-              Material(
-                color: CasinoColors.surface,
-                child: InkWell(
-                  onTap:
-                      () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder:
-                              (_) => PlayerProfileScreen(
-                                targetPlayerId: myRank.playerId,
-                              ),
-                        ),
-                      ),
-                  child: _RankRow(
-                    entry: myRank,
-                    highlight: true,
-                    isSelf: true,
-                    selfLabel: l10n.you,
-                  ),
-                ),
-              ),
             Expanded(
-              child: RefreshIndicator(
-                color: CasinoColors.gold,
-                onRefresh: () async {
-                  ref.invalidate(leaderboardProvider);
-                  ref.invalidate(myRankProvider);
-                  await ref.read(leaderboardProvider.future);
-                },
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  itemCount: entries.length,
-                  separatorBuilder:
-                      (_, _) =>
-                          const Divider(height: 1, color: Color(0x22FFFFFF)),
-                  itemBuilder: (context, index) {
-                    final entry = entries[index];
-                    return InkWell(
-                      onTap:
-                          () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder:
-                                  (_) => PlayerProfileScreen(
-                                    targetPlayerId: entry.playerId,
-                                  ),
+              child: Stack(
+                key: _viewportKey,
+                children: [
+                  NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification.metrics.axis == Axis.vertical) {
+                        _updateSticky(selfIndex: selfIndex);
+                      }
+                      return false;
+                    },
+                    child: RefreshIndicator(
+                      color: CasinoColors.gold,
+                      onRefresh: () async {
+                        ref.invalidate(leaderboardProvider);
+                        ref.invalidate(myRankProvider);
+                        await ref.read(leaderboardProvider.future);
+                      },
+                      child: ListView.separated(
+                        controller: _scrollController,
+                        padding: EdgeInsets.only(
+                          top: 4,
+                          bottom:
+                              showSticky && _sticky == _SelfSticky.bottom
+                                  ? _approxRow + 8
+                                  : 4,
+                        ),
+                        itemCount: entries.length,
+                        separatorBuilder:
+                            (_, _) => const Divider(
+                              height: 1,
+                              color: Color(0x22FFFFFF),
                             ),
-                          ),
-                      child: _RankRow(
-                        entry: entry,
-                        highlight: entry.playerId == myId,
-                        isSelf: entry.playerId == myId,
+                        itemBuilder: (context, index) {
+                          final entry = entries[index];
+                          final isSelf = entry.playerId == myId;
+                          return InkWell(
+                            key: isSelf ? _selfKey : null,
+                            onTap:
+                                () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder:
+                                        (_) => PlayerProfileScreen(
+                                          targetPlayerId: entry.playerId,
+                                        ),
+                                  ),
+                                ),
+                            child: _RankRow(
+                              entry: entry,
+                              highlight: isSelf,
+                              isSelf: isSelf,
+                              selfLabel: l10n.you,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  if (showSticky && stickyEntry != null)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: _sticky == _SelfSticky.top ? 0 : null,
+                      bottom: _sticky == _SelfSticky.bottom ? 0 : null,
+                      child: _stickyRow(
+                        entry: stickyEntry,
                         selfLabel: l10n.you,
                       ),
-                    );
-                  },
-                ),
+                    ),
+                ],
               ),
             ),
           ],
@@ -265,10 +376,9 @@ class _RankRow extends StatelessWidget {
   final String selfLabel;
 
   static Color? _crownColor(int rank) => switch (rank) {
-    1 => const Color(0xFF7FDBFF), // diamond
-    2 => CasinoColors.gold,
-    3 => const Color(0xFFC0C0C0), // silver
-    4 => const Color(0xFFCD7F32), // bronze
+    1 => CasinoColors.gold,
+    2 => const Color(0xFFC0C0C0), // silver
+    3 => const Color(0xFFCD7F32), // bronze
     _ => null,
   };
 
