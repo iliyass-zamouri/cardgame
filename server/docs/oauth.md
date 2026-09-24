@@ -17,12 +17,17 @@ Or local node with MySQL already running on `127.0.0.1:3306`.
 
 2. Endpoints:
 
-| Method | Path           | Body                              | Notes                                          |
-| ------ | -------------- | --------------------------------- | ---------------------------------------------- |
-| `POST` | `/auth/guest`  | `{ deviceId, platform?, model? }` | `deviceId` must be `local:<uuid-v4>`           |
-| `POST` | `/auth/google` | `{ idToken, deviceId? }`          | Verifies Google JWT; links guest by `deviceId` |
+| Method | Path           | Body                                     | Notes                                          |
+| ------ | -------------- | ---------------------------------------- | ---------------------------------------------- |
+| `POST` | `/auth/guest`  | `{ deviceId, platform?, model? }`        | `deviceId` must be `local:<uuid-v4>`           |
+| `POST` | `/auth/google` | `{ idToken, deviceId?, confirmSwitch? }` | Verifies Google JWT; links guest by `deviceId` |
 
 Response: `{ playerId, name, username, isNew, authType, linkedFromGuest? }`.
+
+When `deviceId` maps to a guest and the Google account already belongs to a
+different player, returns **409** `{ error: 'google_account_in_use',
+existingName, existingUsername, guestPlayerId }` unless `confirmSwitch: true`
+(then switches to the existing Google player).
 
 ## Google Cloud console
 

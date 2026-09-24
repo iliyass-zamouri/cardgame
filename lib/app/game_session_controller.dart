@@ -8,6 +8,7 @@ import 'package:cardgame/data/game_socket.dart';
 import 'package:cardgame/data/offline/offline_game_socket.dart';
 import 'package:cardgame/data/socket_client.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
+import 'package:cardgame/services/analytics_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 typedef GameSocketFactory = GameSocket Function();
@@ -173,6 +174,7 @@ class GameSessionController extends Notifier<GameSessionState> {
       'targetPlayerId': trimmedId,
       'roomId': roomId.trim().toUpperCase(),
     });
+    unawaited(ref.read(analyticsServiceProvider).inviteAction(action: 'send'));
   }
 
   void dismissIncomingInvite() {
@@ -316,6 +318,7 @@ class GameSessionController extends Notifier<GameSessionState> {
       case 'snapshot':
         final snapshot = GameSnapshot.fromJson(message);
         final currentVersion = state.game?.version ?? -1;
+        final previousStatus = state.game?.status;
         if (snapshot.version >= currentVersion ||
             snapshot.roomId != state.game?.roomId) {
           final keepPeek = state.peekSelecting && snapshot.canJackPeek;
@@ -330,8 +333,26 @@ class GameSessionController extends Notifier<GameSessionState> {
             replaceFirstSide: keepQueen ? state.replaceFirstSide : null,
             replaceFirstIndex: keepQueen ? state.replaceFirstIndex : null,
           );
+          if (previousStatus != GameStatus.playing &&
+              snapshot.status == GameStatus.playing) {
+            unawaited(
+              ref
+                  .read(analyticsServiceProvider)
+                  .matchStart(online: !_offlineMode, mode: snapshot.matchType),
+            );
+          }
           if (snapshot.status == GameStatus.ended) {
             _syncBalancesFromSnapshot(snapshot);
+            final won = snapshot.result?.winnerIndex == 0;
+            unawaited(
+              ref
+                  .read(analyticsServiceProvider)
+                  .matchEnd(
+                    online: !_offlineMode,
+                    won: won,
+                    mode: snapshot.matchType,
+                  ),
+            );
           }
         }
         break;

@@ -18,6 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 
 class MarketplaceScreen extends ConsumerStatefulWidget {
   const MarketplaceScreen({super.key, this.initialTabIndex = 0});
@@ -65,9 +67,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
         backgroundColor: CasinoColors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: CasinoColors.text,
+          icon: const HugeIcon(icon: AppIcons.arrowBack, color: CasinoColors.text,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -103,11 +103,11 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
               text: l10n.exchange,
             ),
             Tab(
-              icon: const Icon(Icons.face_rounded, size: 20),
+              icon: const HugeIcon(icon: AppIcons.face, size: 20),
               text: l10n.avatarShop,
             ),
             Tab(
-              icon: const Icon(Icons.style_rounded, size: 20),
+              icon: const HugeIcon(icon: AppIcons.style, size: 20),
               text: l10n.deckShop,
             ),
           ],
@@ -397,9 +397,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
                       shape: BoxShape.circle,
                     ),
                     child: const Center(
-                      child: Icon(
-                        Icons.play_circle_fill_rounded,
-                        color: Color(0xFF7ED50E),
+                      child: HugeIcon(icon: AppIcons.playCircle, color: Color(0xFF7ED50E),
                         size: 28,
                       ),
                     ),
@@ -466,9 +464,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
             // Real Money Store Packs
             const Row(
               children: [
-                Icon(
-                  Icons.shopping_bag_rounded,
-                  color: CasinoColors.gold,
+                HugeIcon(icon: AppIcons.shoppingBag, color: CasinoColors.gold,
                   size: 20,
                 ),
                 SizedBox(width: 8),
@@ -500,7 +496,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
             backgroundColor: CasinoColors.gold,
             foregroundColor: Colors.black,
             elevation: 6,
-            icon: const Icon(Icons.swap_horiz_rounded, size: 24),
+            icon: const HugeIcon(icon: AppIcons.swapHoriz, size: 24),
             label: Text(
               l10n.exchange,
               style: const TextStyle(
@@ -531,7 +527,7 @@ class _IapPackItem {
   final CurrencyType currency;
   final int amount;
   final String priceUsd;
-  final IconData icon;
+  final List<List<dynamic>> icon;
 }
 
 const _iapPacks = [
@@ -541,7 +537,7 @@ const _iapPacks = [
     currency: CurrencyType.chips,
     amount: 1,
     priceUsd: '\$0.99',
-    icon: Icons.stars_rounded,
+    icon: AppIcons.stars,
   ),
   _IapPackItem(
     productId: PurchasesConfig.chips5,
@@ -549,7 +545,7 @@ const _iapPacks = [
     currency: CurrencyType.chips,
     amount: 5,
     priceUsd: '\$3.99',
-    icon: Icons.military_tech_rounded,
+    icon: AppIcons.medal,
   ),
   _IapPackItem(
     productId: PurchasesConfig.chips10,
@@ -557,7 +553,7 @@ const _iapPacks = [
     currency: CurrencyType.chips,
     amount: 10,
     priceUsd: '\$8.99',
-    icon: Icons.diamond_rounded,
+    icon: AppIcons.diamond,
   ),
   _IapPackItem(
     productId: PurchasesConfig.chips25,
@@ -565,7 +561,7 @@ const _iapPacks = [
     currency: CurrencyType.chips,
     amount: 25,
     priceUsd: '\$19.99',
-    icon: Icons.workspace_premium_rounded,
+    icon: AppIcons.premium,
   ),
   _IapPackItem(
     productId: PurchasesConfig.chips50,
@@ -573,7 +569,7 @@ const _iapPacks = [
     currency: CurrencyType.chips,
     amount: 50,
     priceUsd: '\$34.99',
-    icon: Icons.shield_rounded,
+    icon: AppIcons.shield,
   ),
 ];
 
@@ -602,7 +598,7 @@ class _IapPackCard extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: Icon(pack.icon, color: CasinoColors.gold, size: 24),
+              child: HugeIcon(icon: pack.icon, color: CasinoColors.gold, size: 24),
             ),
           ),
           const SizedBox(width: 14),
@@ -783,9 +779,7 @@ class _CurrencyConversionModalState
                 children: [
                   Row(
                     children: [
-                      const Icon(
-                        Icons.swap_horiz_rounded,
-                        color: CasinoColors.gold,
+                      const HugeIcon(icon: AppIcons.swapHoriz, color: CasinoColors.gold,
                         size: 24,
                       ),
                       const SizedBox(width: 8),
@@ -801,9 +795,7 @@ class _CurrencyConversionModalState
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: CasinoColors.textMuted,
+                    icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.textMuted,
                     ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -958,9 +950,7 @@ class _ExchangeCard extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(
-                      Icons.remove_circle_outline_rounded,
-                      color: CasinoColors.gold,
+                    icon: const HugeIcon(icon: AppIcons.removeCircle, color: CasinoColors.gold,
                     ),
                     onPressed: onDecrement,
                   ),
@@ -975,17 +965,13 @@ class _ExchangeCard extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.add_circle_outline_rounded,
-                      color: CasinoColors.gold,
+                    icon: const HugeIcon(icon: AppIcons.addCircle, color: CasinoColors.gold,
                     ),
                     onPressed: onIncrement,
                   ),
                 ],
               ),
-              const Icon(
-                Icons.arrow_forward_rounded,
-                color: CasinoColors.textMuted,
+              const HugeIcon(icon: AppIcons.arrowForward, color: CasinoColors.textMuted,
                 size: 20,
               ),
               Row(
@@ -1244,9 +1230,7 @@ class _AvatarsTab extends ConsumerWidget {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.check_circle_rounded,
-                            size: 10,
+                          HugeIcon(icon: AppIcons.checkCircle, size: 10,
                             color: CasinoColors.gold,
                           ),
                           SizedBox(width: 3),
@@ -1396,9 +1380,7 @@ class _AvatarsTab extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.check_rounded,
-                          size: 14,
+                        const HugeIcon(icon: AppIcons.check, size: 14,
                           color: CasinoColors.gold,
                         ),
                         const SizedBox(width: 4),
@@ -1648,9 +1630,7 @@ class _DecksTab extends ConsumerWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(
-                              Icons.check_rounded,
-                              size: 16,
+                            const HugeIcon(icon: AppIcons.check, size: 16,
                               color: CasinoColors.gold,
                             ),
                             const SizedBox(width: 6),

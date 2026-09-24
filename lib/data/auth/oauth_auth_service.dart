@@ -14,6 +14,23 @@ class OAuthAuthException implements Exception {
   String toString() => 'OAuthAuthException($statusCode, $code): $message';
 }
 
+/// Google account already linked to a different player while a local guest exists.
+class GoogleAccountInUseException implements Exception {
+  GoogleAccountInUseException({
+    required this.existingName,
+    required this.existingUsername,
+    this.guestPlayerId,
+  });
+
+  final String existingName;
+  final String existingUsername;
+  final String? guestPlayerId;
+
+  @override
+  String toString() =>
+      'GoogleAccountInUseException(@$existingUsername, guest=$guestPlayerId)';
+}
+
 /// HTTP client for Google id_token exchange.
 class OAuthAuthService {
   OAuthAuthService({required this.baseUrl, http.Client? client})
@@ -25,6 +42,7 @@ class OAuthAuthService {
   Future<ServerIdentity> authenticateGoogle({
     required String idToken,
     String? deviceId,
+    bool confirmSwitch = false,
   }) async {
     final uri = Uri.parse('$baseUrl/auth/google');
     final response = await _client
@@ -34,9 +52,32 @@ class OAuthAuthService {
           body: jsonEncode({
             'idToken': idToken,
             if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
+            if (confirmSwitch) 'confirmSwitch': true,
           }),
         )
         .timeout(const Duration(seconds: 12));
+
+    if (response.statusCode == 409) {
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic> &&
+            decoded['error'] == 'google_account_in_use') {
+          throw GoogleAccountInUseException(
+            existingName: decoded['existingName'] as String? ?? 'Player',
+            existingUsername:
+                decoded['existingUsername'] as String? ?? 'player',
+            guestPlayerId: decoded['guestPlayerId'] as String?,
+          );
+        }
+      } catch (error) {
+        if (error is GoogleAccountInUseException) rethrow;
+      }
+      throw OAuthAuthException(
+        'Google account already in use',
+        statusCode: 409,
+        code: 'google_account_in_use',
+      );
+    }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String? code;

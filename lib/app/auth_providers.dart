@@ -12,7 +12,10 @@ import 'package:cardgame/data/auth/server_identity.dart';
 import 'package:cardgame/data/marketplace/marketplace_api.dart';
 import 'package:cardgame/data/profile/profile_api.dart';
 import 'package:cardgame/services/analytics_service.dart';
+import 'package:cardgame/services/crashlytics_service.dart';
+import 'package:cardgame/app/push_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 
 final sessionAuthRepositoryProvider = Provider<SessionAuthRepository>((ref) {
   throw UnimplementedError(
@@ -62,6 +65,11 @@ class SessionAuthNotifier extends AsyncNotifier<SessionAuthStatus> {
 
   Future<void> signOut() async {
     try {
+      await ref.read(pushNotificationServiceProvider).unregisterCurrentDevice();
+    } on Object {
+      // Best-effort.
+    }
+    try {
       await ref.read(googleSignInServiceProvider).signOut();
     } on Object {
       // Best-effort.
@@ -76,6 +84,7 @@ class SessionAuthNotifier extends AsyncNotifier<SessionAuthStatus> {
     const next = SessionAuthStatus.signedOut;
     state = const AsyncData(next);
     await _repo.save(next);
+    unawaited(ref.read(analyticsServiceProvider).logSignOut());
   }
 
   Future<void> enterAsGuest() async {
@@ -134,6 +143,10 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
     await analytics.setUserProperty(
       name: 'auth_type',
       value: identity.authType,
+    );
+    await analytics.logLogin(loginMethod: identity.authType);
+    unawaited(
+      ref.read(crashlyticsServiceProvider).setUserId(identity.playerId),
     );
 
     try {

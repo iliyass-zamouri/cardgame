@@ -8,6 +8,8 @@ import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
   const FriendsScreen({super.key});
@@ -152,9 +154,7 @@ class _FriendsListTab extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.people_outline_rounded,
-                    size: 64,
+                  HugeIcon(icon: AppIcons.people, size: 64,
                     color: CasinoColors.gold.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 16),
@@ -178,7 +178,7 @@ class _FriendsListTab extends ConsumerWidget {
                   const SizedBox(height: 24),
                   CasinoActionButton(
                     label: l10n.addFriend,
-                    icon: Icons.person_add_rounded,
+                    icon: AppIcons.personAdd,
                     tone: CasinoActionTone.raise,
                     expanded: false,
                     onPressed: onGoToAdd,
@@ -310,9 +310,7 @@ class _FriendCard extends ConsumerWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.more_vert_rounded,
-                  color: CasinoColors.textMuted,
+                icon: const HugeIcon(icon: AppIcons.moreVert, color: CasinoColors.textMuted,
                 ),
                 color: CasinoColors.surface,
                 shape: RoundedRectangleBorder(
@@ -379,9 +377,7 @@ class _FriendCard extends ConsumerWidget {
                         value: 'remove',
                         child: Row(
                           children: [
-                            const Icon(
-                              Icons.person_remove_rounded,
-                              color: CasinoColors.foldHi,
+                            const HugeIcon(icon: AppIcons.personRemove, color: CasinoColors.foldHi,
                               size: 18,
                             ),
                             const SizedBox(width: 8),
@@ -433,9 +429,7 @@ class _FriendRequestsTab extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.mail_outline_rounded,
-                    size: 56,
+                  HugeIcon(icon: AppIcons.mail, size: 56,
                     color: CasinoColors.gold.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 16),
@@ -541,7 +535,7 @@ class _IncomingRequestCard extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.close_rounded, color: CasinoColors.foldHi),
+            icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.foldHi),
             tooltip: l10n.decline,
             onPressed: () {
               ref
@@ -554,9 +548,7 @@ class _IncomingRequestCard extends ConsumerWidget {
           ),
           const SizedBox(width: 4),
           IconButton(
-            icon: const Icon(
-              Icons.check_circle_rounded,
-              color: CasinoColors.raiseHi,
+            icon: const HugeIcon(icon: AppIcons.checkCircle, color: CasinoColors.raiseHi,
               size: 28,
             ),
             tooltip: l10n.accept,
@@ -674,16 +666,12 @@ class _SearchPlayersTabState extends ConsumerState<_SearchPlayersTab> {
             decoration: InputDecoration(
               hintText: l10n.searchByUsername,
               hintStyle: const TextStyle(color: CasinoColors.textMuted),
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                color: CasinoColors.goldSoft,
+              prefixIcon: const HugeIcon(icon: AppIcons.search, color: CasinoColors.goldSoft,
               ),
               suffixIcon:
                   _searchController.text.isNotEmpty
                       ? IconButton(
-                        icon: const Icon(
-                          Icons.clear_rounded,
-                          color: CasinoColors.textMuted,
+                        icon: const HugeIcon(icon: AppIcons.clear, color: CasinoColors.textMuted,
                         ),
                         onPressed: () {
                           _searchController.clear();
@@ -806,9 +794,7 @@ class _SearchResultCard extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.check_rounded,
-                color: CasinoColors.raiseHi,
+              const HugeIcon(icon: AppIcons.check, color: CasinoColors.raiseHi,
                 size: 14,
               ),
               const SizedBox(width: 4),
@@ -844,7 +830,7 @@ class _SearchResultCard extends ConsumerWidget {
       case FriendshipRelationship.pendingReceived:
         actionButton = CasinoActionButton(
           label: l10n.accept,
-          icon: Icons.check_rounded,
+          icon: AppIcons.check,
           tone: CasinoActionTone.raise,
           expanded: false,
           height: 38,
@@ -856,7 +842,7 @@ class _SearchResultCard extends ConsumerWidget {
       case FriendshipRelationship.none:
         actionButton = CasinoActionButton(
           label: l10n.addFriend,
-          icon: Icons.person_add_rounded,
+          icon: AppIcons.personAdd,
           tone: CasinoActionTone.gold,
           expanded: false,
           height: 38,

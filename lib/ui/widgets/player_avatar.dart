@@ -1,6 +1,8 @@
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 
 class PlayerAvatar extends StatelessWidget {
   const PlayerAvatar({
@@ -54,9 +56,7 @@ class PlayerAvatar extends StatelessWidget {
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return Center(
-              child: Icon(
-                Icons.person_rounded,
-                size: size * 0.55,
+              child: HugeIcon(icon: AppIcons.person, size: size * 0.55,
                 color: CasinoColors.goldSoft,
               ),
             );
@@ -98,9 +98,7 @@ class PlayerAvatar extends StatelessWidget {
                   color: CasinoColors.gold,
                   border: Border.all(color: CasinoColors.surface, width: 1.5),
                 ),
-                child: const Icon(
-                  Icons.edit_rounded,
-                  size: 11,
+                child: const HugeIcon(icon: AppIcons.edit, size: 11,
                   color: CasinoColors.bg,
                 ),
               ),

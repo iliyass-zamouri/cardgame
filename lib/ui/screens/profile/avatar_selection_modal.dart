@@ -10,6 +10,8 @@ import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 
 Future<void> showAvatarSelectionModal(
   BuildContext context, {
@@ -299,9 +301,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
                 ),
               ),
               IconButton(
-                icon: const Icon(
-                  Icons.close_rounded,
-                  color: CasinoColors.textMuted,
+                icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.textMuted,
                 ),
                 onPressed: () => Navigator.of(context).pop(),
               ),
@@ -428,9 +428,7 @@ class _AvatarGridTile extends StatelessWidget {
                         shape: BoxShape.circle,
                         color: Colors.black38,
                       ),
-                      child: const Icon(
-                        Icons.lock_rounded,
-                        color: Colors.white70,
+                      child: const HugeIcon(icon: AppIcons.lock, color: Colors.white70,
                         size: 24,
                       ),
                     ),
@@ -444,9 +442,7 @@ class _AvatarGridTile extends StatelessWidget {
                           shape: BoxShape.circle,
                           color: CasinoColors.gold,
                         ),
-                        child: const Icon(
-                          Icons.check,
-                          size: 12,
+                        child: const HugeIcon(icon: AppIcons.check, size: 12,
                           color: CasinoColors.bg,
                         ),
                       ),

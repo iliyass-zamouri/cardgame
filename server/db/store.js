@@ -17,11 +17,118 @@ class InvalidOAuthProviderError extends Error {
   }
 }
 
+class GoogleAccountInUseError extends Error {
+  constructor({ existingName, existingUsername, guestPlayerId }) {
+    super('Google account is already linked to another player');
+    this.name = 'GoogleAccountInUseError';
+    this.code = 'google_account_in_use';
+    this.existingName = existingName ?? 'Player';
+    this.existingUsername = existingUsername ?? 'player';
+    this.guestPlayerId = guestPlayerId ?? null;
+  }
+}
+
+/**
+ * @param {unknown} deviceId
+ * @returns {Promise<object|null>}
+ */
+async function resolveLinkableGuest(deviceId) {
+  if (typeof deviceId !== 'string' || !deviceId.trim()) {
+    return null;
+  }
+  try {
+    const safeDeviceId = assertValidGuestDeviceId(deviceId);
+    const byDevice = await findGuestByDevice(safeDeviceId);
+    if (
+      byDevice &&
+      byDevice.auth_type === 'guest' &&
+      !byDevice.google_sub
+    ) {
+      return byDevice;
+    }
+  } catch {
+    // Invalid deviceId — skip link path.
+  }
+  return null;
+}
+
 const PLAYER_SELECT = `
   p.id, p.display_name, p.username, p.device_id,
-  p.created_ip, p.last_ip, p.auth_type, p.google_sub,
+  p.created_ip, p.last_ip, p.auth_type, p.google_sub, p.email,
   p.money, p.chips
 `;
+
+/**
+ * @param {unknown} email
+ * @returns {string|null}
+ */
+function normalizeEmail(email) {
+  if (typeof email !== 'string') return null;
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed || !trimmed.includes('@') || trimmed.length > 255) return null;
+  return trimmed;
+}
+
+async function columnExists(conn, table, column) {
+  const [rows] = await conn.query(
+    `SELECT 1 AS ok
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = :table
+       AND COLUMN_NAME = :column
+     LIMIT 1`,
+    { table, column },
+  );
+  return rows.length > 0;
+}
+
+async function indexExists(conn, table, indexName) {
+  const [rows] = await conn.query(
+    `SELECT 1 AS ok
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = :table
+       AND INDEX_NAME = :indexName
+     LIMIT 1`,
+    { table, indexName },
+  );
+  return rows.length > 0;
+}
+
+/** Add players.email for existing DBs (CREATE TABLE IF NOT EXISTS skips alters). */
+async function ensurePlayersEmailColumn() {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    if (!(await columnExists(conn, 'players', 'email'))) {
+      await conn.query(
+        `ALTER TABLE players ADD COLUMN email VARCHAR(255) NULL`,
+      );
+    }
+    if (!(await indexExists(conn, 'players', 'idx_players_email'))) {
+      await conn.query(`ALTER TABLE players ADD KEY idx_players_email (email)`);
+    }
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Fill missing email on existing OAuth player (does not overwrite).
+ * @param {string} playerId
+ * @param {string|null|undefined} email
+ */
+async function maybeSetPlayerEmail(playerId, email) {
+  const safeEmail = normalizeEmail(email);
+  if (!safeEmail || !playerId) return;
+  await getPool().execute(
+    `UPDATE players
+     SET email = :email
+     WHERE id = :playerId
+       AND (email IS NULL OR email = '')`,
+    { email: safeEmail, playerId },
+  );
+}
 
 function mapPlayerRow(row) {
   if (!row) return null;
@@ -226,6 +333,7 @@ async function linkGuestToProvider({
   provider,
   sub,
   displayNameHint = null,
+  email = null,
   clientIp = null,
 }) {
   if (provider !== 'google') {
@@ -237,11 +345,13 @@ async function linkGuestToProvider({
       ? displayNameHint.trim().slice(0, 64)
       : null;
   const ip = clientIp ? normalizeClientIp(clientIp) : null;
+  const safeEmail = normalizeEmail(email);
 
   await pool.execute(
     `UPDATE players
      SET auth_type = :authType,
          google_sub = :sub,
+         email = COALESCE(:email, email),
          display_name = COALESCE(:displayName, display_name),
          last_seen_at = CURRENT_TIMESTAMP,
          last_ip = COALESCE(:clientIp, last_ip)
@@ -251,6 +361,7 @@ async function linkGuestToProvider({
     {
       authType: provider,
       sub,
+      email: safeEmail,
       displayName: name,
       clientIp: ip,
       playerId,
@@ -272,6 +383,7 @@ async function createOAuthPlayer({
   sub,
   deviceId = null,
   displayNameHint = null,
+  email = null,
   clientIp = null,
 }) {
   if (provider !== 'google') {
@@ -281,6 +393,7 @@ async function createOAuthPlayer({
   const pool = getPool();
   const playerId = `${provider}-${randomUUID()}`;
   const ip = clientIp ? normalizeClientIp(clientIp) : null;
+  const safeEmail = normalizeEmail(email);
 
   let safeDeviceId = null;
   if (typeof deviceId === 'string' && deviceId.trim()) {
@@ -310,9 +423,9 @@ async function createOAuthPlayer({
     try {
       await pool.execute(
         `INSERT INTO players
-           (id, display_name, username, device_id, created_ip, last_ip, auth_type, google_sub)
+           (id, display_name, username, device_id, created_ip, last_ip, auth_type, google_sub, email)
          VALUES
-           (:playerId, :displayName, :username, :deviceId, :clientIp, :clientIp, :authType, :sub)`,
+           (:playerId, :displayName, :username, :deviceId, :clientIp, :clientIp, :authType, :sub, :email)`,
         {
           playerId,
           displayName: name,
@@ -321,6 +434,7 @@ async function createOAuthPlayer({
           clientIp: ip,
           authType: provider,
           sub,
+          email: safeEmail,
         },
       );
       return {
@@ -329,12 +443,14 @@ async function createOAuthPlayer({
         username,
         auth_type: provider,
         google_sub: sub,
+        email: safeEmail,
         _created: true,
       };
     } catch (error) {
       if (error?.code === 'ER_DUP_ENTRY') {
         const existing = await findPlayerByGoogleSub(sub);
         if (existing) {
+          await maybeSetPlayerEmail(existing.id, safeEmail);
           return { ...existing, _created: false };
         }
         if (safeDeviceId) {
@@ -355,7 +471,9 @@ async function findOrLinkOAuth({
   sub,
   deviceId = null,
   displayNameHint = null,
+  email = null,
   clientIp = null,
+  confirmSwitch = false,
 }) {
   if (provider !== 'google') {
     throw new InvalidOAuthProviderError(provider);
@@ -365,12 +483,27 @@ async function findOrLinkOAuth({
   }
   const safeSub = sub.trim();
   const ip = clientIp ? normalizeClientIp(clientIp) : null;
+  const safeEmail = normalizeEmail(email);
+  const allowSwitch = confirmSwitch === true;
 
   const existing = await findPlayerByGoogleSub(safeSub);
   if (existing) {
+    const linkableGuest = await resolveLinkableGuest(deviceId);
+    if (
+      linkableGuest &&
+      linkableGuest.id !== existing.id &&
+      !allowSwitch
+    ) {
+      throw new GoogleAccountInUseError({
+        existingName: existing.display_name,
+        existingUsername: existing.username,
+        guestPlayerId: linkableGuest.id,
+      });
+    }
     if (ip) {
       await touchGuest(existing.id, ip);
     }
+    await maybeSetPlayerEmail(existing.id, safeEmail);
     return {
       ...mapPlayerRow(existing),
       isNew: false,
@@ -378,22 +511,7 @@ async function findOrLinkOAuth({
     };
   }
 
-  let linkableGuest = null;
-  if (typeof deviceId === 'string' && deviceId.trim()) {
-    try {
-      const safeDeviceId = assertValidGuestDeviceId(deviceId);
-      const byDevice = await findGuestByDevice(safeDeviceId);
-      if (
-        byDevice &&
-        byDevice.auth_type === 'guest' &&
-        !byDevice.google_sub
-      ) {
-        linkableGuest = byDevice;
-      }
-    } catch {
-      // Invalid deviceId — skip link path.
-    }
-  }
+  const linkableGuest = await resolveLinkableGuest(deviceId);
 
   if (linkableGuest) {
     const linked = await linkGuestToProvider({
@@ -401,6 +519,7 @@ async function findOrLinkOAuth({
       provider,
       sub: safeSub,
       displayNameHint,
+      email: safeEmail,
       clientIp: ip,
     });
     if (linked && linked.auth_type === provider && linked.google_sub === safeSub) {
@@ -412,6 +531,14 @@ async function findOrLinkOAuth({
     }
     const raced = await findPlayerByGoogleSub(safeSub);
     if (raced) {
+      if (raced.id !== linkableGuest.id && !allowSwitch) {
+        throw new GoogleAccountInUseError({
+          existingName: raced.display_name,
+          existingUsername: raced.username,
+          guestPlayerId: linkableGuest.id,
+        });
+      }
+      await maybeSetPlayerEmail(raced.id, safeEmail);
       return {
         ...mapPlayerRow(raced),
         isNew: false,
@@ -425,6 +552,7 @@ async function findOrLinkOAuth({
     sub: safeSub,
     deviceId,
     displayNameHint,
+    email: safeEmail,
     clientIp: ip,
   });
 
@@ -437,10 +565,12 @@ async function findOrLinkOAuth({
 
 module.exports = {
   InvalidOAuthProviderError,
+  GoogleAccountInUseError,
   mapPlayerRow,
   findOrCreateGuest,
   findOrLinkOAuth,
   findGuestByDevice,
   findPlayerByGoogleSub,
+  ensurePlayersEmailColumn,
   GuestIpMismatchError,
 };

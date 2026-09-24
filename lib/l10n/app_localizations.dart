@@ -1711,6 +1711,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Entry fee'**
   String get entryFee;
+
+  /// No description provided for @linkGoogleAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Link Google account'**
+  String get linkGoogleAccount;
+
+  /// No description provided for @linkingGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Linking…'**
+  String get linkingGoogle;
+
+  /// No description provided for @linkGoogleSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Google account linked. Progress saved.'**
+  String get linkGoogleSuccess;
+
+  /// No description provided for @linkGoogleSwitched.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in with your Google account.'**
+  String get linkGoogleSwitched;
+
+  /// No description provided for @saveProgressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save your progress'**
+  String get saveProgressTitle;
+
+  /// No description provided for @saveProgressBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Link a Google account so you keep your money, chips, and ranking if you change devices.'**
+  String get saveProgressBody;
+
+  /// No description provided for @googleAccountInUseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Google account in use'**
+  String get googleAccountInUseTitle;
+
+  /// No description provided for @googleAccountInUseBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This Google account already belongs to @{username}. Switch to that account? Your guest progress on this device will be lost.'**
+  String googleAccountInUseBody(String username);
+
+  /// No description provided for @switchToGoogleAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch account'**
+  String get switchToGoogleAccount;
+
+  /// No description provided for @dontAskAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t ask again'**
+  String get dontAskAgain;
+
+  /// No description provided for @later.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get later;
 }
 
 class _AppLocalizationsDelegate

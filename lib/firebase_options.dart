@@ -17,10 +17,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -49,5 +46,16 @@ class DefaultFirebaseOptions {
     messagingSenderId: '52368643344',
     projectId: 'shadow-hand',
     storageBucket: 'shadow-hand.firebasestorage.app',
+  );
+
+  /// Replace via `flutterfire configure` after adding the iOS app in Firebase
+  /// Console and downloading `ios/Runner/GoogleService-Info.plist`.
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBvQiqtNGZJCbRkiOZs30Sy6VjaLk7xIkk',
+    appId: '1:52368643344:ios:REPLACE_WITH_FIREBASE_IOS_APP_ID',
+    messagingSenderId: '52368643344',
+    projectId: 'shadow-hand',
+    storageBucket: 'shadow-hand.firebasestorage.app',
+    iosBundleId: 'com.hailsom.shadowhand',
   );
 }

@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shadow Hand ops</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f3f4f6; --bg-2: #eef0f3; --card: #ffffff; --line: #e5e7eb;
+      --text: #111827; --muted: #6b7280; --ink: #0a0a0a; --accent: #111827;
+      --up: #16a34a; --down: #e11d48; --warn: #d97706; --info: #2563eb;
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: "Inter", "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font: 13.5px/1.45 var(--sans); }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    code { font-family: var(--mono); font-size: 0.92em; background: var(--bg-2); padding: 1px 5px; border-radius: 4px; }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 0 20px 56px; }
+    header.top {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin: 0 -20px 0; padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+    header.top h1 { font-size: 17px; font-weight: 700; margin: 0; letter-spacing: -0.03em; }
+    header.top .meta { color: var(--muted); font-size: 12px; margin-left: auto; display: flex; gap: 12px; align-items: center; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--down); display: inline-block; }
+    .dot.on { background: var(--up); box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 22%, transparent); }
+    .ghost { background: #fff; border: 1px solid var(--ink); padding: 6px 12px; cursor: pointer; border-radius: 6px; font-weight: 600; font-size: 12px; }
+    .ghost:hover { background: var(--ink); color: #fff; }
+    .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 16px 0 18px; border-bottom: 1px solid var(--line); }
+    .tabs button {
+      background: transparent; border: 0; border-bottom: 2px solid transparent;
+      padding: 10px 14px; cursor: pointer; color: var(--muted); font-weight: 500; margin-bottom: -1px;
+      display: inline-flex; align-items: center; gap: 7px;
+    }
+    .tabs button.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 650; }
+    .tabs .badge {
+      font: 650 11px/1 var(--mono); color: #fff; background: var(--ink);
+      padding: 3px 7px; border-radius: 999px; min-width: 1.6em; text-align: center;
+    }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .kpi { background: var(--card); border: 1px solid var(--line); padding: 12px 14px; border-radius: var(--radius); }
+    .kpi .l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi .v { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; margin-top: 2px; }
+    .kpi .s { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+    .card h2 { margin: 0 0 10px; font-size: 13px; font-weight: 650; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
+    @media (max-width: 960px) { .grid, .grid-3, .grid-2-1 { grid-template-columns: 1fr; } }
+    .chart-box { height: 220px; position: relative; }
+    .chart-box.sm { height: 180px; }
+    .table-wrap { overflow: auto; max-height: 420px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .name { font-weight: 600; }
+    .sub { color: var(--muted); font-size: 11px; }
+    .chip { display: inline-block; padding: 2px 7px; border-radius: 999px; background: var(--bg-2); font-size: 11px; font-weight: 600; }
+    .chip.match { background: #dbeafe; color: #1d4ed8; }
+    .chip.queue { background: #fef3c7; color: #b45309; }
+    .chip.lobby, .chip.rematch { background: #dcfce7; color: #15803d; }
+    .chip.idle { background: var(--bg-2); color: var(--muted); }
+    .chip.bot { opacity: 0.7; }
+    .chip.good { background: #dcfce7; color: #15803d; }
+    .panel { display: none; }
+    .panel.on { display: block; }
+    .gate {
+      max-width: 420px; margin: 12vh auto; padding: 28px; background: var(--card);
+      border: 1px solid var(--line); border-radius: 12px;
+    }
+    .gate h1 { margin: 0 0 8px; font-size: 22px; }
+    .gate p { color: var(--muted); margin: 0 0 16px; }
+    .gate input {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 10px;
+    }
+    .gate button, .btn-primary, .btn-muted {
+      border: 0; border-radius: 6px; padding: 9px 14px; cursor: pointer; font-weight: 650;
+    }
+    .gate button, .btn-primary { background: var(--ink); color: #fff; width: 100%; }
+    .btn-primary { width: auto; }
+    .btn-muted { background: #fff; border: 1px solid var(--line); }
+    .err { color: var(--down); font-size: 13px; min-height: 18px; }
+    .msg { font-size: 12px; margin-left: 8px; }
+    .msg.ok { color: var(--up); }
+    .msg.err { color: var(--down); }
+    .search { display: flex; gap: 8px; margin-bottom: 10px; }
+    .search input, .field input, .field textarea, .field select {
+      width: 100%; background: #fff; border: 1px solid var(--line); padding: 8px 10px; border-radius: 6px;
+    }
+    .field textarea { min-height: 72px; resize: vertical; }
+    .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+    .rooms { display: grid; gap: 10px; }
+    .room { border: 1px solid var(--line); padding: 10px 12px; background: var(--bg-2); border-radius: 6px; }
+    .room .head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+    .players { display: flex; flex-wrap: wrap; gap: 6px; }
+    .cap { color: var(--muted); font-size: 11px; margin-top: 6px; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+    .field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+    .field.span-2 { grid-column: span 2; }
+    .form-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    #app { display: none; }
+    #app.show { display: block; }
+    #gate.hide { display: none; }
+  </style>
+</head>
+<body>
+  <div id="gate" class="gate">
+    <h1>Shadow Hand ops</h1>
+    <p>Enter <code>ADMIN_PUSH_SECRET</code>. Same secret as admin push. Stored in this tab only.</p>
+    <input id="secret" type="password" autocomplete="current-password" placeholder="Admin secret" />
+    <button type="button" id="enter">Open dashboard</button>
+    <div class="err" id="gate-err"></div>
+  </div>
+
+  <div id="app" class="wrap">
+    <header class="top">
+      <h1>Shadow Hand ops</h1>
+      <span class="dot" id="live-dot"></span>
+      <div class="meta">
+        <span id="updated">—</span>
+        <button class="ghost" type="button" id="logout">Lock</button>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs" role="tablist">
+      <button type="button" class="on" data-tab="overview" role="tab">Overview</button>
+      <button type="button" data-tab="live" role="tab">Live <span class="badge" id="badge-live">0</span></button>
+      <button type="button" data-tab="matches" role="tab">Matches</button>
+      <button type="button" data-tab="players" role="tab">Players</button>
+      <button type="button" data-tab="data" role="tab">Data <span class="badge" id="badge-data">0</span></button>
+      <button type="button" data-tab="push" role="tab">Push</button>
+    </nav>
+
+    <div id="panel-overview" class="panel on" role="tabpanel">
+      <section class="kpis" id="overview-kpis"></section>
+      <section class="grid-3">
+        <div class="card">
+          <h2>Online sockets · last hour</h2>
+          <div class="chart-box"><canvas id="chart-presence"></canvas></div>
+          <div class="cap">In-memory samples · 15s · this process</div>
+        </div>
+        <div class="card">
+          <h2>Matches · 14d</h2>
+          <div class="chart-box"><canvas id="chart-matches-overview"></canvas></div>
+        </div>
+        <div class="card">
+          <h2>New players · 14d</h2>
+          <div class="chart-box"><canvas id="chart-signups-overview"></canvas></div>
+        </div>
+      </section>
+      <section class="grid-2-1">
+        <div class="card">
+          <h2>IAP · count · 14d</h2>
+          <div class="chart-box"><canvas id="chart-iap"></canvas></div>
+          <div class="cap" id="iap-cap">—</div>
+        </div>
+        <div class="card">
+          <h2>Auth mix</h2>
+          <div class="chart-box sm"><canvas id="chart-auth-overview"></canvas></div>
+          <div class="cap" id="social-cap">—</div>
+        </div>
+      </section>
+    </div>
+
+    <div id="panel-live" class="panel" role="tabpanel">
+      <section class="kpis" id="live-kpis"></section>
+      <section class="grid">
+        <div class="card">
+          <h2>Live players</h2>
+          <div class="table-wrap" id="live-players"></div>
+        </div>
+        <div class="card">
+          <h2>Live rooms</h2>
+          <div id="live-rooms"></div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Matchmaking queue</h2>
+        <div id="live-queues"></div>
+      </section>
+    </div>
+
+    <div id="panel-matches" class="panel" role="tabpanel">
+      <section class="kpis" id="match-kpis"></section>
+      <section class="grid-2-1">
+        <div class="card">
+          <h2>Matches · 14d</h2>
+          <div class="chart-box"><canvas id="chart-matches"></canvas></div>
+        </div>
+        <div class="card">
+          <h2>Modes · 30d</h2>
+          <div class="chart-box sm"><canvas id="chart-modes"></canvas></div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Recent matches</h2>
+        <div class="table-wrap" id="recent-matches"></div>
+      </section>
+    </div>
+
+    <div id="panel-players" class="panel" role="tabpanel">
+      <section class="kpis" id="player-kpis"></section>
+      <section class="grid-2-1">
+        <div class="card">
+          <h2>Signups · 14d</h2>
+          <div class="chart-box"><canvas id="chart-signups"></canvas></div>
+        </div>
+        <div class="card">
+          <h2>Auth mix</h2>
+          <div class="chart-box sm"><canvas id="chart-auth"></canvas></div>
+          <div class="cap" id="players-social-cap">—</div>
+        </div>
+      </section>
+      <section class="grid">
+        <div class="card">
+          <h2>Engagement buckets</h2>
+          <div class="chart-box"><canvas id="chart-engagement"></canvas></div>
+          <div class="cap" id="engagement-cap">—</div>
+        </div>
+        <div class="card">
+          <h2>New users · 7d</h2>
+          <div class="table-wrap" id="new-users"></div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Players</h2>
+        <div class="search">
+            <input id="q" placeholder="Search name, username, email, id, IP" />
+        </div>
+        <div class="table-wrap" id="player-list"></div>
+      </section>
+    </div>
+
+    <div id="panel-data" class="panel" role="tabpanel">
+      <section class="kpis" id="data-kpis"></section>
+      <section class="card" style="margin-bottom:14px">
+        <h2>Export emails</h2>
+        <p class="cap" style="margin:0 0 12px">
+          Emails from Google sign-in. Existing Google users fill in on next login.
+        </p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px">
+          <button class="btn-primary" type="button" id="data-export-csv">Download CSV</button>
+          <button class="btn-muted" type="button" id="data-refresh">Refresh</button>
+        </div>
+        <div class="cap" id="data-export-status" style="margin-top:10px">—</div>
+      </section>
+      <section class="card">
+        <h2>Google players</h2>
+        <div class="search">
+          <input id="data-q" placeholder="Filter email, username, name, id…" />
+        </div>
+        <div class="table-wrap" id="data-player-list"></div>
+      </section>
+    </div>
+
+    <div id="panel-push" class="panel" role="tabpanel">
+      <section class="card" style="margin-bottom:14px">
+        <h2>Send marketing push</h2>
+        <p class="cap" style="margin-top:-6px;margin-bottom:12px">
+          Blasts FCM + inbox to <code>notify_marketing</code> players. Filters narrow audience.
+          Deeplink opens that page on tap. Preview before send.
+        </p>
+        <div class="field-grid">
+          <div class="field span-2">
+            <label for="pu-title">Title</label>
+            <input id="pu-title" type="text" maxlength="128" placeholder="Weekend tournament" />
+          </div>
+          <div class="field span-2">
+            <label for="pu-body">Body</label>
+            <textarea id="pu-body" maxlength="512" placeholder="Jump in and play!"></textarea>
+          </div>
+          <div class="field span-2">
+            <label for="pu-route">Deeplink (on tap)</label>
+            <select id="pu-route">
+              <option value="">None</option>
+              <option value="/">Home</option>
+              <option value="/friends">Friends</option>
+              <option value="/ranking">Ranking</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pu-platform">Platform</label>
+            <select id="pu-platform">
+              <option value="all">All</option>
+              <option value="android">Android</option>
+              <option value="ios">iOS</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pu-seen-days">Max last-seen days</label>
+            <input id="pu-seen-days" type="number" min="1" max="90" value="30" />
+          </div>
+          <div class="field">
+            <label for="pu-min-matches">Min matches played</label>
+            <input id="pu-min-matches" type="number" min="0" placeholder="optional" />
+          </div>
+          <div class="field">
+            <label for="pu-min-wins">Min wins</label>
+            <input id="pu-min-wins" type="number" min="0" placeholder="optional" />
+          </div>
+          <div class="field span-2">
+            <label for="pu-player-ids">Player ids (optional, overrides filters)</label>
+            <input id="pu-player-ids" type="text" placeholder="id1, id2" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-muted" type="button" id="pu-preview">Preview count</button>
+          <button class="btn-primary" type="button" id="pu-send">Send push</button>
+          <span class="msg" id="pu-msg"></span>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    const STORAGE_KEY = 'shadowhand.adminSecret';
+    const TAB_KEY = 'shadowhand.adminTab';
+    const TABS = ['overview', 'live', 'matches', 'players', 'data', 'push'];
+    const COLORS = {
+      ink: '#111827', up: '#16a34a', down: '#e11d48', warn: '#d97706',
+      info: '#2563eb', muted: '#9ca3af', tick: '#6b7280',
+    };
+
+    let secret = sessionStorage.getItem(STORAGE_KEY) || '';
+    let activeTab = sessionStorage.getItem(TAB_KEY) || 'overview';
+    let liveTimer = null;
+    let statsTimer = null;
+    let searchTimer = null;
+    let stats = null;
+    let liveCache = null;
+    let dataRows = [];
+    const charts = new Map();
+
+    const $ = (id) => document.getElementById(id);
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+    function shortId(id) {
+      if (!id) return '—';
+      const s = String(id);
+      return s.length <= 10 ? s : s.slice(0, 8) + '…';
+    }
+    function dayLabel(day) {
+      if (!day) return '';
+      const d = new Date(day + 'T00:00:00Z');
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+    function fmtTime(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return String(iso);
+      return d.toLocaleString();
+    }
+    function fmtDur(ms) {
+      const s = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+      if (s < 60) return s + 's';
+      if (s < 3600) return Math.floor(s / 60) + 'm';
+      return Math.floor(s / 3600) + 'h';
+    }
+    function playerLabel(p, fallback) {
+      if (p?.name) return p.name;
+      if (p?.username) return '@' + p.username;
+      return fallback || shortId(p?.playerId);
+    }
+    function kpiHtml(items) {
+      return items.map((i) =>
+        `<div class="kpi"><div class="l">${esc(i.l)}</div><div class="v">${esc(i.v)}</div>` +
+        (i.s != null ? `<div class="s">${esc(i.s)}</div>` : '') + `</div>`
+      ).join('');
+    }
+    function locationChip(conn) {
+      const loc = conn.location || 'idle';
+      return `<span class="chip ${esc(loc)}">${esc(loc)}${conn.roomId ? ' · ' + esc(conn.roomId) : ''}</span>`;
+    }
+    function setMsg(id, text, ok) {
+      const el = $(id);
+      if (!el) return;
+      el.textContent = text || '';
+      el.classList.toggle('ok', !!ok);
+      el.classList.toggle('err', !!text && !ok);
+    }
+
+    async function api(path) {
+      const res = await fetch(path, { headers: { 'x-admin-push-secret': secret } });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || ('HTTP ' + res.status));
+      return body;
+    }
+    async function apiPost(path, payload) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-admin-push-secret': secret,
+        },
+        body: JSON.stringify(payload || {}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || ('HTTP ' + res.status));
+      return body;
+    }
+
+    function chartOpts(extra) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { mode: 'index', intersect: false },
+        },
+        scales: {
+          x: { ticks: { color: COLORS.tick, maxRotation: 0 }, grid: { display: false } },
+          y: { ticks: { color: COLORS.tick }, grid: { color: '#f3f4f6' }, border: { display: false } },
+        },
+        ...(extra || {}),
+      };
+    }
+    function upsertChart(key, canvasId, config) {
+      const canvas = $(canvasId);
+      if (!canvas) return null;
+      const existing = charts.get(key);
+      if (existing) {
+        existing.data = config.data;
+        if (config.options) existing.options = config.options;
+        existing.update('none');
+        return existing;
+      }
+      const chart = new Chart(canvas, config);
+      charts.set(key, chart);
+      return chart;
+    }
+
+    function switchTab(tab) {
+      if (!TABS.includes(tab)) tab = 'overview';
+      activeTab = tab;
+      sessionStorage.setItem(TAB_KEY, tab);
+      document.querySelectorAll('#tabs button').forEach((b) => {
+        b.classList.toggle('on', b.getAttribute('data-tab') === tab);
+      });
+      TABS.forEach((id) => {
+        const panel = $('panel-' + id);
+        if (panel) panel.classList.toggle('on', id === tab);
+      });
+      requestAnimationFrame(() => charts.forEach((c) => c.resize()));
+      if (tab === 'data' && secret) void loadDataPlayers();
+    }
+
+    function renderOverviewKpis(live, s) {
+      const c = live?.counts || {};
+      const p = s?.players || {};
+      const m = s?.matches || {};
+      const iap = s?.iap || {};
+      const push = s?.push || {};
+      $('overview-kpis').innerHTML = kpiHtml([
+        { l: 'Online', v: c.connections ?? 0, s: (c.uniquePlayers ?? 0) + ' unique' },
+        { l: 'In match', v: c.inMatch ?? 0, s: (c.rooms ?? 0) + ' rooms' },
+        { l: 'DAU / WAU', v: (p.dau ?? '—') + ' / ' + (p.wau ?? '—'), s: (p.mau ?? 0) + ' MAU' },
+        { l: 'Matches today', v: m.startedToday ?? '—', s: (m.started7d ?? 0) + ' in 7d' },
+        { l: 'New 24h', v: p.signups24h ?? '—', s: (p.signups7d ?? 0) + ' in 7d' },
+        { l: 'Marketing opt-in', v: push.marketing ?? '—', s: (push.withToken ?? 0) + ' with token' },
+        { l: 'IAP total', v: iap.count ?? 0, s: 'redemptions' },
+      ]);
+    }
+
+    function renderOverviewCharts(live, s) {
+      const presence = live?.presence || [];
+      upsertChart('presence', 'chart-presence', {
+        type: 'line',
+        data: {
+          labels: presence.map((p) => new Date(p.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+          datasets: [{
+            data: presence.map((p) => p.connections || 0),
+            borderColor: COLORS.ink, backgroundColor: 'rgba(17,24,39,0.08)',
+            fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2,
+          }],
+        },
+        options: chartOpts(),
+      });
+
+      const matchDays = s?.matchesByDay || [];
+      upsertChart('matchesOverview', 'chart-matches-overview', {
+        type: 'bar',
+        data: {
+          labels: matchDays.map((d) => dayLabel(d.day)),
+          datasets: [{ label: 'Matches', data: matchDays.map((d) => d.started || 0), backgroundColor: COLORS.up }],
+        },
+        options: chartOpts({ plugins: { legend: { display: false }, tooltip: chartOpts().plugins.tooltip } }),
+      });
+
+      const signups = s?.signupsByDay || [];
+      upsertChart('signupsOverview', 'chart-signups-overview', {
+        type: 'bar',
+        data: {
+          labels: signups.map((d) => dayLabel(d.day)),
+          datasets: [{ data: signups.map((d) => d.count || 0), backgroundColor: COLORS.info }],
+        },
+        options: chartOpts(),
+      });
+
+      const iapDays = s?.iap?.byDay || [];
+      upsertChart('iap', 'chart-iap', {
+        type: 'line',
+        data: {
+          labels: iapDays.map((d) => dayLabel(d.day)),
+          datasets: [{
+            label: 'Purchases', data: iapDays.map((d) => d.count || 0),
+            borderColor: COLORS.ink, backgroundColor: 'rgba(17,24,39,0.08)',
+            fill: true, tension: 0.3, pointRadius: 2,
+          }],
+        },
+        options: chartOpts({ plugins: { legend: { display: false }, tooltip: chartOpts().plugins.tooltip } }),
+      });
+      const iap = s?.iap || {};
+      $('iap-cap').textContent = (iap.count || 0) + ' redemptions lifetime';
+
+      upsertChart('authOverview', 'chart-auth-overview', {
+        type: 'doughnut',
+        data: {
+          labels: ['Guest', 'Google'],
+          datasets: [{
+            data: [s?.players?.guest || 0, s?.players?.google || 0],
+            backgroundColor: [COLORS.muted, COLORS.info], borderWidth: 0,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'bottom', labels: { color: COLORS.tick } } },
+        },
+      });
+      const social = s?.social || {};
+      const push = s?.push || {};
+      $('social-cap').textContent =
+        (social.friends || 0) + ' friend pairs · ' + (social.pending || 0) + ' pending · ' +
+        (social.ownedItems || 0) + ' items · push mkt ' + (push.marketing || 0);
+    }
+
+    function renderLive(live) {
+      liveCache = live;
+      const c = live.counts || {};
+      $('badge-live').textContent = String(c.connections ?? 0);
+      $('live-dot').classList.toggle('on', (c.connections || 0) > 0);
+      $('updated').textContent = 'Live ' + new Date().toLocaleTimeString();
+
+      $('live-kpis').innerHTML = kpiHtml([
+        { l: 'Connections', v: c.connections ?? 0, s: (c.uniquePlayers ?? 0) + ' unique' },
+        { l: 'In match', v: c.inMatch ?? 0, s: (c.rooms ?? 0) + ' rooms' },
+        { l: 'In queue', v: c.inQueue ?? 0, s: 'matchmaking' },
+        { l: 'Lobby / rematch', v: (c.inLobby ?? 0) + ' / ' + (c.rematches ?? 0) },
+        { l: 'Idle', v: c.idle ?? 0, s: 'connected, not in play' },
+      ]);
+
+      const profiles = live.profiles || {};
+      const rows = (live.connections || []).slice().sort((a, b) => {
+        const order = { match: 0, queue: 1, lobby: 2, rematch: 3, idle: 4 };
+        return (order[a.location] ?? 9) - (order[b.location] ?? 9);
+      });
+      if (!rows.length) {
+        $('live-players').innerHTML = '<div class="empty">Nobody connected right now.</div>';
+      } else {
+        $('live-players').innerHTML = `<table>
+          <thead><tr><th>Player</th><th>Where</th><th>Connected</th></tr></thead>
+          <tbody>${rows.map((conn) => {
+            const p = profiles[conn.playerId];
+            return `<tr>
+              <td>
+                <div class="name">${esc(playerLabel(p, conn.displayName))}</div>
+                <div class="sub" title="${esc(conn.playerId)}">${esc(shortId(conn.playerId))} · ${esc(p?.authType || '—')}${conn.remoteAddress ? ' · ' + esc(conn.remoteAddress) : ''}</div>
+              </td>
+              <td>${locationChip(conn)}</td>
+              <td class="sub">${esc(fmtDur(conn.connectedMs))}</td>
+            </tr>`;
+          }).join('')}</tbody></table>`;
+      }
+
+      const rooms = live.rooms || [];
+      if (!rooms.length) {
+        $('live-rooms').innerHTML = '<div class="empty">No live rooms.</div>';
+      } else {
+        $('live-rooms').innerHTML = `<div class="rooms">${rooms.map((r) => {
+          const humans = (r.players || []).filter((p) => !p.isBot);
+          const bots = (r.players || []).filter((p) => p.isBot);
+          return `<div class="room">
+            <div class="head">
+              <span><strong>${esc(r.mode)}</strong> · ${esc(r.phase)}</span>
+              <span class="sub">${esc(r.roomCode || r.matchId)}</span>
+            </div>
+            <div class="players">${(r.players || []).map((p) => {
+              const cls = [p.isBot ? 'bot' : '', p.connected ? '' : 'idle'].filter(Boolean).join(' ');
+              return `<span class="chip ${cls}">${esc(p.displayName || shortId(p.playerId))}${p.isBot ? ' · bot' : ''}</span>`;
+            }).join('')}</div>
+            <div class="cap">${humans.length} human · ${bots.length} bot · stake ${r.stakePerPlayer || 0} · pot ${r.potAmount || 0}</div>
+          </div>`;
+        }).join('')}</div>`;
+      }
+
+      const qQuick = live.queues?.quick || [];
+      if (!qQuick.length) {
+        $('live-queues').innerHTML = '<div class="empty">Matchmaking queue empty.</div>';
+      } else {
+        $('live-queues').innerHTML = `<table><tbody>${qQuick.map((p) =>
+          `<tr><td>${esc(p.displayName || shortId(p.playerId))}</td><td class="chip queue">queue</td><td class="sub">${esc(fmtDur(p.waitMs))}</td></tr>`
+        ).join('')}</tbody></table>`;
+      }
+
+      renderOverviewKpis(live, stats || {});
+      renderOverviewCharts(live, stats || {});
+    }
+
+    function renderMatches(s) {
+      const m = s.matches || {};
+      $('match-kpis').innerHTML = kpiHtml([
+        { l: 'Started today', v: m.startedToday ?? 0, s: (m.started7d ?? 0) + ' in 7d' },
+        { l: 'Total stored', v: m.total ?? 0, s: 'finished matches' },
+        { l: 'Avg pot', v: m.potAvg ?? 0, s: 'sum ' + (m.potSum ?? 0) },
+        { l: 'Stake sum', v: m.stakeSum ?? 0, s: 'all-time' },
+      ]);
+
+      const matchDays = s.matchesByDay || [];
+      upsertChart('matches', 'chart-matches', {
+        type: 'bar',
+        data: {
+          labels: matchDays.map((d) => dayLabel(d.day)),
+          datasets: [{ label: 'Matches', data: matchDays.map((d) => d.started || 0), backgroundColor: COLORS.up }],
+        },
+        options: chartOpts(),
+      });
+
+      const modes = s.modes || [];
+      upsertChart('modes', 'chart-modes', {
+        type: 'doughnut',
+        data: {
+          labels: modes.length ? modes.map((x) => x.mode || '—') : ['none'],
+          datasets: [{
+            data: modes.length ? modes.map((x) => x.count || 0) : [1],
+            backgroundColor: [COLORS.ink, COLORS.info, COLORS.warn], borderWidth: 0,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'bottom', labels: { color: COLORS.tick } } },
+        },
+      });
+
+      const recent = s.recentMatches || [];
+      if (!recent.length) {
+        $('recent-matches').innerHTML = '<div class="empty">No matches stored yet.</div>';
+      } else {
+        $('recent-matches').innerHTML = `<table>
+          <thead><tr><th>When</th><th>Mode / pot</th><th>Roster</th></tr></thead>
+          <tbody>${recent.map((row) => {
+            const humans = (row.playerCount || 0) - (row.botCount || 0);
+            return `<tr>
+              <td><div>${esc(fmtTime(row.startedAt))}</div><div class="sub">${esc(row.outcome || '—')}</div></td>
+              <td>${esc(row.mode)} · pot ${row.potAmount || 0}<div class="sub">${humans}h ${row.botCount || 0}b · room ${esc(row.roomId || '')}</div></td>
+              <td class="sub">${esc(row.roster || '')}</td>
+            </tr>`;
+          }).join('')}</tbody></table>`;
+      }
+    }
+
+    function renderPlayers(s) {
+      const p = s.players || {};
+      const e = s.engagement || {};
+      $('player-kpis').innerHTML = kpiHtml([
+        { l: 'Humans', v: p.humans ?? 0, s: (p.bots ?? 0) + ' bots' },
+        { l: 'Guest / Google', v: (p.guest ?? 0) + ' / ' + (p.google ?? 0) },
+        { l: 'DAU', v: p.dau ?? 0, s: 'WAU ' + (p.wau ?? 0) },
+        { l: 'Signups 24h', v: p.signups24h ?? 0, s: (p.signups7d ?? 0) + ' in 7d' },
+      ]);
+
+      const signups = s.signupsByDay || [];
+      upsertChart('signups', 'chart-signups', {
+        type: 'bar',
+        data: {
+          labels: signups.map((d) => dayLabel(d.day)),
+          datasets: [{ data: signups.map((d) => d.count || 0), backgroundColor: COLORS.info }],
+        },
+        options: chartOpts(),
+      });
+
+      upsertChart('auth', 'chart-auth', {
+        type: 'doughnut',
+        data: {
+          labels: ['Guest', 'Google'],
+          datasets: [{
+            data: [p.guest || 0, p.google || 0],
+            backgroundColor: [COLORS.muted, COLORS.info], borderWidth: 0,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'bottom', labels: { color: COLORS.tick } } },
+        },
+      });
+      const social = s.social || {};
+      $('players-social-cap').textContent =
+        (social.friends || 0) + ' friends · ' + (social.pending || 0) + ' pending';
+
+      upsertChart('engagement', 'chart-engagement', {
+        type: 'bar',
+        data: {
+          labels: ['Never', '1–4', '5–19', '20+'],
+          datasets: [{
+            data: [e.neverPlayed || 0, e.low || 0, e.mid || 0, e.high || 0],
+            backgroundColor: [COLORS.muted, COLORS.warn, COLORS.info, COLORS.up],
+          }],
+        },
+        options: chartOpts(),
+      });
+      $('engagement-cap').textContent = 'Matches played = wins + losses + draws';
+
+      const recent = (s.newUsers && s.newUsers.recent) || [];
+      if (!recent.length) {
+        $('new-users').innerHTML = '<div class="empty">No new users in 7d.</div>';
+      } else {
+        $('new-users').innerHTML = `<table>
+          <thead><tr><th>Player</th><th>Auth</th><th>Joined</th></tr></thead>
+          <tbody>${recent.slice(0, 40).map((row) => `<tr>
+            <td><div class="name">${esc(playerLabel(row))}</div><div class="sub">${esc(shortId(row.playerId))}</div></td>
+            <td>${esc(row.authType)}</td>
+            <td class="sub">${esc(fmtTime(row.createdAt))}</td>
+          </tr>`).join('')}</tbody></table>`;
+      }
+
+      if (!( $('q').value || '').trim()) {
+        renderPlayerList(s.recentPlayers || []);
+      }
+    }
+
+    function renderPlayerList(list) {
+      if (!list.length) {
+        $('player-list').innerHTML = '<div class="empty">No players.</div>';
+        return;
+      }
+      $('player-list').innerHTML = `<table>
+        <thead><tr><th>Player</th><th>Record</th><th>Seen</th></tr></thead>
+        <tbody>${list.map((row) => `<tr>
+          <td>
+            <div class="name">${esc(playerLabel(row))}</div>
+            <div class="sub">${esc(row.username ? '@' + row.username : shortId(row.playerId))} · ${esc(row.authType)} · elo ${row.elo ?? '—'}</div>
+          </td>
+          <td class="sub">${row.wins || 0}w ${row.losses || 0}l · ${row.matchesPlayed || 0}g<div>${row.money ?? 0}$ · ${row.chips ?? 0} chips</div></td>
+          <td class="sub">${esc(fmtTime(row.lastSeenAt))}</td>
+        </tr>`).join('')}</tbody></table>`;
+    }
+
+    function renderDataKpis(s) {
+      const p = s?.players || {};
+      $('data-kpis').innerHTML = kpiHtml([
+        { l: 'Google players', v: p.google ?? 0, s: 'auth_type=google' },
+        { l: 'With email', v: p.withEmail ?? 0, s: 'filled from Google login' },
+        { l: 'Guest players', v: p.guest ?? 0 },
+      ]);
+    }
+
+    function renderDataList(rows) {
+      const q = ($('data-q').value || '').trim().toLowerCase();
+      const filtered = !q ? rows : rows.filter((r) => {
+        const hay = [r.playerId, r.username, r.name, r.email, r.googleSub].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+      $('badge-data').textContent = String(rows.filter((r) => r.email).length);
+      if (!filtered.length) {
+        $('data-player-list').innerHTML = '<div class="empty">No Google players.</div>';
+        return;
+      }
+      $('data-player-list').innerHTML = `<table>
+        <thead><tr><th>Email</th><th>Player</th><th>Joined</th></tr></thead>
+        <tbody>${filtered.map((row) => `<tr>
+          <td class="name">${esc(row.email || '—')}</td>
+          <td>
+            <div class="name">${esc(playerLabel(row))}</div>
+            <div class="sub">${esc(row.playerId)}</div>
+          </td>
+          <td class="sub">${esc(fmtTime(row.createdAt))}</td>
+        </tr>`).join('')}</tbody></table>`;
+    }
+
+    function renderStats(s) {
+      stats = s;
+      renderOverviewKpis(liveCache, s);
+      renderOverviewCharts(liveCache || {}, s);
+      renderMatches(s);
+      renderPlayers(s);
+      renderDataKpis(s);
+    }
+
+    async function tickLive() {
+      try {
+        const live = await api('/admin/live');
+        renderLive(live);
+      } catch (err) {
+        $('updated').textContent = 'Live error: ' + (err.message || 'failed');
+        $('live-dot').classList.remove('on');
+      }
+    }
+    async function tickStats() {
+      try {
+        const s = await api('/admin/stats');
+        renderStats(s);
+      } catch (err) {
+        console.warn('[admin/stats]', err);
+      }
+    }
+    async function runSearch(q) {
+      if (!q) {
+        renderPlayerList((stats && stats.recentPlayers) || []);
+        return;
+      }
+      try {
+        const body = await api('/admin/players?q=' + encodeURIComponent(q));
+        renderPlayerList(body.players || []);
+      } catch (err) {
+        $('player-list').innerHTML = '<div class="empty">' + esc(err.message || 'Search failed') + '</div>';
+      }
+    }
+    async function loadDataPlayers() {
+      const status = $('data-export-status');
+      try {
+        status.textContent = 'Loading…';
+        const body = await api('/admin/data/players');
+        dataRows = body.players || [];
+        renderDataList(dataRows);
+        status.textContent = dataRows.length + ' Google players loaded (' +
+          dataRows.filter((r) => r.email).length + ' with email)';
+      } catch (err) {
+        status.textContent = err.message || 'Load failed';
+        $('data-player-list').innerHTML = '<div class="empty">Could not load players.</div>';
+      }
+    }
+    async function downloadPlayersCsv() {
+      const status = $('data-export-status');
+      const btn = $('data-export-csv');
+      btn.disabled = true;
+      status.textContent = 'Building CSV…';
+      try {
+        const res = await fetch('/admin/data/players.csv', {
+          headers: { 'x-admin-push-secret': secret },
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.message || ('HTTP ' + res.status));
+        }
+        const blob = await res.blob();
+        const disp = res.headers.get('content-disposition') || '';
+        const match = /filename="([^"]+)"/.exec(disp);
+        const filename = match ? match[1] : 'shadowhand-google-players.csv';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        status.textContent = 'Downloaded ' + filename;
+      } catch (err) {
+        status.textContent = err.message || 'Export failed';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function buildPushAudiencePayload() {
+      const payload = {
+        maxLastSeenDays: Number($('pu-seen-days').value) || 30,
+        requirePushToken: true,
+      };
+      const platform = $('pu-platform').value;
+      if (platform === 'android' || platform === 'ios') payload.platforms = platform;
+      const minM = $('pu-min-matches').value.trim();
+      const minW = $('pu-min-wins').value.trim();
+      if (minM !== '') payload.minMatchesPlayed = Number(minM);
+      if (minW !== '') payload.minWins = Number(minW);
+      const playerIds = ($('pu-player-ids').value || '').split(',').map((s) => s.trim()).filter(Boolean);
+      if (playerIds.length) payload.playerIds = playerIds;
+      return payload;
+    }
+
+    function start() {
+      clearInterval(liveTimer);
+      clearInterval(statsTimer);
+      $('gate').classList.add('hide');
+      $('app').classList.add('show');
+      switchTab(activeTab);
+      tickLive();
+      tickStats();
+      liveTimer = setInterval(tickLive, 2000);
+      statsTimer = setInterval(tickStats, 20000);
+    }
+
+    $('enter').addEventListener('click', async () => {
+      secret = $('secret').value.trim();
+      if (!secret) { $('gate-err').textContent = 'Secret required.'; return; }
+      try {
+        await api('/admin/live');
+        sessionStorage.setItem(STORAGE_KEY, secret);
+        start();
+      } catch (err) {
+        $('gate-err').textContent = err.message || 'Could not auth.';
+      }
+    });
+    $('secret').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('enter').click(); });
+    $('logout').addEventListener('click', () => {
+      sessionStorage.removeItem(STORAGE_KEY);
+      secret = '';
+      clearInterval(liveTimer); clearInterval(statsTimer);
+      $('app').classList.remove('show');
+      $('gate').classList.remove('hide');
+      $('gate-err').textContent = '';
+    });
+    $('q').addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const q = $('q').value.trim();
+      searchTimer = setTimeout(() => runSearch(q), 250);
+    });
+    $('data-q').addEventListener('input', () => renderDataList(dataRows));
+    $('data-refresh').addEventListener('click', () => void loadDataPlayers());
+    $('data-export-csv').addEventListener('click', () => void downloadPlayersCsv());
+    document.querySelectorAll('#tabs button').forEach((btn) => {
+      btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
+    });
+
+    $('pu-preview').addEventListener('click', async () => {
+      setMsg('pu-msg', 'Counting…', true);
+      $('pu-preview').disabled = true;
+      try {
+        const result = await apiPost('/admin/push', { dryRun: true, ...buildPushAudiencePayload() });
+        const sample = (result.sampleIds || []).slice(0, 3).join(', ');
+        setMsg('pu-msg', `Audience: ${result.audienceCount ?? 0}` + (sample ? ` · e.g. ${sample}` : ''), true);
+      } catch (error) {
+        setMsg('pu-msg', error.message || 'Preview failed', false);
+      } finally {
+        $('pu-preview').disabled = false;
+      }
+    });
+
+    $('pu-send').addEventListener('click', async () => {
+      const title = $('pu-title').value.trim();
+      const body = $('pu-body').value.trim();
+      if (!title || !body) { setMsg('pu-msg', 'Title and body required', false); return; }
+      if (!confirm('Send marketing push to filtered audience?')) return;
+      setMsg('pu-msg', 'Sending…', true);
+      $('pu-send').disabled = true;
+      try {
+        const route = $('pu-route').value;
+        const result = await apiPost('/admin/push', {
+          title, body, route: route || undefined,
+          ...buildPushAudiencePayload(),
+        });
+        setMsg('pu-msg',
+          `Sent · FCM ok ${result.successCount ?? 0} / fail ${result.failureCount ?? 0} · inbox ${result.inboxCount ?? 0}` +
+          (result.audienceCount != null ? ` · audience ${result.audienceCount}` : '') +
+          (result.skipped ? ' · skipped' : ''),
+          !result.skipped || (result.successCount || 0) > 0
+        );
+      } catch (error) {
+        setMsg('pu-msg', error.message || 'Send failed', false);
+      } finally {
+        $('pu-send').disabled = false;
+      }
+    });
+
+    if (secret) {
+      api('/admin/live').then(() => start()).catch(() => {
+        sessionStorage.removeItem(STORAGE_KEY);
+        secret = '';
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

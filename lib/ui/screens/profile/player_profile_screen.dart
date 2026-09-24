@@ -17,6 +17,8 @@ import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 
 class PlayerProfileScreen extends ConsumerWidget {
   const PlayerProfileScreen({super.key, this.targetPlayerId});
@@ -74,7 +76,7 @@ class PlayerProfileScreen extends ConsumerWidget {
           if (isSelf)
             IconButton(
               tooltip: l10n.editProfile,
-              icon: const Icon(Icons.edit_rounded, color: CasinoColors.gold),
+              icon: const HugeIcon(icon: AppIcons.edit, color: CasinoColors.gold),
               onPressed: () => showEditProfileDialog(context, myProfile),
             ),
         ],
@@ -370,9 +372,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(
-                              Icons.copy_rounded,
-                              size: 12,
+                            const HugeIcon(icon: AppIcons.copy, size: 12,
                               color: CasinoColors.textMuted,
                             ),
                           ],
@@ -421,7 +421,7 @@ class PlayerProfileScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: _StatBox(
-                    icon: Icons.trending_up_rounded,
+                    icon: AppIcons.trendingUp,
                     iconColor: CasinoColors.gold,
                     value: '$elo',
                     label: l10n.elo,
@@ -430,7 +430,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _StatBox(
-                    icon: Icons.emoji_events_rounded,
+                    icon: AppIcons.trophy,
                     iconColor: CasinoColors.goldSoft,
                     value: rank != null ? '#$rank' : '—',
                     label: l10n.leaderboard,
@@ -439,7 +439,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _StatBox(
-                    icon: Icons.pie_chart_rounded,
+                    icon: AppIcons.pieChart,
                     iconColor: CasinoColors.raiseHi,
                     value: '$winRate%',
                     label: l10n.winRate,
@@ -460,9 +460,7 @@ class PlayerProfileScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.sports_esports_rounded,
-                  size: 16,
+                const HugeIcon(icon: AppIcons.game, size: 16,
                   color: CasinoColors.goldSoft,
                 ),
                 const SizedBox(width: 8),
@@ -551,7 +549,7 @@ class _StatBox extends StatelessWidget {
     required this.label,
   });
 
-  final IconData icon;
+  final List<List<dynamic>> icon;
   final Color iconColor;
   final String value;
   final String label;
@@ -566,7 +564,7 @@ class _StatBox extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, color: iconColor, size: 18),
+          HugeIcon(icon: icon, color: iconColor, size: 18),
           const SizedBox(height: 4),
           Text(
             value,

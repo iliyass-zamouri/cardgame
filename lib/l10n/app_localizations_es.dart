@@ -869,4 +869,41 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get entryFee => 'Entrada';
+
+  @override
+  String get linkGoogleAccount => 'Vincular cuenta de Google';
+
+  @override
+  String get linkingGoogle => 'Vinculando…';
+
+  @override
+  String get linkGoogleSuccess =>
+      'Cuenta de Google vinculada. Progreso guardado.';
+
+  @override
+  String get linkGoogleSwitched => 'Sesión iniciada con tu cuenta de Google.';
+
+  @override
+  String get saveProgressTitle => 'Guarda tu progreso';
+
+  @override
+  String get saveProgressBody =>
+      'Vincula una cuenta de Google para conservar dinero, fichas y ranking si cambias de dispositivo.';
+
+  @override
+  String get googleAccountInUseTitle => 'Cuenta de Google en uso';
+
+  @override
+  String googleAccountInUseBody(String username) {
+    return 'Esta cuenta de Google ya pertenece a @$username. ¿Cambiar a esa cuenta? Se perderá el progreso de invitado en este dispositivo.';
+  }
+
+  @override
+  String get switchToGoogleAccount => 'Cambiar de cuenta';
+
+  @override
+  String get dontAskAgain => 'No volver a preguntar';
+
+  @override
+  String get later => 'Más tarde';
 }

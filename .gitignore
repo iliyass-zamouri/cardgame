@@ -45,6 +45,8 @@ npm-debug.log*
 .env
 .env.local
 .env.production
+*firebase-adminsdk*.json
+secrets/
 
 # FVM — keep config, ignore local SDK link/cache
 .fvm/flutter_sdk

@@ -300,5 +300,21 @@
   "cityCairo": "Le Caire",
   "cityMarrakech": "Marrakech",
   "prize": "Prix",
-  "entryFee": "Frais d'entrée"
+  "entryFee": "Frais d'entrée",
+  "linkGoogleAccount": "Lier un compte Google",
+  "linkingGoogle": "Liaison…",
+  "linkGoogleSuccess": "Compte Google lié. Progression enregistrée.",
+  "linkGoogleSwitched": "Connecté avec votre compte Google.",
+  "saveProgressTitle": "Sauvegardez votre progression",
+  "saveProgressBody": "Liez un compte Google pour conserver argent, jetons et classement si vous changez d'appareil.",
+  "googleAccountInUseTitle": "Compte Google déjà utilisé",
+  "googleAccountInUseBody": "Ce compte Google appartient déjà à @{username}. Passer à ce compte ? La progression invité sur cet appareil sera perdue.",
+  "@googleAccountInUseBody": {
+    "placeholders": {
+      "username": {"type": "String"}
+    }
+  },
+  "switchToGoogleAccount": "Changer de compte",
+  "dontAskAgain": "Ne plus demander",
+  "later": "Plus tard"
 }

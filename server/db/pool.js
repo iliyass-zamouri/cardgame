@@ -42,6 +42,9 @@ async function initDb() {
   const { ensureRankingSchema } = require('./ranking');
   await ensureRankingSchema();
 
+  const { ensurePlayersEmailColumn } = require('./store');
+  await ensurePlayersEmailColumn();
+
   const { ensureFriendsSchema } = require('./friends');
   await ensureFriendsSchema();
 
@@ -50,6 +53,9 @@ async function initDb() {
 
   const { ensureMarketplaceSchema } = require('./marketplace');
   await ensureMarketplaceSchema();
+
+  const { ensurePushSchema } = require('./push');
+  await ensurePushSchema();
 
   return pool;
 }

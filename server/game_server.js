@@ -3,7 +3,9 @@ const crypto = require('crypto');
 const { URL } = require('url');
 const WebSocket = require('ws');
 const { GameRoom, GameRuleError, createRoomCode } = require('./game_room');
-const { sendJson, readJsonBody, corsHeaders } = require('./http_util');
+const fs = require('fs');
+const path = require('path');
+const { sendJson, sendHtml, sendCsv, readJsonBody, corsHeaders } = require('./http_util');
 const {
   assertValidGuestDeviceId,
   InvalidGuestDeviceIdError,
@@ -15,7 +17,10 @@ const {
   verifyGoogleIdToken,
   InvalidGoogleTokenError,
 } = require('./auth/google_token');
-const { authenticateOAuth } = require('./auth/oauth');
+const {
+  authenticateOAuth,
+  GoogleAccountInUseError,
+} = require('./auth/oauth');
 const { findOrCreateGuest } = require('./db/store');
 const {
   recordRankedMatch,
@@ -44,6 +49,48 @@ const {
 } = require('./db/marketplace');
 const { acquireBotUser } = require('./db/bots');
 const { ServerRobotPlayer } = require('./bot_player');
+const {
+  playerExists,
+  upsertDeviceToken,
+  removeDeviceToken,
+  getNotifyPrefs,
+  updateNotifyPrefs,
+  listPlayerNotifications,
+  markPlayerNotificationsRead,
+  listPlayerIdsWithNotifyPref,
+  listMarketingBlastAudience,
+  countMarketingBlastAudience,
+} = require('./db/push');
+const { sendToPlayers, sendMarketingBlast, isFcmReady } = require('./push/fcm');
+const {
+  getAdminDashboardStats,
+  getPlayersByIds,
+  searchAdminPlayers,
+  listAdminGooglePlayers,
+  exportAdminGooglePlayersCsv,
+} = require('./admin/stats');
+
+const ADMIN_HTML_PATH = path.join(__dirname, 'public', 'admin.html');
+let _adminHtmlCache = null;
+
+function loadAdminHtml() {
+  if (_adminHtmlCache) return _adminHtmlCache;
+  _adminHtmlCache = fs.readFileSync(ADMIN_HTML_PATH, 'utf8');
+  return _adminHtmlCache;
+}
+
+function assertAdminPushSecret(request, response) {
+  const secret = process.env.ADMIN_PUSH_SECRET || '';
+  const provided = request.headers['x-admin-push-secret'];
+  if (!secret || provided !== secret) {
+    sendJson(response, 401, {
+      error: 'unauthorized',
+      message: 'Invalid admin secret',
+    });
+    return false;
+  }
+  return true;
+}
 
 class GameServer {
   constructor({
@@ -68,6 +115,9 @@ class GameServer {
     this.activeBotPlayerIds = new Set();
     this.httpServer = null;
     this.webSocketServer = null;
+    /** @type {{ t: number, connections: number, uniquePlayers: number, rooms: number, queue: number }[]} */
+    this.presenceSamples = [];
+    this.presenceTimer = null;
   }
 
   async start() {
@@ -91,11 +141,20 @@ class GameServer {
     });
     this.webSocketServer.on('connection', (socket) => this.#connect(socket));
 
+    this.presenceTimer = setInterval(() => this.#samplePresence(), 15_000);
+    if (this.presenceTimer.unref) this.presenceTimer.unref();
+    this.#samplePresence();
+
     await new Promise((resolve, reject) => {
       this.httpServer.once('error', reject);
       this.httpServer.listen(this.port, this.host, resolve);
     });
-    return this.address;
+    const addr = this.address;
+    if (addr) {
+      const hostLabel = this.host === '0.0.0.0' ? '127.0.0.1' : this.host;
+      console.log(`Ops dashboard: http://${hostLabel}:${addr.port}/admin`);
+    }
+    return addr;
   }
 
   get address() {
@@ -106,6 +165,10 @@ class GameServer {
   }
 
   async stop() {
+    if (this.presenceTimer) {
+      clearInterval(this.presenceTimer);
+      this.presenceTimer = null;
+    }
     for (const timer of this.matchTimers.values()) clearTimeout(timer);
     this.matchTimers.clear();
     for (const roomBot of this.roomBots.values()) roomBot.bot.dispose();
@@ -116,10 +179,121 @@ class GameServer {
     this.rooms.clear();
     this.clients.clear();
     this.matchQueue = [];
+    this.presenceSamples = [];
     await new Promise((resolve) => this.webSocketServer?.close(resolve));
     await new Promise((resolve) => this.httpServer?.close(resolve));
     this.webSocketServer = null;
     this.httpServer = null;
+  }
+
+  #samplePresence() {
+    const uniquePlayers = new Set();
+    for (const ctx of this.clients.values()) {
+      if (ctx.playerId) uniquePlayers.add(ctx.playerId);
+    }
+    this.presenceSamples.push({
+      t: Date.now(),
+      connections: this.clients.size,
+      uniquePlayers: uniquePlayers.size,
+      rooms: this.rooms.size,
+      queue: this.matchQueue.length,
+    });
+    if (this.presenceSamples.length > 240) {
+      this.presenceSamples.shift();
+    }
+  }
+
+  async #adminLiveSnapshot() {
+    const now = Date.now();
+    const inQueueIds = new Set(
+      this.matchQueue.map((c) => c.id).filter(Boolean),
+    );
+    const connections = [...this.clients.values()].map((ctx) => {
+      let location = 'idle';
+      if (ctx.roomId) {
+        const room = this.rooms.get(ctx.roomId);
+        if (room?.status === 'playing' || room?.status === 'ended') {
+          location = 'match';
+        } else if (room?.status === 'waiting') {
+          const anyRematch = Array.isArray(room.rematchReady)
+            ? room.rematchReady.some(Boolean)
+            : false;
+          location = anyRematch ? 'rematch' : 'lobby';
+        } else {
+          location = 'lobby';
+        }
+      } else if (inQueueIds.has(ctx.id)) {
+        location = 'queue';
+      }
+      return {
+        connectionId: ctx.id,
+        playerId: ctx.playerId || null,
+        displayName: ctx.displayName || null,
+        location,
+        roomId: ctx.roomId || null,
+        connectedMs: Math.max(0, now - (ctx.connectedAt || now)),
+        remoteAddress: ctx.socket?._socket?.remoteAddress || null,
+      };
+    });
+
+    const uniquePlayers = new Set(
+      connections.map((c) => c.playerId).filter(Boolean),
+    );
+    const rooms = [...this.rooms.values()].map((room) => ({
+      matchId: room.id,
+      roomCode: room.id,
+      mode: room.matchType || 'private',
+      phase: room.status,
+      mapId: null,
+      stakePerPlayer: room.stakePerPlayer || 0,
+      potAmount: room.potAmount || 0,
+      players: room.players.map((p) => ({
+        playerId: p.playerId,
+        displayName: p.displayName,
+        isBot: Boolean(p.id?.startsWith('bot-client-')),
+        connected: Boolean(p.connected),
+        role: 'player',
+      })),
+    }));
+
+    const profilesList = await getPlayersByIds(
+      connections.map((c) => c.playerId).filter(Boolean),
+    );
+    /** @type {Record<string, unknown>} */
+    const profiles = {};
+    for (const player of profilesList) {
+      if (player?.playerId) profiles[player.playerId] = player;
+    }
+
+    return {
+      counts: {
+        connections: connections.length,
+        uniquePlayers: uniquePlayers.size,
+        rooms: rooms.length,
+        inMatch: connections.filter((c) => c.location === 'match').length,
+        inQueue: connections.filter((c) => c.location === 'queue').length,
+        inLobby: connections.filter((c) => c.location === 'lobby').length,
+        rematches: connections.filter((c) => c.location === 'rematch').length,
+        idle: connections.filter((c) => c.location === 'idle').length,
+        queueQuick: this.matchQueue.length,
+        queueRanked: 0,
+        lobbies: rooms.filter((r) => r.phase === 'waiting').length,
+      },
+      connections,
+      rooms,
+      queues: {
+        quick: this.matchQueue.map((c) => ({
+          playerId: c.playerId,
+          displayName: c.displayName,
+          waitMs: Math.max(0, now - (c.queueJoinedAt || c.connectedAt || now)),
+        })),
+        ranked: [],
+      },
+      lobbies: [],
+      rematches: [],
+      profiles,
+      presence: this.presenceSamples,
+    };
   }
 
   async #handleHttp(request, response) {
@@ -131,6 +305,102 @@ class GameServer {
         rooms: this.rooms.size,
         clients: this.clients.size,
       });
+      return;
+    }
+
+    if (
+      request.method === 'GET' &&
+      (url.pathname === '/admin' || url.pathname === '/admin/')
+    ) {
+      try {
+        sendHtml(response, 200, loadAdminHtml());
+      } catch (error) {
+        console.error('[admin] failed to load admin.html', error);
+        sendJson(response, 500, {
+          error: 'server_error',
+          message: 'Admin UI missing',
+        });
+      }
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/live') {
+      if (!assertAdminPushSecret(request, response)) return;
+      try {
+        sendJson(response, 200, await this.#adminLiveSnapshot());
+      } catch (error) {
+        console.error('[admin/live] failed', error);
+        sendJson(response, 500, {
+          error: 'server_error',
+          message: 'Live snapshot failed',
+        });
+      }
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/stats') {
+      if (!assertAdminPushSecret(request, response)) return;
+      try {
+        sendJson(response, 200, await getAdminDashboardStats());
+      } catch (error) {
+        console.error('[admin/stats] failed', error);
+        sendJson(response, 500, {
+          error: 'server_error',
+          message: 'Stats failed',
+        });
+      }
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/players') {
+      if (!assertAdminPushSecret(request, response)) return;
+      try {
+        const players = await searchAdminPlayers({
+          query: url.searchParams.get('q') ?? '',
+          limit: url.searchParams.get('limit'),
+        });
+        sendJson(response, 200, { players });
+      } catch (error) {
+        console.error('[admin/players] failed', error);
+        sendJson(response, 500, {
+          error: 'server_error',
+          message: 'Search failed',
+        });
+      }
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/data/players') {
+      if (!assertAdminPushSecret(request, response)) return;
+      try {
+        const players = await listAdminGooglePlayers({
+          limit: url.searchParams.get('limit'),
+        });
+        sendJson(response, 200, { players, count: players.length });
+      } catch (error) {
+        console.error('[admin/data/players] failed', error);
+        sendJson(response, 500, {
+          error: 'server_error',
+          message: 'Player list failed',
+        });
+      }
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/data/players.csv') {
+      if (!assertAdminPushSecret(request, response)) return;
+      try {
+        const { csv, count } = await exportAdminGooglePlayersCsv();
+        const stamp = new Date().toISOString().slice(0, 10);
+        sendCsv(response, 200, csv, `shadowhand-google-players-${stamp}.csv`);
+        console.log(`[admin/data/players.csv] exported ${count} rows`);
+      } catch (error) {
+        console.error('[admin/data/players.csv] failed', error);
+        sendJson(response, 500, {
+          error: 'server_error',
+          message: 'CSV export failed',
+        });
+      }
       return;
     }
 
@@ -229,6 +499,41 @@ class GameServer {
       (url.pathname === '/economy/iap/verify' || url.pathname === '/marketplace/iap/verify')
     ) {
       await this.#handleVerifyIap(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/devices/register') {
+      await this.#handleDeviceRegister(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/devices/unregister') {
+      await this.#handleDeviceUnregister(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname.startsWith('/players/') && url.pathname.endsWith('/notify-prefs')) {
+      await this.#handleGetNotifyPrefs(request, response, url);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname.startsWith('/players/') && url.pathname.endsWith('/notify-prefs')) {
+      await this.#handleUpdateNotifyPrefs(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname.startsWith('/players/') && url.pathname.endsWith('/notifications')) {
+      await this.#handleListNotifications(request, response, url);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname.startsWith('/players/') && url.pathname.endsWith('/notifications/read')) {
+      await this.#handleMarkNotificationsRead(request, response, url);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/admin/push') {
+      await this.#handleAdminPush(request, response);
       return;
     }
 
@@ -452,6 +757,16 @@ class GameServer {
           fromName: result.fromName || 'Player',
           fromUsername: result.fromUsername || '',
         });
+        void sendToPlayers([result.targetPlayerId], {
+          category: 'social',
+          title: 'Friend request',
+          body: `${result.fromName || 'Player'} sent a friend request`,
+          data: {
+            type: 'friend_request',
+            route: '/friends',
+            fromPlayerId: result.fromPlayerId || playerId,
+          },
+        }).catch((error) => console.error('[fcm] friend request', error));
       } else if (result.autoAccepted && result.notifyPlayerId) {
         this.#notifyPlayer(result.notifyPlayerId, {
           type: 'friendRequestAccepted',
@@ -460,6 +775,16 @@ class GameServer {
           byName: result.fromName || 'Player',
           byUsername: result.fromUsername || '',
         });
+        void sendToPlayers([result.notifyPlayerId], {
+          category: 'social',
+          title: 'Friend accepted',
+          body: `${result.fromName || 'Player'} accepted your friend request`,
+          data: {
+            type: 'friend_accepted',
+            route: '/friends',
+            byPlayerId: result.fromPlayerId || playerId,
+          },
+        }).catch((error) => console.error('[fcm] friend auto-accept', error));
       }
     } catch (error) {
       if (
@@ -502,6 +827,16 @@ class GameServer {
           byName: result.byName || 'Player',
           byUsername: result.byUsername || '',
         });
+        void sendToPlayers([result.requesterId], {
+          category: 'social',
+          title: 'Friend accepted',
+          body: `${result.byName || 'Player'} accepted your friend request`,
+          data: {
+            type: 'friend_accepted',
+            route: '/friends',
+            byPlayerId: result.byPlayerId || playerId,
+          },
+        }).catch((error) => console.error('[fcm] friend accept', error));
       }
     } catch (error) {
       if (error.code === 'request_not_found') {
@@ -836,6 +1171,7 @@ class GameServer {
     }
 
     const clientIp = getClientIp(request);
+    const confirmSwitch = body.confirmSwitch === true;
 
     try {
       const claims = await verifyGoogleIdToken(idToken);
@@ -843,11 +1179,23 @@ class GameServer {
         provider: 'google',
         sub: claims.sub,
         displayNameHint: claims.name ?? null,
+        email: claims.email ?? null,
         deviceId,
         clientIp,
+        confirmSwitch,
       });
       sendJson(response, 200, identity);
     } catch (error) {
+      if (error instanceof GoogleAccountInUseError) {
+        sendJson(response, 409, {
+          error: error.code,
+          message: error.message,
+          existingName: error.existingName,
+          existingUsername: error.existingUsername,
+          guestPlayerId: error.guestPlayerId,
+        });
+        return;
+      }
       if (error instanceof InvalidGoogleTokenError) {
         sendJson(response, 401, {
           error: error.code,
@@ -885,6 +1233,7 @@ class GameServer {
       playerId: null,
       displayName: null,
       messages: [],
+      connectedAt: Date.now(),
     };
     this.clients.set(context.id, context);
     this.#send(socket, {
@@ -982,6 +1331,7 @@ class GameServer {
       const allowedStakes = [20, 50, 100, 200, 500];
       const reqStake = Number(command.stakePool ?? command.stake ?? 50);
       context.stakePool = allowedStakes.includes(reqStake) ? reqStake : 50;
+      context.queueJoinedAt = Date.now();
       this.matchQueue.push(context);
       this.#tryFormMatch();
       return;
@@ -1082,6 +1432,18 @@ class GameServer {
         roomId,
         delivered,
       });
+
+      void sendToPlayers([targetPlayerId], {
+        category: 'invites',
+        title: 'Table invite',
+        body: `${context.displayName || 'Friend'} invited you to a table`,
+        data: {
+          type: 'table_invite',
+          route: `/join?roomId=${encodeURIComponent(roomId)}`,
+          roomId,
+          inviterPlayerId: context.playerId || '',
+        },
+      }).catch((error) => console.error('[fcm] table invite', error));
       return;
     }
 
@@ -1285,6 +1647,316 @@ class GameServer {
       if (client?.socket.readyState === WebSocket.OPEN) {
         this.#send(client.socket, room.snapshotFor(player.id));
       }
+    }
+  }
+
+  #playerIdFromPath(pathname, suffix) {
+    // /players/:id/suffix
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts.length < 3 || parts[0] !== 'players') return '';
+    if (!pathname.endsWith(suffix)) return '';
+    return decodeURIComponent(parts[1] || '').trim();
+  }
+
+  async #handleDeviceRegister(request, response) {
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const playerId = typeof body.playerId === 'string' ? body.playerId.trim() : '';
+    const token = typeof body.token === 'string' ? body.token.trim() : '';
+    const platformRaw =
+      typeof body.platform === 'string' ? body.platform.trim().toLowerCase() : '';
+    const platform =
+      platformRaw === 'ios' || platformRaw === 'android' ? platformRaw : '';
+    if (!playerId || !token || !platform) {
+      sendJson(response, 400, {
+        error: 'invalid_body',
+        message: 'playerId, token, and platform (android|ios) required',
+      });
+      return;
+    }
+    if (token.length > 512) {
+      sendJson(response, 400, { error: 'invalid_body', message: 'token too long' });
+      return;
+    }
+    try {
+      if (!(await playerExists(playerId))) {
+        sendJson(response, 404, { error: 'not_found', message: 'Player not found' });
+        return;
+      }
+      const result = await upsertDeviceToken({ playerId, token, platform });
+      sendJson(response, 200, result);
+    } catch (error) {
+      console.error('[devices/register] failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Register failed' });
+    }
+  }
+
+  async #handleDeviceUnregister(request, response) {
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const playerId = typeof body.playerId === 'string' ? body.playerId.trim() : '';
+    const token = typeof body.token === 'string' ? body.token.trim() : '';
+    if (!token) {
+      sendJson(response, 400, { error: 'invalid_body', message: 'token required' });
+      return;
+    }
+    try {
+      const result = await removeDeviceToken({
+        playerId: playerId || undefined,
+        token,
+      });
+      sendJson(response, 200, result);
+    } catch (error) {
+      console.error('[devices/unregister] failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Unregister failed' });
+    }
+  }
+
+  async #handleGetNotifyPrefs(request, response, url) {
+    const playerId = this.#playerIdFromPath(url.pathname, '/notify-prefs');
+    if (!playerId) {
+      sendJson(response, 400, { error: 'invalid_path', message: 'playerId required' });
+      return;
+    }
+    try {
+      const prefs = await getNotifyPrefs(playerId);
+      if (!prefs) {
+        sendJson(response, 404, { error: 'not_found', message: 'Player not found' });
+        return;
+      }
+      sendJson(response, 200, prefs);
+    } catch (error) {
+      console.error('[notify-prefs] get failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Prefs fetch failed' });
+    }
+  }
+
+  async #handleUpdateNotifyPrefs(request, response, url) {
+    const playerId = this.#playerIdFromPath(url.pathname, '/notify-prefs');
+    if (!playerId) {
+      sendJson(response, 400, { error: 'invalid_path', message: 'playerId required' });
+      return;
+    }
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    try {
+      const prefs = await updateNotifyPrefs({
+        playerId,
+        invites: typeof body.invites === 'boolean' ? body.invites : undefined,
+        social: typeof body.social === 'boolean' ? body.social : undefined,
+        ranking: typeof body.ranking === 'boolean' ? body.ranking : undefined,
+        marketing: typeof body.marketing === 'boolean' ? body.marketing : undefined,
+      });
+      sendJson(response, 200, prefs);
+    } catch (error) {
+      if (error.code === 'not_found') {
+        sendJson(response, 404, { error: 'not_found', message: 'Player not found' });
+        return;
+      }
+      console.error('[notify-prefs] update failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Prefs update failed' });
+    }
+  }
+
+  async #handleListNotifications(request, response, url) {
+    const playerId = this.#playerIdFromPath(url.pathname, '/notifications');
+    if (!playerId) {
+      sendJson(response, 400, { error: 'invalid_path', message: 'playerId required' });
+      return;
+    }
+    try {
+      if (!(await playerExists(playerId))) {
+        sendJson(response, 404, { error: 'not_found', message: 'Player not found' });
+        return;
+      }
+      const limit = Number.parseInt(url.searchParams.get('limit') || '50', 10);
+      const offset = Number.parseInt(url.searchParams.get('offset') || '0', 10);
+      const inbox = await listPlayerNotifications({ playerId, limit, offset });
+      sendJson(response, 200, inbox);
+    } catch (error) {
+      console.error('[notifications] list failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Notifications fetch failed' });
+    }
+  }
+
+  async #handleMarkNotificationsRead(request, response, url) {
+    const playerId = this.#playerIdFromPath(url.pathname, '/notifications/read');
+    if (!playerId) {
+      sendJson(response, 400, { error: 'invalid_path', message: 'playerId required' });
+      return;
+    }
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    try {
+      const result = await markPlayerNotificationsRead({
+        playerId,
+        ids: Array.isArray(body.ids) ? body.ids : undefined,
+        all: body.all === true,
+      });
+      sendJson(response, 200, result);
+    } catch (error) {
+      console.error('[notifications] mark read failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Mark read failed' });
+    }
+  }
+
+  async #handleAdminPush(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+
+    const dryRun = body.dryRun === true;
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const pushBody = typeof body.body === 'string' ? body.body.trim() : '';
+    if (!dryRun && (!title || !pushBody)) {
+      sendJson(response, 400, {
+        error: 'invalid_body',
+        message: 'title and body required',
+      });
+      return;
+    }
+
+    const routeRaw = typeof body.route === 'string' ? body.route.trim() : '';
+    if (routeRaw && !routeRaw.startsWith('/')) {
+      sendJson(response, 400, {
+        error: 'invalid_route',
+        message: 'route must start with /',
+      });
+      return;
+    }
+
+    const explicitIds = Array.isArray(body.playerIds)
+      ? [
+          ...new Set(
+            body.playerIds
+              .filter((id) => typeof id === 'string' && id.trim())
+              .map((id) => id.trim()),
+          ),
+        ]
+      : [];
+
+    const hasAudienceFilters =
+      body.maxLastSeenDays != null ||
+      body.requirePushToken != null ||
+      body.platforms != null ||
+      body.minMatchesPlayed != null ||
+      body.maxMatchesPlayed != null ||
+      body.minWins != null ||
+      body.maxWins != null;
+
+    /** @type {string[] | undefined} */
+    let platforms;
+    if (Array.isArray(body.platforms)) {
+      platforms = body.platforms;
+    } else if (typeof body.platforms === 'string' && body.platforms.trim()) {
+      const p = body.platforms.trim().toLowerCase();
+      if (p === 'android' || p === 'ios') platforms = [p];
+      else if (p !== 'all') {
+        sendJson(response, 400, {
+          error: 'invalid_platforms',
+          message: 'platforms must be all|android|ios or array',
+        });
+        return;
+      }
+    }
+
+    const audienceFilters = {
+      maxLastSeenDays:
+        body.maxLastSeenDays != null ? Number(body.maxLastSeenDays) : 30,
+      requirePushToken: body.requirePushToken !== false,
+      minMatchesPlayed:
+        body.minMatchesPlayed != null
+          ? Number(body.minMatchesPlayed)
+          : undefined,
+      maxMatchesPlayed:
+        body.maxMatchesPlayed != null
+          ? Number(body.maxMatchesPlayed)
+          : undefined,
+      minWins: body.minWins != null ? Number(body.minWins) : undefined,
+      maxWins: body.maxWins != null ? Number(body.maxWins) : undefined,
+      platforms,
+    };
+
+    try {
+      if (dryRun) {
+        if (explicitIds.length) {
+          sendJson(response, 200, {
+            dryRun: true,
+            audienceCount: explicitIds.length,
+            sampleIds: explicitIds.slice(0, 10),
+          });
+          return;
+        }
+        if (hasAudienceFilters) {
+          const audienceCount =
+            await countMarketingBlastAudience(audienceFilters);
+          const sampleIds = (
+            await listMarketingBlastAudience({
+              ...audienceFilters,
+              limit: 10,
+            })
+          ).slice(0, 10);
+          sendJson(response, 200, {
+            dryRun: true,
+            audienceCount,
+            sampleIds,
+          });
+          return;
+        }
+        const allIds = await listPlayerIdsWithNotifyPref('marketing');
+        sendJson(response, 200, {
+          dryRun: true,
+          audienceCount: allIds.length,
+          sampleIds: allIds.slice(0, 10),
+        });
+        return;
+      }
+
+      /** @type {Record<string, unknown>} */
+      const data = {
+        ...(body.data && typeof body.data === 'object' ? body.data : {}),
+      };
+      if (routeRaw) data.route = routeRaw;
+
+      const result = await sendMarketingBlast({
+        title,
+        body: pushBody,
+        data,
+        playerIds: explicitIds.length ? explicitIds : undefined,
+        audienceFilters:
+          !explicitIds.length && hasAudienceFilters
+            ? audienceFilters
+            : undefined,
+      });
+      sendJson(response, 200, { ...result, fcmReady: isFcmReady() });
+    } catch (error) {
+      console.error('[admin/push] failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Push failed' });
     }
   }
 

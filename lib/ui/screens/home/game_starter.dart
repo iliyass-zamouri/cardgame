@@ -1,13 +1,20 @@
+import 'dart:async';
+
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
+import 'package:cardgame/app/push_providers.dart';
+import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/services/analytics_service.dart';
 import 'package:cardgame/ui/screens/friends_screen.dart';
 import 'package:cardgame/ui/screens/home/stake_selector_modal.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
+import 'package:cardgame/ui/screens/notifications/notifications_panel.dart';
 import 'package:cardgame/ui/screens/profile/player_profile_screen.dart';
 import 'package:cardgame/ui/screens/ranking/global_ranking_screen.dart';
 import 'package:cardgame/ui/screens/settings_screen.dart';
@@ -18,13 +25,168 @@ import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 
-class StartGameWidget extends ConsumerWidget {
+class StartGameWidget extends ConsumerStatefulWidget {
   const StartGameWidget({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StartGameWidget> createState() => _StartGameWidgetState();
+}
+
+class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
+  bool _softPromptChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeSoftPrompts());
+  }
+
+  Future<void> _maybeSoftPrompts() async {
+    if (_softPromptChecked || !mounted) return;
+    _softPromptChecked = true;
+
+    final showedPush = await _maybeSoftPushPrompt();
+    if (!mounted) return;
+    if (showedPush) return;
+    await _maybeGuestLinkPrompt();
+  }
+
+  /// Returns true if the push dialog was shown this visit.
+  Future<bool> _maybeSoftPushPrompt() async {
+    final prefs = ref.read(pushPrefsRepositoryProvider);
+    if (prefs.pushSoftPromptDone) return false;
+
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return false;
+
+    final allow = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: CasinoColors.surface,
+          title: const Text(
+            'Stay in the loop',
+            style: TextStyle(color: CasinoColors.gold),
+          ),
+          content: const Text(
+            'Get notified for friend requests and table invites even when you are away.',
+            style: TextStyle(color: CasinoColors.text),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Later'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Allow'),
+            ),
+          ],
+        );
+      },
+    );
+
+    await prefs.setPushSoftPromptDone(true);
+    if (allow == true) {
+      unawaited(
+        ref.read(analyticsServiceProvider).pushPermission(result: 'granted'),
+      );
+      await ref
+          .read(pushNotificationServiceProvider)
+          .requestPermissionAndRegister();
+    } else {
+      unawaited(
+        ref.read(analyticsServiceProvider).pushPermission(result: 'later'),
+      );
+    }
+    return true;
+  }
+
+  Future<void> _maybeGuestLinkPrompt() async {
+    final auth = ref.read(sessionAuthProvider).value;
+    if (auth != SessionAuthStatus.guest) return;
+
+    final prefs = ref.read(guestLinkPrefsRepositoryProvider);
+    if (!prefs.shouldShowNudge) return;
+
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return;
+    if (ref.read(sessionAuthProvider).value != SessionAuthStatus.guest) {
+      return;
+    }
+
+    final l10n = context.l10n;
+    final action = await showDialog<_GuestLinkPromptAction>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: CasinoColors.surface,
+          title: Text(
+            l10n.saveProgressTitle,
+            style: const TextStyle(color: CasinoColors.gold),
+          ),
+          content: Text(
+            l10n.saveProgressBody,
+            style: const TextStyle(color: CasinoColors.text),
+          ),
+          actions: [
+            TextButton(
+              onPressed:
+                  () => Navigator.of(
+                    dialogContext,
+                  ).pop(_GuestLinkPromptAction.dontAsk),
+              child: Text(l10n.dontAskAgain),
+            ),
+            TextButton(
+              onPressed:
+                  () => Navigator.of(
+                    dialogContext,
+                  ).pop(_GuestLinkPromptAction.later),
+              child: Text(l10n.later),
+            ),
+            TextButton(
+              onPressed:
+                  () => Navigator.of(
+                    dialogContext,
+                  ).pop(_GuestLinkPromptAction.link),
+              child: Text(
+                l10n.linkGoogleAccount,
+                style: const TextStyle(color: CasinoColors.gold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case _GuestLinkPromptAction.later:
+        await prefs.markShown();
+      case _GuestLinkPromptAction.dontAsk:
+        await prefs.setDontAskAgain(true);
+      case _GuestLinkPromptAction.link:
+        await prefs.markShown();
+        if (!mounted) return;
+        final result = await linkOrSignInWithGoogle(context: context, ref: ref);
+        if (!mounted) return;
+        if (result.outcome == GuestGoogleLinkOutcome.linked) {
+          CasinoToast.show(context, l10n.linkGoogleSuccess);
+        } else if (result.outcome == GuestGoogleLinkOutcome.switched) {
+          CasinoToast.show(context, l10n.linkGoogleSwitched);
+        } else if (result.outcome == GuestGoogleLinkOutcome.failed &&
+            result.errorMessage != null) {
+          CasinoToast.show(context, result.errorMessage!, success: false);
+        }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final connection = ref.watch(
       gameSessionProvider.select((state) => state.connection),
@@ -34,13 +196,14 @@ class StartGameWidget extends ConsumerWidget {
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
     final displayName = profile.isEmpty ? l10n.player : profile.name;
     final connectedFriendsCount = ref.watch(connectedFriendsCountProvider);
+    final unread = ref.watch(notificationsUnreadCountProvider);
     final notifier = ref.read(gameSessionProvider.notifier);
 
     return Scaffold(
       backgroundColor: CasinoColors.bg,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 12, 28, 16),
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -52,6 +215,7 @@ class StartGameWidget extends ConsumerWidget {
                 chips: profile.chips,
                 connected: connected,
                 connection: connection,
+                unreadNotifications: unread,
                 onProfile:
                     () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -64,6 +228,7 @@ class StartGameWidget extends ConsumerWidget {
                         builder: (context) => const MarketplaceScreen(),
                       ),
                     ),
+                onNotifications: () => showNotificationsPanel(context, ref),
                 onSettings:
                     () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -101,7 +266,7 @@ class StartGameWidget extends ConsumerWidget {
                             Center(
                               child: CasinoActionButton(
                                 label: l10n.findMatch,
-                                icon: Icons.bolt_rounded,
+                                icon: AppIcons.bolt,
                                 tone: CasinoActionTone.raise,
                                 expanded: false,
                                 height: 58,
@@ -115,7 +280,7 @@ class StartGameWidget extends ConsumerWidget {
                             Center(
                               child: CasinoActionButton(
                                 label: l10n.createRoom,
-                                icon: Icons.add_home_rounded,
+                                icon: AppIcons.addHome,
                                 tone: CasinoActionTone.check,
                                 expanded: false,
                                 height: 58,
@@ -127,7 +292,7 @@ class StartGameWidget extends ConsumerWidget {
                             Center(
                               child: CasinoActionButton(
                                 label: l10n.joinRoom,
-                                icon: Icons.login_rounded,
+                                icon: AppIcons.login,
                                 tone: CasinoActionTone.gold,
                                 expanded: false,
                                 height: 58,
@@ -148,9 +313,7 @@ class StartGameWidget extends ConsumerWidget {
                                                 const GlobalRankingScreen(),
                                       ),
                                     ),
-                                icon: const Icon(
-                                  Icons.trending_up_rounded,
-                                  size: 24,
+                                icon: const HugeIcon(icon: AppIcons.trendingUp, size: 24,
                                 ),
                                 label: Text(l10n.globalRanking),
                                 style: TextButton.styleFrom(
@@ -168,7 +331,7 @@ class StartGameWidget extends ConsumerWidget {
                                                 const MarketplaceScreen(),
                                       ),
                                     ),
-                                icon: const Icon(Icons.style_rounded, size: 24),
+                                icon: const HugeIcon(icon: AppIcons.style, size: 24),
                                 label: Text(l10n.marketplace),
                                 style: TextButton.styleFrom(
                                   foregroundColor: CasinoColors.textMuted,
@@ -193,9 +356,7 @@ class StartGameWidget extends ConsumerWidget {
                                     fontSize: 10,
                                     fontWeight: FontWeight.w800,
                                   ),
-                                  child: const Icon(
-                                    Icons.people_alt_rounded,
-                                    size: 24,
+                                  child: const HugeIcon(icon: AppIcons.people, size: 24,
                                   ),
                                 ),
                                 label: Text(l10n.friends),
@@ -210,9 +371,7 @@ class StartGameWidget extends ConsumerWidget {
                               Center(
                                 child: TextButton.icon(
                                   onPressed: notifier.connect,
-                                  icon: const Icon(
-                                    Icons.refresh_rounded,
-                                    size: 24,
+                                  icon: const HugeIcon(icon: AppIcons.refresh, size: 24,
                                   ),
                                   label: Text(l10n.retryConnection),
                                   style: TextButton.styleFrom(
@@ -268,6 +427,8 @@ class StartGameWidget extends ConsumerWidget {
     );
   }
 }
+
+enum _GuestLinkPromptAction { later, dontAsk, link }
 
 Future<void> _showJoinRoomDialog(BuildContext context) {
   return showDialog<void>(
@@ -412,8 +573,10 @@ class _TopBar extends StatelessWidget {
     required this.chips,
     required this.connected,
     required this.connection,
+    required this.unreadNotifications,
     required this.onProfile,
     required this.onMarketplace,
+    required this.onNotifications,
     required this.onSettings,
   });
 
@@ -424,8 +587,10 @@ class _TopBar extends StatelessWidget {
   final int chips;
   final bool connected;
   final ConnectionStatus connection;
+  final int unreadNotifications;
   final VoidCallback onProfile;
   final VoidCallback onMarketplace;
+  final VoidCallback onNotifications;
   final VoidCallback onSettings;
 
   @override
@@ -436,11 +601,13 @@ class _TopBar extends StatelessWidget {
       ConnectionStatus.connecting => CasinoColors.gold,
       ConnectionStatus.disconnected => CasinoColors.foldHi,
     };
-    final statusLabel = switch (connection) {
-      ConnectionStatus.connected => l10n.online,
-      ConnectionStatus.connecting => l10n.connecting,
-      ConnectionStatus.disconnected => l10n.offline,
-    };
+
+    final iconBtnStyle = IconButton.styleFrom(
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(32, 32),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
 
     return Row(
       children: [
@@ -448,34 +615,36 @@ class _TopBar extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               onTap: onProfile,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
                 child: Row(
                   children: [
-                    PlayerAvatar(avatarId: avatarId, size: 38),
-                    const SizedBox(width: 10),
+                    PlayerAvatar(avatarId: avatarId, size: 34),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: CasinoColors.text,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 14,
+                              Flexible(
+                                child: Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: CasinoColors.text,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 3),
                               Container(
-                                width: 7,
-                                height: 7,
+                                width: 6,
+                                height: 6,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: statusColor,
@@ -489,7 +658,7 @@ class _TopBar extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: CasinoColors.goldSoft,
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -502,18 +671,18 @@ class _TopBar extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 4),
         // Currency pills / Marketplace button
         Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             onTap: onMarketplace,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
               decoration: BoxDecoration(
                 color: CasinoColors.bgElevated.withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: CasinoColors.gold.withValues(alpha: 0.3),
                 ),
@@ -521,25 +690,25 @@ class _TopBar extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const CashIcon(size: 22),
-                  const SizedBox(width: 4),
+                  const CashIcon(size: 18),
+                  const SizedBox(width: 3),
                   Text(
                     '$money',
                     style: const TextStyle(
                       color: CasinoColors.text,
                       fontWeight: FontWeight.w800,
-                      fontSize: 12,
+                      fontSize: 11,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const ChipIcon(size: 22),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
+                  const ChipIcon(size: 18),
+                  const SizedBox(width: 3),
                   Text(
                     '$chips',
                     style: const TextStyle(
                       color: CasinoColors.goldSoft,
                       fontWeight: FontWeight.w800,
-                      fontSize: 12,
+                      fontSize: 11,
                     ),
                   ),
                 ],
@@ -547,14 +716,27 @@ class _TopBar extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 2),
+        IconButton(
+          tooltip: 'Notifications',
+          onPressed: onNotifications,
+          style: iconBtnStyle,
+          icon: Badge(
+            isLabelVisible: unreadNotifications > 0,
+            label: Text('$unreadNotifications'),
+            backgroundColor: CasinoColors.gold,
+            textColor: CasinoColors.bg,
+            child: const HugeIcon(icon: AppIcons.notifications, color: CasinoColors.textMuted,
+              size: 22,
+            ),
+          ),
+        ),
         IconButton(
           tooltip: l10n.settings,
           onPressed: onSettings,
-          visualDensity: VisualDensity.compact,
-          icon: const Icon(
-            Icons.settings_rounded,
-            color: CasinoColors.textMuted,
+          style: iconBtnStyle,
+          icon: const HugeIcon(icon: AppIcons.settings, color: CasinoColors.textMuted,
+            size: 22,
           ),
         ),
       ],

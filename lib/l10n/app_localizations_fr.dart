@@ -870,4 +870,40 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get entryFee => 'Frais d\'entrée';
+
+  @override
+  String get linkGoogleAccount => 'Lier un compte Google';
+
+  @override
+  String get linkingGoogle => 'Liaison…';
+
+  @override
+  String get linkGoogleSuccess => 'Compte Google lié. Progression enregistrée.';
+
+  @override
+  String get linkGoogleSwitched => 'Connecté avec votre compte Google.';
+
+  @override
+  String get saveProgressTitle => 'Sauvegardez votre progression';
+
+  @override
+  String get saveProgressBody =>
+      'Liez un compte Google pour conserver argent, jetons et classement si vous changez d\'appareil.';
+
+  @override
+  String get googleAccountInUseTitle => 'Compte Google déjà utilisé';
+
+  @override
+  String googleAccountInUseBody(String username) {
+    return 'Ce compte Google appartient déjà à @$username. Passer à ce compte ? La progression invité sur cet appareil sera perdue.';
+  }
+
+  @override
+  String get switchToGoogleAccount => 'Changer de compte';
+
+  @override
+  String get dontAskAgain => 'Ne plus demander';
+
+  @override
+  String get later => 'Plus tard';
 }

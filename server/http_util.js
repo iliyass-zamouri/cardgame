@@ -2,7 +2,7 @@ function corsHeaders() {
   return {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET, POST, OPTIONS',
-    'access-control-allow-headers': 'content-type',
+    'access-control-allow-headers': 'content-type, x-admin-push-secret',
   };
 }
 
@@ -14,6 +14,26 @@ function sendJson(res, statusCode, body) {
     'content-length': Buffer.byteLength(payload),
   });
   res.end(payload);
+}
+
+function sendHtml(res, statusCode, html) {
+  res.writeHead(statusCode, {
+    ...corsHeaders(),
+    'content-type': 'text/html; charset=utf-8',
+    'content-length': Buffer.byteLength(html),
+  });
+  res.end(html);
+}
+
+function sendCsv(res, statusCode, csv, filename) {
+  const safeName = String(filename || 'export.csv').replace(/[^\w.\-]+/g, '_');
+  res.writeHead(statusCode, {
+    ...corsHeaders(),
+    'content-type': 'text/csv; charset=utf-8',
+    'content-disposition': `attachment; filename="${safeName}"`,
+    'content-length': Buffer.byteLength(csv),
+  });
+  res.end(csv);
 }
 
 function readJsonBody(req, { limitBytes = 64 * 1024 } = {}) {
@@ -45,4 +65,4 @@ function readJsonBody(req, { limitBytes = 64 * 1024 } = {}) {
   });
 }
 
-module.exports = { sendJson, readJsonBody, corsHeaders };
+module.exports = { sendJson, sendHtml, sendCsv, readJsonBody, corsHeaders };

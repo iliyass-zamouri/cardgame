@@ -28,25 +28,27 @@ These three products **do not form one pipeline**. They share a Google account /
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-| Piece | What this app uses it for | What it does **not** do |
-|-------|---------------------------|-------------------------|
-| **Firebase** | `firebase_core` init on Android so Google Play services / plugin graph is happy | No Firebase Auth, Analytics, Crashlytics, Firestore, FCM. Not used to verify Google login. |
-| **Google Sign-In** | Native account picker → **ID token** → game server `POST /auth/google` | No Firebase Auth `signInWithCredential`. Session after login is **Hive** (`SessionAuthStatus`), not a Firebase user. |
-| **AdMob** | Rewarded ads (gems) + interstitial (after match leave) | Gems are **server-authoritative**. Watching an ad locally is not enough; client must `POST /economy/rewarded-ad`. Pro (RevenueCat) skips interstitials only. |
+| Piece              | What this app uses it for                                                            | What it does **not** do                                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Firebase**       | `firebase_core` on Android + iOS; **Analytics (GA4)**; **FCM** push; **Crashlytics** | No Firebase Auth / Firestore. Not used to verify Google login.                                                                                               |
+| **Google Sign-In** | Native account picker → **ID token** → game server `POST /auth/google`               | No Firebase Auth `signInWithCredential`. Session after login is **Hive** (`SessionAuthStatus`), not a Firebase user.                                         |
+| **AdMob**          | Rewarded ads (gems) + interstitial (after match leave)                               | Gems are **server-authoritative**. Watching an ad locally is not enough; client must `POST /economy/rewarded-ad`. Pro (RevenueCat) skips interstitials only. |
 
 **Package IDs (must match everywhere):**
 
-| Platform | ID |
-|----------|----|
-| Android `applicationId` / namespace | `com.hailsom.chameleon2d` |
-| iOS bundle ID | `com.hailsom.chameleon2d` |
-| Play listing | same package |
+| Platform                            | ID                       |
+| ----------------------------------- | ------------------------ |
+| Android `applicationId` / namespace | `com.hailsom.shadowhand` |
+| iOS bundle ID                       | `com.hailsom.shadowhand` |
+| Play listing                        | same package             |
+
+FCM setup: [`docs/FCM_PUSH_NOTIFICATIONS.md`](./FCM_PUSH_NOTIFICATIONS.md).
 
 **Two Google Cloud / Firebase project numbers appear in this repo.** Do not mix them up:
 
-| Project | Number | Used for |
-|---------|--------|----------|
-| Firebase `hailsom-chameleon2d` | `585657728965` | `google-services.json`, `lib/firebase_options.dart` |
+| Project                                | Number         | Used for                                                      |
+| -------------------------------------- | -------------- | ------------------------------------------------------------- |
+| Firebase `hailsom-chameleon2d`         | `585657728965` | `google-services.json`, `lib/firebase_options.dart`           |
 | OAuth clients in `server/.env.example` | `103580907433` | Web / Android / iOS OAuth client IDs for Google Sign-In `aud` |
 
 Sign-in will fail if the **Web client ID** on the Flutter side and the IDs in server `GOOGLE_CLIENT_IDS` do not belong to the **same OAuth consent project**, or if the Android client SHA-1 does not match the keystore that signed the APK.
@@ -74,12 +76,12 @@ Sign-in will fail if the **Web client ID** on the Flutter side and the IDs in se
 
 Current Android options (must match the JSON):
 
-| Field | Value in this repo |
-|-------|--------------------|
-| `projectId` | `hailsom-chameleon2d` |
-| `appId` | `1:585657728965:android:3ad2f978fd066d2ae615ac` |
-| `messagingSenderId` | `585657728965` |
-| `storageBucket` | `hailsom-chameleon2d.firebasestorage.app` |
+| Field               | Value in this repo                              |
+| ------------------- | ----------------------------------------------- |
+| `projectId`         | `hailsom-chameleon2d`                           |
+| `appId`             | `1:585657728965:android:3ad2f978fd066d2ae615ac` |
+| `messagingSenderId` | `585657728965`                                  |
+| `storageBucket`     | `hailsom-chameleon2d.firebasestorage.app`       |
 
 If you re-run FlutterFire, regenerate both the JSON and `firebase_options.dart` together.
 
@@ -155,11 +157,11 @@ See `server/.env.example`. Verification is JWT + Google JWKS (`server/src/auth/g
 1. [AdMob](https://admob.google.com/) → Apps → add **two** apps (this repo uses separate Android and iOS AdMob apps).
 2. Create ad units:
 
-| Slot | Android (this repo) | iOS (this repo) |
-|------|---------------------|-----------------|
-| App ID | `ca-app-pub-9698112281637218~8544303991` (Chameleon 2D: hide & seek) | `ca-app-pub-9698112281637218~6439859764` (Chameleon 2D) |
-| Rewarded | `…/2170542344` (gems) | `…/8979347485` (gems) |
-| Interstitial | `…/6896230738` (freebies) | **placeholder still uses the Android interstitial unit** — create a real iOS interstitial and replace `AdConfig.prodInterstitialIos` |
+| Slot         | Android (this repo)                                                  | iOS (this repo)                                                                                                                      |
+| ------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| App ID       | `ca-app-pub-9698112281637218~8544303991` (Chameleon 2D: hide & seek) | `ca-app-pub-9698112281637218~6439859764` (Chameleon 2D)                                                                              |
+| Rewarded     | `…/2170542344` (gems)                                                | `…/8979347485` (gems)                                                                                                                |
+| Interstitial | `…/6896230738` (freebies)                                            | **placeholder still uses the Android interstitial unit** — create a real iOS interstitial and replace `AdConfig.prodInterstitialIos` |
 
 3. Link the AdMob apps to the Firebase Android/iOS apps if you want the Firebase↔AdMob connection in consoles. **The Flutter code does not require that link**; ads work from App ID + unit IDs alone.
 4. For policy: Android `AD_ID` permission is declared. iOS has `NSUserTrackingUsageDescription` in `Info.plist`. This app **does not call App Tracking Transparency** (`requestTrackingAuthorization`) in Dart — ATT is only the plist string. Add a request before `MobileAds.initialize()` if you need personalized ads on iOS 14.5+.
@@ -219,10 +221,10 @@ id("com.google.gms.google-services")
 
 `android/app/build.gradle.kts` sets:
 
-| Build type | `admobAppId` |
-|------------|----------------|
+| Build type                | `admobAppId`                                           |
+| ------------------------- | ------------------------------------------------------ |
 | `defaultConfig` / `debug` | Google sample `ca-app-pub-3940256099942544~3347511713` |
-| `release` | Prod `ca-app-pub-9698112281637218~8544303991` |
+| `release`                 | Prod `ca-app-pub-9698112281637218~8544303991`          |
 
 **App ID in the manifest must match the family of unit IDs you load.** Debug uses sample App ID + sample units. Release uses prod App ID + prod units. Mixing them causes load failures.
 
@@ -260,10 +262,10 @@ Release signing: `android/key.properties` + `signingConfigs.release`. If `key.pr
 <string>$(GAD_APPLICATION_IDENTIFIER)</string>
 ```
 
-| File | Value |
-|------|--------|
-| `ios/Flutter/Debug.xcconfig` | Sample `ca-app-pub-3940256099942544~1458002511` |
-| `ios/Flutter/Release.xcconfig` | Prod `ca-app-pub-9698112281637218~6439859764` |
+| File                           | Value                                           |
+| ------------------------------ | ----------------------------------------------- |
+| `ios/Flutter/Debug.xcconfig`   | Sample `ca-app-pub-3940256099942544~1458002511` |
+| `ios/Flutter/Release.xcconfig` | Prod `ca-app-pub-9698112281637218~6439859764`   |
 
 ### 4.3 Google Sign-In URL scheme
 
@@ -308,12 +310,12 @@ Ads init is **before** `runApp`. Providers later **preload** rewarded + intersti
 
 Loaded by `flutter_dotenv`. Gitignores `.env`, `.env.debug`, `.env.release` (keeps `.env.example`).
 
-| Variable | Who reads it | Purpose |
-|----------|--------------|---------|
-| `GOOGLE_SERVER_CLIENT_ID` | `GoogleSignInService.resolveServerClientId()` | Web OAuth client ID → `serverClientId` |
-| `HTTP_URL` / `BASE_URL` | `httpUrlProvider` | Game API (`POST /auth/google`, economy) |
-| `WS_URL` | sockets | Multiplayer (unrelated to ads/auth) |
-| `REVENUECAT_*` | IAP | Pro entitlement skips **interstitials** |
+| Variable                  | Who reads it                                  | Purpose                                 |
+| ------------------------- | --------------------------------------------- | --------------------------------------- |
+| `GOOGLE_SERVER_CLIENT_ID` | `GoogleSignInService.resolveServerClientId()` | Web OAuth client ID → `serverClientId`  |
+| `HTTP_URL` / `BASE_URL`   | `httpUrlProvider`                             | Game API (`POST /auth/google`, economy) |
+| `WS_URL`                  | sockets                                       | Multiplayer (unrelated to ads/auth)     |
+| `REVENUECAT_*`            | IAP                                           | Pro entitlement skips **interstitials** |
 
 Override without files:
 
@@ -437,14 +439,14 @@ Migration: `server/sql/migrations/008_oauth_provider_subs.sql`.
 
 Force prod units even in debug: `--dart-define=ADMOB_PROD=true` (still loses to force-test / simulator).
 
-| | Android | iOS |
-|--|---------|-----|
-| Test App ID | `ca-app-pub-3940256099942544~3347511713` | `…~1458002511` |
-| Test rewarded | `…/5224354917` | `…/1712484513` |
-| Test interstitial | `…/1033173712` | `…/4411468910` |
-| Prod App ID | `…~8544303991` | `…~6439859764` |
-| Prod rewarded | `…/2170542344` | `…/8979347485` |
-| Prod interstitial | `…/6896230738` | **same Android unit until iOS unit exists** |
+|                   | Android                                  | iOS                                         |
+| ----------------- | ---------------------------------------- | ------------------------------------------- |
+| Test App ID       | `ca-app-pub-3940256099942544~3347511713` | `…~1458002511`                              |
+| Test rewarded     | `…/5224354917`                           | `…/1712484513`                              |
+| Test interstitial | `…/1033173712`                           | `…/4411468910`                              |
+| Prod App ID       | `…~8544303991`                           | `…~6439859764`                              |
+| Prod rewarded     | `…/2170542344`                           | `…/8979347485`                              |
+| Prod interstitial | `…/6896230738`                           | **same Android unit until iOS unit exists** |
 
 Native **App ID** (manifest / GADApplicationIdentifier) is chosen by **Gradle/xcconfig build type**, not by `AdConfig.useTestIds`. That is why debug Gradle uses the sample App ID: Dart debug also uses sample units. If you `ADMOB_PROD=true` on a **debug** APK, Dart would request prod units while the manifest still has the **sample App ID** — do not do that. Use a **release** build for prod ads, or change both layers together.
 
@@ -542,54 +544,54 @@ Rewarded ads are **not** skipped for Pro (shop still offers watch-ad gems).
 
 ## 13. Troubleshooting
 
-| Symptom | Cause | Fix |
-|---------|--------|-----|
-| `GOOGLE_SERVER_CLIENT_ID missing` | Empty dotenv / define | Set Web client ID in `.env.debug` / `.env.release` |
-| Picker works, then “Missing Google idToken” | `serverClientId` is Android/iOS client, not **Web** | Use Web client as `GOOGLE_SERVER_CLIENT_ID` |
-| `ApiException: 10` / DEVELOPER_ERROR | Android OAuth client SHA-1 or package mismatch | `signingReport`; add SHA-1; wait a few minutes; reinstall app |
-| `401 invalid_google_token` | Token `aud` not in `GOOGLE_CLIENT_IDS`, or clock/JWKS | Add the Web (and platform) client IDs on the server; restart Node |
-| Guest progress lost after Google | `deviceId` not sent or different install | Same install Hive id; server only links if guest has empty `google_sub` |
-| iOS returns from Google and dies | URL scheme still `REPLACE_ME` | Set reversed iOS client ID in xcconfig |
-| Ads fail to load in debug | Prod units + sample App ID, or no fill | Stay on sample units in debug; use test device / `ADMOB_TEST` |
-| Ads fail in release on emulator | Simulator forces test IDs; prod rarely fills on emulators | Test ads on a physical device with a release build |
-| Interstitial never shows | User is Pro, or load fail | Check `isProProvider`; log `InterstitialAd load failed` |
-| iOS interstitial no-fill in prod | `prodInterstitialIos` still Android unit | Create iOS interstitial in AdMob; paste into `AdConfig` |
-| Firebase init “fails” silently | Catch-all in `main.dart` | Log the catch if debugging; confirm JSON + plugin |
-| iOS crash on `DefaultFirebaseOptions` | Calling `currentPlatform` on iOS | Do not init Firebase on iOS until options exist (current `main.dart` already skips) |
+| Symptom                                     | Cause                                                     | Fix                                                                                 |
+| ------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `GOOGLE_SERVER_CLIENT_ID missing`           | Empty dotenv / define                                     | Set Web client ID in `.env.debug` / `.env.release`                                  |
+| Picker works, then “Missing Google idToken” | `serverClientId` is Android/iOS client, not **Web**       | Use Web client as `GOOGLE_SERVER_CLIENT_ID`                                         |
+| `ApiException: 10` / DEVELOPER_ERROR        | Android OAuth client SHA-1 or package mismatch            | `signingReport`; add SHA-1; wait a few minutes; reinstall app                       |
+| `401 invalid_google_token`                  | Token `aud` not in `GOOGLE_CLIENT_IDS`, or clock/JWKS     | Add the Web (and platform) client IDs on the server; restart Node                   |
+| Guest progress lost after Google            | `deviceId` not sent or different install                  | Same install Hive id; server only links if guest has empty `google_sub`             |
+| iOS returns from Google and dies            | URL scheme still `REPLACE_ME`                             | Set reversed iOS client ID in xcconfig                                              |
+| Ads fail to load in debug                   | Prod units + sample App ID, or no fill                    | Stay on sample units in debug; use test device / `ADMOB_TEST`                       |
+| Ads fail in release on emulator             | Simulator forces test IDs; prod rarely fills on emulators | Test ads on a physical device with a release build                                  |
+| Interstitial never shows                    | User is Pro, or load fail                                 | Check `isProProvider`; log `InterstitialAd load failed`                             |
+| iOS interstitial no-fill in prod            | `prodInterstitialIos` still Android unit                  | Create iOS interstitial in AdMob; paste into `AdConfig`                             |
+| Firebase init “fails” silently              | Catch-all in `main.dart`                                  | Log the catch if debugging; confirm JSON + plugin                                   |
+| iOS crash on `DefaultFirebaseOptions`       | Calling `currentPlatform` on iOS                          | Do not init Firebase on iOS until options exist (current `main.dart` already skips) |
 
 ---
 
 ## 14. File map
 
-| Path | Role |
-|------|------|
-| `pubspec.yaml` | `firebase_core`, `google_sign_in`, `google_mobile_ads` |
-| `lib/main.dart` | Env, Firebase (Android), `MobileAds.initialize` |
-| `lib/firebase_options.dart` | Android `FirebaseOptions` only |
-| `google-services.json` / `android/app/google-services.json` | Firebase Android client |
-| `android/settings.gradle.kts` | `google-services` plugin version |
-| `android/app/build.gradle.kts` | Apply plugin; `admobAppId` placeholder |
-| `android/app/src/main/AndroidManifest.xml` | `APPLICATION_ID` meta-data, `AD_ID` |
-| `ios/Podfile` | iOS 15 |
-| `ios/Runner/Info.plist` | `GADApplicationIdentifier`, URL scheme, ATT string |
-| `ios/Flutter/Debug.xcconfig` / `Release.xcconfig` | AdMob App ID + reversed Google client |
-| `lib/core/services/google_sign_in_service.dart` | Native Google → ID token |
-| `lib/core/services/oauth_auth_service.dart` | `POST /auth/google` |
-| `lib/core/services/server_identity.dart` | Auth JSON model |
-| `lib/features/authentication/authentication_screen.dart` | Continue with Google |
-| `lib/features/settings/settings_screen.dart` | Link Google from guest |
-| `lib/game/providers/session_auth_provider.dart` | Local session + signOut |
-| `lib/core/monetization/ad_config.dart` | Test/prod unit IDs |
-| `lib/core/monetization/rewarded_ad_service.dart` | Rewarded load/show |
-| `lib/core/monetization/interstitial_ad_service.dart` | Interstitial load/show |
-| `lib/app/dependency_injection.dart` | Ad + Google + OAuth providers |
-| `lib/game/providers/player_profile_provider.dart` | `claimRewardedAd` |
-| `lib/core/monetization/economy_api_service.dart` | `POST /economy/rewarded-ad` |
-| `lib/game/engine/game_screen.dart` | Interstitial before leave |
-| `server/src/auth/google_token.js` | JWT verify |
-| `server/src/auth/oauth.js` | Link/create |
-| `server/.env.example` | `GOOGLE_CLIENT_IDS` |
-| `.env.example` | Flutter `GOOGLE_SERVER_CLIENT_ID` |
+| Path                                                        | Role                                                   |
+| ----------------------------------------------------------- | ------------------------------------------------------ |
+| `pubspec.yaml`                                              | `firebase_core`, `google_sign_in`, `google_mobile_ads` |
+| `lib/main.dart`                                             | Env, Firebase (Android), `MobileAds.initialize`        |
+| `lib/firebase_options.dart`                                 | Android `FirebaseOptions` only                         |
+| `google-services.json` / `android/app/google-services.json` | Firebase Android client                                |
+| `android/settings.gradle.kts`                               | `google-services` plugin version                       |
+| `android/app/build.gradle.kts`                              | Apply plugin; `admobAppId` placeholder                 |
+| `android/app/src/main/AndroidManifest.xml`                  | `APPLICATION_ID` meta-data, `AD_ID`                    |
+| `ios/Podfile`                                               | iOS 15                                                 |
+| `ios/Runner/Info.plist`                                     | `GADApplicationIdentifier`, URL scheme, ATT string     |
+| `ios/Flutter/Debug.xcconfig` / `Release.xcconfig`           | AdMob App ID + reversed Google client                  |
+| `lib/core/services/google_sign_in_service.dart`             | Native Google → ID token                               |
+| `lib/core/services/oauth_auth_service.dart`                 | `POST /auth/google`                                    |
+| `lib/core/services/server_identity.dart`                    | Auth JSON model                                        |
+| `lib/features/authentication/authentication_screen.dart`    | Continue with Google                                   |
+| `lib/features/settings/settings_screen.dart`                | Link Google from guest                                 |
+| `lib/game/providers/session_auth_provider.dart`             | Local session + signOut                                |
+| `lib/core/monetization/ad_config.dart`                      | Test/prod unit IDs                                     |
+| `lib/core/monetization/rewarded_ad_service.dart`            | Rewarded load/show                                     |
+| `lib/core/monetization/interstitial_ad_service.dart`        | Interstitial load/show                                 |
+| `lib/app/dependency_injection.dart`                         | Ad + Google + OAuth providers                          |
+| `lib/game/providers/player_profile_provider.dart`           | `claimRewardedAd`                                      |
+| `lib/core/monetization/economy_api_service.dart`            | `POST /economy/rewarded-ad`                            |
+| `lib/game/engine/game_screen.dart`                          | Interstitial before leave                              |
+| `server/src/auth/google_token.js`                           | JWT verify                                             |
+| `server/src/auth/oauth.js`                                  | Link/create                                            |
+| `server/.env.example`                                       | `GOOGLE_CLIENT_IDS`                                    |
+| `.env.example`                                              | Flutter `GOOGLE_SERVER_CLIENT_ID`                      |
 
 ---
 

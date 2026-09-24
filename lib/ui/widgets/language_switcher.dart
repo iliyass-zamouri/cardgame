@@ -4,6 +4,8 @@ import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 
 class LangOption {
   const LangOption({
@@ -60,9 +62,7 @@ class LanguageSwitcher extends ConsumerWidget {
           child: const SizedBox(
             width: 40,
             height: 40,
-            child: Icon(
-              Icons.public_rounded,
-              color: CasinoColors.goldSoft,
+            child: HugeIcon(icon: AppIcons.public, color: CasinoColors.goldSoft,
               size: 22,
             ),
           ),
@@ -82,9 +82,7 @@ class LanguageSwitcher extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.public_rounded,
-                color: CasinoColors.goldSoft,
+              const HugeIcon(icon: AppIcons.public, color: CasinoColors.goldSoft,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -126,9 +124,7 @@ class _LanguagePickerDialog extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.public_rounded,
-                    color: CasinoColors.goldSoft,
+                  const HugeIcon(icon: AppIcons.public, color: CasinoColors.goldSoft,
                     size: 22,
                   ),
                   const SizedBox(width: 10),
@@ -145,9 +141,7 @@ class _LanguagePickerDialog extends ConsumerWidget {
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: CasinoColors.textMuted,
+                    icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.textMuted,
                       size: 22,
                     ),
                   ),
@@ -216,9 +210,7 @@ class _LanguageTile extends StatelessWidget {
                   ),
                 ),
                 if (selected)
-                  const Icon(
-                    Icons.check_rounded,
-                    color: CasinoColors.gold,
+                  const HugeIcon(icon: AppIcons.check, color: CasinoColors.gold,
                     size: 20,
                   ),
               ],

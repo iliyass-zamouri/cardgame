@@ -372,5 +372,21 @@
   "cityCairo": "Cairo",
   "cityMarrakech": "Marrakech",
   "prize": "Prize",
-  "entryFee": "Entry fee"
+  "entryFee": "Entry fee",
+  "linkGoogleAccount": "Link Google account",
+  "linkingGoogle": "Linking…",
+  "linkGoogleSuccess": "Google account linked. Progress saved.",
+  "linkGoogleSwitched": "Signed in with your Google account.",
+  "saveProgressTitle": "Save your progress",
+  "saveProgressBody": "Link a Google account so you keep your money, chips, and ranking if you change devices.",
+  "googleAccountInUseTitle": "Google account in use",
+  "googleAccountInUseBody": "This Google account already belongs to @{username}. Switch to that account? Your guest progress on this device will be lost.",
+  "@googleAccountInUseBody": {
+    "placeholders": {
+      "username": {"type": "String"}
+    }
+  },
+  "switchToGoogleAccount": "Switch account",
+  "dontAskAgain": "Don't ask again",
+  "later": "Later"
 }

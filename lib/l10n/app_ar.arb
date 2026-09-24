@@ -300,5 +300,21 @@
   "cityCairo": "القاهرة",
   "cityMarrakech": "مراكش",
   "prize": "الجائزة",
-  "entryFee": "رسوم الدخول"
+  "entryFee": "رسوم الدخول",
+  "linkGoogleAccount": "ربط حساب Google",
+  "linkingGoogle": "جارٍ الربط…",
+  "linkGoogleSuccess": "تم ربط حساب Google. تم حفظ تقدمك.",
+  "linkGoogleSwitched": "تم تسجيل الدخول بحساب Google.",
+  "saveProgressTitle": "احفظ تقدمك",
+  "saveProgressBody": "اربط حساب Google للاحتفاظ بأموالك ورقائقك وترتيبك عند تغيير الجهاز.",
+  "googleAccountInUseTitle": "حساب Google مستخدم",
+  "googleAccountInUseBody": "حساب Google هذا ينتمي بالفعل إلى @{username}. التبديل إلى ذلك الحساب؟ ستفقد تقدم الضيف على هذا الجهاز.",
+  "@googleAccountInUseBody": {
+    "placeholders": {
+      "username": {"type": "String"}
+    }
+  },
+  "switchToGoogleAccount": "تبديل الحساب",
+  "dontAskAgain": "لا تسأل مرة أخرى",
+  "later": "لاحقاً"
 }

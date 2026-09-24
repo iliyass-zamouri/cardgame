@@ -277,5 +277,21 @@
   "cityCairo": "Cairo",
   "cityMarrakech": "Marrakech",
   "prize": "Prêmio",
-  "entryFee": "Taxa de entrada"
+  "entryFee": "Taxa de entrada",
+  "linkGoogleAccount": "Vincular conta Google",
+  "linkingGoogle": "Vinculando…",
+  "linkGoogleSuccess": "Conta Google vinculada. Progresso salvo.",
+  "linkGoogleSwitched": "Entrou com sua conta Google.",
+  "saveProgressTitle": "Salve seu progresso",
+  "saveProgressBody": "Vincule uma conta Google para manter dinheiro, fichas e ranking se trocar de dispositivo.",
+  "googleAccountInUseTitle": "Conta Google em uso",
+  "googleAccountInUseBody": "Esta conta Google já pertence a @{username}. Mudar para essa conta? O progresso de convidado neste dispositivo será perdido.",
+  "@googleAccountInUseBody": {
+    "placeholders": {
+      "username": {"type": "String"}
+    }
+  },
+  "switchToGoogleAccount": "Trocar de conta",
+  "dontAskAgain": "Não perguntar de novo",
+  "later": "Depois"
 }

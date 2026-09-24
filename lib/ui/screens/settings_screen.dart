@@ -2,13 +2,17 @@ import 'dart:async';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/locale_provider.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
+import 'package:cardgame/app/push_providers.dart';
 import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/core/monetization/purchases_config.dart';
 import 'package:cardgame/core/monetization/purchases_providers.dart';
 import 'package:cardgame/core/monetization/purchases_service.dart';
+import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/data/profile/profile_api.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/data/decks/deck_catalog.dart';
+import 'package:cardgame/services/push_notification_api_service.dart';
+import 'package:cardgame/ui/screens/auth/auth_provider_buttons.dart';
 import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
@@ -20,17 +24,47 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _linkingGoogle = false;
+
+  Future<void> _linkGoogle() async {
+    if (_linkingGoogle) return;
+    setState(() => _linkingGoogle = true);
+    final l10n = context.l10n;
+    try {
+      final result = await linkOrSignInWithGoogle(context: context, ref: ref);
+      if (!mounted) return;
+      if (result.outcome == GuestGoogleLinkOutcome.linked) {
+        CasinoToast.show(context, l10n.linkGoogleSuccess);
+      } else if (result.outcome == GuestGoogleLinkOutcome.switched) {
+        CasinoToast.show(context, l10n.linkGoogleSwitched);
+      } else if (result.outcome == GuestGoogleLinkOutcome.failed &&
+          result.errorMessage != null) {
+        CasinoToast.show(context, result.errorMessage!, success: false);
+      }
+    } finally {
+      if (mounted) setState(() => _linkingGoogle = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final profile =
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
     final authStatus = ref.watch(sessionAuthProvider).value;
     final isPro = ref.watch(isProProvider);
+    final isGuest = authStatus == SessionAuthStatus.guest;
 
     return Scaffold(
       backgroundColor: CasinoColors.bg,
@@ -53,11 +87,19 @@ class SettingsScreen extends ConsumerWidget {
             authStatus: authStatus,
             onEdit: () => showEditProfileDialog(context, profile),
           ),
+          if (isGuest) ...[
+            const SizedBox(height: 12),
+            AuthProviderButton.google(
+              label:
+                  _linkingGoogle ? l10n.linkingGoogle : l10n.linkGoogleAccount,
+              onPressed: _linkingGoogle ? null : _linkGoogle,
+            ),
+          ],
           const SizedBox(height: 16),
           _ProCard(isPro: isPro),
           const SizedBox(height: 16),
           _SettingsTile(
-            icon: Icons.menu_book_rounded,
+            icon: AppIcons.menuBook,
             label: l10n.howToPlay,
             onTap:
                 () => Navigator.of(context).push(
@@ -68,7 +110,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           _SettingsTile(
-            icon: Icons.style_rounded,
+            icon: AppIcons.style,
             label: l10n.deck,
             onTap:
                 () => Navigator.of(context).push(
@@ -83,8 +125,10 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 10),
           const _LanguageCard(),
           const SizedBox(height: 10),
+          const _NotifyPrefsCard(),
+          const SizedBox(height: 10),
           _SettingsTile(
-            icon: Icons.restore_rounded,
+            icon: AppIcons.restore,
             label: 'Restore Purchases',
             onTap: () async {
               try {
@@ -117,7 +161,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           _SettingsTile(
-            icon: Icons.logout_rounded,
+            icon: AppIcons.logout,
             label: l10n.signOut,
             destructive: true,
             onTap: () async {
@@ -216,9 +260,7 @@ class _ProfileCard extends StatelessWidget {
           IconButton(
             tooltip: l10n.editProfile,
             onPressed: onEdit,
-            icon: const Icon(
-              Icons.edit_rounded,
-              color: CasinoColors.gold,
+            icon: const HugeIcon(icon: AppIcons.edit, color: CasinoColors.gold,
               size: 20,
             ),
           ),
@@ -503,9 +545,7 @@ class _ProCardState extends ConsumerState<_ProCard> {
         ),
         child: const Row(
           children: [
-            Icon(
-              Icons.workspace_premium_rounded,
-              color: CasinoColors.gold,
+            HugeIcon(icon: AppIcons.premium, color: CasinoColors.gold,
               size: 32,
             ),
             SizedBox(width: 14),
@@ -554,9 +594,7 @@ class _ProCardState extends ConsumerState<_ProCard> {
               shape: BoxShape.circle,
             ),
             child: const Center(
-              child: Icon(
-                Icons.star_rounded,
-                color: CasinoColors.gold,
+              child: HugeIcon(icon: AppIcons.star, color: CasinoColors.gold,
                 size: 26,
               ),
             ),
@@ -673,9 +711,7 @@ class _LanguageCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.public_rounded,
-                color: CasinoColors.goldSoft,
+              const HugeIcon(icon: AppIcons.public, color: CasinoColors.goldSoft,
                 size: 22,
               ),
             ],
@@ -694,7 +730,7 @@ class _SettingsTile extends StatelessWidget {
     this.destructive = false,
   });
 
-  final IconData icon;
+  final List<List<dynamic>> icon;
   final String label;
   final VoidCallback onTap;
   final bool destructive;
@@ -717,7 +753,7 @@ class _SettingsTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, color: iconColor, size: 22),
+              HugeIcon(icon: icon, color: iconColor, size: 22),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -729,13 +765,88 @@ class _SettingsTile extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: CasinoColors.textMuted.withValues(alpha: 0.7),
+              HugeIcon(icon: AppIcons.chevronRight, color: CasinoColors.textMuted.withValues(alpha: 0.7),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _NotifyPrefsCard extends ConsumerWidget {
+  const _NotifyPrefsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncPrefs = ref.watch(notifyPrefsProvider);
+    final prefs = asyncPrefs.value ?? const NotifyPrefs.allOn();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+      decoration: BoxDecoration(
+        color: CasinoColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: CasinoColors.surfaceHi),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Notifications',
+            style: TextStyle(
+              color: CasinoColors.gold,
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 4),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              'Table invites',
+              style: TextStyle(color: CasinoColors.text, fontSize: 14),
+            ),
+            value: prefs.invites,
+            activeThumbColor: CasinoColors.gold,
+            onChanged:
+                (v) => ref.read(notifyPrefsProvider.notifier).setInvites(v),
+          ),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              'Friends',
+              style: TextStyle(color: CasinoColors.text, fontSize: 14),
+            ),
+            value: prefs.social,
+            activeThumbColor: CasinoColors.gold,
+            onChanged:
+                (v) => ref.read(notifyPrefsProvider.notifier).setSocial(v),
+          ),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              'Ranking',
+              style: TextStyle(color: CasinoColors.text, fontSize: 14),
+            ),
+            value: prefs.ranking,
+            activeThumbColor: CasinoColors.gold,
+            onChanged:
+                (v) => ref.read(notifyPrefsProvider.notifier).setRanking(v),
+          ),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              'News & offers',
+              style: TextStyle(color: CasinoColors.text, fontSize: 14),
+            ),
+            value: prefs.marketing,
+            activeThumbColor: CasinoColors.gold,
+            onChanged:
+                (v) => ref.read(notifyPrefsProvider.notifier).setMarketing(v),
+          ),
+        ],
       ),
     );
   }

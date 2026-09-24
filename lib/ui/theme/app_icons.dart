@@ -1,0 +1,58 @@
+import 'package:hugeicons/hugeicons.dart';
+
+/// Semantic HugeIcons (stroke-rounded) used across the app.
+abstract final class AppIcons {
+  static const addCircle = HugeIcons.strokeRoundedAddCircle;
+  static const addHome = HugeIcons.strokeRoundedHousePlus;
+  static const arrowBack = HugeIcons.strokeRoundedArrowLeft01;
+  static const arrowForward = HugeIcons.strokeRoundedArrowRight01;
+  static const bolt = HugeIcons.strokeRoundedFlash;
+  static const check = HugeIcons.strokeRoundedTick02;
+  static const checkCircle = HugeIcons.strokeRoundedCheckmarkCircle02;
+  static const chevronRight = HugeIcons.strokeRoundedArrowRight01;
+  static const clear = HugeIcons.strokeRoundedCancel01;
+  static const close = HugeIcons.strokeRoundedCancel01;
+  static const copy = HugeIcons.strokeRoundedCopy01;
+  static const diamond = HugeIcons.strokeRoundedDiamond;
+  static const edit = HugeIcons.strokeRoundedEdit01;
+  static const trophy = HugeIcons.strokeRoundedTrophy;
+  static const face = HugeIcons.strokeRoundedUser;
+  static const flag = HugeIcons.strokeRoundedFlag01;
+  static const hourglass = HugeIcons.strokeRoundedHourglass;
+  static const info = HugeIcons.strokeRoundedInformationCircle;
+  static const lock = HugeIcons.strokeRoundedLock;
+  static const login = HugeIcons.strokeRoundedLogin01;
+  static const logout = HugeIcons.strokeRoundedLogout01;
+  static const mail = HugeIcons.strokeRoundedMail01;
+  static const menuBook = HugeIcons.strokeRoundedBook01;
+  static const menu = HugeIcons.strokeRoundedMenu01;
+  static const medal = HugeIcons.strokeRoundedMedal01;
+  static const moreVert = HugeIcons.strokeRoundedMoreVertical;
+  static const notifications = HugeIcons.strokeRoundedNotification01;
+  static const people = HugeIcons.strokeRoundedUserGroup;
+  static const personAdd = HugeIcons.strokeRoundedUserAdd01;
+  static const person = HugeIcons.strokeRoundedUser;
+  static const personRemove = HugeIcons.strokeRoundedUserMinus01;
+  static const pieChart = HugeIcons.strokeRoundedPieChart;
+  static const play = HugeIcons.strokeRoundedPlay;
+  static const playCircle = HugeIcons.strokeRoundedPlayCircle;
+  static const public = HugeIcons.strokeRoundedGlobe;
+  static const refresh = HugeIcons.strokeRoundedRefresh;
+  static const removeCircle = HugeIcons.strokeRoundedRemoveCircle;
+  static const replay = HugeIcons.strokeRoundedReplay;
+  static const restore = HugeIcons.strokeRoundedRestoreBin;
+  static const search = HugeIcons.strokeRoundedSearch01;
+  static const settings = HugeIcons.strokeRoundedSettings01;
+  static const shield = HugeIcons.strokeRoundedShield01;
+  static const shoppingBag = HugeIcons.strokeRoundedShoppingBag01;
+  static const shuffle = HugeIcons.strokeRoundedShuffle;
+  static const game = HugeIcons.strokeRoundedGameController01;
+  static const star = HugeIcons.strokeRoundedStar;
+  static const stars = HugeIcons.strokeRoundedSparkles;
+  static const style = HugeIcons.strokeRoundedCards01;
+  static const swapHoriz = HugeIcons.strokeRoundedArrowDataTransferHorizontal;
+  static const trendingUp = HugeIcons.strokeRoundedTradeUp;
+  static const visibility = HugeIcons.strokeRoundedView;
+  static const premium = HugeIcons.strokeRoundedCrown;
+  static const zoomIn = HugeIcons.strokeRoundedZoomIn;
+}

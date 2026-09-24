@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS players (
   last_ip VARCHAR(45) NULL,
   auth_type ENUM('guest', 'google') NOT NULL DEFAULT 'guest',
   google_sub VARCHAR(255) NULL,
+  email VARCHAR(255) NULL,
   is_bot TINYINT(1) NOT NULL DEFAULT 0,
   money INT NOT NULL DEFAULT 500,
   chips INT NOT NULL DEFAULT 1,
@@ -22,6 +23,7 @@ CREATE TABLE IF NOT EXISTS players (
   UNIQUE KEY uq_players_device (device_id),
   UNIQUE KEY uq_players_username (username),
   UNIQUE KEY uq_players_google_sub (google_sub),
+  KEY idx_players_email (email),
   KEY idx_players_device_ip (device_id, last_ip),
   KEY idx_players_is_bot (is_bot),
   KEY idx_players_elo (elo, total_points)

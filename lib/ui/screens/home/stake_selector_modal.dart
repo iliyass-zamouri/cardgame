@@ -8,6 +8,8 @@ import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 
 class PotOption {
   const PotOption({
@@ -126,9 +128,7 @@ class StakeSelectorModal extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: CasinoColors.textMuted,
+                    icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.textMuted,
                       size: 20,
                     ),
                     visualDensity: VisualDensity.compact,
@@ -451,9 +451,7 @@ class _PotBannerCard extends StatelessWidget {
                             ),
                             if (canAfford) ...[
                               const SizedBox(width: 2),
-                              const Icon(
-                                Icons.play_arrow_rounded,
-                                size: 15,
+                              const HugeIcon(icon: AppIcons.play, size: 15,
                                 color: Colors.white,
                               ),
                             ],

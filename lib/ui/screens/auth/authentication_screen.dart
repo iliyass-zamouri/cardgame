@@ -1,9 +1,11 @@
+import 'dart:async';
+
 import 'package:cardgame/app/auth_providers.dart';
-import 'package:cardgame/data/auth/google_sign_in_service.dart';
 import 'package:cardgame/data/auth/guest_auth_service.dart';
-import 'package:cardgame/data/auth/oauth_auth_service.dart';
+import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/data/auth/server_identity.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/services/analytics_service.dart';
 import 'package:cardgame/ui/screens/auth/auth_provider_buttons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/language_switcher.dart';
@@ -48,11 +50,21 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
       await _applyIdentity(identity);
       await ref.read(sessionAuthProvider.notifier).enterAsGuest();
     } on GuestAuthException catch (error) {
+      unawaited(
+        ref
+            .read(analyticsServiceProvider)
+            .logLoginFailed(method: 'guest', reason: error.toString()),
+      );
       if (mounted) {
         setState(() => _error = context.l10n.guestSignInServerDown);
       }
       debugPrint('Guest auth failed: $error');
     } on Object catch (error) {
+      unawaited(
+        ref
+            .read(analyticsServiceProvider)
+            .logLoginFailed(method: 'guest', reason: error.toString()),
+      );
       if (mounted) {
         setState(() => _error = context.l10n.guestSignInConnection);
       }
@@ -69,29 +81,11 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
       _error = null;
     });
     try {
-      final idToken =
-          await ref.read(googleSignInServiceProvider).signInIdToken();
-      final fingerprint =
-          await ref.read(deviceIdentityServiceProvider).fingerprint();
-      final identity = await ref
-          .read(oauthAuthServiceProvider)
-          .authenticateGoogle(idToken: idToken, deviceId: fingerprint.deviceId);
-      await _applyIdentity(identity);
-      await ref.read(sessionAuthProvider.notifier).enterWithGoogle();
-    } on GoogleSignInCancelledException {
-      // Stay on auth.
-    } on GoogleSignInFailedException catch (error) {
-      if (mounted) setState(() => _error = error.message);
-    } on OAuthAuthException catch (error) {
-      if (mounted) {
-        setState(() => _error = context.l10n.googleSignInFailed);
+      final result = await linkOrSignInWithGoogle(context: context, ref: ref);
+      if (!mounted) return;
+      if (result.outcome == GuestGoogleLinkOutcome.failed) {
+        setState(() => _error = result.errorMessage);
       }
-      debugPrint('Google OAuth failed: $error');
-    } on Object catch (error) {
-      if (mounted) {
-        setState(() => _error = context.l10n.googleSignInFailed);
-      }
-      debugPrint('Google auth error: $error');
     } finally {
       if (mounted) setState(() => _googleLoading = false);
     }

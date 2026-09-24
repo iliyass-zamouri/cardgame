@@ -859,4 +859,40 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get entryFee => 'رسوم الدخول';
+
+  @override
+  String get linkGoogleAccount => 'ربط حساب Google';
+
+  @override
+  String get linkingGoogle => 'جارٍ الربط…';
+
+  @override
+  String get linkGoogleSuccess => 'تم ربط حساب Google. تم حفظ تقدمك.';
+
+  @override
+  String get linkGoogleSwitched => 'تم تسجيل الدخول بحساب Google.';
+
+  @override
+  String get saveProgressTitle => 'احفظ تقدمك';
+
+  @override
+  String get saveProgressBody =>
+      'اربط حساب Google للاحتفاظ بأموالك ورقائقك وترتيبك عند تغيير الجهاز.';
+
+  @override
+  String get googleAccountInUseTitle => 'حساب Google مستخدم';
+
+  @override
+  String googleAccountInUseBody(String username) {
+    return 'حساب Google هذا ينتمي بالفعل إلى @$username. التبديل إلى ذلك الحساب؟ ستفقد تقدم الضيف على هذا الجهاز.';
+  }
+
+  @override
+  String get switchToGoogleAccount => 'تبديل الحساب';
+
+  @override
+  String get dontAskAgain => 'لا تسأل مرة أخرى';
+
+  @override
+  String get later => 'لاحقاً';
 }

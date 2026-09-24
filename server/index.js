@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const { GameServer } = require('./game_server');
 const { initDb, closeDb } = require('./db/pool');
+const { initFcm } = require('./push/fcm');
 
 const gameServer = new GameServer({
   host: process.env.HOST ?? '127.0.0.1',
@@ -10,6 +11,7 @@ const gameServer = new GameServer({
 
 async function main() {
   await initDb();
+  initFcm();
   const { host, port } = await gameServer.start();
   console.log(`Authoritative game server listening at ws://${host}:${port}`);
   console.log(`Auth HTTP ready at http://${host}:${port}/auth/*`);

@@ -865,4 +865,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get entryFee => 'Entry fee';
+
+  @override
+  String get linkGoogleAccount => 'Link Google account';
+
+  @override
+  String get linkingGoogle => 'Linking…';
+
+  @override
+  String get linkGoogleSuccess => 'Google account linked. Progress saved.';
+
+  @override
+  String get linkGoogleSwitched => 'Signed in with your Google account.';
+
+  @override
+  String get saveProgressTitle => 'Save your progress';
+
+  @override
+  String get saveProgressBody =>
+      'Link a Google account so you keep your money, chips, and ranking if you change devices.';
+
+  @override
+  String get googleAccountInUseTitle => 'Google account in use';
+
+  @override
+  String googleAccountInUseBody(String username) {
+    return 'This Google account already belongs to @$username. Switch to that account? Your guest progress on this device will be lost.';
+  }
+
+  @override
+  String get switchToGoogleAccount => 'Switch account';
+
+  @override
+  String get dontAskAgain => 'Don\'t ask again';
+
+  @override
+  String get later => 'Later';
 }
