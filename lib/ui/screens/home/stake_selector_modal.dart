@@ -4,12 +4,13 @@ import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:cardgame/ui/theme/app_icons.dart';
 
 class PotOption {
   const PotOption({
@@ -28,16 +29,13 @@ class PotOption {
 }
 
 Future<void> showStakeSelectorModal(BuildContext context) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => const StakeSelectorModal(),
+  return Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(builder: (_) => const StakeSelectorScreen()),
   );
 }
 
-class StakeSelectorModal extends ConsumerWidget {
-  const StakeSelectorModal({super.key});
+class StakeSelectorScreen extends ConsumerStatefulWidget {
+  const StakeSelectorScreen({super.key});
 
   static const List<int> stakePools = [20, 50, 100, 200, 500];
 
@@ -75,234 +73,320 @@ class StakeSelectorModal extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StakeSelectorScreen> createState() =>
+      _StakeSelectorScreenState();
+}
+
+class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
+  /// Card height + vertical gap so wheel snaps like a year picker.
+  static const double _cardHeight = 148;
+  static const double _itemExtent = 164;
+
+  late final FixedExtentScrollController _wheelController;
+  int _selectedIndex = 0;
+  bool _didInitIndex = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _wheelController = FixedExtentScrollController(initialItem: 0);
+  }
+
+  @override
+  void dispose() {
+    _wheelController.dispose();
+    super.dispose();
+  }
+
+  void _ensureInitialIndex(int playerMoney) {
+    if (_didInitIndex) return;
+    _didInitIndex = true;
+    final idx = StakeSelectorScreen.potOptions.indexWhere(
+      (o) => playerMoney >= o.entryStake,
+    );
+    final initial = idx >= 0 ? idx : 0;
+    if (initial == 0) {
+      _selectedIndex = 0;
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _wheelController.jumpToItem(initial);
+      setState(() => _selectedIndex = initial);
+    });
+  }
+
+  Future<void> _onPlay(PotOption option, bool canAfford) async {
+    if (canAfford) {
+      final adService = ref.read(interstitialAdProvider);
+      final sessionNotifier = ref.read(gameSessionProvider.notifier);
+      Navigator.of(context).pop();
+      await adService.show();
+      sessionNotifier.findMatch(stakePool: option.pool);
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => const MarketplaceScreen()),
+      );
+    }
+  }
+
+  void _openMarketplace() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const MarketplaceScreen()));
+  }
+
+  void _snapTo(int index) {
+    _wheelController.animateToItem(
+      index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final profile = ref.watch(playerProfileProvider).value;
     final playerMoney = profile?.money ?? 0;
     final playerChips = profile?.chips ?? 0;
-    final mediaQuery = MediaQuery.of(context);
-    final maxHeight = mediaQuery.size.height * 0.85;
+    _ensureInitialIndex(playerMoney);
 
-    return Container(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      decoration: const BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: Colors.white12, width: 1)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 12,
-            bottom: mediaQuery.viewInsets.bottom + 16,
+    final options = StakeSelectorScreen.potOptions;
+    final selected = options[_selectedIndex.clamp(0, options.length - 1)];
+    final canAfford = playerMoney >= selected.entryStake;
+
+    return Scaffold(
+      backgroundColor: CasinoColors.bg,
+      appBar: AppBar(
+        backgroundColor: CasinoColors.surface,
+        elevation: 0,
+        leading: IconButton(
+          icon: const HugeIcon(
+            icon: AppIcons.arrowBack,
+            color: CasinoColors.text,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          l10n.selectMatchStake,
+          style: TextStyle(
+            color: CasinoColors.gold,
+            fontWeight: FontWeight.w800,
+            fontFamily: CasinoFonts.displayOf(context),
+            fontSize: 18,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: _BalanceStrip(
+                playerMoney: playerMoney,
+                playerChips: playerChips,
+                marketplaceLabel: l10n.marketplace,
+                onMarketplace: _openMarketplace,
               ),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    l10n.selectMatchStake,
-                    style: TextStyle(
-                      color: CasinoColors.text,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: CasinoFonts.displayOf(context),
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.textMuted,
-                      size: 20,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: CasinoColors.bgElevated,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const CashIcon(size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          '$playerMoney',
-                          style: const TextStyle(
-                            color: CasinoColors.text,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        const ChipIcon(size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          '$playerChips',
-                          style: const TextStyle(
-                            color: CasinoColors.goldSoft,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    InkWell(
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const MarketplaceScreen(),
-                          ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: CasinoColors.gold.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: CasinoColors.gold.withValues(alpha: 0.35),
-                          ),
-                        ),
-                        child: Text(
-                          l10n.marketplace,
-                          style: const TextStyle(
-                            color: CasinoColors.gold,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+            ),
+            Expanded(
+              child: ListWheelScrollView.useDelegate(
+                controller: _wheelController,
+                itemExtent: _itemExtent,
+                physics: const FixedExtentScrollPhysics(),
+                diameterRatio: 2.2,
+                perspective: 0.002,
+                useMagnifier: true,
+                magnification: 1.08,
+                overAndUnderCenterOpacity: 0.4,
+                onSelectedItemChanged: (index) {
+                  setState(() => _selectedIndex = index);
+                },
+                childDelegate: ListWheelChildBuilderDelegate(
+                  childCount: options.length,
+                  builder: (context, index) {
+                    final option = options[index];
+                    final affordable = playerMoney >= option.entryStake;
+                    final selected = index == _selectedIndex;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 7,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: potOptions.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final option = potOptions[index];
-                    final canAfford = playerMoney >= option.entryStake;
-                    final cityName = option.nameBuilder(l10n);
-
-                    return _PotBannerCard(
-                      option: option,
-                      cityName: cityName,
-                      canAfford: canAfford,
-                      onTap: () async {
-                        if (canAfford) {
-                          final adService = ref.read(interstitialAdProvider);
-                          final sessionNotifier = ref.read(
-                            gameSessionProvider.notifier,
-                          );
-                          Navigator.of(context).pop();
-                          await adService.show();
-                          sessionNotifier.findMatch(stakePool: option.pool);
-                        } else {
-                          Navigator.of(context).pop();
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const MarketplaceScreen(),
-                            ),
-                          );
-                        }
-                      },
+                      child: _PotBannerCard(
+                        option: option,
+                        cityName: option.nameBuilder(l10n),
+                        canAfford: affordable,
+                        selected: selected,
+                        height: _cardHeight,
+                        onTap: () => _snapTo(index),
+                      ),
                     );
                   },
                 ),
               ),
-            ],
-          ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              child: Center(
+                child: SizedBox(
+                  width: 160,
+                  child: Row(
+                    children: [
+                      CasinoActionButton(
+                        label: canAfford ? l10n.play : l10n.getMoreMoney,
+                        icon: canAfford ? AppIcons.bolt : null,
+                        tone: CasinoActionTone.raise,
+                        height: 58,
+                        onPressed: () => _onPlay(selected, canAfford),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
+class _BalanceStrip extends StatelessWidget {
+  const _BalanceStrip({
+    required this.playerMoney,
+    required this.playerChips,
+    required this.marketplaceLabel,
+    required this.onMarketplace,
+  });
+
+  final int playerMoney;
+  final int playerChips;
+  final String marketplaceLabel;
+  final VoidCallback onMarketplace;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: CasinoColors.bgElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const CashIcon(size: 16),
+              const SizedBox(width: 6),
+              Text(
+                '$playerMoney',
+                style: const TextStyle(
+                  color: CasinoColors.text,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const ChipIcon(size: 16),
+              const SizedBox(width: 6),
+              Text(
+                '$playerChips',
+                style: const TextStyle(
+                  color: CasinoColors.goldSoft,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          InkWell(
+            onTap: onMarketplace,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: CasinoColors.gold.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: CasinoColors.gold.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Text(
+                marketplaceLabel,
+                style: const TextStyle(
+                  color: CasinoColors.gold,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// City pot banner adapted for wheel selection (no per-row Play CTA).
 class _PotBannerCard extends StatelessWidget {
   const _PotBannerCard({
     required this.option,
     required this.cityName,
     required this.canAfford,
+    required this.selected,
+    required this.height,
     required this.onTap,
   });
 
   final PotOption option;
   final String cityName;
   final bool canAfford;
+  final bool selected;
+  final double height;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final borderColor =
+        selected
+            ? CasinoColors.gold.withValues(alpha: canAfford ? 0.75 : 0.4)
+            : canAfford
+            ? CasinoColors.gold.withValues(alpha: 0.32)
+            : Colors.white10;
 
     return Container(
-      height: 94,
+      height: height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color:
-              canAfford
-                  ? CasinoColors.gold.withValues(alpha: 0.32)
-                  : Colors.white10,
-          width: 1,
-        ),
+        border: Border.all(color: borderColor, width: selected ? 2 : 1),
+        boxShadow:
+            selected
+                ? [
+                  BoxShadow(
+                    color: CasinoColors.gold.withValues(alpha: 0.18),
+                    blurRadius: 16,
+                    spreadRadius: 0,
+                  ),
+                ]
+                : null,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(selected ? 14 : 15),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Banner Background
             Image.asset(
               option.assetPath,
               fit: BoxFit.cover,
               errorBuilder:
                   (_, __, ___) => Container(color: CasinoColors.bgElevated),
             ),
-            // Minimalist dark scrim: transparent on left, dark on right & dark extended from bottom
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -318,7 +402,6 @@ class _PotBannerCard extends StatelessWidget {
                 ),
               ),
             ),
-            // Bottom baseline darkness for text legibility across entire width
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -332,7 +415,6 @@ class _PotBannerCard extends StatelessWidget {
                 ),
               ),
             ),
-            // Card Content & Tap Target
             Material(
               color: Colors.transparent,
               child: InkWell(
@@ -344,119 +426,63 @@ class _PotBannerCard extends StatelessWidget {
                     horizontal: 16,
                     vertical: 12,
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              cityName.toUpperCase(),
-                              style: TextStyle(
-                                fontFamily: CasinoFonts.displayOf(context),
-                                color:
-                                    canAfford
-                                        ? CasinoColors.goldSoft
-                                        : CasinoColors.textMuted,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Text(
-                                  '${l10n.prize}: ${option.pool} ',
-                                  style: TextStyle(
-                                    color:
-                                        canAfford
-                                            ? CasinoColors.text
-                                            : CasinoColors.textMuted,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const CashIcon(size: 14),
-                              ],
-                            ),
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Text(
-                                  '${l10n.entryFee}: ${option.entryStake} ',
-                                  style: const TextStyle(
-                                    color: CasinoColors.textMuted,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const CashIcon(size: 11),
-                                Text(
-                                  ' · ${l10n.winnerTakesAll}',
-                                  style: TextStyle(
-                                    color: CasinoColors.textMuted.withValues(
-                                      alpha: 0.75,
-                                    ),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
+                      Text(
+                        cityName.toUpperCase(),
+                        style: TextStyle(
+                          fontFamily: CasinoFonts.displayOf(context),
                           color:
                               canAfford
-                                  ? CasinoColors.raise
-                                  : Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color:
-                                canAfford
-                                    ? CasinoColors.raiseHi.withValues(
-                                      alpha: 0.6,
-                                    )
-                                    : CasinoColors.gold.withValues(alpha: 0.35),
-                            width: 1,
-                          ),
+                                  ? CasinoColors.goldSoft
+                                  : CasinoColors.textMuted,
+                          fontSize: selected ? 15 : 13,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!canAfford) ...[
-                              const CashIcon(size: 12),
-                              const SizedBox(width: 4),
-                            ],
-                            Text(
-                              canAfford ? l10n.play : l10n.getMoreMoney,
-                              style: TextStyle(
-                                color:
-                                    canAfford
-                                        ? Colors.white
-                                        : CasinoColors.gold,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 11,
-                                letterSpacing: 0.5,
-                              ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            '${l10n.prize}: ${option.pool} ',
+                            style: TextStyle(
+                              color:
+                                  canAfford
+                                      ? CasinoColors.text
+                                      : CasinoColors.textMuted,
+                              fontSize: selected ? 18 : 16,
+                              fontWeight: FontWeight.w800,
                             ),
-                            if (canAfford) ...[
-                              const SizedBox(width: 2),
-                              const HugeIcon(icon: AppIcons.play, size: 15,
-                                color: Colors.white,
+                          ),
+                          CashIcon(size: selected ? 16 : 14),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            '${l10n.entryFee}: ${option.entryStake} ',
+                            style: const TextStyle(
+                              color: CasinoColors.textMuted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const CashIcon(size: 11),
+                          Text(
+                            ' · ${l10n.winnerTakesAll}',
+                            style: TextStyle(
+                              color: CasinoColors.textMuted.withValues(
+                                alpha: 0.75,
                               ),
-                            ],
-                          ],
-                        ),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

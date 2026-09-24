@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('StakeSelectorModal Configuration', () {
+  group('StakeSelectorScreen Configuration', () {
     test('pot options match ordered city banners and pools', () {
-      final options = StakeSelectorModal.potOptions;
+      final options = StakeSelectorScreen.potOptions;
       expect(options.length, 5);
 
       expect(options[0].id, 'london');
@@ -36,7 +36,7 @@ void main() {
     });
 
     test('stakePools backward compatibility list matches pools', () {
-      expect(StakeSelectorModal.stakePools, [20, 50, 100, 200, 500]);
+      expect(StakeSelectorScreen.stakePools, [20, 50, 100, 200, 500]);
     });
 
     testWidgets('pot options resolve localized city names', (tester) async {
@@ -49,7 +49,7 @@ void main() {
             builder: (context) {
               final l10n = AppLocalizations.of(context);
               final names =
-                  StakeSelectorModal.potOptions
+                  StakeSelectorScreen.potOptions
                       .map((o) => o.nameBuilder(l10n))
                       .toList();
               return Column(children: names.map(Text.new).toList());

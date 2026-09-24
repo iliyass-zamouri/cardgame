@@ -23,6 +23,7 @@ void main() {
         ]),
       );
       expect(PurchasesConfig.proMonthly, 'pro_monthly');
+      expect(PurchasesConfig.enableProUpgrade, isFalse);
     });
   });
 

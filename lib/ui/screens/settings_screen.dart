@@ -63,8 +63,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final profile =
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
     final authStatus = ref.watch(sessionAuthProvider).value;
-    final isPro = ref.watch(isProProvider);
     final isGuest = authStatus == SessionAuthStatus.guest;
+    final isPro =
+        PurchasesConfig.enableProUpgrade ? ref.watch(isProProvider) : false;
 
     return Scaffold(
       backgroundColor: CasinoColors.bg,
@@ -95,8 +96,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onPressed: _linkingGoogle ? null : _linkGoogle,
             ),
           ],
-          const SizedBox(height: 16),
-          _ProCard(isPro: isPro),
+          if (PurchasesConfig.enableProUpgrade) ...[
+            const SizedBox(height: 16),
+            _ProCard(isPro: isPro),
+          ],
           const SizedBox(height: 16),
           _SettingsTile(
             icon: AppIcons.menuBook,
@@ -260,7 +263,9 @@ class _ProfileCard extends StatelessWidget {
           IconButton(
             tooltip: l10n.editProfile,
             onPressed: onEdit,
-            icon: const HugeIcon(icon: AppIcons.edit, color: CasinoColors.gold,
+            icon: const HugeIcon(
+              icon: AppIcons.edit,
+              color: CasinoColors.gold,
               size: 20,
             ),
           ),
@@ -545,7 +550,9 @@ class _ProCardState extends ConsumerState<_ProCard> {
         ),
         child: const Row(
           children: [
-            HugeIcon(icon: AppIcons.premium, color: CasinoColors.gold,
+            HugeIcon(
+              icon: AppIcons.premium,
+              color: CasinoColors.gold,
               size: 32,
             ),
             SizedBox(width: 14),
@@ -594,7 +601,9 @@ class _ProCardState extends ConsumerState<_ProCard> {
               shape: BoxShape.circle,
             ),
             child: const Center(
-              child: HugeIcon(icon: AppIcons.star, color: CasinoColors.gold,
+              child: HugeIcon(
+                icon: AppIcons.star,
+                color: CasinoColors.gold,
                 size: 26,
               ),
             ),
@@ -711,7 +720,9 @@ class _LanguageCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              const HugeIcon(icon: AppIcons.public, color: CasinoColors.goldSoft,
+              const HugeIcon(
+                icon: AppIcons.public,
+                color: CasinoColors.goldSoft,
                 size: 22,
               ),
             ],
@@ -765,7 +776,9 @@ class _SettingsTile extends StatelessWidget {
                   ),
                 ),
               ),
-              HugeIcon(icon: AppIcons.chevronRight, color: CasinoColors.textMuted.withValues(alpha: 0.7),
+              HugeIcon(
+                icon: AppIcons.chevronRight,
+                color: CasinoColors.textMuted.withValues(alpha: 0.7),
               ),
             ],
           ),

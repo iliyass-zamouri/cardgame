@@ -3,6 +3,12 @@ import 'package:flutter/foundation.dart';
 abstract final class PurchasesConfig {
   static const entitlementPro = 'hailsom_technologies_inc_pro';
 
+  /// Settings "Upgrade to PRO" paywall. Off in prod via flavors/prod.json.
+  static const enableProUpgrade = bool.fromEnvironment(
+    'ENABLE_PRO_UPGRADE',
+    defaultValue: false,
+  );
+
   static const chips1 = 'chips_1';
   static const chips5 = 'chips_5';
   static const chips10 = 'chips_10';
