@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cardgame/data/auth/auth_headers.dart';
 import 'package:http/http.dart' as http;
 
 class MarketplaceApiException implements Exception {
@@ -56,11 +57,16 @@ class MarketplaceApi {
   final String baseUrl;
   final http.Client _client;
 
-  Future<PlayerInventory> getInventory(String playerId) async {
+  Future<PlayerInventory> getInventory(
+    String playerId, {
+    String? accessToken,
+  }) async {
     final uri = Uri.parse(
       '$baseUrl/marketplace/inventory',
     ).replace(queryParameters: {'playerId': playerId});
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    final response = await _client
+        .get(uri, headers: authHeaders(accessToken))
+        .timeout(const Duration(seconds: 8));
     final body = _decodeMap(response);
     return PlayerInventory.fromJson(body);
   }
@@ -69,12 +75,13 @@ class MarketplaceApi {
     required String playerId,
     required String direction,
     required int amount,
+    String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/marketplace/exchange');
     final response = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode({
             'playerId': playerId,
             'direction': direction,
@@ -91,12 +98,13 @@ class MarketplaceApi {
     required String itemId,
     required String currency,
     required int price,
+    String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/marketplace/buy');
     final response = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode({
             'playerId': playerId,
             'itemType': itemType,
@@ -109,12 +117,15 @@ class MarketplaceApi {
     return _decodeMap(response);
   }
 
-  Future<Map<String, dynamic>> claimAdReward(String playerId) async {
+  Future<Map<String, dynamic>> claimAdReward(
+    String playerId, {
+    String? accessToken,
+  }) async {
     final uri = Uri.parse('$baseUrl/marketplace/claim-ad-reward');
     final response = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode({'playerId': playerId}),
         )
         .timeout(const Duration(seconds: 8));
@@ -125,12 +136,13 @@ class MarketplaceApi {
     required String playerId,
     required String productId,
     required String transactionId,
+    String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/economy/iap/verify');
     final response = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode({
             'playerId': playerId,
             'productId': productId,

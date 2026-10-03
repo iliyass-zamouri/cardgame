@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cardgame/data/auth/auth_headers.dart';
 import 'package:http/http.dart' as http;
 
 class ProfileApiException implements Exception {
@@ -45,6 +46,7 @@ class ProfileApi {
   Future<UsernameAvailability> checkUsername({
     required String username,
     String? playerId,
+    String? accessToken,
   }) async {
     final params = <String, String>{'username': username};
     if (playerId != null && playerId.isNotEmpty) {
@@ -53,7 +55,9 @@ class ProfileApi {
     final uri = Uri.parse(
       '$baseUrl/player/check-username',
     ).replace(queryParameters: params);
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    final response = await _client
+        .get(uri, headers: authHeaders(accessToken))
+        .timeout(const Duration(seconds: 8));
     final body = _decodeMap(response);
     return UsernameAvailability.fromJson(body);
   }
@@ -64,12 +68,13 @@ class ProfileApi {
     String? username,
     String? avatarId,
     String? deckId,
+    String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/player/profile');
     final response = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode({
             'playerId': playerId,
             if (name != null) 'name': name,
@@ -80,6 +85,42 @@ class ProfileApi {
         )
         .timeout(const Duration(seconds: 8));
     return _decodeMap(response);
+  }
+
+  Future<void> deleteAccount({
+    required String playerId,
+    String? accessToken,
+  }) async {
+    final uri = Uri.parse('$baseUrl/account');
+    final response = await _client
+        .delete(
+          uri,
+          headers: authHeaders(accessToken),
+          body: jsonEncode({'playerId': playerId}),
+        )
+        .timeout(const Duration(seconds: 12));
+    _decodeMap(response);
+  }
+
+  Future<void> reportPlayer({
+    required String playerId,
+    required String targetPlayerId,
+    String? reason,
+    String? accessToken,
+  }) async {
+    final uri = Uri.parse('$baseUrl/players/report');
+    final response = await _client
+        .post(
+          uri,
+          headers: authHeaders(accessToken),
+          body: jsonEncode({
+            'playerId': playerId,
+            'targetPlayerId': targetPlayerId,
+            if (reason != null && reason.isNotEmpty) 'reason': reason,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+    _decodeMap(response);
   }
 
   Map<String, dynamic> _decodeMap(http.Response response) {
@@ -99,6 +140,8 @@ class ProfileApi {
         code: code,
       );
     }
+    // DELETE /account may return empty body.
+    if (response.body.isEmpty) return <String, dynamic>{};
     final decoded = jsonDecode(response.body);
     if (decoded is! Map<String, dynamic>) {
       throw ProfileApiException('Invalid JSON response');

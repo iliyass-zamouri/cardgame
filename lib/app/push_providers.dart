@@ -37,13 +37,17 @@ class NotifyPrefsNotifier extends AsyncNotifier<NotifyPrefs> {
   Future<NotifyPrefs> build() async {
     final profile = ref.watch(playerProfileProvider).value;
     final playerId = profile?.playerId;
-    if (playerId == null || playerId.isEmpty) {
+    final accessToken = profile?.accessToken;
+    if (playerId == null ||
+        playerId.isEmpty ||
+        accessToken == null ||
+        accessToken.isEmpty) {
       return const NotifyPrefs.allOn();
     }
     try {
       return await ref
           .read(pushNotificationApiServiceProvider)
-          .getNotifyPrefs(playerId);
+          .getNotifyPrefs(playerId, accessToken: accessToken);
     } catch (_) {
       return const NotifyPrefs.allOn();
     }
@@ -71,6 +75,8 @@ class NotifyPrefsNotifier extends AsyncNotifier<NotifyPrefs> {
     );
     state = AsyncData(optimistic);
     if (playerId == null || playerId.isEmpty) return;
+    final accessToken = profile?.accessToken;
+    if (accessToken == null || accessToken.isEmpty) return;
     try {
       final updated = await ref
           .read(pushNotificationApiServiceProvider)
@@ -80,6 +86,7 @@ class NotifyPrefsNotifier extends AsyncNotifier<NotifyPrefs> {
             social: social,
             ranking: ranking,
             marketing: marketing,
+            accessToken: accessToken,
           );
       state = AsyncData(updated);
     } catch (_) {
@@ -102,13 +109,17 @@ class NotificationsInboxNotifier extends AsyncNotifier<NotificationsInbox> {
   Future<NotificationsInbox> build() async {
     final profile = ref.watch(playerProfileProvider).value;
     final playerId = profile?.playerId;
-    if (playerId == null || playerId.isEmpty) {
+    final accessToken = profile?.accessToken;
+    if (playerId == null ||
+        playerId.isEmpty ||
+        accessToken == null ||
+        accessToken.isEmpty) {
       return const NotificationsInbox.empty();
     }
     try {
       return await ref
           .read(pushNotificationApiServiceProvider)
-          .listNotifications(playerId);
+          .listNotifications(playerId, accessToken: accessToken);
     } catch (_) {
       return const NotificationsInbox.empty();
     }
@@ -119,12 +130,16 @@ class NotificationsInboxNotifier extends AsyncNotifier<NotificationsInbox> {
     state = await AsyncValue.guard(() async {
       final profile = ref.read(playerProfileProvider).value;
       final playerId = profile?.playerId;
-      if (playerId == null || playerId.isEmpty) {
+      final accessToken = profile?.accessToken;
+      if (playerId == null ||
+          playerId.isEmpty ||
+          accessToken == null ||
+          accessToken.isEmpty) {
         return const NotificationsInbox.empty();
       }
       return ref
           .read(pushNotificationApiServiceProvider)
-          .listNotifications(playerId);
+          .listNotifications(playerId, accessToken: accessToken);
     });
   }
 
@@ -133,7 +148,13 @@ class NotificationsInboxNotifier extends AsyncNotifier<NotificationsInbox> {
     if (current == null) return;
     final profile = ref.read(playerProfileProvider).value;
     final playerId = profile?.playerId;
-    if (playerId == null || playerId.isEmpty) return;
+    final accessToken = profile?.accessToken;
+    if (playerId == null ||
+        playerId.isEmpty ||
+        accessToken == null ||
+        accessToken.isEmpty) {
+      return;
+    }
 
     final updated =
         current.notifications
@@ -151,7 +172,11 @@ class NotificationsInboxNotifier extends AsyncNotifier<NotificationsInbox> {
     try {
       final result = await ref
           .read(pushNotificationApiServiceProvider)
-          .markNotificationsRead(playerId: playerId, ids: [id]);
+          .markNotificationsRead(
+            playerId: playerId,
+            ids: [id],
+            accessToken: accessToken,
+          );
       state = AsyncData(
         NotificationsInbox(
           notifications: updated,
@@ -167,7 +192,13 @@ class NotificationsInboxNotifier extends AsyncNotifier<NotificationsInbox> {
     if (current == null || current.unreadCount == 0) return;
     final profile = ref.read(playerProfileProvider).value;
     final playerId = profile?.playerId;
-    if (playerId == null || playerId.isEmpty) return;
+    final accessToken = profile?.accessToken;
+    if (playerId == null ||
+        playerId.isEmpty ||
+        accessToken == null ||
+        accessToken.isEmpty) {
+      return;
+    }
 
     final updated =
         current.notifications.map((n) => n.copyWith(read: true)).toList();
@@ -182,7 +213,11 @@ class NotificationsInboxNotifier extends AsyncNotifier<NotificationsInbox> {
     try {
       final result = await ref
           .read(pushNotificationApiServiceProvider)
-          .markNotificationsRead(playerId: playerId, all: true);
+          .markNotificationsRead(
+            playerId: playerId,
+            all: true,
+            accessToken: accessToken,
+          );
       state = AsyncData(
         NotificationsInbox(
           notifications: updated,

@@ -13,6 +13,7 @@ class PlayerProfile {
     this.adRewardMoney = 50,
     this.ownedAvatars = const ['default'],
     this.ownedDecks = const ['default'],
+    this.accessToken,
   });
 
   final String playerId;
@@ -26,6 +27,7 @@ class PlayerProfile {
   final int adRewardMoney;
   final List<String> ownedAvatars;
   final List<String> ownedDecks;
+  final String? accessToken;
 
   static const empty = PlayerProfile(
     playerId: '',
@@ -39,6 +41,7 @@ class PlayerProfile {
     adRewardMoney: 50,
     ownedAvatars: ['default'],
     ownedDecks: ['default'],
+    accessToken: null,
   );
 
   bool get isEmpty => playerId.isEmpty;
@@ -65,6 +68,7 @@ class PlayerProfile {
     int? adRewardMoney,
     List<String>? ownedAvatars,
     List<String>? ownedDecks,
+    Object? accessToken = _unset,
   }) {
     return PlayerProfile(
       playerId: playerId ?? this.playerId,
@@ -78,8 +82,14 @@ class PlayerProfile {
       adRewardMoney: adRewardMoney ?? this.adRewardMoney,
       ownedAvatars: ownedAvatars ?? this.ownedAvatars,
       ownedDecks: ownedDecks ?? this.ownedDecks,
+      accessToken:
+          identical(accessToken, _unset)
+              ? this.accessToken
+              : accessToken as String?,
     );
   }
+
+  static const _unset = Object();
 }
 
 class PlayerProfileRepository {
@@ -97,6 +107,7 @@ class PlayerProfileRepository {
   static const _keyAdRewardMoney = 'adRewardMoney';
   static const _keyOwnedAvatars = 'ownedAvatars';
   static const _keyOwnedDecks = 'ownedDecks';
+  static const _keyAccessToken = 'accessToken';
 
   final Box<dynamic>? _box;
   PlayerProfile? _memory;
@@ -140,6 +151,7 @@ class PlayerProfileRepository {
       adRewardMoney: (_box.get(_keyAdRewardMoney) as num?)?.toInt() ?? 50,
       ownedAvatars: storedAvatars.isEmpty ? const ['default'] : storedAvatars,
       ownedDecks: storedDecks.isEmpty ? const ['default'] : storedDecks,
+      accessToken: _box.get(_keyAccessToken) as String?,
     );
   }
 
@@ -159,6 +171,11 @@ class PlayerProfileRepository {
     await _box.put(_keyAdRewardMoney, profile.adRewardMoney);
     await _box.put(_keyOwnedAvatars, profile.ownedAvatars);
     await _box.put(_keyOwnedDecks, profile.ownedDecks);
+    if (profile.accessToken != null && profile.accessToken!.isNotEmpty) {
+      await _box.put(_keyAccessToken, profile.accessToken);
+    } else {
+      await _box.delete(_keyAccessToken);
+    }
   }
 
   Future<void> clear() async {

@@ -160,7 +160,6 @@
         <p>
           Contact:
           <a href="mailto:privacy@hailsom.com">privacy@hailsom.com</a>
-          (replace with your real support email before publishing).
         </p>
       </section>
 
@@ -184,24 +183,42 @@
             and operate the service).
           </li>
           <li>
-            <strong>Gameplay data.</strong> Room codes, match state, and
-            in-game actions needed to run multiplayer sessions over our game
-            servers.
+            <strong>Gameplay data.</strong> Room codes, match state, rankings,
+            and in-game actions needed to run multiplayer sessions.
           </li>
           <li>
             <strong>Local preferences.</strong> Settings stored on your device
-            (for example language and signed-in session / profile cache).
+            (for example language, age confirmation, and signed-in session /
+            profile cache including a session token).
+          </li>
+          <li>
+            <strong>Push notification tokens.</strong> Firebase Cloud Messaging
+            (FCM) device tokens and notification preference flags if you enable
+            push.
+          </li>
+          <li>
+            <strong>Purchase / monetization data.</strong> In-app purchase
+            product identifiers and transaction identifiers processed via
+            platform billing and <strong>RevenueCat</strong> to grant virtual
+            currency or items. We do not receive your full payment card number.
+          </li>
+          <li>
+            <strong>Analytics &amp; crash data.</strong> Firebase Analytics
+            events (for example login, match start/end, shop actions) and
+            Firebase Crashlytics stack traces / device metadata for stability.
           </li>
           <li>
             <strong>Advertising data.</strong> When ads are shown, Google AdMob
             and its partners may collect device and advertising identifiers,
             approximate location, and interaction data as described in their
-            policies.
+            policies. In the EEA/UK we request consent via Google’s UMP where
+            required.
           </li>
         </ul>
         <p>
           We do not ask for your phone contacts, photos, or precise GPS location
-          for core gameplay.
+          for core gameplay. In-game balances are virtual currency only and have
+          no cash value.
         </p>
       </section>
 
@@ -209,9 +226,12 @@
         <h2>3. How we use information</h2>
         <ul>
           <li>Create and restore guest or Google-linked accounts</li>
+          <li>Authenticate API and multiplayer sessions (session tokens)</li>
           <li>Display your name to other players in matches</li>
           <li>Operate matchmaking, private rooms, and live game sessions</li>
-          <li>Maintain security, prevent abuse, and debug outages</li>
+          <li>Grant and protect virtual currency / cosmetics purchases</li>
+          <li>Send optional push notifications you choose (invites, social, etc.)</li>
+          <li>Measure usage, improve stability, and prevent abuse</li>
           <li>Show ads that help keep the App available</li>
           <li>Comply with legal obligations when required</li>
         </ul>
@@ -230,21 +250,18 @@
             infrastructure needed to run the App.
           </li>
           <li>
-            <strong>Google</strong> — for Google Sign-In (if you choose it) and
-            for AdMob advertising. See
+            <strong>Google</strong> — Google Sign-In, AdMob, Firebase
+            (Analytics, Crashlytics, Cloud Messaging). See
             <a
               href="https://policies.google.com/privacy"
               rel="noopener noreferrer"
               target="_blank"
               >Google’s Privacy Policy</a
-            >
-            and
-            <a
-              href="https://support.google.com/admob/answer/6128543"
-              rel="noopener noreferrer"
-              target="_blank"
-              >AdMob privacy guidance</a
             >.
+          </li>
+          <li>
+            <strong>RevenueCat</strong> — purchase validation and entitlement
+            status. See their privacy documentation.
           </li>
           <li>
             <strong>Legal / safety</strong> — if required by law, or to protect
@@ -257,11 +274,11 @@
       <section>
         <h2>5. Advertising</h2>
         <p>
-          The App may show interstitial ads via <strong>Google AdMob</strong>.
-          Ad partners may use cookies, advertising IDs, or similar technologies
-          to serve and measure ads. You can limit ad personalization in your
-          device settings (for example Reset Advertising ID / Limit Ad Tracking
-          on iOS, or Ads settings on Android) and through Google’s ad settings.
+          The App may show interstitial and rewarded ads via
+          <strong>Google AdMob</strong>. Ad partners may use cookies,
+          advertising IDs, or similar technologies. Where required (EEA/UK), we
+          use Google’s User Messaging Platform (UMP) for consent. You can also
+          limit ad personalization in device settings.
         </p>
       </section>
 
@@ -291,17 +308,27 @@
         <h2>8. Your choices &amp; rights</h2>
         <ul>
           <li>Play as a guest without linking a Google account</li>
-          <li>Sign out from the App’s home screen</li>
+          <li>Sign out from Settings</li>
+          <li>
+            <strong>Delete your account in Settings</strong> — this removes your
+            server profile and related data (cascading deletes), and clears the
+            local session on the device
+          </li>
           <li>Clear local app data or uninstall to remove on-device storage</li>
           <li>
-            Request access, correction, or deletion of account data by emailing
-            us (we may need enough information to verify the request)
+            Email
+            <a href="mailto:privacy@hailsom.com">privacy@hailsom.com</a>
+            for access, correction, or deletion help if in-app delete is
+            unavailable
           </li>
         </ul>
         <p>
           Depending on where you live, you may have additional rights under
           applicable privacy laws (for example GDPR or CCPA). Contact us to
           exercise those rights.
+        </p>
+        <p>
+          See also our <a href="./terms-of-service.html">Terms of Service</a>.
         </p>
       </section>
 

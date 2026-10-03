@@ -118,6 +118,18 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
           Column(
             children: [
               _BalancesHeader(money: profile.money, chips: profile.chips),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  'Virtual currency only. No real-money cash-out.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: CasinoColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
               Expanded(
                 child: TabBarView(
                   controller: _tabController,

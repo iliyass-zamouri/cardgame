@@ -33,6 +33,7 @@ class GameRoom {
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
     this.rankedSaved = false;
+    this.escrowed = false;
     this.players = [];
     this.deck = [];
     this.discard = [];
@@ -92,6 +93,7 @@ class GameRoom {
     this.stakePool = 0;
     this.stakePerPlayer = 0;
     this.potAmount = 0;
+    this.escrowed = false;
     this.seriesWins = [0, 0];
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
@@ -425,10 +427,84 @@ class GameRoom {
 
   end(clientId) {
     this.#requirePlayer(clientId);
+    if (this.matchType === 'random' && this.status === 'playing') {
+      this.forfeit(clientId);
+      return;
+    }
     this.lastAction = null;
     this.discardSource = null;
     this.#endGame();
     this.#changed();
+  }
+
+  /**
+   * Caller loses; opponent wins. Settles ranked if applicable.
+   */
+  forfeit(clientId) {
+    const index = this.players.findIndex((player) => player.id === clientId);
+    if (index < 0) {
+      throw new GameRuleError('not_in_room', 'Player not in room');
+    }
+    if (this.players.length !== 2) {
+      throw new GameRuleError('waiting_for_player', 'Two players required');
+    }
+    this.lastAction = {
+      playerId: clientId,
+      type: 'forfeit',
+    };
+    this.discardSource = null;
+    this.status = 'ended';
+    this.turnIndex = null;
+    this.rematchReady = [false, false];
+    this.players.forEach((player) => {
+      player.total = player.cards.reduce((sum, tag) => sum + gameValue(tag), 0);
+    });
+    const winnerIndex = 1 - index;
+    this.result = {
+      scores: this.players.map((player) => player.total),
+      winnerIndex,
+      reason: 'forfeit',
+    };
+    this.seriesWins[winnerIndex] += 1;
+    this.#clearTimers();
+    this.#maybeRecordRanked(winnerIndex);
+    this.#changed();
+  }
+
+  markDisconnected(clientId) {
+    const player = this.players.find((p) => p.id === clientId);
+    if (!player) return null;
+    player.connected = false;
+    this.#changed();
+    return player;
+  }
+
+  /**
+   * Rebind a disconnected seat to a new socket client id.
+   */
+  reconnectPlayer(oldClientId, newClientId, meta = {}) {
+    const player = this.players.find((p) => p.id === oldClientId);
+    if (!player) {
+      throw new GameRuleError('not_in_room', 'Seat not found');
+    }
+    // Migrate launch timers keyed by client id
+    if (this.launchTimers.has(oldClientId)) {
+      const timer = this.launchTimers.get(oldClientId);
+      this.launchTimers.delete(oldClientId);
+      this.launchTimers.set(newClientId, timer);
+    }
+    player.id = newClientId;
+    player.connected = true;
+    if (meta.displayName) player.displayName = meta.displayName;
+    if (meta.avatarId) player.avatarId = meta.avatarId;
+    if (meta.deckId) player.deckId = meta.deckId;
+    this.#changed();
+    return player;
+  }
+
+  findPlayerByPlayerId(playerId) {
+    if (!playerId) return null;
+    return this.players.find((p) => p.playerId === playerId) || null;
   }
 
   snapshotFor(clientId) {
@@ -565,6 +641,7 @@ class GameRoom {
       roomId: this.id,
       stakePerPlayer: this.stakePerPlayer,
       potAmount: this.potAmount,
+      escrowed: Boolean(this.escrowed),
       players: this.players.map((player) => ({
         playerId: player.playerId,
         cardTotal: player.total,

@@ -3,6 +3,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:cardgame/data/auth/auth_headers.dart';
 import 'package:http/http.dart' as http;
 
 class RankingException implements Exception {
@@ -117,11 +118,14 @@ class RankingApi {
   Future<List<RankingEntry>> fetchLeaderboard({
     int limit = 50,
     int offset = 0,
+    String? accessToken,
   }) async {
     final uri = Uri.parse(
       '$baseUrl/ranking',
     ).replace(queryParameters: {'limit': '$limit', 'offset': '$offset'});
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    final response = await _client
+        .get(uri, headers: authHeaders(accessToken))
+        .timeout(const Duration(seconds: 8));
     final body = _decodeMap(response);
     final entries = body['entries'];
     if (entries is! List) {
@@ -133,11 +137,16 @@ class RankingApi {
         .toList();
   }
 
-  Future<RankingEntry?> fetchPlayerRank(String playerId) async {
+  Future<RankingEntry?> fetchPlayerRank(
+    String playerId, {
+    String? accessToken,
+  }) async {
     final uri = Uri.parse(
       '$baseUrl/ranking/player',
     ).replace(queryParameters: {'playerId': playerId});
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    final response = await _client
+        .get(uri, headers: authHeaders(accessToken))
+        .timeout(const Duration(seconds: 8));
     if (response.statusCode == 404) return null;
     final body = _decodeMap(response);
     return RankingEntry.fromJson(body);
@@ -147,6 +156,7 @@ class RankingApi {
     required String playerId,
     int limit = 20,
     int offset = 0,
+    String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/matches').replace(
       queryParameters: {
@@ -155,7 +165,9 @@ class RankingApi {
         'offset': '$offset',
       },
     );
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    final response = await _client
+        .get(uri, headers: authHeaders(accessToken))
+        .timeout(const Duration(seconds: 8));
     final body = _decodeMap(response);
     final matches = body['matches'];
     if (matches is! List) {

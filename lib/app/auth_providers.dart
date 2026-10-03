@@ -14,6 +14,7 @@ import 'package:cardgame/data/profile/profile_api.dart';
 import 'package:cardgame/services/analytics_service.dart';
 import 'package:cardgame/services/crashlytics_service.dart';
 import 'package:cardgame/app/push_providers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 
@@ -134,6 +135,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
           current.ownedDecks.isNotEmpty
               ? current.ownedDecks
               : const ['default'],
+      accessToken: identity.accessToken ?? current.accessToken,
     );
     await _repo.save(next);
     state = AsyncData(next);
@@ -160,6 +162,41 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
     refreshInventory().ignore();
   }
 
+  /// Mint/refresh session JWT when Hive profile predates auth tokens.
+  /// Guest: silent device re-auth. Google without token: sign out (re-login).
+  Future<bool> ensureAccessToken() async {
+    final current = await future;
+    if (current.isEmpty || current.playerId.isEmpty) return false;
+    final existing = current.accessToken?.trim();
+    if (existing != null && existing.isNotEmpty) return true;
+
+    if (current.authType == 'guest') {
+      try {
+        final fingerprint =
+            await ref.read(deviceIdentityServiceProvider).fingerprint();
+        final identity = await ref
+            .read(guestAuthServiceProvider)
+            .authenticateGuest(
+              deviceId: fingerprint.deviceId,
+              platform: fingerprint.platform,
+              model: fingerprint.model,
+            );
+        if (identity.accessToken == null || identity.accessToken!.isEmpty) {
+          return false;
+        }
+        await applyIdentity(identity);
+        return true;
+      } on Object catch (error) {
+        debugPrint('[auth] guest token refresh failed: $error');
+        return false;
+      }
+    }
+
+    // Google sessions without a stored JWT must sign in again.
+    await ref.read(sessionAuthProvider.notifier).signOut();
+    return false;
+  }
+
   Future<void> updateBalances({required int money, int? chips}) async {
     final current = await future;
     if (current.isEmpty) return;
@@ -174,7 +211,10 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
 
     try {
       final marketplaceApi = ref.read(marketplaceApiServiceProvider);
-      final inv = await marketplaceApi.getInventory(current.playerId);
+      final inv = await marketplaceApi.getInventory(
+        current.playerId,
+        accessToken: current.accessToken,
+      );
       final next = current.copyWith(
         money: inv.money,
         chips: inv.chips,
@@ -201,6 +241,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       playerId: current.playerId,
       direction: direction,
       amount: amount,
+      accessToken: current.accessToken,
     );
 
     final next = current.copyWith(
@@ -227,6 +268,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       itemId: itemId,
       currency: currency,
       price: price,
+      accessToken: current.accessToken,
     );
 
     final updatedAvatars =
@@ -254,7 +296,10 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
     if (current.isEmpty || current.playerId.isEmpty) return 0;
 
     final marketplaceApi = ref.read(marketplaceApiServiceProvider);
-    final res = await marketplaceApi.claimAdReward(current.playerId);
+    final res = await marketplaceApi.claimAdReward(
+      current.playerId,
+      accessToken: current.accessToken,
+    );
     final reward = (res['reward'] as num?)?.toInt() ?? current.adRewardMoney;
 
     final next = current.copyWith(
@@ -279,6 +324,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       playerId: current.playerId,
       productId: productId,
       transactionId: transactionId,
+      accessToken: current.accessToken,
     );
 
     final next = current.copyWith(
@@ -307,7 +353,11 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       try {
         await ref
             .read(profileApiServiceProvider)
-            .updateProfile(playerId: current.playerId, avatarId: avatarId);
+            .updateProfile(
+              playerId: current.playerId,
+              avatarId: avatarId,
+              accessToken: current.accessToken,
+            );
       } catch (_) {
         // Local equip still applied; server sync retries on next identity.
       }
@@ -324,7 +374,11 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       try {
         await ref
             .read(profileApiServiceProvider)
-            .updateProfile(playerId: current.playerId, deckId: deckId);
+            .updateProfile(
+              playerId: current.playerId,
+              deckId: deckId,
+              accessToken: current.accessToken,
+            );
       } catch (_) {}
     }
   }
@@ -338,6 +392,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       playerId: current.playerId,
       name: name,
       username: username,
+      accessToken: current.accessToken,
     );
 
     final next = current.copyWith(

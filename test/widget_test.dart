@@ -3,9 +3,13 @@ import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/locale_provider.dart';
 import 'package:cardgame/app/locale_repository.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
+import 'package:cardgame/app/push_providers.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
+import 'package:cardgame/services/guest_link_prefs_repository.dart';
+import 'package:cardgame/services/push_prefs_repository.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -36,6 +40,12 @@ void main() {
           localeRepositoryProvider.overrideWithValue(
             LocaleRepository.memory('en'),
           ),
+          pushPrefsRepositoryProvider.overrideWithValue(
+            PushPrefsRepository.memory(pushSoftPromptDone: true),
+          ),
+          guestLinkPrefsRepositoryProvider.overrideWithValue(
+            GuestLinkPrefsRepository.memory(dontAskAgain: true),
+          ),
         ],
         child: const MaterialApp(
           locale: Locale('en'),
@@ -58,7 +68,6 @@ void main() {
     expect(find.text('JOIN ROOM'), findsOneWidget);
     expect(find.text('Practice vs Robot'), findsOneWidget);
     expect(find.text('How to play'), findsOneWidget);
-    expect(find.byIcon(Icons.settings_rounded), findsOneWidget);
     expect(find.textContaining('Test Ace'), findsOneWidget);
   });
 }

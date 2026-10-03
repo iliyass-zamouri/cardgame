@@ -10,27 +10,27 @@ void main() {
       expect(options.length, 5);
 
       expect(options[0].id, 'london');
-      expect(options[0].assetPath, 'assets/pots/london.png');
+      expect(options[0].assetPath, 'assets/pots/london.webp');
       expect(options[0].pool, 20);
       expect(options[0].entryStake, 10);
 
       expect(options[1].id, 'paris');
-      expect(options[1].assetPath, 'assets/pots/paris.png');
+      expect(options[1].assetPath, 'assets/pots/paris.webp');
       expect(options[1].pool, 50);
       expect(options[1].entryStake, 25);
 
       expect(options[2].id, 'moscow');
-      expect(options[2].assetPath, 'assets/pots/moscow.png');
+      expect(options[2].assetPath, 'assets/pots/moscow.webp');
       expect(options[2].pool, 100);
       expect(options[2].entryStake, 50);
 
       expect(options[3].id, 'cairo');
-      expect(options[3].assetPath, 'assets/pots/cairo.png');
+      expect(options[3].assetPath, 'assets/pots/cairo.webp');
       expect(options[3].pool, 200);
       expect(options[3].entryStake, 100);
 
       expect(options[4].id, 'marrakech');
-      expect(options[4].assetPath, 'assets/pots/marrakech.png');
+      expect(options[4].assetPath, 'assets/pots/marrakech.webp');
       expect(options[4].pool, 500);
       expect(options[4].entryStake, 250);
     });

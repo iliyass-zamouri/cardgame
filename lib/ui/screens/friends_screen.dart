@@ -369,6 +369,83 @@ class _FriendCard extends ConsumerWidget {
                             friendshipId: friend.friendshipId,
                           );
                     }
+                  } else if (val == 'block') {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder:
+                          (ctx) => AlertDialog(
+                            backgroundColor: CasinoColors.surface,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            title: const Text(
+                              'Block Player',
+                              style: TextStyle(
+                                color: CasinoColors.text,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            content: Text(
+                              'Block ${friend.displayName}? They will no longer be able to interact with you.',
+                              style: const TextStyle(
+                                color: CasinoColors.textMuted,
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: Text(
+                                  l10n.cancel,
+                                  style: const TextStyle(
+                                    color: CasinoColors.textMuted,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                child: const Text(
+                                  'Block',
+                                  style: TextStyle(color: CasinoColors.foldHi),
+                                ),
+                              ),
+                            ],
+                          ),
+                    );
+                    if (confirm == true) {
+                      try {
+                        await ref
+                            .read(friendsDataProvider.notifier)
+                            .blockPlayer(targetPlayerId: friend.playerId);
+                        if (context.mounted) {
+                          CasinoToast.show(context, 'Player blocked');
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          CasinoToast.show(
+                            context,
+                            'Block failed: $e',
+                            success: false,
+                          );
+                        }
+                      }
+                    }
+                  } else if (val == 'report') {
+                    try {
+                      await ref
+                          .read(friendsDataProvider.notifier)
+                          .reportPlayer(targetPlayerId: friend.playerId);
+                      if (context.mounted) {
+                        CasinoToast.show(context, 'Report submitted');
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        CasinoToast.show(
+                          context,
+                          'Report failed: $e',
+                          success: false,
+                        );
+                      }
+                    }
                   }
                 },
                 itemBuilder:
@@ -385,6 +462,46 @@ class _FriendCard extends ConsumerWidget {
                               l10n.removeFriend,
                               style: const TextStyle(
                                 color: CasinoColors.foldHi,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'block',
+                        child: Row(
+                          children: [
+                            HugeIcon(
+                              icon: AppIcons.lock,
+                              color: CasinoColors.foldHi,
+                              size: 18,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Block',
+                              style: TextStyle(
+                                color: CasinoColors.foldHi,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            HugeIcon(
+                              icon: AppIcons.flag,
+                              color: CasinoColors.gold,
+                              size: 18,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Report',
+                              style: TextStyle(
+                                color: CasinoColors.gold,
                                 fontSize: 13,
                               ),
                             ),

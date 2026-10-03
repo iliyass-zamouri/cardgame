@@ -8,6 +8,7 @@ import 'package:cardgame/core/monetization/purchases_config.dart';
 import 'package:cardgame/core/monetization/purchases_providers.dart';
 import 'package:cardgame/core/monetization/purchases_service.dart';
 import 'package:cardgame/data/auth/guest_google_link.dart';
+import 'package:cardgame/data/auth/legal_urls.dart';
 import 'package:cardgame/data/profile/profile_api.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/data/decks/deck_catalog.dart';
@@ -26,6 +27,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -36,6 +38,77 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _linkingGoogle = false;
+  bool _deletingAccount = false;
+
+  Future<void> _launchLegalUrl(String url) async {
+    final uri = Uri.parse(url);
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      CasinoToast.show(context, 'Could not open link', success: false);
+    }
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    if (_deletingAccount) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: CasinoColors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            title: const Text(
+              'Delete Account',
+              style: TextStyle(
+                color: CasinoColors.text,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            content: const Text(
+              'This permanently deletes your account and progress. This cannot be undone.',
+              style: TextStyle(color: CasinoColors.textMuted),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: CasinoColors.textMuted),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: CasinoColors.foldHi),
+                ),
+              ),
+            ],
+          ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingAccount = true);
+    try {
+      final profile =
+          ref.read(playerProfileProvider).value ?? PlayerProfile.empty;
+      if (profile.playerId.isNotEmpty) {
+        await ref.read(profileApiServiceProvider).deleteAccount(
+          playerId: profile.playerId,
+          accessToken: profile.accessToken,
+        );
+      }
+      await ref.read(sessionAuthProvider.notifier).signOut();
+      if (!mounted) return;
+      Navigator.of(this.context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      CasinoToast.show(this.context, 'Delete failed: $e', success: false);
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
+    }
+  }
 
   Future<void> _linkGoogle() async {
     if (_linkingGoogle) return;
@@ -161,6 +234,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 }
               }
             },
+          ),
+          const SizedBox(height: 10),
+          _SettingsTile(
+            icon: AppIcons.shield,
+            label: 'Privacy Policy',
+            onTap: () => _launchLegalUrl(PRIVACY_URL),
+          ),
+          const SizedBox(height: 10),
+          _SettingsTile(
+            icon: AppIcons.menuBook,
+            label: 'Terms of Service',
+            onTap: () => _launchLegalUrl(TOS_URL),
+          ),
+          const SizedBox(height: 10),
+          _SettingsTile(
+            icon: AppIcons.removeCircle,
+            label: 'Delete Account',
+            destructive: true,
+            onTap: () => _confirmDeleteAccount(context),
           ),
           const SizedBox(height: 10),
           _SettingsTile(
@@ -341,6 +433,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
         final check = await profileApi.checkUsername(
           username: username,
           playerId: widget.current.playerId,
+          accessToken: widget.current.accessToken,
         );
         if (!check.available) {
           if (mounted) {

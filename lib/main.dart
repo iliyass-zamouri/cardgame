@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:cardgame/ads/ad_ids.dart';
+import 'package:cardgame/ads/interstitial_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/locale_provider.dart';
@@ -9,22 +11,21 @@ import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/push_providers.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/core/monetization/purchases_service.dart';
+import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/firebase_options.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/analytics_service.dart';
 import 'package:cardgame/services/app_tracking_service.dart';
 import 'package:cardgame/services/crashlytics_service.dart';
-import 'package:cardgame/services/push_prefs_repository.dart';
 import 'package:cardgame/services/guest_link_prefs_repository.dart';
-import 'package:cardgame/data/auth/guest_google_link.dart';
+import 'package:cardgame/services/push_prefs_repository.dart';
 import 'package:cardgame/ui/background.dart';
 import 'package:cardgame/ui/flame/card_fonts.dart';
 import 'package:cardgame/ui/screens/auth/authentication_screen.dart';
 import 'package:cardgame/ui/screens/home/home_screen.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/widgets/force_update_gate.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
-import 'package:cardgame/ads/ad_ids.dart';
-import 'package:cardgame/ads/interstitial_ad_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,28 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
+Future<void> _requestUmpConsent() async {
+  final completer = Completer<void>();
+  ConsentInformation.instance.requestConsentInfoUpdate(
+    ConsentRequestParameters(),
+    () async {
+      await ConsentForm.loadAndShowConsentFormIfRequired((_) {});
+      try {
+        final canRequestAds = await ConsentInformation.instance.canRequestAds();
+        await AnalyticsService().setCollectionEnabled(canRequestAds);
+      } catch (e) {
+        debugPrint('Analytics consent gate failed: $e');
+      }
+      if (!completer.isCompleted) completer.complete();
+    },
+    (FormError error) {
+      debugPrint('UMP consent update failed: ${error.message}');
+      if (!completer.isCompleted) completer.complete();
+    },
+  );
+  await completer.future.timeout(const Duration(seconds: 12), onTimeout: () {});
+}
 
 Future<void> main() async {
   await runZonedGuarded(
@@ -73,6 +96,11 @@ Future<void> main() async {
       }
 
       if (AdIds.isSupported) {
+        try {
+          await _requestUmpConsent();
+        } catch (e) {
+          debugPrint('UMP consent failed: $e');
+        }
         try {
           await MobileAds.instance.initialize();
         } catch (e) {
@@ -126,6 +154,7 @@ class MyApp extends ConsumerStatefulWidget {
 
 class _MyAppState extends ConsumerState<MyApp> {
   bool _pushStarted = false;
+  bool _forceUpdateChecked = false;
 
   @override
   void initState() {
@@ -145,8 +174,23 @@ class _MyAppState extends ConsumerState<MyApp> {
       ref.read(notificationsInboxProvider.notifier).refresh();
     };
     await push.start(navigator: navigator);
-    final playerId = ref.read(playerProfileProvider).value?.playerId;
-    await push.bindPlayerId(playerId);
+
+    // Old Hive sessions lack JWT — refresh before any authed push calls.
+    await ref.read(playerProfileProvider.notifier).ensureAccessToken();
+
+    final profile = ref.read(playerProfileProvider).value;
+    await push.bindPlayerId(
+      profile?.playerId,
+      accessToken: profile?.accessToken,
+    );
+  }
+
+  Future<void> _maybeCheckForceUpdate() async {
+    if (_forceUpdateChecked) return;
+    _forceUpdateChecked = true;
+    final root = ref.read(rootNavigatorKeyProvider).currentContext;
+    if (root == null) return;
+    await checkForceUpdate(root);
   }
 
   @override
@@ -159,15 +203,31 @@ class _MyAppState extends ConsumerState<MyApp> {
 
     // Keep FCM token bound to current player.
     ref.listen(playerProfileProvider, (previous, next) {
-      final playerId = next.value?.playerId;
+      final profile = next.value;
       unawaited(
-        ref.read(pushNotificationServiceProvider).bindPlayerId(playerId),
+        ref
+            .read(pushNotificationServiceProvider)
+            .bindPlayerId(profile?.playerId, accessToken: profile?.accessToken),
       );
       unawaited(
         ref
             .read(crashlyticsServiceProvider)
-            .setUserId(playerId?.isNotEmpty == true ? playerId : null),
+            .setUserId(
+              profile?.playerId.isNotEmpty == true ? profile!.playerId : null,
+            ),
       );
+    });
+
+    ref.listen(sessionAuthProvider, (previous, next) {
+      final status = next.asData?.value;
+      if (status != null && status.isInApp) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          unawaited(() async {
+            await ref.read(playerProfileProvider.notifier).ensureAccessToken();
+            _maybeCheckForceUpdate();
+          }());
+        });
+      }
     });
 
     return MaterialApp(
@@ -212,10 +272,10 @@ class _MyAppState extends ConsumerState<MyApp> {
                 ),
               ),
           data: (status) {
-            if (status.isInApp) {
-              return const HomeScreen();
+            if (!status.isInApp) {
+              return const AuthenticationScreen();
             }
-            return const AuthenticationScreen();
+            return const HomeScreen();
           },
         ),
       ),

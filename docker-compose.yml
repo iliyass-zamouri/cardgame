@@ -48,6 +48,11 @@ services:
       AD_REWARD_MONEY: ${AD_REWARD_MONEY:-50}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
       ADMIN_PUSH_SECRET: ${ADMIN_PUSH_SECRET:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      REVENUECAT_SECRET_API_KEY: ${REVENUECAT_SECRET_API_KEY:-}
+      SKIP_IAP_VERIFY: ${SKIP_IAP_VERIFY:-0}
+      MIN_ANDROID_VERSION_CODE: ${MIN_ANDROID_VERSION_CODE:-1}
+      SOFT_MIN_VERSION: ${SOFT_MIN_VERSION:-}
     volumes:
       # Optional FCM service-account JSON (path inside container set via env).
       - ${FIREBASE_SA_HOST_PATH:-./secrets/firebase-adminsdk.json}:/run/secrets/firebase-adminsdk.json:ro

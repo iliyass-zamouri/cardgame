@@ -31,6 +31,7 @@ class PushNotificationService {
 
   NotificationNavigator? _navigator;
   String? _playerId;
+  String? _accessToken;
   String? _token;
   ResolvedNotificationNav? _pendingNav;
   bool _started = false;
@@ -169,13 +170,20 @@ class PushNotificationService {
     }
   }
 
-  Future<void> bindPlayerId(String? playerId) async {
+  Future<void> bindPlayerId(String? playerId, {String? accessToken}) async {
     final trimmed = playerId?.trim();
+    final nextToken =
+        (accessToken != null && accessToken.trim().isNotEmpty)
+            ? accessToken.trim()
+            : null;
+    final tokenChanged = _accessToken != nextToken;
+    _accessToken = nextToken;
     if (trimmed == null || trimmed.isEmpty) {
       _playerId = null;
       return;
     }
-    if (_playerId == trimmed) {
+    final samePlayer = _playerId == trimmed;
+    if (samePlayer && !tokenChanged) {
       flushPendingRoute();
       return;
     }
@@ -189,7 +197,11 @@ class PushNotificationService {
     final playerId = _playerId;
     if (token == null || token.isEmpty) return;
     try {
-      await _api.unregisterDevice(token: token, playerId: playerId);
+      await _api.unregisterDevice(
+        token: token,
+        playerId: playerId,
+        accessToken: _accessToken,
+      );
     } catch (e) {
       debugPrint('[push] unregister failed: $e');
     }
@@ -207,13 +219,19 @@ class PushNotificationService {
   Future<void> _registerCurrentToken() async {
     final playerId = _playerId;
     final token = _token;
+    final accessToken = _accessToken;
     if (playerId == null || token == null || token.isEmpty) return;
+    if (accessToken == null || accessToken.isEmpty) {
+      debugPrint('[push] skip register — missing accessToken');
+      return;
+    }
     final platform = Platform.isIOS ? 'ios' : 'android';
     try {
       await _api.registerDevice(
         playerId: playerId,
         token: token,
         platform: platform,
+        accessToken: accessToken,
       );
       debugPrint('[push] registered token for $playerId');
     } catch (error) {

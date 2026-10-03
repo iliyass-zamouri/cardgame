@@ -9,6 +9,7 @@ class ServerIdentity {
     this.linkedFromGuest = false,
     this.money = 500,
     this.chips = 1,
+    this.accessToken,
   });
 
   final String playerId;
@@ -19,6 +20,7 @@ class ServerIdentity {
   final bool linkedFromGuest;
   final int money;
   final int chips;
+  final String? accessToken;
 
   factory ServerIdentity.fromJson(Map<String, dynamic> json) {
     return ServerIdentity(
@@ -30,6 +32,7 @@ class ServerIdentity {
       linkedFromGuest: json['linkedFromGuest'] == true,
       money: (json['money'] as num?)?.toInt() ?? 500,
       chips: (json['chips'] as num?)?.toInt() ?? 1,
+      accessToken: json['accessToken'] as String?,
     );
   }
 }

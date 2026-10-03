@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const WebSocket = require('ws');
 const { GameServer } = require('../game_server');
+const { testToken } = require('./session_helpers');
+const { signSession } = require('../auth/session');
 const { GameRoom } = require('../game_room');
 
 test('two clients create, join, and start an isolated room', async (t) => {
@@ -15,7 +17,7 @@ test('two clients create, join, and start an isolated room', async (t) => {
   t.after(() => second.close());
 
   const created = waitFor(first, (message) => message.type === 'snapshot');
-  first.send(JSON.stringify({ type: 'createRoom' }));
+  first.send(JSON.stringify({ type: 'createRoom', token: await authToken('host-room') }));
   const firstWaiting = await created;
   assert.match(firstWaiting.roomId, /^[A-F0-9]{6}$/);
   assert.equal(firstWaiting.ready, false);
@@ -31,6 +33,7 @@ test('two clients create, join, and start an isolated room', async (t) => {
   second.send(JSON.stringify({
     type: 'joinRoom',
     roomId: firstWaiting.roomId,
+    token: await authToken('guest-join'),
   }));
   await Promise.all([firstReady, secondReady]);
 
@@ -79,13 +82,13 @@ test('findMatch queues two clients and auto-starts', async (t) => {
 
   first.send(JSON.stringify({
     type: 'findMatch',
-    playerId: 'guest-a',
     displayName: 'Ace',
+    token: await authToken('guest-a'),
   }));
   second.send(JSON.stringify({
     type: 'findMatch',
-    playerId: 'guest-b',
     displayName: 'King',
+    token: await authToken('guest-b'),
   }));
 
   const [a, b] = await Promise.all([firstPlaying, secondPlaying]);
@@ -105,7 +108,7 @@ test('cancelFindMatch leaves queue', async (t) => {
   t.after(() => first.close());
 
   const left = waitFor(first, (message) => message.type === 'leftQueue');
-  first.send(JSON.stringify({ type: 'findMatch', displayName: 'Solo' }));
+  first.send(JSON.stringify({ type: 'findMatch', displayName: 'Solo', token: await authToken('solo') }));
   first.send(JSON.stringify({ type: 'cancelFindMatch' }));
   await left;
   assert.equal(server.matchQueue.length, 0);
@@ -175,8 +178,8 @@ test('tableInvite relays invitation to online target player and acknowledges sen
   const friendAck = waitFor(friend, (m) => m.type === 'identityAck');
   friend.send(JSON.stringify({
     type: 'identity',
-    playerId: 'friend-123',
     displayName: 'Bob',
+    token: await authToken('friend-123'),
   }));
   await friendAck;
 
@@ -184,8 +187,8 @@ test('tableInvite relays invitation to online target player and acknowledges sen
   const created = waitFor(host, (message) => message.type === 'snapshot');
   host.send(JSON.stringify({
     type: 'createRoom',
-    playerId: 'host-456',
     displayName: 'Alice',
+    token: await authToken('host-456'),
   }));
   const hostWaiting = await created;
 
@@ -228,8 +231,8 @@ test('friend request notify reaches online target via websocket', async (t) => {
   const ack = waitFor(target, (m) => m.type === 'identityAck');
   target.send(JSON.stringify({
     type: 'identity',
-    playerId: 'target-player',
     displayName: 'Target',
+    token: await authToken('target-player'),
   }));
   await ack;
 
@@ -253,6 +256,17 @@ test('friend request notify reaches online target via websocket', async (t) => {
   assert.equal(received.fromPlayerId, 'sender-player');
   assert.equal(received.fromName, 'Sender');
 });
+
+
+async function authToken(playerId, tokenVersion = 0) {
+  return signSession({ playerId, tokenVersion });
+}
+
+async function sendAuthed(socket, payload) {
+  const playerId = payload.playerId || 'guest-test';
+  const token = await authToken(playerId);
+  socket.send(JSON.stringify({ ...payload, token, playerId: undefined }));
+}
 
 async function connect(port) {
   const socket = new WebSocket(`ws://127.0.0.1:${port}`);

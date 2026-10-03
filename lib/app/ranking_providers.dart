@@ -11,7 +11,10 @@ final rankingApiProvider = Provider<RankingApi>((ref) {
 final leaderboardProvider = FutureProvider.autoDispose<List<RankingEntry>>((
   ref,
 ) async {
-  return ref.watch(rankingApiProvider).fetchLeaderboard();
+  final profile = ref.watch(playerProfileProvider).value;
+  return ref
+      .watch(rankingApiProvider)
+      .fetchLeaderboard(accessToken: profile?.accessToken);
 });
 
 final myRankProvider = FutureProvider.autoDispose<RankingEntry?>((ref) async {
@@ -23,7 +26,10 @@ final myRankProvider = FutureProvider.autoDispose<RankingEntry?>((ref) async {
 final playerRankByIdProvider = FutureProvider.autoDispose
     .family<RankingEntry?, String>((ref, playerId) async {
       if (playerId.isEmpty) return null;
-      return ref.watch(rankingApiProvider).fetchPlayerRank(playerId);
+      final profile = ref.watch(playerProfileProvider).value;
+      return ref
+          .watch(rankingApiProvider)
+          .fetchPlayerRank(playerId, accessToken: profile?.accessToken);
     });
 
 final matchHistoryProvider = FutureProvider.autoDispose<List<MatchHistoryItem>>(
@@ -33,6 +39,9 @@ final matchHistoryProvider = FutureProvider.autoDispose<List<MatchHistoryItem>>(
     if (profile.playerId.isEmpty) return const [];
     return ref
         .watch(rankingApiProvider)
-        .fetchMatchHistory(playerId: profile.playerId);
+        .fetchMatchHistory(
+          playerId: profile.playerId,
+          accessToken: profile.accessToken,
+        );
   },
 );

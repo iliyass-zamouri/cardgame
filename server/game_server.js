@@ -17,6 +17,14 @@ const {
   verifyGoogleIdToken,
   InvalidGoogleTokenError,
 } = require('./auth/google_token');
+const { signSession, verifySession, InvalidSessionError } = require('./auth/session');
+const { requireAuth, isDbReady } = require('./auth/http_auth');
+const {
+  getPlayerTokenVersion,
+  bumpTokenVersion,
+  deletePlayerAccount,
+  createPlayerReport,
+} = require('./db/store');
 const {
   authenticateOAuth,
   GoogleAccountInUseError,
@@ -27,6 +35,9 @@ const {
   getLeaderboard,
   getPlayerRank,
   getMatchHistory,
+  escrowStake,
+  assertCanAfford,
+  refundEscrow,
 } = require('./db/ranking');
 const {
   isUsernameAvailable,
@@ -38,6 +49,7 @@ const {
   declineFriendRequest,
   cancelFriendRequest,
   removeFriend,
+  blockFriend,
 } = require('./db/friends');
 const {
   getPlayerInventory,
@@ -118,6 +130,8 @@ class GameServer {
     /** @type {{ t: number, connections: number, uniquePlayers: number, rooms: number, queue: number }[]} */
     this.presenceSamples = [];
     this.presenceTimer = null;
+    /** @type {Map<string, NodeJS.Timeout>} key = `${roomId}:${playerId}` */
+    this.disconnectGraceTimers = new Map();
   }
 
   async start() {
@@ -171,6 +185,8 @@ class GameServer {
     }
     for (const timer of this.matchTimers.values()) clearTimeout(timer);
     this.matchTimers.clear();
+    for (const timer of this.disconnectGraceTimers.values()) clearTimeout(timer);
+    this.disconnectGraceTimers.clear();
     for (const roomBot of this.roomBots.values()) roomBot.bot.dispose();
     this.roomBots.clear();
     this.activeBotPlayerIds.clear();
@@ -404,6 +420,34 @@ class GameServer {
       return;
     }
 
+    if (request.method === 'OPTIONS') {
+      sendJson(response, 204, {});
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/app/config') {
+      sendJson(response, 200, {
+        minAndroidVersionCode: Number.parseInt(process.env.MIN_ANDROID_VERSION_CODE || '1', 10) || 1,
+        softMinVersion: process.env.SOFT_MIN_VERSION || null,
+      });
+      return;
+    }
+
+    if (request.method === 'DELETE' && url.pathname === '/account') {
+      await this.#handleDeleteAccount(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/friends/block') {
+      await this.#handleBlockFriend(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/players/report') {
+      await this.#handleReportPlayer(request, response);
+      return;
+    }
+
     if (request.method === 'POST' && url.pathname === '/auth/guest') {
       await this.#handleGuestAuth(request, response);
       return;
@@ -562,15 +606,11 @@ class GameServer {
     }
   }
 
-  async #handlePlayerRank(_request, response, url) {
-    const playerId = url.searchParams.get('playerId');
-    if (!playerId) {
-      sendJson(response, 400, {
-        error: 'missing_player_id',
-        message: 'playerId is required',
-      });
-      return;
-    }
+  async #handlePlayerRank(request, response, url) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    const playerId = auth.playerId;
+    void url;
     try {
       const entry = await getPlayerRank(playerId);
       if (!entry) {
@@ -590,15 +630,10 @@ class GameServer {
     }
   }
 
-  async #handleMatchHistory(_request, response, url) {
-    const playerId = url.searchParams.get('playerId');
-    if (!playerId) {
-      sendJson(response, 400, {
-        error: 'missing_player_id',
-        message: 'playerId is required',
-      });
-      return;
-    }
+  async #handleMatchHistory(request, response, url) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    const playerId = auth.playerId;
     const limit = url.searchParams.get('limit');
     const offset = url.searchParams.get('offset');
     try {
@@ -623,9 +658,11 @@ class GameServer {
     return ids;
   }
 
-  async #handleCheckUsername(_request, response, url) {
+  async #handleCheckUsername(request, response, url) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
     const username = url.searchParams.get('username');
-    const playerId = url.searchParams.get('playerId');
+    const playerId = auth.playerId;
     if (!username) {
       sendJson(response, 400, {
         error: 'missing_username',
@@ -643,6 +680,9 @@ class GameServer {
   }
 
   async #handleUpdateProfile(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -651,7 +691,8 @@ class GameServer {
       return;
     }
 
-    const { playerId, name, username, avatarId, deckId } = body || {};
+    const playerId = auth.playerId;
+    const { name, username, avatarId, deckId } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
@@ -684,14 +725,20 @@ class GameServer {
         });
         return;
       }
+      if (error.code === 'not_owned') {
+        sendJson(response, 400, { error: error.code, message: error.message });
+        return;
+      }
       console.error('[player/profile]', error);
       sendJson(response, 500, { error: 'server_error', message: 'Failed to update profile' });
     }
   }
 
-  async #handleSearchPlayers(_request, response, url) {
+  async #handleSearchPlayers(request, response, url) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
     const query = url.searchParams.get('query') || '';
-    const playerId = url.searchParams.get('playerId') || null;
+    const playerId = auth.playerId;
     const limit = url.searchParams.get('limit') || 20;
 
     try {
@@ -710,12 +757,11 @@ class GameServer {
     }
   }
 
-  async #handleGetFriends(_request, response, url) {
-    const playerId = url.searchParams.get('playerId');
-    if (!playerId) {
-      sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
-      return;
-    }
+  async #handleGetFriends(request, response, url) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    const playerId = auth.playerId;
+    void url;
 
     try {
       const onlinePlayerIds = this.#getOnlinePlayerIds();
@@ -731,6 +777,9 @@ class GameServer {
   }
 
   async #handleSendFriendRequest(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -739,7 +788,8 @@ class GameServer {
       return;
     }
 
-    const { playerId, targetPlayerId, targetUsername } = body || {};
+    const playerId = auth.playerId;
+    const { targetPlayerId, targetUsername } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
@@ -801,6 +851,9 @@ class GameServer {
   }
 
   async #handleAcceptFriendRequest(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -809,7 +862,8 @@ class GameServer {
       return;
     }
 
-    const { playerId, requesterId, requestId } = body || {};
+    const playerId = auth.playerId;
+    const { requesterId, requestId } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
@@ -849,6 +903,9 @@ class GameServer {
   }
 
   async #handleDeclineFriendRequest(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -857,7 +914,8 @@ class GameServer {
       return;
     }
 
-    const { playerId, requesterId, requestId } = body || {};
+    const playerId = auth.playerId;
+    const { requesterId, requestId } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
@@ -873,6 +931,9 @@ class GameServer {
   }
 
   async #handleCancelFriendRequest(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -881,7 +942,8 @@ class GameServer {
       return;
     }
 
-    const { playerId, targetPlayerId, requestId } = body || {};
+    const playerId = auth.playerId;
+    const { targetPlayerId, requestId } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
@@ -897,6 +959,9 @@ class GameServer {
   }
 
   async #handleRemoveFriend(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -905,7 +970,8 @@ class GameServer {
       return;
     }
 
-    const { playerId, friendId, friendshipId } = body || {};
+    const playerId = auth.playerId;
+    const { friendId, friendshipId } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
@@ -920,12 +986,11 @@ class GameServer {
     }
   }
 
-  async #handleGetInventory(_request, response, url) {
-    const playerId = url.searchParams.get('playerId');
-    if (!playerId) {
-      sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
-      return;
-    }
+  async #handleGetInventory(request, response, url) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    const playerId = auth.playerId;
+    void url;
 
     try {
       const inventory = await getPlayerInventory(playerId);
@@ -941,6 +1006,9 @@ class GameServer {
   }
 
   async #handleExchangeCurrency(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -949,7 +1017,8 @@ class GameServer {
       return;
     }
 
-    const { playerId, direction, amount } = body || {};
+    const playerId = auth.playerId;
+    const { direction, amount } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
@@ -974,6 +1043,9 @@ class GameServer {
   }
 
   async #handlePurchaseItem(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -982,7 +1054,8 @@ class GameServer {
       return;
     }
 
-    const { playerId, itemType, itemId, currency, price } = body || {};
+    const playerId = auth.playerId;
+    const { itemType, itemId, currency, price } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
@@ -1010,6 +1083,9 @@ class GameServer {
   }
 
   async #handleClaimAdReward(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -1018,11 +1094,8 @@ class GameServer {
       return;
     }
 
-    const { playerId } = body || {};
-    if (!playerId) {
-      sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
-      return;
-    }
+    const playerId = auth.playerId;
+    void body;
 
     try {
       const result = await claimRewardedAdBonus(playerId);
@@ -1032,12 +1105,19 @@ class GameServer {
         sendJson(response, 404, { error: error.code, message: error.message });
         return;
       }
+      if (error.code === 'ad_cooldown' || error.code === 'ad_daily_cap') {
+        sendJson(response, 429, { error: error.code, message: error.message });
+        return;
+      }
       console.error('[marketplace/claim-ad-reward]', error);
       sendJson(response, 500, { error: 'server_error', message: 'Failed to claim ad reward' });
     }
   }
 
   async #handleVerifyIap(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -1046,7 +1126,8 @@ class GameServer {
       return;
     }
 
-    const { playerId, productId, transactionId } = body || {};
+    const playerId = auth.playerId;
+    const { productId, transactionId } = body || {};
     if (!playerId || !productId || !transactionId) {
       sendJson(response, 400, {
         error: 'missing_parameters',
@@ -1069,6 +1150,78 @@ class GameServer {
       }
       console.error('[economy/iap/verify]', error);
       sendJson(response, 500, { error: 'server_error', message: 'Failed to verify IAP purchase' });
+    }
+  }
+
+  async #requireAuth(request, response) {
+    return requireAuth(request, response, sendJson);
+  }
+
+  async #handleDeleteAccount(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    try {
+      await bumpTokenVersion(auth.playerId);
+      const deleted = await deletePlayerAccount(auth.playerId);
+      if (!deleted) {
+        sendJson(response, 404, { error: 'player_not_found', message: 'Player not found' });
+        return;
+      }
+      sendJson(response, 200, { ok: true, deleted: true });
+    } catch (error) {
+      console.error('[account/delete]', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Failed to delete account' });
+    }
+  }
+
+  async #handleBlockFriend(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const targetPlayerId = body?.targetPlayerId || body?.friendId;
+    if (!targetPlayerId) {
+      sendJson(response, 400, { error: 'missing_target', message: 'targetPlayerId required' });
+      return;
+    }
+    try {
+      const result = await blockFriend({ playerId: auth.playerId, targetPlayerId });
+      sendJson(response, 200, result);
+    } catch (error) {
+      sendJson(response, 400, { error: error.code || 'block_failed', message: error.message });
+    }
+  }
+
+  async #handleReportPlayer(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const targetId = body?.targetPlayerId || body?.targetId;
+    if (!targetId) {
+      sendJson(response, 400, { error: 'missing_target', message: 'targetPlayerId required' });
+      return;
+    }
+    try {
+      const result = await createPlayerReport({
+        reporterId: auth.playerId,
+        targetId,
+        reason: body?.reason,
+        details: body?.details,
+      });
+      sendJson(response, 200, result);
+    } catch (error) {
+      sendJson(response, 400, { error: error.code || 'report_failed', message: error.message });
     }
   }
 
@@ -1100,7 +1253,12 @@ class GameServer {
 
     try {
       const identity = await findOrCreateGuest({ deviceId, clientIp });
-      sendJson(response, 200, identity);
+      const tokenVersion = identity.tokenVersion ?? (await getPlayerTokenVersion(identity.playerId)) ?? 0;
+      const accessToken = await signSession({
+        playerId: identity.playerId,
+        tokenVersion,
+      });
+      sendJson(response, 200, { ...identity, accessToken });
     } catch (error) {
       if (
         error instanceof InvalidGuestDeviceIdError ||
@@ -1184,7 +1342,12 @@ class GameServer {
         clientIp,
         confirmSwitch,
       });
-      sendJson(response, 200, identity);
+      const tokenVersion = identity.tokenVersion ?? (await getPlayerTokenVersion(identity.playerId)) ?? 0;
+      const accessToken = await signSession({
+        playerId: identity.playerId,
+        tokenVersion,
+      });
+      sendJson(response, 200, { ...identity, accessToken });
     } catch (error) {
       if (error instanceof GoogleAccountInUseError) {
         sendJson(response, 409, {
@@ -1247,28 +1410,155 @@ class GameServer {
         this.#error(socket, 'rate_limited', 'Too many commands');
         return;
       }
-      try {
-        const command = JSON.parse(raw.toString());
-        this.#handle(context, command);
-      } catch (error) {
-        if (error instanceof GameRuleError) {
-          this.#error(socket, error.code, error.message);
-        } else if (error instanceof SyntaxError) {
-          this.#error(socket, 'invalid_json', 'Message must be valid JSON');
-        } else {
-          console.error(error);
-          this.#error(socket, 'server_error', 'Command failed');
-        }
-      }
+      Promise.resolve()
+        .then(async () => {
+          const command = JSON.parse(raw.toString());
+          await this.#handle(context, command);
+        })
+        .catch((error) => {
+          if (error instanceof GameRuleError) {
+            this.#error(socket, error.code, error.message);
+          } else if (error instanceof SyntaxError) {
+            this.#error(socket, 'invalid_json', 'Message must be valid JSON');
+          } else if (error instanceof InvalidSessionError) {
+            this.#error(socket, error.code || 'auth_required', error.message);
+          } else {
+            console.error(error);
+            this.#error(socket, 'server_error', 'Command failed');
+          }
+        });
     });
 
     socket.on('close', () => {
-      this.#dequeue(context);
-      const room = this.rooms.get(context.roomId);
-      room?.removePlayer(context.id);
-      this.clients.delete(context.id);
-      this.#deleteAbandonedRoom(room);
+      this.#onSocketClose(context);
     });
+  }
+
+  #graceKey(roomId, playerId) {
+    return `${roomId}:${playerId}`;
+  }
+
+  #clearDisconnectGrace(roomId, playerId) {
+    const key = this.#graceKey(roomId, playerId);
+    const timer = this.disconnectGraceTimers.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      this.disconnectGraceTimers.delete(key);
+    }
+  }
+
+  #onSocketClose(context) {
+    this.#dequeue(context);
+    const room = this.rooms.get(context.roomId);
+    if (room && room.status === 'playing' && context.playerId) {
+      const hasBot = this.roomBots.has(room.id);
+      // Vs bot: forfeit immediately (no human to wait for).
+      if (hasBot) {
+        room.markDisconnected(context.id);
+        try {
+          room.forfeit(context.id);
+        } catch (error) {
+          console.error('[disconnect bot forfeit]', error);
+        }
+        this.clients.delete(context.id);
+        this.#deleteAbandonedRoom(room);
+        return;
+      }
+      room.markDisconnected(context.id);
+      this.clients.delete(context.id);
+      const roomId = room.id;
+      const playerId = context.playerId;
+      const oldClientId = context.id;
+      this.#clearDisconnectGrace(roomId, playerId);
+      const timer = setTimeout(() => {
+        this.disconnectGraceTimers.delete(this.#graceKey(roomId, playerId));
+        const live = this.rooms.get(roomId);
+        if (!live || live.status !== 'playing') return;
+        const seat = live.players.find((p) => p.id === oldClientId || p.playerId === playerId);
+        if (!seat || seat.connected) return;
+        try {
+          live.forfeit(seat.id);
+        } catch (error) {
+          console.error('[disconnect forfeit]', error);
+        }
+        this.#deleteAbandonedRoom(live);
+      }, 60_000);
+      this.disconnectGraceTimers.set(this.#graceKey(roomId, playerId), timer);
+      return;
+    }
+    room?.removePlayer(context.id);
+    this.clients.delete(context.id);
+    this.#deleteAbandonedRoom(room);
+  }
+
+  async #bindIdentityFromToken(context, command, { allowResume = false } = {}) {
+    const token =
+      typeof command.token === 'string' && command.token.trim()
+        ? command.token.trim()
+        : null;
+    if (!token) {
+      throw new InvalidSessionError('auth_required', 'Session token required');
+    }
+    const session = await verifySession(token);
+    try {
+      const dbVersion = await getPlayerTokenVersion(session.playerId);
+      if (dbVersion == null || Number(dbVersion) !== Number(session.tokenVersion)) {
+        throw new InvalidSessionError('invalid_token', 'Session revoked');
+      }
+    } catch (error) {
+      if (error instanceof InvalidSessionError) throw error;
+      if (!error?.message?.includes('MySQL pool not initialized')) {
+        throw error;
+      }
+      // Unit tests / offline: trust JWT when DB unavailable
+    }
+    const displayName =
+      typeof command.displayName === 'string' && command.displayName.trim()
+        ? command.displayName.trim().slice(0, 64)
+        : null;
+    const avatarId =
+      typeof command.avatarId === 'string' && command.avatarId.trim()
+        ? command.avatarId.trim().slice(0, 64)
+        : 'default';
+    const deckId =
+      typeof command.deckId === 'string' && command.deckId.trim()
+        ? command.deckId.trim().slice(0, 64)
+        : 'default';
+
+    // Resume disconnected seat in a playing room
+    if (allowResume) {
+      for (const room of this.rooms.values()) {
+        if (room.status !== 'playing') continue;
+        const seat = room.findPlayerByPlayerId(session.playerId);
+        if (seat && !seat.connected) {
+          this.#clearDisconnectGrace(room.id, session.playerId);
+          room.reconnectPlayer(seat.id, context.id, {
+            displayName,
+            avatarId,
+            deckId,
+          });
+          context.roomId = room.id;
+          context.playerId = session.playerId;
+          context.displayName = displayName;
+          context.avatarId = avatarId;
+          context.deckId = deckId;
+          this.#send(context.socket, {
+            type: 'identityAck',
+            playerId: context.playerId,
+            resumed: true,
+            roomId: room.id,
+          });
+          this.#send(context.socket, room.snapshotFor(context.id));
+          return { resumed: true, playerId: session.playerId, displayName, avatarId, deckId };
+        }
+      }
+    }
+
+    context.playerId = session.playerId;
+    context.displayName = displayName;
+    context.avatarId = avatarId;
+    context.deckId = deckId;
+    return { resumed: false, playerId: session.playerId, displayName, avatarId, deckId };
   }
 
   #identityFromCommand(command) {
@@ -1291,17 +1581,16 @@ class GameServer {
     return { playerId, displayName, avatarId, deckId };
   }
 
-  #handle(context, command) {
+  async #handle(context, command) {
     if (!command || typeof command.type !== 'string') {
       throw new GameRuleError('invalid_command', 'Command type is required');
     }
 
     if (command.type === 'identity') {
-      const identity = this.#identityFromCommand(command);
-      context.playerId = identity.playerId;
-      context.displayName = identity.displayName;
-      context.avatarId = identity.avatarId;
-      context.deckId = identity.deckId;
+      const bound = await this.#bindIdentityFromToken(context, command, {
+        allowResume: true,
+      });
+      if (bound.resumed) return;
       this.#send(context.socket, { type: 'identityAck', playerId: context.playerId });
       if (context.playerId) {
         updatePlayerCosmetics({
@@ -1316,11 +1605,7 @@ class GameServer {
     if (command.type === 'findMatch') {
       this.#leaveCurrentRoom(context);
       this.#dequeue(context);
-      const identity = this.#identityFromCommand(command);
-      context.playerId = identity.playerId;
-      context.displayName = identity.displayName;
-      context.avatarId = identity.avatarId;
-      context.deckId = identity.deckId;
+      await this.#bindIdentityFromToken(context, command);
       if (context.playerId) {
         updatePlayerCosmetics({
           playerId: context.playerId,
@@ -1331,6 +1616,14 @@ class GameServer {
       const allowedStakes = [20, 50, 100, 200, 500];
       const reqStake = Number(command.stakePool ?? command.stake ?? 50);
       context.stakePool = allowedStakes.includes(reqStake) ? reqStake : 50;
+      try {
+        await assertCanAfford(context.playerId, Math.floor(context.stakePool / 2) || context.stakePool);
+      } catch (error) {
+        if (!error?.message?.includes('MySQL pool not initialized')) {
+          this.#error(context.socket, error.code || 'insufficient_funds', error.message);
+          return;
+        }
+      }
       context.queueJoinedAt = Date.now();
       this.matchQueue.push(context);
       this.#tryFormMatch();
@@ -1346,11 +1639,7 @@ class GameServer {
     if (command.type === 'createRoom') {
       this.#dequeue(context);
       this.#leaveCurrentRoom(context);
-      const identity = this.#identityFromCommand(command);
-      context.playerId = identity.playerId;
-      context.displayName = identity.displayName;
-      context.avatarId = identity.avatarId;
-      context.deckId = identity.deckId;
+      await this.#bindIdentityFromToken(context, command);
       if (context.playerId) {
         updatePlayerCosmetics({
           playerId: context.playerId,
@@ -1377,11 +1666,7 @@ class GameServer {
       const room = this.rooms.get(roomId);
       if (!room) throw new GameRuleError('room_not_found', 'Room not found');
       this.#leaveCurrentRoom(context);
-      const identity = this.#identityFromCommand(command);
-      context.playerId = identity.playerId;
-      context.displayName = identity.displayName;
-      context.avatarId = identity.avatarId;
-      context.deckId = identity.deckId;
+      await this.#bindIdentityFromToken(context, command);
       if (context.playerId) {
         updatePlayerCosmetics({
           playerId: context.playerId,
@@ -1540,7 +1825,28 @@ class GameServer {
     let roomId;
     do roomId = createRoomCode(); while (this.rooms.has(roomId));
     const stakePool = context.stakePool || 50;
+    const stakePerPlayer = Math.floor(stakePool / 2) || stakePool;
+    let escrowed = false;
+    try {
+      const result = await escrowStake({
+        playerIds: [context.playerId, botUser.playerId],
+        stake: stakePerPlayer,
+      });
+      escrowed = Boolean(result?.escrowed);
+    } catch (error) {
+      if (!error?.message?.includes('MySQL pool not initialized')) {
+        console.error('[bot] escrow failed', error);
+        this.activeBotPlayerIds.delete(botUser.playerId);
+        this.#error(context.socket, error.code || 'insufficient_funds', error.message);
+        // Requeue human for another attempt
+        context.queueJoinedAt = Date.now();
+        this.matchQueue.push(context);
+        this.#scheduleBotMatch(context);
+        return;
+      }
+    }
     const room = this.#createRoom(roomId, 'random', stakePool);
+    room.escrowed = escrowed;
     context.roomId = roomId;
 
     const botClientId = `bot-client-${crypto.randomUUID()}`;
@@ -1571,6 +1877,10 @@ class GameServer {
   }
 
   #tryFormMatch() {
+    void this.#tryFormMatchAsync();
+  }
+
+  async #tryFormMatchAsync() {
     this.matchQueue = this.matchQueue.filter(
       (ctx) => ctx.socket && ctx.socket.readyState === WebSocket.OPEN
     );
@@ -1594,9 +1904,30 @@ class GameServer {
           (c) => c.id !== first.id && c.id !== second.id
         );
 
+        const stakePerPlayer = Math.floor(stake / 2) || stake;
+        let escrowed = false;
+        try {
+          const result = await escrowStake({
+            playerIds: [first.playerId, second.playerId],
+            stake: stakePerPlayer,
+          });
+          escrowed = Boolean(result?.escrowed);
+        } catch (error) {
+          if (!error?.message?.includes('MySQL pool not initialized')) {
+            console.error('[matchmaking] escrow failed', error);
+            this.#error(first.socket, error.code || 'insufficient_funds', error.message);
+            this.#error(second.socket, error.code || 'insufficient_funds', error.message);
+            first.queueJoinedAt = Date.now();
+            second.queueJoinedAt = Date.now();
+            this.matchQueue.push(first, second);
+            continue;
+          }
+        }
+
         let roomId;
         do roomId = createRoomCode(); while (this.rooms.has(roomId));
         const room = this.#createRoom(roomId, 'random', stake);
+        room.escrowed = escrowed;
         first.roomId = roomId;
         second.roomId = roomId;
         room.addPlayer(first.id, {
@@ -1637,6 +1968,7 @@ class GameServer {
     room.stakePool = Number(stakePool) || 0;
     room.stakePerPlayer = Math.floor(room.stakePool / 2);
     room.potAmount = room.stakePool;
+    room.escrowed = false;
     this.rooms.set(roomId, room);
     return room;
   }
@@ -1659,6 +1991,9 @@ class GameServer {
   }
 
   async #handleDeviceRegister(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -1666,7 +2001,7 @@ class GameServer {
       sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
       return;
     }
-    const playerId = typeof body.playerId === 'string' ? body.playerId.trim() : '';
+    const playerId = auth.playerId;
     const token = typeof body.token === 'string' ? body.token.trim() : '';
     const platformRaw =
       typeof body.platform === 'string' ? body.platform.trim().toLowerCase() : '';
@@ -1675,7 +2010,7 @@ class GameServer {
     if (!playerId || !token || !platform) {
       sendJson(response, 400, {
         error: 'invalid_body',
-        message: 'playerId, token, and platform (android|ios) required',
+        message: 'token and platform (android|ios) required',
       });
       return;
     }
@@ -1697,6 +2032,9 @@ class GameServer {
   }
 
   async #handleDeviceUnregister(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
     let body;
     try {
       body = await readJsonBody(request);
@@ -1723,11 +2061,14 @@ class GameServer {
   }
 
   async #handleGetNotifyPrefs(request, response, url) {
-    const playerId = this.#playerIdFromPath(url.pathname, '/notify-prefs');
-    if (!playerId) {
-      sendJson(response, 400, { error: 'invalid_path', message: 'playerId required' });
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    const pathPlayerId = this.#playerIdFromPath(url.pathname, '/notify-prefs');
+    if (!pathPlayerId || pathPlayerId !== auth.playerId) {
+      sendJson(response, 403, { error: 'forbidden', message: 'Cannot access another player' });
       return;
     }
+    const playerId = auth.playerId;
     try {
       const prefs = await getNotifyPrefs(playerId);
       if (!prefs) {
@@ -1742,11 +2083,14 @@ class GameServer {
   }
 
   async #handleUpdateNotifyPrefs(request, response, url) {
-    const playerId = this.#playerIdFromPath(url.pathname, '/notify-prefs');
-    if (!playerId) {
-      sendJson(response, 400, { error: 'invalid_path', message: 'playerId required' });
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    const pathPlayerId = this.#playerIdFromPath(url.pathname, '/notify-prefs');
+    if (!pathPlayerId || pathPlayerId !== auth.playerId) {
+      sendJson(response, 403, { error: 'forbidden', message: 'Cannot access another player' });
       return;
     }
+    const playerId = auth.playerId;
     let body;
     try {
       body = await readJsonBody(request);
@@ -1774,11 +2118,14 @@ class GameServer {
   }
 
   async #handleListNotifications(request, response, url) {
-    const playerId = this.#playerIdFromPath(url.pathname, '/notifications');
-    if (!playerId) {
-      sendJson(response, 400, { error: 'invalid_path', message: 'playerId required' });
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    const pathPlayerId = this.#playerIdFromPath(url.pathname, '/notifications');
+    if (!pathPlayerId || pathPlayerId !== auth.playerId) {
+      sendJson(response, 403, { error: 'forbidden', message: 'Cannot access another player' });
       return;
     }
+    const playerId = auth.playerId;
     try {
       if (!(await playerExists(playerId))) {
         sendJson(response, 404, { error: 'not_found', message: 'Player not found' });
@@ -1795,11 +2142,14 @@ class GameServer {
   }
 
   async #handleMarkNotificationsRead(request, response, url) {
-    const playerId = this.#playerIdFromPath(url.pathname, '/notifications/read');
-    if (!playerId) {
-      sendJson(response, 400, { error: 'invalid_path', message: 'playerId required' });
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    const pathPlayerId = this.#playerIdFromPath(url.pathname, '/notifications/read');
+    if (!pathPlayerId || pathPlayerId !== auth.playerId) {
+      sendJson(response, 403, { error: 'forbidden', message: 'Cannot access another player' });
       return;
     }
+    const playerId = auth.playerId;
     let body;
     try {
       body = await readJsonBody(request);

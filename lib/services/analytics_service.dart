@@ -80,6 +80,10 @@ class AnalyticsService {
     await logEvent(name: 'sign_out');
   }
 
+  Future<void> setCollectionEnabled(bool enabled) async {
+    await _run((fa) => fa.setAnalyticsCollectionEnabled(enabled));
+  }
+
   Future<void> setUserId(String? userId) async {
     await _run((fa) => fa.setUserId(id: userId));
   }

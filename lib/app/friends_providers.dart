@@ -27,7 +27,10 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
         outgoingRequests: [],
       );
     }
-    final data = await _api.getFriends(playerId: profile.playerId);
+    final data = await _api.getFriends(
+      playerId: profile.playerId,
+      accessToken: profile.accessToken,
+    );
     // Sync online friend count
     ref.read(connectedFriendsCountProvider.notifier).setCount(data.onlineCount);
     return data;
@@ -46,7 +49,10 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
           outgoingRequests: [],
         );
       }
-      final data = await _api.getFriends(playerId: profile.playerId);
+      final data = await _api.getFriends(
+        playerId: profile.playerId,
+        accessToken: profile.accessToken,
+      );
       ref
           .read(connectedFriendsCountProvider.notifier)
           .setCount(data.onlineCount);
@@ -65,6 +71,7 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
       playerId: profile.playerId,
       targetPlayerId: targetPlayerId,
       targetUsername: targetUsername,
+      accessToken: profile.accessToken,
     );
     await refresh();
   }
@@ -77,6 +84,7 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
       playerId: profile.playerId,
       requesterId: requesterId,
       requestId: requestId,
+      accessToken: profile.accessToken,
     );
     await refresh();
   }
@@ -89,6 +97,7 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
       playerId: profile.playerId,
       requesterId: requesterId,
       requestId: requestId,
+      accessToken: profile.accessToken,
     );
     await refresh();
   }
@@ -104,6 +113,7 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
       playerId: profile.playerId,
       targetPlayerId: targetPlayerId,
       requestId: requestId,
+      accessToken: profile.accessToken,
     );
     await refresh();
   }
@@ -116,8 +126,36 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
       playerId: profile.playerId,
       friendId: friendId,
       friendshipId: friendshipId,
+      accessToken: profile.accessToken,
     );
     await refresh();
+  }
+
+  Future<void> blockPlayer({required String targetPlayerId}) async {
+    final profile = await ref.read(playerProfileProvider.future);
+    if (profile.isEmpty) return;
+
+    await _api.blockPlayer(
+      playerId: profile.playerId,
+      targetPlayerId: targetPlayerId,
+      accessToken: profile.accessToken,
+    );
+    await refresh();
+  }
+
+  Future<void> reportPlayer({
+    required String targetPlayerId,
+    String? reason,
+  }) async {
+    final profile = await ref.read(playerProfileProvider.future);
+    if (profile.isEmpty) return;
+
+    await ref.read(profileApiServiceProvider).reportPlayer(
+      playerId: profile.playerId,
+      targetPlayerId: targetPlayerId,
+      reason: reason,
+      accessToken: profile.accessToken,
+    );
   }
 }
 
@@ -184,6 +222,7 @@ class PlayerSearchNotifier extends Notifier<PlayerSearchState> {
       final results = await api.searchPlayers(
         query: query,
         playerId: profile?.playerId,
+        accessToken: profile?.accessToken,
       );
       state = state.copyWith(results: results, isLoading: false, error: null);
     } catch (e) {
@@ -204,6 +243,7 @@ class PlayerSearchNotifier extends Notifier<PlayerSearchState> {
       final res = await api.sendFriendRequest(
         playerId: profile.playerId,
         targetPlayerId: player.playerId,
+        accessToken: profile.accessToken,
       );
       final newStatus =
           res['status'] == 'accepted'
@@ -241,6 +281,7 @@ class PlayerSearchNotifier extends Notifier<PlayerSearchState> {
       await api.acceptFriendRequest(
         playerId: profile.playerId,
         requesterId: player.playerId,
+        accessToken: profile.accessToken,
       );
 
       final updatedResults =

@@ -11,6 +11,8 @@ function getAdRewardMoney() {
 }
 
 const AD_REWARD_MONEY = getAdRewardMoney();
+const AD_DAILY_CAP = 5;
+const AD_COOLDOWN_MS = 60_000;
 
 const AVATAR_CATALOG = [
   { id: 'default', name: 'Default', price: 0, currency: 'money', requiredLevel: 1 },
@@ -108,13 +110,41 @@ async function ensureMarketplaceSchema() {
         CONSTRAINT fk_iap_player FOREIGN KEY (player_id) REFERENCES players (id) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS ad_reward_claims (
+        id VARCHAR(64) NOT NULL PRIMARY KEY,
+        player_id VARCHAR(64) NOT NULL,
+        claimed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_ad_claims_player_time (player_id, claimed_at),
+        CONSTRAINT fk_ad_claim_player FOREIGN KEY (player_id) REFERENCES players (id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
   } finally {
     conn.release();
   }
 }
 
 /**
+ * Resolve catalog price for an avatar or deck (ignores client price).
+ * @param {'avatar'|'deck'} itemType
+ * @param {string} itemId
+ * @returns {{ currency: string, price: number }}
+ */
+function resolveCatalogPrice(itemType, itemId) {
+  const catalog = itemType === 'deck' ? DECK_CATALOG : AVATAR_CATALOG;
+  const catalogItem = catalog.find((item) => item.id === itemId);
+  if (!catalogItem) {
+    const error = new Error(`Unknown ${itemType}`);
+    error.code = 'invalid_item_id';
+    throw error;
+  }
+  return { currency: catalogItem.currency, price: catalogItem.price };
+}
+
+/**
  * Persist equipped avatar/deck for a player (identity sync / equip).
+ * Requires ownership (default or player_items row).
  */
 async function updatePlayerCosmetics({ playerId, avatarId, deckId }) {
   if (!playerId) return null;
@@ -126,6 +156,19 @@ async function updatePlayerCosmetics({ playerId, avatarId, deckId }) {
     const id = avatarId.trim().slice(0, 64);
     const known = AVATAR_CATALOG.some((a) => a.id === id);
     if (known) {
+      if (id !== 'default') {
+        const [owned] = await pool.execute(
+          `SELECT 1 AS ok FROM player_items
+           WHERE player_id = :playerId AND item_type = 'avatar' AND item_id = :itemId
+           LIMIT 1`,
+          { playerId, itemId: id },
+        );
+        if (owned.length === 0) {
+          const error = new Error('Avatar not owned');
+          error.code = 'not_owned';
+          throw error;
+        }
+      }
       updates.push('avatar_id = :avatarId');
       params.avatarId = id;
     }
@@ -134,6 +177,19 @@ async function updatePlayerCosmetics({ playerId, avatarId, deckId }) {
     const id = deckId.trim().slice(0, 64);
     const known = DECK_CATALOG.some((d) => d.id === id);
     if (known) {
+      if (id !== 'default') {
+        const [owned] = await pool.execute(
+          `SELECT 1 AS ok FROM player_items
+           WHERE player_id = :playerId AND item_type = 'deck' AND item_id = :itemId
+           LIMIT 1`,
+          { playerId, itemId: id },
+        );
+        if (owned.length === 0) {
+          const error = new Error('Deck not owned');
+          error.code = 'not_owned';
+          throw error;
+        }
+      }
       updates.push('deck_id = :deckId');
       params.deckId = id;
     }
@@ -323,6 +379,15 @@ async function purchaseItem({ playerId, itemType, itemId, currency, price }) {
     }
     resolvedCurrency = catalogItem.currency;
     parsedPrice = catalogItem.price;
+  } else if (itemType === 'avatar') {
+    const catalogItem = AVATAR_CATALOG.find((avatar) => avatar.id === itemId);
+    if (!catalogItem) {
+      const error = new Error('Unknown avatar');
+      error.code = 'invalid_item_id';
+      throw error;
+    }
+    resolvedCurrency = catalogItem.currency;
+    parsedPrice = catalogItem.price;
   } else {
     if (!['money', 'chips'].includes(currency)) {
       const error = new Error('Invalid currency');
@@ -420,8 +485,11 @@ async function purchaseItem({ playerId, itemType, itemId, currency, price }) {
   }
 }
 
+const AD_REWARD_DAILY_CAP = 5;
+const AD_REWARD_COOLDOWN_MS = 60_000;
+
 /**
- * Claim rewarded ad bonus (+50 Money).
+ * Claim rewarded ad bonus with daily cap + cooldown.
  */
 async function claimRewardedAdBonus(playerId) {
   if (!playerId) {
@@ -448,6 +516,37 @@ async function claimRewardedAdBonus(playerId) {
       throw error;
     }
 
+    const [recent] = await conn.execute(
+      `SELECT claimed_at FROM ad_reward_claims
+       WHERE player_id = :playerId
+       ORDER BY claimed_at DESC
+       LIMIT 1`,
+      { playerId },
+    );
+    if (recent.length > 0) {
+      const last = new Date(recent[0].claimed_at).getTime();
+      if (Date.now() - last < AD_REWARD_COOLDOWN_MS) {
+        await conn.rollback();
+        const error = new Error('Ad reward cooldown active');
+        error.code = 'ad_cooldown';
+        throw error;
+      }
+    }
+
+    const [dayCountRows] = await conn.execute(
+      `SELECT COUNT(*) AS cnt FROM ad_reward_claims
+       WHERE player_id = :playerId
+         AND claimed_at >= UTC_DATE()`,
+      { playerId },
+    );
+    const dayCount = Number(dayCountRows[0]?.cnt) || 0;
+    if (dayCount >= AD_REWARD_DAILY_CAP) {
+      await conn.rollback();
+      const error = new Error('Daily ad reward cap reached');
+      error.code = 'ad_daily_cap';
+      throw error;
+    }
+
     const rewardAmount = getAdRewardMoney();
     const currentMoney = Number(rows[0].money) || 0;
     const currentChips = Number(rows[0].chips) || 0;
@@ -457,6 +556,10 @@ async function claimRewardedAdBonus(playerId) {
       `UPDATE players SET money = :money, last_seen_at = CURRENT_TIMESTAMP WHERE id = :playerId`,
       { money: newMoney, playerId },
     );
+    await conn.execute(
+      `INSERT INTO ad_reward_claims (id, player_id) VALUES (:id, :playerId)`,
+      { id: `ad-${randomUUID()}`, playerId },
+    );
 
     await conn.commit();
 
@@ -465,6 +568,8 @@ async function claimRewardedAdBonus(playerId) {
       money: newMoney,
       chips: currentChips,
       reward: rewardAmount,
+      claimsToday: dayCount + 1,
+      dailyCap: AD_REWARD_DAILY_CAP,
     };
   } catch (error) {
     await conn.rollback().catch(() => {});
@@ -494,6 +599,73 @@ const IAP_CATALOG = {
 };
 
 /**
+ * Verify purchase appears on RevenueCat subscriber when secret configured.
+ * SKIP_IAP_VERIFY=1 skips (tests). Missing key: allow non-prod, reject production.
+ */
+async function verifyRevenueCatPurchase({ playerId, productId, transactionId }) {
+  if (process.env.SKIP_IAP_VERIFY === '1') {
+    return true;
+  }
+
+  const secret =
+    typeof process.env.REVENUECAT_SECRET_API_KEY === 'string'
+      ? process.env.REVENUECAT_SECRET_API_KEY.trim()
+      : '';
+
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      const error = new Error('IAP verification unavailable');
+      error.code = 'iap_verify_unavailable';
+      throw error;
+    }
+    return true;
+  }
+
+  const url = `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(playerId)}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = new Error(`RevenueCat verify failed (${response.status})`);
+    error.code = 'iap_verify_failed';
+    throw error;
+  }
+
+  const body = await response.json();
+  const subscriber = body?.subscriber || body;
+  const nonSubs = subscriber?.non_subscriptions || {};
+  const purchases = nonSubs[productId];
+  if (Array.isArray(purchases)) {
+    const hit = purchases.some(
+      (p) =>
+        p &&
+        (String(p.id) === String(transactionId) ||
+          String(p.store_transaction_id || '') === String(transactionId)),
+    );
+    if (hit) return true;
+  }
+
+  const subs = subscriber?.subscriptions || {};
+  const sub = subs[productId];
+  if (sub) {
+    const storeId = String(
+      sub.store_transaction_id || sub.original_transaction_id || '',
+    );
+    if (storeId && storeId === String(transactionId)) return true;
+    if (sub.purchase_date || sub.original_purchase_date) return true;
+  }
+
+  const error = new Error('Purchase not found on RevenueCat subscriber');
+  error.code = 'iap_not_found';
+  throw error;
+}
+
+/**
  * Redeem an IAP purchase idempotently based on store transactionId.
  */
 async function redeemIapPurchase({ playerId, productId, transactionId }) {
@@ -519,6 +691,8 @@ async function redeemIapPurchase({ playerId, productId, transactionId }) {
     error.code = 'invalid_product_id';
     throw error;
   }
+
+  await verifyRevenueCatPurchase({ playerId, productId, transactionId });
 
   const pool = getPool();
   const conn = await pool.getConnection();
@@ -608,10 +782,15 @@ module.exports = {
   STARTING_CHIPS,
   MONEY_PER_CHIP,
   AD_REWARD_MONEY,
+  AD_DAILY_CAP,
+  AD_COOLDOWN_MS,
+  AD_REWARD_DAILY_CAP,
+  AD_REWARD_COOLDOWN_MS,
   AVATAR_CATALOG,
   DECK_CATALOG,
   IAP_CATALOG,
   getAdRewardMoney,
+  resolveCatalogPrice,
   ensureMarketplaceSchema,
   getPlayerInventory,
   exchangeCurrency,
@@ -619,4 +798,5 @@ module.exports = {
   claimRewardedAdBonus,
   redeemIapPurchase,
   updatePlayerCosmetics,
+  verifyRevenueCatPurchase,
 };

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cardgame/data/auth/auth_headers.dart';
 import 'package:http/http.dart' as http;
 
 class FriendsApiException implements Exception {
@@ -238,11 +239,16 @@ class FriendsApi {
   final String baseUrl;
   final http.Client _client;
 
-  Future<FriendsData> getFriends({required String playerId}) async {
+  Future<FriendsData> getFriends({
+    required String playerId,
+    String? accessToken,
+  }) async {
     final uri = Uri.parse(
       '$baseUrl/friends',
     ).replace(queryParameters: {'playerId': playerId});
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    final response = await _client
+        .get(uri, headers: authHeaders(accessToken))
+        .timeout(const Duration(seconds: 8));
     final body = _decodeMap(response);
 
     final friendsList =
@@ -278,6 +284,7 @@ class FriendsApi {
     required String query,
     String? playerId,
     int limit = 20,
+    String? accessToken,
   }) async {
     final params = <String, String>{'query': query, 'limit': '$limit'};
     if (playerId != null && playerId.isNotEmpty) {
@@ -286,7 +293,9 @@ class FriendsApi {
     final uri = Uri.parse(
       '$baseUrl/friends/search',
     ).replace(queryParameters: params);
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    final response = await _client
+        .get(uri, headers: authHeaders(accessToken))
+        .timeout(const Duration(seconds: 8));
     final body = _decodeMap(response);
     final players =
         (body['players'] as List? ?? [])
@@ -302,12 +311,13 @@ class FriendsApi {
     required String playerId,
     String? targetPlayerId,
     String? targetUsername,
+    String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/friends/request');
     final response = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode({
             'playerId': playerId,
             if (targetPlayerId != null) 'targetPlayerId': targetPlayerId,
@@ -322,12 +332,13 @@ class FriendsApi {
     required String playerId,
     String? requesterId,
     String? requestId,
+    String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/friends/accept');
     final response = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode({
             'playerId': playerId,
             if (requesterId != null) 'requesterId': requesterId,
@@ -342,12 +353,13 @@ class FriendsApi {
     required String playerId,
     String? requesterId,
     String? requestId,
+    String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/friends/decline');
     final response = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode({
             'playerId': playerId,
             if (requesterId != null) 'requesterId': requesterId,
@@ -362,12 +374,13 @@ class FriendsApi {
     required String playerId,
     String? targetPlayerId,
     String? requestId,
+    String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/friends/cancel');
     final response = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode({
             'playerId': playerId,
             if (targetPlayerId != null) 'targetPlayerId': targetPlayerId,
@@ -382,16 +395,36 @@ class FriendsApi {
     required String playerId,
     String? friendId,
     String? friendshipId,
+    String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/friends/remove');
     final response = await _client
         .post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode({
             'playerId': playerId,
             if (friendId != null) 'friendId': friendId,
             if (friendshipId != null) 'friendshipId': friendshipId,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+    _decodeMap(response);
+  }
+
+  Future<void> blockPlayer({
+    required String playerId,
+    required String targetPlayerId,
+    String? accessToken,
+  }) async {
+    final uri = Uri.parse('$baseUrl/friends/block');
+    final response = await _client
+        .post(
+          uri,
+          headers: authHeaders(accessToken),
+          body: jsonEncode({
+            'playerId': playerId,
+            'targetPlayerId': targetPlayerId,
           }),
         )
         .timeout(const Duration(seconds: 8));

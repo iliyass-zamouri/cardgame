@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const WebSocket = require('ws');
 const { GameServer } = require('../game_server');
+const { testToken } = require('./session_helpers');
+const { signSession } = require('../auth/session');
 const { acquireBotUser } = require('../db/bots');
 const { ServerRobotPlayer } = require('../bot_player');
 const { GameRoom } = require('../game_room');
@@ -36,8 +38,8 @@ test('findMatch triggers bot match after queue timeout', async (t) => {
 
   client.send(JSON.stringify({
     type: 'findMatch',
-    playerId: 'p-human-1',
     displayName: 'Alice',
+    token: await authToken('p-human-1'),
   }));
 
   const game = await playingPromise;
@@ -68,8 +70,8 @@ test('cancelFindMatch clears timer and stops bot match', async (t) => {
 
   client.send(JSON.stringify({
     type: 'findMatch',
-    playerId: 'p-human-cancel',
     displayName: 'Bob',
+    token: await authToken('p-human-cancel'),
   }));
 
   await new Promise((resolve) => setTimeout(resolve, 20));
@@ -112,13 +114,13 @@ test('two human players join before timer and pair without bot', async (t) => {
 
   first.send(JSON.stringify({
     type: 'findMatch',
-    playerId: 'h1',
     displayName: 'Human1',
+    token: await authToken('h1'),
   }));
   second.send(JSON.stringify({
     type: 'findMatch',
-    playerId: 'h2',
     displayName: 'Human2',
+    token: await authToken('h2'),
   }));
 
   const [firstGame, secondGame] = await Promise.all([firstPlaying, secondPlaying]);
@@ -216,6 +218,7 @@ test('abandoned bot room cleans up bot runner and activeBotPlayerIds', async (t)
 
   client.send(JSON.stringify({
     type: 'findMatch',
+    token: await testToken('p-disconnect'),
     playerId: 'p-disconnect',
     displayName: 'DisconnectingUser',
   }));
@@ -225,7 +228,7 @@ test('abandoned bot room cleans up bot runner and activeBotPlayerIds', async (t)
   assert.equal(server.activeBotPlayerIds.size, 1);
   assert.equal(server.roomBots.size, 1);
 
-  // Client disconnects
+  // Vs-bot: disconnect forfeits immediately and cleans bot runners
   client.close();
   await new Promise((resolve) => setTimeout(resolve, 50));
 
@@ -233,6 +236,10 @@ test('abandoned bot room cleans up bot runner and activeBotPlayerIds', async (t)
   assert.equal(server.activeBotPlayerIds.size, 0);
   assert.equal(server.roomBots.size, 0);
 });
+
+async function authToken(playerId) {
+  return signSession({ playerId, tokenVersion: 0 });
+}
 
 async function connect(port) {
   const socket = new WebSocket(`ws://127.0.0.1:${port}`);

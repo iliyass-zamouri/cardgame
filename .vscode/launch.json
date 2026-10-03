@@ -107,6 +107,17 @@
       ]
     },
     {
+      "name": "Flutter: Xiomi (prod)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "deviceId": "adb-3c6895db-W4O3MV._adb-tls-connect._tcp",
+      "toolArgs": [
+        "--dart-define-from-file=flavors/prod.json"
+      ]
+    },
+    {
       "name": "Flutter: Android Device (prod)",
       "request": "launch",
       "type": "dart",

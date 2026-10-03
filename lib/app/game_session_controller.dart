@@ -25,7 +25,12 @@ final gameSessionProvider =
 class GameSessionController extends Notifier<GameSessionState> {
   GameSocket? _socket;
   StreamSubscription<String>? _subscription;
+  Timer? _reconnectTimer;
+  int _reconnectAttempt = 0;
   bool _offlineMode = false;
+
+  static const _reconnectDelaysSec = [1, 2, 4];
+  static const _maxReconnectAttempts = 3;
 
   @override
   GameSessionState build() {
@@ -42,17 +47,22 @@ class GameSessionController extends Notifier<GameSessionState> {
             ? asyncProfile
             : repoProfile;
     if (activeProfile.isEmpty) return const {};
+    final token = activeProfile.accessToken;
     return {
       'playerId': activeProfile.playerId,
       'displayName': activeProfile.name,
       'avatarId': activeProfile.avatarId,
       'deckId': activeProfile.deckId,
+      if (token != null && token.isNotEmpty) 'token': token,
     };
   }
 
-  void connect() {
+  void connect({bool resetReconnect = true}) {
     if (_offlineMode) return;
-    _disposeSocket();
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    if (resetReconnect) _reconnectAttempt = 0;
+    _disposeSocket(cancelReconnect: false);
     state = state.copyWith(
       connection: ConnectionStatus.connecting,
       message: null,
@@ -64,7 +74,8 @@ class GameSessionController extends Notifier<GameSessionState> {
 
   /// Start an offline match vs the heuristic robot. No network required.
   void playVsRobot({String robotName = 'Robot'}) {
-    _disposeSocket();
+    _cancelReconnect();
+    _disposeSocket(cancelReconnect: false);
     _offlineMode = true;
     final asyncProfile = ref.read(playerProfileProvider).asData?.value;
     final repoProfile = ref.read(playerProfileRepositoryProvider).load();
@@ -107,6 +118,7 @@ class GameSessionController extends Notifier<GameSessionState> {
           message: 'connection_lost',
           searchingMatch: false,
         );
+        _maybeScheduleReconnect();
       },
       onDone: () {
         if (_offlineMode) return;
@@ -114,8 +126,37 @@ class GameSessionController extends Notifier<GameSessionState> {
           connection: ConnectionStatus.disconnected,
           searchingMatch: false,
         );
+        _maybeScheduleReconnect();
       },
     );
+  }
+
+  void _maybeScheduleReconnect() {
+    if (_offlineMode) return;
+    final game = state.game;
+    final roomId = game?.roomId;
+    if (game == null || roomId == null || roomId.isEmpty) return;
+    if (_reconnectAttempt >= _maxReconnectAttempts) return;
+    if (_reconnectTimer != null) return;
+
+    final delaySec =
+        _reconnectDelaysSec[_reconnectAttempt.clamp(
+          0,
+          _reconnectDelaysSec.length - 1,
+        )];
+    _reconnectAttempt++;
+    _reconnectTimer = Timer(Duration(seconds: delaySec), () {
+      _reconnectTimer = null;
+      if (_offlineMode) return;
+      if (state.game == null) return;
+      connect(resetReconnect: false);
+    });
+  }
+
+  void _cancelReconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _reconnectAttempt = 0;
   }
 
   void createRoom() => _send('createRoom', _identityPayload);
@@ -140,9 +181,10 @@ class GameSessionController extends Notifier<GameSessionState> {
   }
 
   void leaveRoom() {
+    _cancelReconnect();
     if (_offlineMode) {
       _offlineMode = false;
-      _disposeSocket();
+      _disposeSocket(cancelReconnect: false);
       state = state.copyWith(
         game: null,
         message: null,
@@ -306,6 +348,7 @@ class GameSessionController extends Notifier<GameSessionState> {
     final message = jsonDecode(raw) as Map<String, dynamic>;
     switch (message['type']) {
       case 'connected':
+        _reconnectAttempt = 0;
         state = state.copyWith(
           connection: ConnectionStatus.connected,
           clientId: message['clientId'] as String?,
@@ -357,6 +400,7 @@ class GameSessionController extends Notifier<GameSessionState> {
         }
         break;
       case 'leftRoom':
+        _cancelReconnect();
         state = state.copyWith(
           game: null,
           message: null,
@@ -469,7 +513,8 @@ class GameSessionController extends Notifier<GameSessionState> {
     _socket!.send(jsonEncode({'type': type, ...payload}));
   }
 
-  void _disposeSocket() {
+  void _disposeSocket({bool cancelReconnect = true}) {
+    if (cancelReconnect) _cancelReconnect();
     _subscription?.cancel();
     _subscription = null;
     _socket?.close();

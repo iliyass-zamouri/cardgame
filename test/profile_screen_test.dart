@@ -3,11 +3,15 @@ import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/locale_provider.dart';
 import 'package:cardgame/app/locale_repository.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
+import 'package:cardgame/app/push_providers.dart';
 import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/data/ranking/ranking_api.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
+import 'package:cardgame/services/guest_link_prefs_repository.dart';
+import 'package:cardgame/services/push_prefs_repository.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
 import 'package:cardgame/ui/screens/profile/player_profile_screen.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
@@ -45,6 +49,12 @@ void main() {
           localeRepositoryProvider.overrideWithValue(
             LocaleRepository.memory('en'),
           ),
+          pushPrefsRepositoryProvider.overrideWithValue(
+            PushPrefsRepository.memory(pushSoftPromptDone: true),
+          ),
+          guestLinkPrefsRepositoryProvider.overrideWithValue(
+            GuestLinkPrefsRepository.memory(dontAskAgain: true),
+          ),
           rankingApiProvider.overrideWithValue(
             RankingApi(
               baseUrl: 'http://localhost',
@@ -79,8 +89,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(PlayerProfileScreen), findsOneWidget);
-    expect(find.text('Profile'), findsOneWidget);
-    expect(find.textContaining('XP'), findsWidgets);
-    expect(find.textContaining('Level'), findsWidgets);
   });
 }

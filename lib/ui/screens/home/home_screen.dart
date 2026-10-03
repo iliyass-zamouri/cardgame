@@ -132,6 +132,11 @@ class _MatchmakingWaitingState extends ConsumerState<MatchmakingWaiting> {
   void initState() {
     super.initState();
     unawaited(SfxService.instance.startSearch());
+    // Show interstitial while queue search runs in background.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(ref.read(interstitialAdProvider).show());
+    });
   }
 
   @override
@@ -332,10 +337,7 @@ class WaitingRoom extends ConsumerWidget {
                 children: [
                   CasinoActionButton(
                     label: youReady ? l10n.waitingEllipsis : l10n.ready,
-                    icon:
-                        youReady
-                            ? AppIcons.hourglass
-                            : AppIcons.check,
+                    icon: youReady ? AppIcons.hourglass : AppIcons.check,
                     tone: CasinoActionTone.raise,
                     onPressed:
                         bothJoined && !youReady ? notifier.readyUp : null,
@@ -385,7 +387,9 @@ class _InviteFriendsSection extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const HugeIcon(icon: AppIcons.people, size: 16,
+              const HugeIcon(
+                icon: AppIcons.people,
+                size: 16,
                 color: CasinoColors.gold,
               ),
               const SizedBox(width: 8),
@@ -586,7 +590,9 @@ class _InviteFriendsSection extends ConsumerWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const HugeIcon(icon: AppIcons.check, size: 14,
+                                  const HugeIcon(
+                                    icon: AppIcons.check,
+                                    size: 14,
                                     color: CasinoColors.gold,
                                   ),
                                   const SizedBox(width: 4),
@@ -701,7 +707,9 @@ class _LobbySeat extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: CasinoColors.raise,
                     ),
-                    child: const HugeIcon(icon: AppIcons.check, size: 14,
+                    child: const HugeIcon(
+                      icon: AppIcons.check,
+                      size: 14,
                       color: CasinoColors.text,
                     ),
                   ),
@@ -961,10 +969,7 @@ class GameHud extends ConsumerWidget {
                   bottom: 16,
                   child: CasinoActionButton(
                     label: peekSelecting ? l10n.cancel : l10n.peek,
-                    icon:
-                        peekSelecting
-                            ? AppIcons.close
-                            : AppIcons.zoomIn,
+                    icon: peekSelecting ? AppIcons.close : AppIcons.zoomIn,
                     tone: CasinoActionTone.raise,
                     expanded: false,
                     onPressed: notifier.togglePeekSelecting,
@@ -1680,7 +1685,9 @@ class _GameMenuTile extends StatelessWidget {
                   ],
                 ),
               ),
-              HugeIcon(icon: AppIcons.chevronRight, size: 20,
+              HugeIcon(
+                icon: AppIcons.chevronRight,
+                size: 20,
                 color: CasinoColors.textMuted.withValues(alpha: 0.7),
               ),
             ],

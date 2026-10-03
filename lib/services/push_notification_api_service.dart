@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cardgame/data/auth/auth_headers.dart';
 import 'package:http/http.dart' as http;
 
 class NotifyPrefs {
@@ -160,29 +161,36 @@ class PushNotificationApiService {
     required String playerId,
     required String token,
     required String platform,
+    String? accessToken,
   }) async {
     await _postJson('/devices/register', {
       'playerId': playerId,
       'token': token,
       'platform': platform,
-    });
+    }, accessToken: accessToken);
   }
 
   Future<void> unregisterDevice({
     required String token,
     String? playerId,
+    String? accessToken,
   }) async {
     await _postJson('/devices/unregister', {
       'token': token,
       if (playerId != null && playerId.isNotEmpty) 'playerId': playerId,
-    });
+    }, accessToken: accessToken);
   }
 
-  Future<NotifyPrefs> getNotifyPrefs(String playerId) async {
+  Future<NotifyPrefs> getNotifyPrefs(
+    String playerId, {
+    String? accessToken,
+  }) async {
     final uri = Uri.parse(
       '$baseUrl/players/${Uri.encodeComponent(playerId)}/notify-prefs',
     );
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    final response = await _client
+        .get(uri, headers: authHeaders(accessToken))
+        .timeout(const Duration(seconds: 8));
     if (response.statusCode == 404) {
       throw PushApiException(
         'Player not found',
@@ -209,6 +217,7 @@ class PushNotificationApiService {
     bool? social,
     bool? ranking,
     bool? marketing,
+    String? accessToken,
   }) async {
     final body = <String, dynamic>{
       if (invites != null) 'invites': invites,
@@ -219,6 +228,7 @@ class PushNotificationApiService {
     final decoded = await _postJson(
       '/players/${Uri.encodeComponent(playerId)}/notify-prefs',
       body,
+      accessToken: accessToken,
     );
     return NotifyPrefs.fromJson(decoded);
   }
@@ -227,6 +237,7 @@ class PushNotificationApiService {
     String playerId, {
     int limit = 50,
     int offset = 0,
+    String? accessToken,
   }) async {
     final uri = Uri.parse(
       '$baseUrl/players/${Uri.encodeComponent(playerId)}/notifications',
@@ -236,7 +247,9 @@ class PushNotificationApiService {
         'offset': '$offset',
       },
     );
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    final response = await _client
+        .get(uri, headers: authHeaders(accessToken))
+        .timeout(const Duration(seconds: 8));
     if (response.statusCode == 404) {
       throw PushApiException(
         'Player not found',
@@ -261,6 +274,7 @@ class PushNotificationApiService {
     required String playerId,
     List<int>? ids,
     bool all = false,
+    String? accessToken,
   }) async {
     final decoded = await _postJson(
       '/players/${Uri.encodeComponent(playerId)}/notifications/read',
@@ -268,6 +282,7 @@ class PushNotificationApiService {
         if (all) 'all': true,
         if (ids != null) 'ids': ids,
       },
+      accessToken: accessToken,
     );
     return (
       total: (decoded['total'] as num?)?.toInt() ?? 0,
@@ -277,13 +292,14 @@ class PushNotificationApiService {
 
   Future<Map<String, dynamic>> _postJson(
     String path,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    String? accessToken,
+  }) async {
     final uri = Uri.parse('$baseUrl$path');
     final response = await _client
         .post(
           uri,
-          headers: const {'content-type': 'application/json'},
+          headers: authHeaders(accessToken),
           body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 8));

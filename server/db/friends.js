@@ -608,6 +608,35 @@ async function removeFriend({ playerId, friendId, friendshipId }) {
   return { success: result.affectedRows > 0 };
 }
 
+/**
+ * Block a player (upsert friendship as blocked).
+ */
+async function blockFriend({ playerId, targetPlayerId }) {
+  if (!playerId || !targetPlayerId) {
+    throw new Error('playerId and targetPlayerId required');
+  }
+  if (playerId === targetPlayerId) {
+    const error = new Error('Cannot block yourself');
+    error.code = 'invalid_target';
+    throw error;
+  }
+  const pool = getPool();
+  const id = `fr-${randomUUID()}`;
+  // Remove any existing friendship either direction, then insert blocked.
+  await pool.execute(
+    `DELETE FROM friendships
+     WHERE (player_id = :playerId AND friend_id = :targetPlayerId)
+        OR (player_id = :targetPlayerId AND friend_id = :playerId)`,
+    { playerId, targetPlayerId },
+  );
+  await pool.execute(
+    `INSERT INTO friendships (id, player_id, friend_id, status)
+     VALUES (:id, :playerId, :targetPlayerId, 'blocked')`,
+    { id, playerId, targetPlayerId },
+  );
+  return { success: true, blockedPlayerId: targetPlayerId };
+}
+
 module.exports = {
   isValidUsernameFormat,
   normalizeUsername,
@@ -621,4 +650,5 @@ module.exports = {
   declineFriendRequest,
   cancelFriendRequest,
   removeFriend,
+  blockFriend,
 };

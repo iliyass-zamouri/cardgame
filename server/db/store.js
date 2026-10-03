@@ -55,7 +55,7 @@ async function resolveLinkableGuest(deviceId) {
 const PLAYER_SELECT = `
   p.id, p.display_name, p.username, p.device_id,
   p.created_ip, p.last_ip, p.auth_type, p.google_sub, p.email,
-  p.money, p.chips
+  p.money, p.chips, p.token_version
 `;
 
 /**
@@ -139,7 +139,133 @@ function mapPlayerRow(row) {
     authType: row.auth_type || 'guest',
     money: row.money != null ? Number(row.money) : 500,
     chips: row.chips != null ? Number(row.chips) : 1,
+    tokenVersion:
+      row.token_version != null ? Number(row.token_version) : 0,
   };
+}
+
+/** Idempotent: players.token_version + player_reports. */
+async function ensureSessionSchema() {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    if (!(await columnExists(conn, 'players', 'token_version'))) {
+      await conn.query(
+        `ALTER TABLE players
+         ADD COLUMN token_version INT NOT NULL DEFAULT 0`,
+      );
+    }
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS player_reports (
+        id VARCHAR(64) NOT NULL PRIMARY KEY,
+        reporter_id VARCHAR(64) NOT NULL,
+        target_id VARCHAR(64) NOT NULL,
+        reason VARCHAR(128) NOT NULL,
+        details TEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_reports_reporter (reporter_id),
+        KEY idx_reports_target (target_id),
+        KEY idx_reports_created (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * @param {string} playerId
+ * @returns {Promise<number|null>} null if player missing
+ */
+async function getPlayerTokenVersion(playerId) {
+  if (!playerId) return null;
+  const pool = getPool();
+  const [rows] = await pool.execute(
+    `SELECT token_version FROM players WHERE id = :playerId LIMIT 1`,
+    { playerId },
+  );
+  if (rows.length === 0) return null;
+  return Number(rows[0].token_version) || 0;
+}
+
+/**
+ * @param {string} playerId
+ * @returns {Promise<number>} new token_version
+ */
+async function bumpTokenVersion(playerId) {
+  if (!playerId) throw new Error('playerId is required');
+  const pool = getPool();
+  await pool.execute(
+    `UPDATE players
+     SET token_version = token_version + 1,
+         last_seen_at = CURRENT_TIMESTAMP
+     WHERE id = :playerId`,
+    { playerId },
+  );
+  const version = await getPlayerTokenVersion(playerId);
+  if (version == null) {
+    const err = new Error('Player not found');
+    err.code = 'player_not_found';
+    throw err;
+  }
+  return version;
+}
+
+/**
+ * Hard-delete player row (cascades FKs where configured).
+ * @param {string} playerId
+ * @returns {Promise<boolean>}
+ */
+async function deletePlayerAccount(playerId) {
+  if (!playerId) throw new Error('playerId is required');
+  const pool = getPool();
+  const [result] = await pool.execute(
+    `DELETE FROM players WHERE id = :playerId`,
+    { playerId },
+  );
+  return result.affectedRows > 0;
+}
+
+/**
+ * @param {{ reporterId: string, targetId: string, reason?: string, details?: string }} input
+ */
+async function createPlayerReport({
+  reporterId,
+  targetId,
+  reason = 'other',
+  details = null,
+}) {
+  if (!reporterId || !targetId) {
+    const err = new Error('reporterId and targetId required');
+    err.code = 'invalid_parameters';
+    throw err;
+  }
+  if (reporterId === targetId) {
+    const err = new Error('Cannot report yourself');
+    err.code = 'invalid_target';
+    throw err;
+  }
+  const pool = getPool();
+  const id = `report-${randomUUID()}`;
+  const safeReason = String(reason || 'other').trim().slice(0, 128) || 'other';
+  const safeDetails =
+    typeof details === 'string' && details.trim()
+      ? details.trim().slice(0, 2000)
+      : null;
+
+  await pool.execute(
+    `INSERT INTO player_reports (id, reporter_id, target_id, reason, details)
+     VALUES (:id, :reporterId, :targetId, :reason, :details)`,
+    {
+      id,
+      reporterId,
+      targetId,
+      reason: safeReason,
+      details: safeDetails,
+    },
+  );
+  return { id, reporterId, targetId, reason: safeReason };
 }
 
 async function usernameExists(username) {
@@ -572,5 +698,10 @@ module.exports = {
   findGuestByDevice,
   findPlayerByGoogleSub,
   ensurePlayersEmailColumn,
+  ensureSessionSchema,
+  getPlayerTokenVersion,
+  bumpTokenVersion,
+  deletePlayerAccount,
+  createPlayerReport,
   GuestIpMismatchError,
 };

@@ -10,6 +10,8 @@ const gameServer = new GameServer({
 });
 
 async function main() {
+  const { assertSessionSecret } = require('./auth/session');
+  assertSessionSecret();
   await initDb();
   initFcm();
   const { host, port } = await gameServer.start();
