@@ -48,8 +48,20 @@ class SfxService {
   /// Long enough that double-discard's second put can bump the timer.
   static const _changeTurnAfterAction = Duration(milliseconds: 1100);
 
+  /// Sounds that fire during card animations. They get warm, pre-prepared
+  /// players so a play never pays for native player setup on the frame the
+  /// animation starts.
+  static const _pooledKinds = {
+    SfxKind.flip,
+    SfxKind.draw,
+    SfxKind.throwCard,
+    SfxKind.reveal,
+    SfxKind.changeTurn,
+  };
+
   bool enabled = true;
 
+  final Map<SfxKind, Future<AudioPool?>> _pools = {};
   final List<AudioPlayer> _oneshots = [];
   Timer? _searchTimer;
   Timer? _changeTurnTimer;
@@ -70,6 +82,17 @@ class SfxService {
     if (_isCardActionSfx(kind)) {
       _noteCardActionSfx();
     }
+    if (_pooledKinds.contains(kind)) {
+      final pool = await _poolFor(kind);
+      if (pool != null) {
+        try {
+          await pool.start();
+          return;
+        } catch (e) {
+          debugPrint('Sfx pooled play($kind) failed: $e');
+        }
+      }
+    }
     try {
       final player = AudioPlayer();
       _oneshots.add(player);
@@ -81,6 +104,27 @@ class SfxService {
     } catch (e) {
       debugPrint('Sfx play($kind) failed: $e');
     }
+  }
+
+  /// Prepare the in-game sound players ahead of the first card action.
+  /// Safe to call repeatedly.
+  Future<void> preload() async {
+    await Future.wait(_pooledKinds.map(_poolFor));
+  }
+
+  Future<AudioPool?> _poolFor(SfxKind kind) {
+    return _pools.putIfAbsent(kind, () async {
+      try {
+        return await AudioPool.createFromAsset(
+          path: _assets[kind]!,
+          minPlayers: 2,
+          maxPlayers: 4,
+        );
+      } catch (e) {
+        debugPrint('Sfx pool($kind) unavailable: $e');
+        return null;
+      }
+    });
   }
 
   bool _isCardActionSfx(SfxKind kind) =>
@@ -97,6 +141,8 @@ class SfxService {
   Future<void> startSearch() async {
     if (!enabled) return;
     if (_searching) return;
+    // Matchmaking wait is the ideal moment to warm the in-game players.
+    unawaited(preload());
     _searching = true;
     unawaited(_fireSearchPulse());
     _searchTimer?.cancel();

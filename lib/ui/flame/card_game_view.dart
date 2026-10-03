@@ -1,6 +1,7 @@
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/services/sfx_service.dart';
 import 'package:cardgame/ui/flame/card_game.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flame/game.dart';
@@ -21,6 +22,8 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
   void initState() {
     super.initState();
     _game = CardGame();
+    // Offline / invite games skip matchmaking, where this normally happens.
+    SfxService.instance.preload().ignore();
   }
 
   @override
