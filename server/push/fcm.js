@@ -110,6 +110,7 @@ async function sendToTokenRows(tokenRows, { title, body, data }) {
           priority: 'high',
           notification: {
             channelId: 'shadowhand_default',
+            icon: 'ic_stat_card',
           },
         },
         apns: {

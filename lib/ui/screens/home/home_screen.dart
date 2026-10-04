@@ -23,6 +23,7 @@ import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/city_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
+import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
@@ -216,122 +217,148 @@ class WaitingRoom extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final locale = Localizations.localeOf(context);
     final notifier = ref.read(gameSessionProvider.notifier);
     final bothJoined = game.ready;
     final youReady = game.you.lobbyReady;
     final opponentReady = game.opponent?.lobbyReady ?? false;
-    final yourName = game.you.displayName;
     final opponentName =
         game.opponent?.displayName ?? l10n.waitingEllipsisShort;
+
+    final status =
+        bothJoined
+            ? (youReady && !opponentReady
+                ? l10n.waitingForOpponentNamed(opponentName)
+                : !youReady && opponentReady
+                ? l10n.opponentIsReady(opponentName)
+                : l10n.bothPlayersJoined)
+            : l10n.shareCodeWithFriend;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 16, 28, 16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (bothJoined) const Spacer(flex: 1),
-              Text(
-                l10n.privateTable,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: CasinoColors.gold,
-                  fontSize: 24,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                bothJoined
-                    ? (youReady && !opponentReady
-                        ? l10n.waitingForOpponentNamed(opponentName)
-                        : !youReady && opponentReady
-                        ? l10n.opponentIsReady(opponentName)
-                        : l10n.bothPlayersJoined)
-                    : l10n.shareCodeWithFriend,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color:
-                      bothJoined
-                          ? CasinoColors.raiseHi
-                          : CasinoColors.textMuted,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-              if (bothJoined && youReady && !opponentReady) ...[
-                const SizedBox(height: 16),
-                const Center(child: SuitCardLoader(height: 24)),
-              ],
-              const SizedBox(height: 16),
-              if (bothJoined) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: _LobbySeat(
-                        name: yourName,
-                        connected: game.you.connected,
-                        ready: youReady,
-                        isYou: true,
-                        avatarId: game.you.avatarId,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+              // Title.
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SuitGlyph(
+                    suit: SuitShape.spades,
+                    size: 13,
+                    color: CasinoColors.gold.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
                       child: Text(
-                        l10n.vs,
-                        style: const TextStyle(
-                          color: CasinoColors.goldSoft,
-                          fontSize: 13,
+                        casinoButtonLabel(l10n.privateTable, locale),
+                        style: TextStyle(
+                          fontFamily: CasinoFonts.displayFor(locale),
+                          color: CasinoColors.gold,
+                          fontSize: 24,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
+                          letterSpacing: locale.languageCode == 'ar' ? 0 : 1.6,
                         ),
                       ),
                     ),
-                    Expanded(
-                      child: _LobbySeat(
-                        name: opponentName,
-                        connected: game.opponent?.connected ?? false,
-                        ready: opponentReady,
-                        isYou: false,
-                        avatarId: game.opponent?.avatarId ?? 'default',
-                      ),
-                    ),
-                  ],
+                  ),
+                  const SizedBox(width: 10),
+                  SuitGlyph(
+                    suit: SuitShape.hearts,
+                    size: 13,
+                    color: CasinoColors.gold.withValues(alpha: 0.8),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                status,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color:
+                      bothJoined
+                          ? CasinoColors.goldSoft
+                          : CasinoColors.textMuted,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
-                const SizedBox(height: 20),
-              ],
-              GestureDetector(
+              ),
+              const SizedBox(height: 14),
+              // Once both are seated there is no invite list; centre the table.
+              if (bothJoined) const Spacer(),
+
+              // The table with both seats.
+              _LobbyTable(
+                you: _LobbySeat(
+                  name: game.you.displayName,
+                  connected: game.you.connected,
+                  ready: youReady,
+                  isYou: true,
+                  avatarId: game.you.avatarId,
+                ),
+                opponent:
+                    game.opponent == null
+                        ? const _EmptySeat()
+                        : _LobbySeat(
+                          name: opponentName,
+                          connected: game.opponent!.connected,
+                          ready: opponentReady,
+                          isYou: false,
+                          avatarId: game.opponent!.avatarId,
+                        ),
+              ),
+              const SizedBox(height: 14),
+
+              // Table code, dealt as cards.
+              Pressable(
                 onTap: () async {
                   await Clipboard.setData(ClipboardData(text: game.roomId));
                   if (!context.mounted) return;
                   CasinoToast.show(context, context.l10n.codeCopied);
                 },
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    vertical: bothJoined ? 12 : 18,
-                    horizontal: 12,
+                child: FeltPanel(
+                  highlighted: true,
+                  padding: EdgeInsets.fromLTRB(
+                    12,
+                    bothJoined ? 12 : 14,
+                    12,
+                    bothJoined ? 10 : 12,
                   ),
-                  decoration: feltPanelDecoration(highlighted: true),
                   child: Column(
                     children: [
                       Semantics(
                         label: game.roomId,
                         child: _RoomCodeCards(
                           code: game.roomId,
-                          cardHeight: bothJoined ? 52 : 68,
+                          cardHeight: bothJoined ? 50 : 62,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        l10n.tapToCopy,
-                        style: const TextStyle(
-                          color: CasinoColors.textMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const HugeIcon(
+                            icon: AppIcons.copy,
+                            size: 13,
+                            color: CasinoColors.goldSoft,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.tapToCopy,
+                            style: const TextStyle(
+                              color: CasinoColors.goldSoft,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -340,32 +367,113 @@ class WaitingRoom extends ConsumerWidget {
               if (!bothJoined) ...[
                 const SizedBox(height: 16),
                 Expanded(child: _InviteFriendsSection(roomId: game.roomId)),
-                const SizedBox(height: 12),
-              ] else ...[
-                const Spacer(flex: 2),
-              ],
-              Row(
-                children: [
-                  CasinoActionButton(
-                    label: youReady ? l10n.waitingEllipsis : l10n.ready,
-                    icon: youReady ? AppIcons.hourglass : AppIcons.check,
-                    tone: CasinoActionTone.raise,
-                    onPressed:
-                        bothJoined && !youReady ? notifier.readyUp : null,
-                  ),
-                ],
+              ] else
+                const Spacer(),
+              const SizedBox(height: 12),
+              GoldButton(
+                label: youReady ? l10n.waitingEllipsis : l10n.ready,
+                height: 54,
+                leading: HugeIcon(
+                  icon: youReady ? AppIcons.hourglass : AppIcons.check,
+                ),
+                onPressed: bothJoined && !youReady ? notifier.readyUp : null,
               ),
               const SizedBox(height: 10),
-              Center(
-                child: TextButton(
-                  onPressed: notifier.leaveRoom,
-                  style: TextButton.styleFrom(
-                    foregroundColor: CasinoColors.textMuted,
-                  ),
-                  child: Text(l10n.leaveRoom),
-                ),
+              LeatherButton(
+                label: l10n.leaveRoom,
+                height: 44,
+                color: CasinoColors.foldHi,
+                leading: const HugeIcon(icon: AppIcons.logout),
+                onPressed: notifier.leaveRoom,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Oval felt table with a leather rail; two seats face each other across a
+/// gold "VS" chip.
+class _LobbyTable extends StatelessWidget {
+  const _LobbyTable({required this.you, required this.opponent});
+
+  final Widget you;
+  final Widget opponent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(110),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF4A2C1B), CasinoColors.leatherDeep],
+        ),
+        border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.55)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x99000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 18, 14, 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(104),
+          gradient: const RadialGradient(
+            radius: 0.95,
+            colors: [Color(0xFF2A8A59), CasinoColors.feltDeep],
+          ),
+          border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(child: you),
+            const _VsChip(),
+            Expanded(child: opponent),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VsChip extends StatelessWidget {
+  const _VsChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: CardInk.black,
+        border: Border.all(color: CasinoColors.gold, width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x80000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          context.l10n.vs,
+          style: const TextStyle(
+            fontFamily: CasinoFonts.display,
+            color: CasinoColors.gold,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
           ),
         ),
       ),
@@ -385,45 +493,27 @@ class _InviteFriendsSection extends ConsumerWidget {
     final sentInviteIds = ref.watch(
       gameSessionProvider.select((s) => s.sentInvitePlayerIds),
     );
+    final online = friendsAsync.asData?.value.onlineCount ?? 0;
 
-    return Container(
-      decoration: feltPanelDecoration(),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const HugeIcon(
-                icon: AppIcons.people,
-                size: 16,
-                color: CasinoColors.gold,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                l10n.inviteFriends,
-                style: const TextStyle(
-                  color: CasinoColors.gold,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                ),
-              ),
-              const Spacer(),
-              friendsAsync.when(
-                data: (data) {
-                  final online = data.onlineCount;
-                  if (online == 0) return const SizedBox.shrink();
-                  return Container(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FeltSectionHeader(
+          label: l10n.inviteFriends,
+          suit: SuitShape.hearts,
+          trailing:
+              online == 0
+                  ? null
+                  : Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF7ED50E).withValues(alpha: 0.15),
+                      color: const Color(0xFF7ED50E).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: const Color(0xFF7ED50E).withValues(alpha: 0.4),
+                        color: const Color(0xFF7ED50E).withValues(alpha: 0.45),
                       ),
                     ),
                     child: Row(
@@ -443,35 +533,30 @@ class _InviteFriendsSection extends ConsumerWidget {
                           style: const TextStyle(
                             color: Color(0xFF7ED50E),
                             fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
                     ),
-                  );
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: friendsAsync.when(
-              loading: () => const Center(child: SuitCardLoader(height: 20)),
-              error:
-                  (_, __) => Center(
-                    child: Text(
-                      l10n.rankingLoadError,
-                      style: const TextStyle(
-                        color: CasinoColors.textMuted,
-                        fontSize: 12,
-                      ),
+                  ),
+        ),
+        Expanded(
+          child: friendsAsync.when(
+            loading: () => const Center(child: SuitCardLoader(height: 20)),
+            error:
+                (_, __) => Center(
+                  child: Text(
+                    l10n.rankingLoadError,
+                    style: const TextStyle(
+                      color: CasinoColors.textMuted,
+                      fontSize: 12,
                     ),
                   ),
-              data: (data) {
-                if (data.friends.isEmpty) {
-                  return Center(
+                ),
+            data: (data) {
+              if (data.friends.isEmpty) {
+                return FeltPanel(
+                  child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -479,195 +564,160 @@ class _InviteFriendsSection extends ConsumerWidget {
                           l10n.noFriendsToInvite,
                           style: const TextStyle(
                             color: CasinoColors.textMuted,
-                            fontSize: 12,
+                            fontSize: 13,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 6),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const FriendsScreen(),
+                        const SizedBox(height: 12),
+                        GoldButton(
+                          label: l10n.addFriend,
+                          compact: true,
+                          leading: const HugeIcon(icon: AppIcons.personAdd),
+                          onPressed:
+                              () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const FriendsScreen(),
+                                ),
                               ),
-                            );
-                          },
-                          child: Text(
-                            l10n.addFriend,
-                            style: const TextStyle(
-                              color: CasinoColors.gold,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
                         ),
                       ],
                     ),
-                  );
-                }
+                  ),
+                );
+              }
 
-                final sortedFriends = List<FriendItem>.from(data.friends)
-                  ..sort((a, b) {
-                    if (a.isOnline && !b.isOnline) return -1;
-                    if (!a.isOnline && b.isOnline) return 1;
-                    return a.displayName.compareTo(b.displayName);
-                  });
+              final sortedFriends = List<FriendItem>.from(data.friends)
+                ..sort((a, b) {
+                  if (a.isOnline && !b.isOnline) return -1;
+                  if (!a.isOnline && b.isOnline) return 1;
+                  return a.displayName.compareTo(b.displayName);
+                });
 
-                return ListView.separated(
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: sortedFriends.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (context, index) {
-                    final friend = sortedFriends[index];
-                    final isInvited = sentInviteIds.contains(friend.playerId);
+              return ListView.separated(
+                physics: const BouncingScrollPhysics(),
+                itemCount: sortedFriends.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final friend = sortedFriends[index];
+                  final isInvited = sentInviteIds.contains(friend.playerId);
 
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: CasinoColors.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: CasinoColors.surfaceHi),
-                      ),
-                      child: Row(
-                        children: [
-                          PlayerAvatar(
-                            avatarId: friend.avatarId,
-                            size: 34,
-                            borderWidth: 1.2,
-                            borderColor:
-                                friend.isOnline
-                                    ? const Color(0xFF7ED50E)
-                                    : Colors.white24,
-                            statusDotColor:
-                                friend.isOnline
-                                    ? const Color(0xFF7ED50E)
-                                    : CasinoColors.textMuted,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
+                  return Container(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                    decoration: leatherPanelDecoration(radius: 14),
+                    child: Row(
+                      children: [
+                        PlayerAvatar(
+                          avatarId: friend.avatarId,
+                          size: 38,
+                          borderWidth: 1.4,
+                          borderColor:
+                              friend.isOnline
+                                  ? CasinoColors.gold
+                                  : CasinoColors.gold.withValues(alpha: 0.25),
+                          statusDotColor:
+                              friend.isOnline
+                                  ? const Color(0xFF7ED50E)
+                                  : CasinoColors.textMuted,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                friend.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: CasinoColors.text,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              if (friend.username.isNotEmpty)
                                 Text(
-                                  friend.displayName,
+                                  '@${friend.username}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    color: CasinoColors.text,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
+                                    color: CasinoColors.goldSoft,
+                                    fontSize: 11,
                                   ),
                                 ),
-                                if (friend.username.isNotEmpty)
-                                  Text(
-                                    '@${friend.username}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: CasinoColors.textMuted,
-                                      fontSize: 11,
-                                    ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (isInvited)
+                          Container(
+                            height: 36,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: CasinoColors.gold.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(11),
+                              border: Border.all(
+                                color: CasinoColors.gold.withValues(alpha: 0.6),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const HugeIcon(
+                                  icon: AppIcons.check,
+                                  size: 14,
+                                  color: CasinoColors.gold,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  l10n.invited,
+                                  style: const TextStyle(
+                                    color: CasinoColors.gold,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
                                   ),
+                                ),
                               ],
                             ),
+                          )
+                        else if (friend.isOnline)
+                          GoldButton(
+                            label: l10n.invite,
+                            compact: true,
+                            onPressed: () => _invite(context, ref, friend),
+                          )
+                        else
+                          LeatherButton(
+                            label: l10n.invite,
+                            compact: true,
+                            onPressed: () => _invite(context, ref, friend),
                           ),
-                          const SizedBox(width: 8),
-                          if (isInvited)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: CasinoColors.gold.withValues(
-                                  alpha: 0.15,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: CasinoColors.gold.withValues(
-                                    alpha: 0.4,
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const HugeIcon(
-                                    icon: AppIcons.check,
-                                    size: 14,
-                                    color: CasinoColors.gold,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    l10n.invited,
-                                    style: const TextStyle(
-                                      color: CasinoColors.gold,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    friend.isOnline
-                                        ? CasinoColors.raise
-                                        : CasinoColors.surfaceHi,
-                                foregroundColor: CasinoColors.text,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                elevation: 0,
-                              ),
-                              onPressed: () {
-                                ref
-                                    .read(gameSessionProvider.notifier)
-                                    .sendTableInvite(
-                                      targetPlayerId: friend.playerId,
-                                      roomId: roomId,
-                                    );
-                                CasinoToast.show(
-                                  context,
-                                  '${l10n.inviteSent} (${friend.displayName})',
-                                  duration: const Duration(seconds: 2),
-                                );
-                              },
-                              child: Text(
-                                l10n.invite,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+
+  void _invite(BuildContext context, WidgetRef ref, FriendItem friend) {
+    final l10n = context.l10n;
+    ref
+        .read(gameSessionProvider.notifier)
+        .sendTableInvite(targetPlayerId: friend.playerId, roomId: roomId);
+    CasinoToast.show(
+      context,
+      '${l10n.inviteSent} (${friend.displayName})',
+      duration: const Duration(seconds: 2),
     );
   }
 }
 
+/// A seated player: avatar on the felt with a ready check and status badge.
 class _LobbySeat extends StatelessWidget {
   const _LobbySeat({
     required this.name,
@@ -686,63 +736,137 @@ class _LobbySeat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final locale = Localizations.localeOf(context);
+    final badge = ready ? l10n.ready : (isYou ? l10n.you : l10n.notReady);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 64,
-          height: 64,
+          width: 66,
+          height: 66,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
               PlayerAvatar(
                 avatarId: avatarId,
-                size: 64,
-                borderWidth: ready ? 2.5 : 1.5,
-                borderColor: ready ? CasinoColors.gold : Colors.white24,
+                size: 66,
+                borderWidth: ready ? 2.6 : 1.6,
+                borderColor:
+                    ready
+                        ? CasinoColors.gold
+                        : CasinoColors.gold.withValues(alpha: 0.35),
+                showGlow: ready,
+                glowColor: CasinoColors.gold.withValues(alpha: 0.35),
                 statusDotColor:
                     connected ? const Color(0xFF7ED50E) : CasinoColors.foldHi,
               ),
               if (ready)
                 Positioned(
-                  top: -2,
-                  right: -2,
+                  top: -3,
+                  right: -3,
                   child: Container(
-                    width: 22,
-                    height: 22,
-                    decoration: const BoxDecoration(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: CasinoColors.raise,
+                      color: CasinoColors.gold,
+                      border: Border.all(color: CardInk.black, width: 1.5),
                     ),
                     child: const HugeIcon(
                       icon: AppIcons.check,
                       size: 14,
-                      color: CasinoColors.text,
+                      color: CardInk.black,
                     ),
                   ),
                 ),
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
           style: TextStyle(
+            fontFamily: CasinoFonts.displayFor(locale),
             color: ready ? CasinoColors.gold : CasinoColors.text,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            gradient:
+                ready
+                    ? const LinearGradient(
+                      colors: [Color(0xFFFFE08A), CasinoColors.gold],
+                    )
+                    : null,
+            color: ready ? null : Colors.black.withValues(alpha: 0.3),
+            border:
+                ready
+                    ? null
+                    : Border.all(
+                      color: CasinoColors.gold.withValues(alpha: 0.4),
+                    ),
+          ),
+          child: Text(
+            casinoButtonLabel(badge, locale),
+            style: TextStyle(
+              color: ready ? CardInk.black : CasinoColors.goldSoft,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The opponent's seat before anyone joins: a face-down card and a loader.
+class _EmptySeat extends StatelessWidget {
+  const _EmptySeat();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Transform.rotate(
+          angle: 0.08,
+          child: Container(
+            width: 46,
+            height: 66,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x80000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: DeckBackPreview(skinId: CardBackSkins.activeId),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const SuitCardLoader(height: 16),
+        const SizedBox(height: 6),
         Text(
-          isYou ? l10n.you : (ready ? l10n.ready : l10n.notReady),
+          l10n.waitingEllipsisShort,
           style: const TextStyle(
-            color: CasinoColors.textMuted,
+            color: CasinoColors.goldSoft,
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],

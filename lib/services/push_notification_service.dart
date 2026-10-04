@@ -63,7 +63,7 @@ class PushNotificationService {
 
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('ic_stat_card');
     const iosInit = DarwinInitializationSettings();
     await _local.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
@@ -256,7 +256,7 @@ class PushNotificationService {
         channelDescription: 'Game invites, friends, ranking, and news',
         importance: Importance.high,
         priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
+        icon: 'ic_stat_card',
       ),
       iOS: DarwinNotificationDetails(),
     );
