@@ -256,9 +256,9 @@ class PlayerProfileScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        FeltPanel(
-          highlighted: true,
-          padding: const EdgeInsets.all(14),
+        IvoryCard(
+          suit: SuitShape.clubs,
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
           child: Row(
             children: [
               PlayerAvatar(
@@ -288,7 +288,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: CasinoFonts.displayOf(context),
-                        color: CasinoColors.gold,
+                        color: CardInk.black,
                         fontWeight: FontWeight.w800,
                         fontSize: 19,
                       ),
@@ -308,9 +308,9 @@ class PlayerProfileScreen extends ConsumerWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: CasinoColors.goldSoft,
+                                color: _deepGold,
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -318,7 +318,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                           const HugeIcon(
                             icon: AppIcons.copy,
                             size: 12,
-                            color: CasinoColors.textMuted,
+                            color: _brownInk,
                           ),
                         ],
                       ),
@@ -388,8 +388,9 @@ class PlayerProfileScreen extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 14),
-        FeltPanel(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        IvoryCard(
+          suit: SuitShape.spades,
+          padding: const EdgeInsets.fromLTRB(26, 16, 26, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -398,9 +399,10 @@ class PlayerProfileScreen extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       '${l10n.xp}: $currentLevelXp / $nextLevelXp',
-                      style: const TextStyle(
-                        color: CasinoColors.text,
-                        fontSize: 13,
+                      style: TextStyle(
+                        fontFamily: CasinoFonts.displayOf(context),
+                        color: CardInk.black,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -408,23 +410,26 @@ class PlayerProfileScreen extends ConsumerWidget {
                   Text(
                     '${l10n.totalXp}: $totalPoints',
                     style: const TextStyle(
-                      color: CasinoColors.goldSoft,
+                      color: _deepGold,
                       fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              GoldProgressBar(value: progress),
               const SizedBox(height: 10),
+              GoldProgressBar(
+                value: progress,
+                trackColor: _brownInk.withValues(alpha: 0.14),
+              ),
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const HugeIcon(
                     icon: AppIcons.game,
                     size: 15,
-                    color: CasinoColors.goldSoft,
+                    color: _brownInk,
                   ),
                   const SizedBox(width: 6),
                   Flexible(
@@ -433,9 +438,9 @@ class PlayerProfileScreen extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: CasinoColors.textMuted,
+                        color: _brownInk,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -448,6 +453,10 @@ class PlayerProfileScreen extends ConsumerWidget {
     );
   }
 }
+
+/// Ink tones for text on the profile's ivory cards.
+const _brownInk = Color(0xFF5A4A2A);
+const _deepGold = Color(0xFF8A6512);
 
 class _GoldBadge extends StatelessWidget {
   const _GoldBadge({required this.label});
@@ -487,12 +496,12 @@ class _OutlineBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.45)),
+        border: Border.all(color: _brownInk.withValues(alpha: 0.55)),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: CasinoColors.goldSoft,
+          color: _brownInk,
           fontSize: 10.5,
           fontWeight: FontWeight.w800,
         ),
@@ -671,7 +680,11 @@ class _MatchCard extends StatelessWidget {
 final _targetMatchesProvider = FutureProvider.autoDispose
     .family<List<MatchHistoryItem>, String>((ref, playerId) async {
       if (playerId.isEmpty) return const [];
+      final profile = ref.watch(playerProfileProvider).value;
       return ref
           .watch(rankingApiProvider)
-          .fetchMatchHistory(playerId: playerId);
+          .fetchMatchHistory(
+            playerId: playerId,
+            accessToken: profile?.accessToken,
+          );
     });

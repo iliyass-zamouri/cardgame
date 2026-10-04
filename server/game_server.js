@@ -609,8 +609,8 @@ class GameServer {
   async #handlePlayerRank(request, response, url) {
     const auth = await this.#requireAuth(request, response);
     if (!auth) return;
-    const playerId = auth.playerId;
-    void url;
+    // Read-only lookup: any signed-in player may view another player's rank.
+    const playerId = url.searchParams.get('playerId')?.trim() || auth.playerId;
     try {
       const entry = await getPlayerRank(playerId);
       if (!entry) {
@@ -633,7 +633,8 @@ class GameServer {
   async #handleMatchHistory(request, response, url) {
     const auth = await this.#requireAuth(request, response);
     if (!auth) return;
-    const playerId = auth.playerId;
+    // Read-only lookup: any signed-in player may view another player's history.
+    const playerId = url.searchParams.get('playerId')?.trim() || auth.playerId;
     const limit = url.searchParams.get('limit');
     const offset = url.searchParams.get('offset');
     try {

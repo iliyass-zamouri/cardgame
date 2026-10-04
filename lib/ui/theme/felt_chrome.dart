@@ -962,17 +962,25 @@ class FeltTileGroup extends StatelessWidget {
 
 /// Gold progress bar on a recessed track (XP, levels).
 class GoldProgressBar extends StatelessWidget {
-  const GoldProgressBar({super.key, required this.value, this.height = 10});
+  const GoldProgressBar({
+    super.key,
+    required this.value,
+    this.height = 10,
+    this.trackColor,
+  });
 
   final double value;
   final double height;
+
+  /// Recessed track fill; defaults to a dark inset for leather/felt.
+  final Color? trackColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.45),
+        color: trackColor ?? Colors.black.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(height),
         border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.25)),
       ),
