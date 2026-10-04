@@ -41,8 +41,8 @@ class AuthProviderButton extends StatefulWidget {
       key: key,
       label: label,
       onPressed: onPressed,
-      backgroundColor: CasinoColors.raise,
-      foregroundColor: CasinoColors.text,
+      backgroundColor: CasinoColors.gold,
+      foregroundColor: CasinoColors.bg,
       leading: const HugeIcon(icon: AppIcons.person, size: 22),
     );
   }
@@ -83,10 +83,18 @@ class _AuthProviderButtonState extends State<AuthProviderButton> {
               alpha: enabled ? (_pressed ? 0.92 : 1) : 0.45,
             ),
             borderRadius: BorderRadius.circular(999),
-            border:
-                widget.borderColor == null
-                    ? null
-                    : Border.all(color: widget.borderColor!),
+            border: Border.all(
+              color:
+                  widget.borderColor ??
+                  CasinoColors.goldSoft.withValues(alpha: 0.8),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: widget.backgroundColor.withValues(alpha: 0.25),
+                blurRadius: 16,
+                spreadRadius: -4,
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

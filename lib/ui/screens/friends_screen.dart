@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
   const FriendsScreen({super.key});
@@ -40,63 +41,43 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
     final friendsAsync = ref.watch(friendsDataProvider);
     final incomingCount = friendsAsync.value?.incomingRequests.length ?? 0;
 
-    return Scaffold(
-      backgroundColor: CasinoColors.bg,
-      appBar: AppBar(
-        backgroundColor: CasinoColors.surface,
-        foregroundColor: CasinoColors.text,
-        elevation: 0,
-        title: Text(
-          l10n.friends,
-          style: const TextStyle(
-            color: CasinoColors.gold,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: CasinoColors.gold,
-          indicatorWeight: 3,
-          labelColor: CasinoColors.gold,
-          unselectedLabelColor: CasinoColors.textMuted,
-          labelStyle: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
-          ),
-          tabs: [
-            Tab(text: l10n.friends),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(l10n.requests),
-                  if (incomingCount > 0) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: CasinoColors.raise,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '$incomingCount',
-                        style: const TextStyle(
-                          color: CasinoColors.text,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
+    return FeltScaffold(
+      title: l10n.friends,
+      tabs: TabBar(
+        controller: _tabController,
+        tabs: [
+          Tab(text: l10n.friends),
+          Tab(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(l10n.requests),
+                if (incomingCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: CasinoColors.raise,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$incomingCount',
+                      style: const TextStyle(
+                        color: CasinoColors.text,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ],
+                  ),
                 ],
-              ),
+              ],
             ),
-            Tab(text: l10n.addFriend),
-          ],
-        ),
+          ),
+          Tab(text: l10n.addFriend),
+        ],
       ),
       body: TabBarView(
         controller: _tabController,
@@ -154,7 +135,9 @@ class _FriendsListTab extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  HugeIcon(icon: AppIcons.people, size: 64,
+                  HugeIcon(
+                    icon: AppIcons.people,
+                    size: 64,
                     color: CasinoColors.gold.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 16),
@@ -310,7 +293,9 @@ class _FriendCard extends ConsumerWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: const HugeIcon(icon: AppIcons.moreVert, color: CasinoColors.textMuted,
+                icon: const HugeIcon(
+                  icon: AppIcons.moreVert,
+                  color: CasinoColors.textMuted,
                 ),
                 color: CasinoColors.surface,
                 shape: RoundedRectangleBorder(
@@ -454,7 +439,9 @@ class _FriendCard extends ConsumerWidget {
                         value: 'remove',
                         child: Row(
                           children: [
-                            const HugeIcon(icon: AppIcons.personRemove, color: CasinoColors.foldHi,
+                            const HugeIcon(
+                              icon: AppIcons.personRemove,
+                              color: CasinoColors.foldHi,
                               size: 18,
                             ),
                             const SizedBox(width: 8),
@@ -546,7 +533,9 @@ class _FriendRequestsTab extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  HugeIcon(icon: AppIcons.mail, size: 56,
+                  HugeIcon(
+                    icon: AppIcons.mail,
+                    size: 56,
                     color: CasinoColors.gold.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 16),
@@ -652,7 +641,10 @@ class _IncomingRequestCard extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.foldHi),
+            icon: const HugeIcon(
+              icon: AppIcons.close,
+              color: CasinoColors.foldHi,
+            ),
             tooltip: l10n.decline,
             onPressed: () {
               ref
@@ -665,7 +657,9 @@ class _IncomingRequestCard extends ConsumerWidget {
           ),
           const SizedBox(width: 4),
           IconButton(
-            icon: const HugeIcon(icon: AppIcons.checkCircle, color: CasinoColors.raiseHi,
+            icon: const HugeIcon(
+              icon: AppIcons.checkCircle,
+              color: CasinoColors.raiseHi,
               size: 28,
             ),
             tooltip: l10n.accept,
@@ -783,12 +777,16 @@ class _SearchPlayersTabState extends ConsumerState<_SearchPlayersTab> {
             decoration: InputDecoration(
               hintText: l10n.searchByUsername,
               hintStyle: const TextStyle(color: CasinoColors.textMuted),
-              prefixIcon: const HugeIcon(icon: AppIcons.search, color: CasinoColors.goldSoft,
+              prefixIcon: const HugeIcon(
+                icon: AppIcons.search,
+                color: CasinoColors.goldSoft,
               ),
               suffixIcon:
                   _searchController.text.isNotEmpty
                       ? IconButton(
-                        icon: const HugeIcon(icon: AppIcons.clear, color: CasinoColors.textMuted,
+                        icon: const HugeIcon(
+                          icon: AppIcons.clear,
+                          color: CasinoColors.textMuted,
                         ),
                         onPressed: () {
                           _searchController.clear();
@@ -911,7 +909,9 @@ class _SearchResultCard extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const HugeIcon(icon: AppIcons.check, color: CasinoColors.raiseHi,
+              const HugeIcon(
+                icon: AppIcons.check,
+                color: CasinoColors.raiseHi,
                 size: 14,
               ),
               const SizedBox(width: 4),

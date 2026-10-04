@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 Future<void> showNotificationsPanel(BuildContext context, WidgetRef ref) {
   ref.read(notificationsInboxProvider.notifier).refresh();
@@ -33,7 +34,8 @@ class NotificationsPanel extends ConsumerWidget {
           constraints: BoxConstraints(maxWidth: 380, maxHeight: maxHeight),
           child: Material(
             color: CasinoColors.surface,
-            borderRadius: BorderRadius.circular(16),
+            shape: feltDialogShape,
+            clipBehavior: Clip.antiAlias,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
               child: Column(

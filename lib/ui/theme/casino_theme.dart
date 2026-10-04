@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 
-/// Visual tokens matched to the dark poker-app screenshot (not Material 3).
+/// Card-table tokens: surfaces are deep felt greens so panels sit naturally
+/// on the green table background (not Material 3).
 abstract final class CasinoColors {
-  static const bg = Color(0xFF0B0B0D);
-  static const bgElevated = Color(0xFF16161A);
-  static const surface = Color(0xFF1E1E24);
-  static const surfaceHi = Color(0xFF2A2A32);
-  static const rim = Color(0xFF141418);
+  static const bg = Color(0xFF07150F);
+  static const bgElevated = Color(0xFF0D2118);
+  static const surface = Color(0xFF12291F);
+  static const surfaceHi = Color(0xFF1C3B2D);
+  static const rim = Color(0xFF0A1711);
+  static const leather = Color(0xFF2B1A12);
+  static const leatherDeep = Color(0xFF170D08);
   static const felt = Color(0xFF1F6B45);
   static const feltDeep = Color(0xFF155234);
   static const gold = Color(0xFFF5C542);
   static const goldSoft = Color(0xFFFFE082);
   static const text = Color(0xFFF2F2F5);
-  static const textMuted = Color(0xFFA8A8B3);
+  static const textMuted = Color(0xFFA9BDB1);
   static const fold = Color(0xFFB71C1C);
   static const foldHi = Color(0xFFD32F2F);
   static const check = Color(0xFFE65100);
@@ -107,9 +110,70 @@ ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       elevation: 0,
     ),
+    tabBarTheme: TabBarThemeData(
+      indicator: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [CasinoColors.goldSoft, CasinoColors.gold],
+        ),
+      ),
+      indicatorSize: TabBarIndicatorSize.tab,
+      dividerColor: Colors.transparent,
+      labelColor: CasinoColors.bg,
+      unselectedLabelColor: CasinoColors.goldSoft,
+      labelStyle: TextStyle(
+        fontFamily: uiFamily,
+        fontWeight: FontWeight.w800,
+        fontSize: 13,
+      ),
+      unselectedLabelStyle: TextStyle(
+        fontFamily: uiFamily,
+        fontWeight: FontWeight.w700,
+        fontSize: 13,
+      ),
+      overlayColor: WidgetStateProperty.all(Colors.transparent),
+      splashFactory: NoSplash.splashFactory,
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: CasinoColors.surface,
+      modalBackgroundColor: CasinoColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: CasinoColors.gold.withValues(alpha: 0.35)),
+      ),
+    ),
+    dividerTheme: DividerThemeData(
+      color: CasinoColors.gold.withValues(alpha: 0.12),
+      thickness: 1,
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: CasinoColors.gold,
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected)
+                ? CasinoColors.gold
+                : CasinoColors.textMuted,
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected)
+                ? CasinoColors.gold.withValues(alpha: 0.4)
+                : CasinoColors.surfaceHi,
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: CasinoColors.gold),
+    ),
     dialogTheme: DialogThemeData(
       backgroundColor: CasinoColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: CasinoColors.gold.withValues(alpha: 0.35)),
+      ),
       titleTextStyle: TextStyle(
         fontFamily: uiFamily,
         color: CasinoColors.text,

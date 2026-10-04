@@ -28,6 +28,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -55,9 +56,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder:
           (ctx) => AlertDialog(
             backgroundColor: CasinoColors.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
+            shape: feltDialogShape,
             title: const Text(
               'Delete Account',
               style: TextStyle(
@@ -94,10 +93,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final profile =
           ref.read(playerProfileProvider).value ?? PlayerProfile.empty;
       if (profile.playerId.isNotEmpty) {
-        await ref.read(profileApiServiceProvider).deleteAccount(
-          playerId: profile.playerId,
-          accessToken: profile.accessToken,
-        );
+        await ref
+            .read(profileApiServiceProvider)
+            .deleteAccount(
+              playerId: profile.playerId,
+              accessToken: profile.accessToken,
+            );
       }
       await ref.read(sessionAuthProvider.notifier).signOut();
       if (!mounted) return;
@@ -140,19 +141,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final isPro =
         PurchasesConfig.enableProUpgrade ? ref.watch(isProProvider) : false;
 
-    return Scaffold(
-      backgroundColor: CasinoColors.bg,
-      appBar: AppBar(
-        backgroundColor: CasinoColors.surface,
-        foregroundColor: CasinoColors.text,
-        title: Text(
-          l10n.settings,
-          style: const TextStyle(
-            color: CasinoColors.gold,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
+    return FeltScaffold(
+      title: l10n.settings,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
         children: [
@@ -477,7 +467,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
 
     return AlertDialog(
       backgroundColor: CasinoColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: feltDialogShape,
       title: Text(
         l10n.editProfile,
         style: const TextStyle(

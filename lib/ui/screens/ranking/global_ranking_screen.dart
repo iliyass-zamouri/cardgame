@@ -9,6 +9,7 @@ import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 class GlobalRankingScreen extends ConsumerWidget {
   const GlobalRankingScreen({super.key});
@@ -18,24 +19,10 @@ class GlobalRankingScreen extends ConsumerWidget {
     final l10n = context.l10n;
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        backgroundColor: CasinoColors.bg,
-        appBar: AppBar(
-          backgroundColor: CasinoColors.surface,
-          foregroundColor: CasinoColors.text,
-          title: Text(
-            l10n.globalRanking,
-            style: const TextStyle(
-              color: CasinoColors.gold,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          bottom: TabBar(
-            indicatorColor: CasinoColors.gold,
-            labelColor: CasinoColors.gold,
-            unselectedLabelColor: CasinoColors.textMuted,
-            tabs: [Tab(text: l10n.leaderboard), Tab(text: l10n.matchHistory)],
-          ),
+      child: FeltScaffold(
+        title: l10n.globalRanking,
+        tabs: TabBar(
+          tabs: [Tab(text: l10n.leaderboard), Tab(text: l10n.matchHistory)],
         ),
         body: const TabBarView(children: [_LeaderboardTab(), _HistoryTab()]),
       ),

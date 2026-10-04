@@ -265,7 +265,11 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
 
     return Container(
       decoration: const BoxDecoration(
-        color: CasinoColors.surface,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [CasinoColors.leather, CasinoColors.leatherDeep],
+        ),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(top: BorderSide(color: CasinoColors.gold, width: 1.5)),
       ),

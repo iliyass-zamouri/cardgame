@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 class MarketplaceScreen extends ConsumerStatefulWidget {
   const MarketplaceScreen({super.key, this.initialTabIndex = 0});
@@ -61,57 +62,40 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
     final profile =
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
 
-    return Scaffold(
-      backgroundColor: CasinoColors.bg,
-      appBar: AppBar(
-        backgroundColor: CasinoColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: const HugeIcon(icon: AppIcons.arrowBack, color: CasinoColors.text,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          l10n.marketplace,
-          style: const TextStyle(
-            color: CasinoColors.gold,
-            fontWeight: FontWeight.w800,
-            fontFamily: CasinoFonts.display,
-            fontSize: 20,
-          ),
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: CasinoColors.gold,
-          indicatorWeight: 3,
-          labelColor: CasinoColors.gold,
-          unselectedLabelColor: CasinoColors.textMuted,
-          labelStyle: const TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 13,
-          ),
-          tabs: [
-            Tab(
+    return FeltScaffold(
+      title: l10n.marketplace,
+      tabs: TabBar(
+        controller: _tabController,
+        tabs: [
+          Tab(
+            height: 40,
+            child: _ShopTabLabel(
               icon: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ChipIcon(size: 14),
-                  SizedBox(width: 4),
+                  SizedBox(width: 2),
                   CashIcon(size: 14),
                 ],
               ),
-              text: l10n.exchange,
+              label: l10n.exchange,
             ),
-            Tab(
-              icon: const HugeIcon(icon: AppIcons.face, size: 20),
-              text: l10n.avatarShop,
+          ),
+          Tab(
+            height: 40,
+            child: _ShopTabLabel(
+              icon: const HugeIcon(icon: AppIcons.face, size: 16),
+              label: l10n.avatarShop,
             ),
-            Tab(
-              icon: const HugeIcon(icon: AppIcons.style, size: 20),
-              text: l10n.deckShop,
+          ),
+          Tab(
+            height: 40,
+            child: _ShopTabLabel(
+              icon: const HugeIcon(icon: AppIcons.style, size: 16),
+              label: l10n.deckShop,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -409,7 +393,9 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
                       shape: BoxShape.circle,
                     ),
                     child: const Center(
-                      child: HugeIcon(icon: AppIcons.playCircle, color: Color(0xFF7ED50E),
+                      child: HugeIcon(
+                        icon: AppIcons.playCircle,
+                        color: Color(0xFF7ED50E),
                         size: 28,
                       ),
                     ),
@@ -476,7 +462,9 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
             // Real Money Store Packs
             const Row(
               children: [
-                HugeIcon(icon: AppIcons.shoppingBag, color: CasinoColors.gold,
+                HugeIcon(
+                  icon: AppIcons.shoppingBag,
+                  color: CasinoColors.gold,
                   size: 20,
                 ),
                 SizedBox(width: 8),
@@ -610,7 +598,11 @@ class _IapPackCard extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: HugeIcon(icon: pack.icon, color: CasinoColors.gold, size: 24),
+              child: HugeIcon(
+                icon: pack.icon,
+                color: CasinoColors.gold,
+                size: 24,
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -791,7 +783,9 @@ class _CurrencyConversionModalState
                 children: [
                   Row(
                     children: [
-                      const HugeIcon(icon: AppIcons.swapHoriz, color: CasinoColors.gold,
+                      const HugeIcon(
+                        icon: AppIcons.swapHoriz,
+                        color: CasinoColors.gold,
                         size: 24,
                       ),
                       const SizedBox(width: 8),
@@ -807,7 +801,9 @@ class _CurrencyConversionModalState
                     ],
                   ),
                   IconButton(
-                    icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.textMuted,
+                    icon: const HugeIcon(
+                      icon: AppIcons.close,
+                      color: CasinoColors.textMuted,
                     ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -962,7 +958,9 @@ class _ExchangeCard extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
-                    icon: const HugeIcon(icon: AppIcons.removeCircle, color: CasinoColors.gold,
+                    icon: const HugeIcon(
+                      icon: AppIcons.removeCircle,
+                      color: CasinoColors.gold,
                     ),
                     onPressed: onDecrement,
                   ),
@@ -977,13 +975,17 @@ class _ExchangeCard extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const HugeIcon(icon: AppIcons.addCircle, color: CasinoColors.gold,
+                    icon: const HugeIcon(
+                      icon: AppIcons.addCircle,
+                      color: CasinoColors.gold,
                     ),
                     onPressed: onIncrement,
                   ),
                 ],
               ),
-              const HugeIcon(icon: AppIcons.arrowForward, color: CasinoColors.textMuted,
+              const HugeIcon(
+                icon: AppIcons.arrowForward,
+                color: CasinoColors.textMuted,
                 size: 20,
               ),
               Row(
@@ -1242,7 +1244,9 @@ class _AvatarsTab extends ConsumerWidget {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          HugeIcon(icon: AppIcons.checkCircle, size: 10,
+                          HugeIcon(
+                            icon: AppIcons.checkCircle,
+                            size: 10,
                             color: CasinoColors.gold,
                           ),
                           SizedBox(width: 3),
@@ -1392,7 +1396,9 @@ class _AvatarsTab extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const HugeIcon(icon: AppIcons.check, size: 14,
+                        const HugeIcon(
+                          icon: AppIcons.check,
+                          size: 14,
                           color: CasinoColors.gold,
                         ),
                         const SizedBox(width: 4),
@@ -1642,7 +1648,9 @@ class _DecksTab extends ConsumerWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const HugeIcon(icon: AppIcons.check, size: 16,
+                            const HugeIcon(
+                              icon: AppIcons.check,
+                              size: 16,
                               color: CasinoColors.gold,
                             ),
                             const SizedBox(width: 6),
@@ -1713,6 +1721,24 @@ class _DecksTab extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ShopTabLabel extends StatelessWidget {
+  const _ShopTabLabel({required this.icon, required this.label});
+
+  final Widget icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [icon, const SizedBox(width: 6), Text(label)],
+      ),
     );
   }
 }

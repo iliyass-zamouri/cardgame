@@ -8,6 +8,7 @@ import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 class PotOption {
   const PotOption({
@@ -147,28 +148,8 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
     final options = StakeSelectorScreen.potOptions;
     final cacheWidth = _potCacheWidth(context);
 
-    return Scaffold(
-      backgroundColor: CasinoColors.bg,
-      appBar: AppBar(
-        backgroundColor: CasinoColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: const HugeIcon(
-            icon: AppIcons.arrowBack,
-            color: CasinoColors.text,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          l10n.selectMatchStake,
-          style: TextStyle(
-            color: CasinoColors.gold,
-            fontWeight: FontWeight.w800,
-            fontFamily: CasinoFonts.displayOf(context),
-            fontSize: 18,
-          ),
-        ),
-      ),
+    return FeltScaffold(
+      title: l10n.selectMatchStake,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

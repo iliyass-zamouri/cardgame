@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 class LangOption {
   const LangOption({
@@ -112,7 +113,7 @@ class _LanguagePickerDialog extends ConsumerWidget {
 
     return Dialog(
       backgroundColor: CasinoColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: feltDialogShape,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),

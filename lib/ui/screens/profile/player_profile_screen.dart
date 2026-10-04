@@ -19,6 +19,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 class PlayerProfileScreen extends ConsumerWidget {
   const PlayerProfileScreen({super.key, this.targetPlayerId});
@@ -59,28 +60,16 @@ class PlayerProfileScreen extends ConsumerWidget {
             ? ref.watch(matchHistoryProvider)
             : ref.watch(_targetMatchesProvider(effectivePlayerId));
 
-    return Scaffold(
-      backgroundColor: CasinoColors.bg,
-      appBar: AppBar(
-        backgroundColor: CasinoColors.surface,
-        foregroundColor: CasinoColors.text,
-        elevation: 0,
-        title: Text(
-          l10n.profile,
-          style: const TextStyle(
-            color: CasinoColors.gold,
-            fontWeight: FontWeight.w800,
+    return FeltScaffold(
+      title: l10n.profile,
+      actions: [
+        if (isSelf)
+          FeltIconButton(
+            tooltip: l10n.editProfile,
+            icon: AppIcons.edit,
+            onTap: () => showEditProfileDialog(context, myProfile),
           ),
-        ),
-        actions: [
-          if (isSelf)
-            IconButton(
-              tooltip: l10n.editProfile,
-              icon: const HugeIcon(icon: AppIcons.edit, color: CasinoColors.gold),
-              onPressed: () => showEditProfileDialog(context, myProfile),
-            ),
-        ],
-      ),
+      ],
       body: RefreshIndicator(
         color: CasinoColors.gold,
         backgroundColor: CasinoColors.surface,
@@ -372,7 +361,9 @@ class PlayerProfileScreen extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const HugeIcon(icon: AppIcons.copy, size: 12,
+                            const HugeIcon(
+                              icon: AppIcons.copy,
+                              size: 12,
                               color: CasinoColors.textMuted,
                             ),
                           ],
@@ -460,7 +451,9 @@ class PlayerProfileScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const HugeIcon(icon: AppIcons.game, size: 16,
+                const HugeIcon(
+                  icon: AppIcons.game,
+                  size: 16,
                   color: CasinoColors.goldSoft,
                 ),
                 const SizedBox(width: 8),

@@ -4,6 +4,7 @@ import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 class HowToPlayScreen extends StatefulWidget {
   const HowToPlayScreen({super.key});
@@ -79,19 +80,8 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
     final displayFamily = CasinoFonts.displayFor(
       Localizations.localeOf(context),
     );
-    return Scaffold(
-      backgroundColor: CasinoColors.bg,
-      appBar: AppBar(
-        backgroundColor: CasinoColors.surface,
-        foregroundColor: CasinoColors.text,
-        title: Text(
-          l10n.howToPlay,
-          style: const TextStyle(
-            color: CasinoColors.gold,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
+    return FeltScaffold(
+      title: l10n.howToPlay,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),

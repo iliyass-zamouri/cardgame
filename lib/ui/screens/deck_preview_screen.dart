@@ -1,8 +1,8 @@
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/card_game.dart';
-import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 /// Every card the server can deal, drawn with the same painter the board uses.
 class DeckPreviewScreen extends StatelessWidget {
@@ -28,19 +28,8 @@ class DeckPreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tags = _tags;
-    return Scaffold(
-      backgroundColor: CasinoColors.bg,
-      appBar: AppBar(
-        backgroundColor: CasinoColors.surface,
-        foregroundColor: CasinoColors.text,
-        title: Text(
-          title ?? context.l10n.deck,
-          style: const TextStyle(
-            color: CasinoColors.gold,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
+    return FeltScaffold(
+      title: title ?? context.l10n.deck,
       body: GridView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: tags.length,

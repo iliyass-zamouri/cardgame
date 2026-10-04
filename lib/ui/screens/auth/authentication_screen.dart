@@ -6,9 +6,12 @@ import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/data/auth/server_identity.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/analytics_service.dart';
+import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:cardgame/ui/screens/auth/auth_provider_buttons.dart';
+import 'package:cardgame/ui/screens/home/home_menu_widgets.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/language_switcher.dart';
+import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -106,19 +109,39 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
                 child: LanguageSwitcher(showLabel: true),
               ),
             ),
-            const Spacer(flex: 2),
+            const Spacer(),
             Image.asset(
               'assets/logo/text.png',
-              height: 168,
+              height: 110,
               fit: BoxFit.contain,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 4),
+            Text(
+              l10n.tagline,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: CasinoColors.goldSoft,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.6,
+              ),
+            ),
+            Flexible(
+              flex: 6,
+              child: LayoutBuilder(
+                builder:
+                    (context, constraints) => HeroCardFan(
+                      deckSkinId: CardBackSkins.activeId,
+                      height: constraints.maxHeight.clamp(0.0, 240.0),
+                    ),
+              ),
+            ),
             Text(
               l10n.signInToPlay,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: const TextStyle(color: CasinoColors.text, fontSize: 14),
             ),
-            const Spacer(flex: 2),
+            const SizedBox(height: 18),
             if (_error != null) ...[
               Text(
                 _error!,
@@ -140,14 +163,7 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
             ),
             const SizedBox(height: 28),
             if (_busy)
-              const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: CasinoColors.gold,
-                ),
-              )
+              const SuitCardLoader(height: 22)
             else
               const SizedBox(height: 22),
             const Spacer(flex: 1),

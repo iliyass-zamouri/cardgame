@@ -10,12 +10,16 @@ import 'package:cardgame/data/friends/friends_api.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/sfx_service.dart';
+import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:cardgame/ui/flame/card_game_view.dart';
+import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/screens/friends_screen.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
+import 'package:cardgame/ui/screens/home/home_menu_widgets.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
@@ -149,9 +153,12 @@ class _MatchmakingWaitingState extends ConsumerState<MatchmakingWaiting> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final notifier = ref.read(gameSessionProvider.notifier);
+    final deckId =
+        ref.watch(playerProfileProvider).value?.deckId ??
+        CardBackSkins.activeId;
 
     return Scaffold(
-      backgroundColor: CasinoColors.surfaceHi,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -159,6 +166,8 @@ class _MatchmakingWaitingState extends ConsumerState<MatchmakingWaiting> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                HeroCardFan(deckSkinId: deckId, height: 200),
+                const SizedBox(height: 12),
                 const SuitCardLoader(height: 32),
                 const SizedBox(height: 20),
                 Text(
@@ -212,7 +221,7 @@ class WaitingRoom extends ConsumerWidget {
         game.opponent?.displayName ?? l10n.waitingEllipsisShort;
 
     return Scaffold(
-      backgroundColor: CasinoColors.surfaceHi,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(28, 16, 28, 16),
@@ -297,23 +306,21 @@ class WaitingRoom extends ConsumerWidget {
                   CasinoToast.show(context, context.l10n.codeCopied);
                 },
                 child: Container(
-                  padding: EdgeInsets.symmetric(vertical: bothJoined ? 12 : 18),
-                  decoration: BoxDecoration(
-                    color: CasinoColors.bgElevated,
-                    borderRadius: BorderRadius.circular(16),
+                  padding: EdgeInsets.symmetric(
+                    vertical: bothJoined ? 12 : 18,
+                    horizontal: 12,
                   ),
+                  decoration: feltPanelDecoration(highlighted: true),
                   child: Column(
                     children: [
-                      SelectableText(
-                        game.roomId,
-                        style: TextStyle(
-                          color: CasinoColors.text,
-                          fontSize: bothJoined ? 26 : 36,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: bothJoined ? 6 : 8,
+                      Semantics(
+                        label: game.roomId,
+                        child: _RoomCodeCards(
+                          code: game.roomId,
+                          cardHeight: bothJoined ? 52 : 68,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
                         l10n.tapToCopy,
                         style: const TextStyle(
@@ -376,11 +383,7 @@ class _InviteFriendsSection extends ConsumerWidget {
     );
 
     return Container(
-      decoration: BoxDecoration(
-        color: CasinoColors.bgElevated.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CasinoColors.surfaceHi),
-      ),
+      decoration: feltPanelDecoration(),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1093,10 +1096,15 @@ class GameOverPanel extends ConsumerWidget {
         margin: const EdgeInsets.symmetric(horizontal: 28),
         padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
         decoration: BoxDecoration(
-          color: CasinoColors.surface.withValues(alpha: 0.96),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [CasinoColors.leather, CasinoColors.leatherDeep],
+          ),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: CasinoColors.borderGlow.withValues(alpha: 0.5),
+            color: CasinoColors.gold.withValues(alpha: 0.55),
+            width: 1.4,
           ),
           boxShadow: const [
             BoxShadow(
@@ -1714,9 +1722,7 @@ Future<void> _confirm(
     builder:
         (context) => AlertDialog(
           backgroundColor: CasinoColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: feltDialogShape,
           title: Text(
             title,
             style: const TextStyle(
@@ -1753,4 +1759,105 @@ Future<void> _confirm(
         ),
   );
   if (confirmed ?? false) onConfirm();
+}
+
+/// Room code dealt out as a row of small ivory playing cards.
+class _RoomCodeCards extends StatelessWidget {
+  const _RoomCodeCards({required this.code, required this.cardHeight});
+
+  final String code;
+  final double cardHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final chars = code.split('');
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 6.0;
+        final maxW =
+            (constraints.maxWidth - gap * (chars.length - 1)) / chars.length;
+        final w = (cardHeight * 0.72).clamp(0.0, maxW);
+        final h = w / 0.72;
+        return Directionality(
+          textDirection: TextDirection.ltr,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < chars.length; i++) ...[
+                if (i > 0) const SizedBox(width: gap),
+                Transform.rotate(
+                  angle: (i - (chars.length - 1) / 2) * 0.03,
+                  child: _CodeCard(
+                    char: chars[i],
+                    suit: SuitShape.values[i % 4],
+                    width: w,
+                    height: h,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CodeCard extends StatelessWidget {
+  const _CodeCard({
+    required this.char,
+    required this.suit,
+    required this.width,
+    required this.height,
+  });
+
+  final String char;
+  final SuitShape suit;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = suitColor(suit);
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(width * 0.14),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CardInk.ivory, CardInk.ivoryShade],
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: width * 0.1,
+            left: width * 0.1,
+            child: SuitGlyph(suit: suit, size: width * 0.2),
+          ),
+          Center(
+            child: Text(
+              char,
+              style: TextStyle(
+                fontFamily: CasinoFonts.display,
+                color: color,
+                fontSize: height * 0.42,
+                fontWeight: FontWeight.w800,
+                height: 1,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

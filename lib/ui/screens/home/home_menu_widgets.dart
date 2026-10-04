@@ -2,94 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cardgame/ui/flame/suit_shapes.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
-
-/// Card-face palette for the home menu.
-abstract final class _CardInk {
-  static const ivory = Color(0xFFFBF5E6);
-  static const ivoryShade = Color(0xFFEADFC4);
-  static const black = Color(0xFF17171C);
-  static const red = Color(0xFFC62828);
-  static const goldLine = Color(0xFFC9A34A);
-}
-
-Color suitColor(SuitShape suit) =>
-    suit == SuitShape.hearts || suit == SuitShape.diamonds
-        ? _CardInk.red
-        : _CardInk.black;
-
-/// Green felt table with a soft spotlight, vignette and faint suit weave.
-class FeltTableBackground extends StatelessWidget {
-  const FeltTableBackground({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        const RepaintBoundary(
-          child: CustomPaint(painter: _FeltPainter(), size: Size.infinite),
-        ),
-        child,
-      ],
-    );
-  }
-}
-
-class _FeltPainter extends CustomPainter {
-  const _FeltPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(0, -0.25),
-          radius: 1.1,
-          colors: [Color(0xFF237A4F), CasinoColors.feltDeep, Color(0xFF0A2618)],
-          stops: [0, 0.55, 1],
-        ).createShader(rect),
-    );
-
-    // Faint staggered weave of suits, like an embossed felt pattern.
-    const cell = 46.0;
-    const glyph = 14.0;
-    final paint = Paint()..color = Colors.black.withValues(alpha: 0.10);
-    var row = 0;
-    for (var y = -cell; y < size.height + cell; y += cell, row++) {
-      final shift = row.isOdd ? cell / 2 : 0.0;
-      var col = 0;
-      for (var x = -cell + shift; x < size.width + cell; x += cell, col++) {
-        canvas.save();
-        canvas.translate(x, y);
-        canvas.scale(glyph);
-        canvas.drawPath(suitPath(SuitShape.values[(row + col) % 4]), paint);
-        canvas.restore();
-      }
-    }
-
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = RadialGradient(
-          radius: 0.95,
-          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)],
-          stops: const [0.55, 1],
-        ).createShader(rect),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _FeltPainter oldDelegate) => false;
-}
 
 /// Plays a "dealt onto the table" entrance after [delay].
 class DealIn extends StatefulWidget {
@@ -153,92 +70,6 @@ class _DealInState extends State<DealIn> with SingleTickerProviderStateMixin {
       },
     );
   }
-}
-
-/// Scale-down press feedback with a haptic tick.
-class _Pressable extends StatefulWidget {
-  const _Pressable({required this.child, required this.onTap});
-
-  final Widget child;
-  final VoidCallback? onTap;
-
-  @override
-  State<_Pressable> createState() => _PressableState();
-}
-
-class _PressableState extends State<_Pressable> {
-  bool _down = false;
-
-  void _set(bool down) {
-    if (_down != down) setState(() => _down = down);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final onTap = widget.onTap;
-    final enabled = onTap != null;
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: enabled ? (_) => _set(true) : null,
-        onTapCancel: enabled ? () => _set(false) : null,
-        onTapUp: enabled ? (_) => _set(false) : null,
-        onTap:
-            enabled
-                ? () {
-                  HapticFeedback.selectionClick();
-                  onTap();
-                }
-                : null,
-        child: AnimatedScale(
-          scale: _down ? 0.95 : 1,
-          duration: const Duration(milliseconds: 110),
-          curve: Curves.easeOut,
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 200),
-            opacity: enabled ? 1 : 0.5,
-            child: widget.child,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Unit-square suit glyph scaled to [size].
-class SuitGlyph extends StatelessWidget {
-  const SuitGlyph({super.key, required this.suit, this.size = 16, this.color});
-
-  final SuitShape suit;
-  final double size;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size.square(size),
-      painter: _SuitPainter(suit, color ?? suitColor(suit)),
-    );
-  }
-}
-
-class _SuitPainter extends CustomPainter {
-  _SuitPainter(this.suit, this.color);
-
-  final SuitShape suit;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width);
-    canvas.drawPath(suitPath(suit), Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(covariant _SuitPainter old) =>
-      old.suit != suit || old.color != color;
 }
 
 /// Hand of cards fanned out: equipped deck backs revealing two aces.
@@ -416,7 +247,7 @@ class _AceFacePainter extends CustomPainter {
         ..shader = const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_CardInk.ivory, _CardInk.ivoryShade],
+          colors: [CardInk.ivory, CardInk.ivoryShade],
         ).createShader(rect),
     );
     canvas.drawRRect(
@@ -427,7 +258,7 @@ class _AceFacePainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
-        ..color = _CardInk.goldLine.withValues(alpha: 0.6),
+        ..color = CardInk.goldLine.withValues(alpha: 0.6),
     );
 
     final color = suitColor(suit);
@@ -495,7 +326,7 @@ class PrimaryPlayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context);
-    return _Pressable(
+    return Pressable(
       onTap: onTap,
       child: Container(
         height: 92,
@@ -551,7 +382,7 @@ class PrimaryPlayCard extends StatelessWidget {
                     height: 54,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _CardInk.black,
+                      color: CardInk.black,
                       boxShadow: [
                         BoxShadow(
                           color: Color(0x55000000),
@@ -579,7 +410,7 @@ class PrimaryPlayCard extends StatelessWidget {
                             casinoButtonLabel(title, locale),
                             style: TextStyle(
                               fontFamily: CasinoFonts.displayFor(locale),
-                              color: _CardInk.black,
+                              color: CardInk.black,
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
                               letterSpacing:
@@ -635,7 +466,7 @@ class ModePlayingCard extends StatelessWidget {
     final color = suitColor(suit);
     final locale = Localizations.localeOf(context);
     final pip = SuitGlyph(suit: suit, size: 11);
-    return _Pressable(
+    return Pressable(
       onTap: onTap,
       child: Container(
         height: height,
@@ -644,7 +475,7 @@ class ModePlayingCard extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_CardInk.ivory, _CardInk.ivoryShade],
+            colors: [CardInk.ivory, CardInk.ivoryShade],
           ),
           boxShadow: const [
             BoxShadow(
@@ -658,7 +489,7 @@ class ModePlayingCard extends StatelessWidget {
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: _CardInk.goldLine.withValues(alpha: 0.5)),
+            border: Border.all(color: CardInk.goldLine.withValues(alpha: 0.5)),
           ),
           child: Stack(
             children: [
@@ -693,7 +524,7 @@ class ModePlayingCard extends StatelessWidget {
                           casinoButtonLabel(label, locale),
                           style: TextStyle(
                             fontFamily: CasinoFonts.uiFor(locale),
-                            color: _CardInk.black,
+                            color: CardInk.black,
                             fontSize: 11.5,
                             fontWeight: FontWeight.w800,
                             letterSpacing:
@@ -808,7 +639,7 @@ class TableRailDock extends StatelessWidget {
         children: [
           for (final item in items)
             Expanded(
-              child: _Pressable(
+              child: Pressable(
                 onTap: item.onTap,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),

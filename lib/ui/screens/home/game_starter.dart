@@ -22,6 +22,7 @@ import 'package:cardgame/ui/screens/ranking/global_ranking_screen.dart';
 import 'package:cardgame/ui/screens/settings_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
@@ -447,7 +448,7 @@ class _JoinRoomDialogState extends ConsumerState<_JoinRoomDialog> {
     final l10n = context.l10n;
     return AlertDialog(
       backgroundColor: CasinoColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: feltDialogShape,
       title: Text(
         l10n.joinRoomTitle,
         style: const TextStyle(
@@ -688,8 +689,7 @@ BoxDecoration _hudDecoration({BoxShape shape = BoxShape.rectangle}) =>
     BoxDecoration(
       color: Colors.black.withValues(alpha: 0.38),
       shape: shape,
-      borderRadius:
-          shape == BoxShape.circle ? null : BorderRadius.circular(24),
+      borderRadius: shape == BoxShape.circle ? null : BorderRadius.circular(24),
       border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.28)),
     );
 
