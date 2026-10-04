@@ -6,7 +6,8 @@ import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:flutter/material.dart';
 
-/// Money: a small stack of felt-green banknotes with a gold "$" seal.
+/// Money: a gold coin with a milled edge and an embossed "$", the pair to
+/// [ChipIcon].
 ///
 /// Drawn as vectors so it stays crisp from 12px pills to 30px pot cards.
 class CashIcon extends StatelessWidget {
@@ -66,81 +67,102 @@ const _goldGradient = LinearGradient(
 class _CashPainter extends CustomPainter {
   const _CashPainter();
 
-  static const _billLight = Color(0xFF34A86B);
-  static const _billDark = Color(0xFF1B6A43);
+  static const _edge = Color(0xFF8A6512);
+  static const _ink = Color(0xFF6E4F0A);
+  static const _highlight = Color(0xFFFFF4CC);
 
   @override
   void paint(Canvas canvas, Size size) {
     final s = size.shortestSide;
-    canvas.translate(size.width / 2, size.height / 2);
-    canvas.rotate(-0.28);
+    final c = size.center(Offset.zero);
+    final r = s * 0.47;
 
-    final w = s * 0.76;
-    final h = s * 0.5;
-    final radius = Radius.circular(s * 0.07);
-    final stroke = math.max(0.8, s * 0.03);
+    // Coin thickness: a darker disc just below the face, like the chip.
+    canvas.drawCircle(
+      c + Offset(0, s * 0.035),
+      r,
+      Paint()..color = const Color(0xFF5C430A),
+    );
 
-    // Two bills peeking out underneath, then the top bill.
-    for (var i = 2; i >= 0; i--) {
-      final offset = Offset(i * s * 0.035, i * s * 0.07);
-      final rect = Rect.fromCenter(
-        center: offset - Offset(s * 0.035, s * 0.07),
-        width: w,
-        height: h,
-      );
-      final rrect = RRect.fromRectAndRadius(rect, radius);
-      final shade = i == 0 ? 1.0 : (i == 1 ? 0.8 : 0.65);
-      canvas.drawRRect(
-        rrect,
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color.lerp(_billDark, _billLight, shade)!,
-              Color.lerp(Colors.black, _billDark, shade)!,
-            ],
-          ).createShader(rect),
-      );
-      canvas.drawRRect(
-        rrect,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = stroke * 0.8
-          ..color = const Color(0x66000000),
-      );
-      if (i == 0) {
-        // Ivory engraved border on the top bill.
-        canvas.drawRRect(
-          rrect.deflate(s * 0.05),
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = stroke
-            ..color = CardInk.ivory.withValues(alpha: 0.85),
-        );
-        _drawSeal(canvas, rect.center, h * 0.4, s);
-      }
-    }
-  }
-
-  void _drawSeal(Canvas canvas, Offset c, double r, double s) {
-    final rect = Rect.fromCircle(center: c, radius: r);
-    canvas.drawCircle(c, r, Paint()..shader = _goldGradient.createShader(rect));
+    final face = Rect.fromCircle(center: c, radius: r);
     canvas.drawCircle(
       c,
       r,
       Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(0.6, s * 0.02)
-        ..color = const Color(0xFF7A5A0E),
+        ..shader = const RadialGradient(
+          center: Alignment(-0.35, -0.45),
+          radius: 1.15,
+          colors: [Color(0xFFFFEDB0), CasinoColors.gold, Color(0xFFB8860B)],
+          stops: [0, 0.55, 1],
+        ).createShader(face),
     );
+
+    // Milled edge: short radial ticks around the rim.
+    final tickCount = s < 20 ? 16 : 28;
+    final tick =
+        Paint()
+          ..color = _edge.withValues(alpha: 0.7)
+          ..strokeWidth = math.max(0.6, r * 0.05)
+          ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < tickCount; i++) {
+      final a = i * 2 * math.pi / tickCount;
+      final dir = Offset(math.cos(a), math.sin(a));
+      canvas.drawLine(c + dir * r * 0.86, c + dir * r * 0.97, tick);
+    }
+
+    // Outer rim line and raised inner ring.
+    canvas.drawCircle(
+      c,
+      r - r * 0.02,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(0.7, r * 0.05)
+        ..color = _edge,
+    );
+    final inner = r * 0.72;
+    canvas.drawCircle(
+      c,
+      inner,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(0.7, r * 0.06)
+        ..color = _edge.withValues(alpha: 0.85),
+    );
+    canvas.drawCircle(
+      c + Offset(r * 0.03, r * 0.03),
+      inner,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(0.5, r * 0.03)
+        ..color = _highlight.withValues(alpha: 0.6),
+    );
+
+    // Embossed "$": a light offset copy under the dark glyph.
+    _paintGlyph(canvas, c + Offset(r * 0.03, r * 0.04), r, _highlight);
+    _paintGlyph(canvas, c, r, _ink);
+
+    // Soft glint on the upper-left of the face.
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r * 0.84),
+      math.pi * 1.08,
+      math.pi * 0.32,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = math.max(0.6, r * 0.06)
+        ..color = Colors.white.withValues(alpha: 0.55),
+    );
+  }
+
+  void _paintGlyph(Canvas canvas, Offset c, double r, Color color) {
     final tp = TextPainter(
       text: TextSpan(
         text: r'$',
         style: TextStyle(
           fontFamily: CasinoFonts.display,
-          color: CardInk.black,
-          fontSize: r * 1.5,
+          color: color,
+          fontSize: r * 0.95,
           fontWeight: FontWeight.w800,
           height: 1,
         ),
