@@ -569,6 +569,7 @@ class IvoryCard extends StatelessWidget {
     this.radius = 16,
     this.suit,
     this.highlighted = false,
+    this.rimColor,
     this.onTap,
   });
 
@@ -577,6 +578,9 @@ class IvoryCard extends StatelessWidget {
   final double radius;
   final SuitShape? suit;
   final bool highlighted;
+
+  /// Overrides the inner frame line colour (e.g. medal gold/silver/bronze).
+  final Color? rimColor;
   final VoidCallback? onTap;
 
   @override
@@ -613,10 +617,11 @@ class IvoryCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(radius - 4),
                 border: Border.all(
                   color:
-                      highlighted
+                      rimColor ??
+                      (highlighted
                           ? CasinoColors.gold
-                          : CardInk.goldLine.withValues(alpha: 0.55),
-                  width: highlighted ? 1.6 : 1,
+                          : CardInk.goldLine.withValues(alpha: 0.55)),
+                  width: highlighted || rimColor != null ? 1.6 : 1,
                 ),
               ),
             ),

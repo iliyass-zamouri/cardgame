@@ -10,6 +10,7 @@ import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/flame/suit_shapes.dart';
 
 class GlobalRankingScreen extends ConsumerWidget {
   const GlobalRankingScreen({super.key});
@@ -195,10 +196,36 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                               : 16,
                         ),
                         itemCount: entries.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        separatorBuilder:
+                            (_, index) => SizedBox(
+                              height:
+                                  entries[index].rank == 3 &&
+                                          index + 1 < entries.length
+                                      ? 16
+                                      : 8,
+                            ),
                         itemBuilder: (context, index) {
                           final entry = entries[index];
                           final isSelf = entry.playerId == myId;
+                          if (entry.rank >= 1 && entry.rank <= 3) {
+                            return KeyedSubtree(
+                              key: isSelf ? _selfKey : null,
+                              child: _PodiumCard(
+                                entry: entry,
+                                isSelf: isSelf,
+                                selfLabel: l10n.you,
+                                onTap:
+                                    () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder:
+                                            (_) => PlayerProfileScreen(
+                                              targetPlayerId: entry.playerId,
+                                            ),
+                                      ),
+                                    ),
+                              ),
+                            );
+                          }
                           return Material(
                             key: isSelf ? _selfKey : null,
                             color: Colors.transparent,
@@ -371,12 +398,16 @@ class _RankRow extends StatelessWidget {
     required this.highlight,
     required this.isSelf,
     required this.selfLabel,
+    this.onIvory = false,
   });
 
   final RankingEntry entry;
   final bool highlight;
   final bool isSelf;
   final String selfLabel;
+
+  /// Podium rows sit on ivory cards and use dark card ink.
+  final bool onIvory;
 
   static String? _badgeAsset(int rank) => switch (rank) {
     1 => 'assets/ranking/rank_1.png',
@@ -405,6 +436,17 @@ class _RankRow extends StatelessWidget {
     final badge = _badgeAsset(entry.rank);
     final rankColor = _rankColor(entry.rank);
     final isPodium = badge != null;
+    final nameColor =
+        onIvory
+            ? CardInk.black
+            : (highlight ? CasinoColors.gold : CasinoColors.text);
+    final winColor =
+        onIvory ? const Color(0xFF1E7A45) : const Color(0xFF5DCF8A);
+    final lossColor = onIvory ? CardInk.red : const Color(0xFFE07070);
+    final drawColor =
+        onIvory ? const Color(0xFF6B5A3A) : CasinoColors.textMuted;
+    final eloColor = onIvory ? const Color(0xFF8A6512) : CasinoColors.goldSoft;
+    final podium = onIvory ? _Podium.of(entry.rank) : null;
     return Container(
       padding: EdgeInsets.fromLTRB(
         _LbCols.hPad,
@@ -417,15 +459,18 @@ class _RankRow extends StatelessWidget {
         children: [
           SizedBox(
             width: _LbCols.rank,
-            child: Text(
-              '#${entry.rank}',
-              style: TextStyle(
-                fontFamily: CasinoFonts.display,
-                color: rankColor,
-                fontWeight: FontWeight.w800,
-                fontSize: isPodium ? 17 : 14,
-              ),
-            ),
+            child:
+                podium != null
+                    ? _CornerIndex(podium: podium)
+                    : Text(
+                      '#${entry.rank}',
+                      style: TextStyle(
+                        fontFamily: CasinoFonts.display,
+                        color: rankColor,
+                        fontWeight: FontWeight.w800,
+                        fontSize: isPodium ? 17 : 14,
+                      ),
+                    ),
           ),
           SizedBox(
             width: _LbCols.avatar,
@@ -461,8 +506,10 @@ class _RankRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: highlight ? CasinoColors.gold : CasinoColors.text,
-                fontWeight: FontWeight.w700,
+                fontFamily: onIvory ? CasinoFonts.display : null,
+                color: nameColor,
+                fontWeight: onIvory ? FontWeight.w800 : FontWeight.w700,
+                fontSize: onIvory ? 16 : null,
               ),
             ),
           ),
@@ -471,7 +518,7 @@ class _RankRow extends StatelessWidget {
             child: Text(
               '${entry.wins}',
               textAlign: TextAlign.center,
-              style: _statStyle.copyWith(color: const Color(0xFF5DCF8A)),
+              style: _statStyle.copyWith(color: winColor),
             ),
           ),
           SizedBox(
@@ -479,7 +526,7 @@ class _RankRow extends StatelessWidget {
             child: Text(
               '${entry.losses}',
               textAlign: TextAlign.center,
-              style: _statStyle.copyWith(color: const Color(0xFFE07070)),
+              style: _statStyle.copyWith(color: lossColor),
             ),
           ),
           SizedBox(
@@ -487,7 +534,7 @@ class _RankRow extends StatelessWidget {
             child: Text(
               '${entry.draws}',
               textAlign: TextAlign.center,
-              style: _statStyle.copyWith(color: CasinoColors.textMuted),
+              style: _statStyle.copyWith(color: drawColor),
             ),
           ),
           SizedBox(
@@ -495,16 +542,94 @@ class _RankRow extends StatelessWidget {
             child: Text(
               '${entry.elo}',
               textAlign: TextAlign.end,
-              style: const TextStyle(
-                color: CasinoColors.goldSoft,
-                fontWeight: FontWeight.w700,
+              style: TextStyle(
+                color: eloColor,
+                fontWeight: onIvory ? FontWeight.w900 : FontWeight.w700,
                 fontSize: 13,
-                fontFeatures: [FontFeature.tabularFigures()],
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Medal styling for the top three: card rank, suit and rim colour.
+class _Podium {
+  const _Podium(this.letter, this.suit, this.rim);
+
+  final String letter;
+  final SuitShape suit;
+  final Color rim;
+
+  static _Podium? of(int rank) => switch (rank) {
+    1 => const _Podium('A', SuitShape.spades, Color(0xFFD4A21C)),
+    2 => const _Podium('K', SuitShape.hearts, Color(0xFF9EA4AE)),
+    3 => const _Podium('Q', SuitShape.diamonds, Color(0xFFB8733A)),
+    _ => null,
+  };
+}
+
+/// A top-three leaderboard row dealt as an ivory playing card.
+class _PodiumCard extends StatelessWidget {
+  const _PodiumCard({
+    required this.entry,
+    required this.isSelf,
+    required this.selfLabel,
+    required this.onTap,
+  });
+
+  final RankingEntry entry;
+  final bool isSelf;
+  final String selfLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final podium = _Podium.of(entry.rank)!;
+    return IvoryCard(
+      radius: 14,
+      padding: EdgeInsets.zero,
+      highlighted: isSelf,
+      rimColor: podium.rim,
+      onTap: onTap,
+      child: _RankRow(
+        entry: entry,
+        highlight: isSelf,
+        isSelf: isSelf,
+        selfLabel: selfLabel,
+        onIvory: true,
+      ),
+    );
+  }
+}
+
+/// Card-style corner index (rank letter over suit) for podium rows.
+class _CornerIndex extends StatelessWidget {
+  const _CornerIndex({required this.podium});
+
+  final _Podium podium;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          podium.letter,
+          style: TextStyle(
+            fontFamily: CasinoFonts.display,
+            color: suitColor(podium.suit),
+            fontWeight: FontWeight.w800,
+            fontSize: 22,
+            height: 1,
+          ),
+        ),
+        const SizedBox(height: 3),
+        SuitGlyph(suit: podium.suit, size: 14),
+      ],
     );
   }
 }
