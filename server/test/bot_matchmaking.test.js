@@ -266,3 +266,63 @@ function waitFor(socket, predicate, timeout = 2000) {
     socket.on('message', onMessage);
   });
 }
+
+function botCallRoom({ botCards, humanCards }) {
+  const room = new GameRoom('ROOM-CALL');
+  room.addPlayer('human', { playerId: 'p1', displayName: 'Human' });
+  room.addPlayer('bot-client', { playerId: 'bot-1', displayName: 'Bot' });
+  room.start('human');
+  room.matchType = 'random';
+  room.players.forEach((player) => { player.launch = 'ended'; });
+  room.turnIndex = 1;
+  room.discard = ['C9'];
+  room.players[0].cards = humanCards;
+  room.players[1].cards = botCards;
+  const bot = new ServerRobotPlayer({ room, clientId: 'bot-client' });
+  return { room, bot };
+}
+
+test('ServerRobotPlayer calls the match when it is certain to win', () => {
+  const { room, bot } = botCallRoom({ botCards: ['A1', 'B2'], humanCards: ['C10', 'D5'] });
+  bot.turnsTaken = bot.callMinTurns;
+
+  bot.takeTurn();
+
+  assert.equal(room.status, 'ended');
+  assert.equal(room.result.winnerIndex, 1);
+  assert.equal(room.result.reason, 'call');
+  assert.deepEqual(room.result.scores, [15, 3]);
+  assert.equal(room.snapshotFor('human').lastAction.type, 'call');
+  room.dispose();
+});
+
+test('ServerRobotPlayer does not call when it would tie or lose', () => {
+  const { room, bot } = botCallRoom({ botCards: ['A3', 'B4'], humanCards: ['C2', 'D5'] });
+  bot.turnsTaken = bot.callMinTurns;
+
+  bot.takeTurn();
+
+  assert.equal(room.status, 'playing');
+  bot.dispose();
+  room.dispose();
+});
+
+test('ServerRobotPlayer waits callMinTurns before calling', () => {
+  const { room, bot } = botCallRoom({ botCards: ['A1', 'B2'], humanCards: ['C10', 'D5'] });
+
+  bot.takeTurn();
+
+  assert.equal(room.status, 'playing');
+  assert.equal(bot.turnsTaken, 1);
+  bot.dispose();
+  room.dispose();
+});
+
+test('call is rejected after drawing or out of turn', () => {
+  const { room } = botCallRoom({ botCards: ['A1'], humanCards: ['C10'] });
+
+  assert.throws(() => room.call('human'), { code: 'not_your_turn' });
+  room.draw('bot-client');
+  assert.throws(() => room.call('bot-client'), { code: 'already_drew' });
+  room.dispose();
+});

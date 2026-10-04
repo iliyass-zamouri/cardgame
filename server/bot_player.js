@@ -11,6 +11,10 @@ function gameValue(tag) {
   return value;
 }
 
+function handTotal(cards) {
+  return cards.reduce((sum, tag) => sum + gameValue(tag), 0);
+}
+
 class ServerRobotPlayer {
   constructor({
     room,
@@ -20,6 +24,8 @@ class ServerRobotPlayer {
     launchDelayMs = 400,
     actionDelayMs = 800,
     rematchDelayMs = 1000,
+    // Own turns to play before the bot may call the match.
+    callMinTurns = 2,
     random = Math.random,
   }) {
     this.room = room;
@@ -29,6 +35,7 @@ class ServerRobotPlayer {
     this.launchDelayMs = launchDelayMs;
     this.actionDelayMs = actionDelayMs;
     this.rematchDelayMs = rematchDelayMs;
+    this.callMinTurns = callMinTurns;
     this.random = random;
 
     this.memory = new Map();
@@ -36,6 +43,7 @@ class ServerRobotPlayer {
     this.turnScheduled = false;
     this.launchScheduled = false;
     this.rematchScheduled = false;
+    this.turnsTaken = 0;
     this.timers = new Set();
   }
 
@@ -65,6 +73,8 @@ class ServerRobotPlayer {
     if (!player) return;
 
     if (this.room.status === 'playing' && player.launch === 'notLaunched') {
+      this.turnsTaken = 0;
+      this.memory.clear();
       if (!this.launchScheduled) {
         this.launchScheduled = true;
         this.schedule(this.launchDelayMs, () => {
@@ -130,6 +140,11 @@ class ServerRobotPlayer {
 
     try {
       if (player.handCard == null) {
+        if (this.canCallWin(player)) {
+          this.room.call(this.clientId);
+          return;
+        }
+        this.turnsTaken += 1;
         const matchIndex = this.findDiscardMatch(player);
         if (matchIndex != null) {
           this.room.tapCard(this.clientId, matchIndex);
@@ -222,6 +237,14 @@ class ServerRobotPlayer {
     }
 
     this.room.throwHand(this.clientId);
+  }
+
+  /** True when ending the match now is a guaranteed win (strictly lower total). */
+  canCallWin(player) {
+    if (this.turnsTaken < this.callMinTurns) return false;
+    const opponent = this.opponent;
+    if (!opponent) return false;
+    return handTotal(player.cards) < handTotal(opponent.cards);
   }
 
   fallback() {

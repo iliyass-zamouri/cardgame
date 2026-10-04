@@ -17,6 +17,9 @@ class RobotPlayer {
 
     /// Pause after draw so UI can animate before throw/swap.
     this.actionDelayMs = 1200,
+
+    /// Own turns to play before the robot may call the match.
+    this.callMinTurns = 2,
     Random? random,
     void Function(Duration delay, void Function() callback)? schedule,
   }) : _random = random ?? Random(),
@@ -32,6 +35,7 @@ class RobotPlayer {
   final int thinkMaxMs;
   final int launchDelayMs;
   final int actionDelayMs;
+  final int callMinTurns;
   final Random _random;
   final void Function(Duration delay, void Function() callback) _schedule;
 
@@ -39,6 +43,7 @@ class RobotPlayer {
   final Map<int, String?> _memory = {};
   bool _disposed = false;
   bool _turnScheduled = false;
+  int _turnsTaken = 0;
 
   void dispose() {
     _disposed = true;
@@ -50,6 +55,8 @@ class RobotPlayer {
     if (player == null) return;
 
     if (room.status == 'playing' && player.launch == 'notLaunched') {
+      _turnsTaken = 0;
+      _memory.clear();
       _schedule(Duration(milliseconds: launchDelayMs), () {
         if (_disposed) return;
         try {
@@ -102,6 +109,11 @@ class RobotPlayer {
 
     try {
       if (player.handCard == null) {
+        if (_canCallWin(player)) {
+          room.call(clientId);
+          return;
+        }
+        _turnsTaken += 1;
         final matchIndex = _findDiscardMatch(player);
         if (matchIndex != null) {
           room.tapCard(clientId, matchIndex);
@@ -184,6 +196,17 @@ class RobotPlayer {
 
     room.throwHand(clientId);
   }
+
+  /// True when ending the match now is a guaranteed win (strictly lower total).
+  bool _canCallWin(RoomPlayer player) {
+    if (_turnsTaken < callMinTurns) return false;
+    final opponent = _opponent;
+    if (opponent == null) return false;
+    return _handTotal(player.cards) < _handTotal(opponent.cards);
+  }
+
+  static int _handTotal(List<String> cards) =>
+      cards.fold<int>(0, (sum, tag) => sum + gameValue(tag));
 
   void _fallback() {
     final player = _self;

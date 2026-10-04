@@ -438,6 +438,27 @@ class GameRoom {
   }
 
   /**
+   * Caller ends the match on their turn (before drawing); hands are scored
+   * normally. Unlike [end], this never counts as a forfeit in random matches.
+   */
+  call(clientId) {
+    this.#requireAction(clientId);
+    this.#requireNoAbilityLock(clientId);
+    const player = this.#requirePlayer(clientId);
+    if (player.handCard) {
+      throw new GameRuleError('already_drew', 'Call before drawing');
+    }
+    this.lastAction = {
+      playerId: clientId,
+      type: 'call',
+      cardIndex: null,
+    };
+    this.discardSource = null;
+    this.#endGame({ reason: 'call' });
+    this.#changed();
+  }
+
+  /**
    * Caller loses; opponent wins. Settles ranked if applicable.
    */
   forfeit(clientId) {
@@ -608,7 +629,7 @@ class GameRoom {
     return false;
   }
 
-  #endGame() {
+  #endGame({ reason = null } = {}) {
     this.status = 'ended';
     this.turnIndex = null;
     this.rematchReady = [false, false];
@@ -621,6 +642,7 @@ class GameRoom {
     this.result = {
       scores: this.players.map((player) => player.total),
       winnerIndex,
+      ...(reason ? { reason } : {}),
     };
     if (winnerIndex === 0 || winnerIndex === 1) {
       this.seriesWins[winnerIndex] += 1;

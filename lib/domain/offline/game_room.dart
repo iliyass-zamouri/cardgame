@@ -455,6 +455,20 @@ class OfflineGameRoom {
     _throwDrawnCard(player);
   }
 
+  /// Caller ends the match on their turn (before drawing); hands are scored.
+  void call(String clientId) {
+    _requireAction(clientId);
+    _requireNoAbilityLock(clientId);
+    final player = _requirePlayer(clientId);
+    if (player.handCard != null) {
+      throw GameRuleError('already_drew', 'Call before drawing');
+    }
+    _lastAction = _LastAction(playerId: clientId, type: 'call');
+    discardSource = null;
+    _endGame(reason: 'call');
+    _changed();
+  }
+
   void end(String clientId) {
     _requirePlayer(clientId);
     _lastAction = null;
@@ -603,7 +617,7 @@ class OfflineGameRoom {
     return false;
   }
 
-  void _endGame() {
+  void _endGame({String? reason}) {
     status = 'ended';
     turnIndex = null;
     rematchReady = [false, false];
@@ -620,6 +634,7 @@ class OfflineGameRoom {
     result = {
       'scores': players.map((player) => player.total).toList(growable: false),
       'winnerIndex': winnerIndex,
+      if (reason != null) 'reason': reason,
     };
     if (winnerIndex == 0 || winnerIndex == 1) {
       seriesWins[winnerIndex!] += 1;
