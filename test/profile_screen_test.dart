@@ -79,14 +79,18 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    // The home hero idles forever, so pump past animations instead of
+    // waiting to settle.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
 
     expect(find.text('Test Ace'), findsOneWidget);
     expect(find.text('@test_ace'), findsOneWidget);
 
     // Tap topbar profile area
     await tester.tap(find.text('@test_ace'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.byType(PlayerProfileScreen), findsOneWidget);
   });

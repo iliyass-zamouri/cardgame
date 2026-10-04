@@ -60,13 +60,16 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    // The home hero idles forever, so pump past the entrance animations
+    // instead of waiting to settle.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
 
     expect(find.text('Two players. One table.'), findsOneWidget);
     expect(find.text('FIND MATCH'), findsOneWidget);
     expect(find.text('CREATE ROOM'), findsOneWidget);
     expect(find.text('JOIN ROOM'), findsOneWidget);
-    expect(find.text('Practice vs Robot'), findsOneWidget);
+    expect(find.text('PRACTICE VS ROBOT'), findsOneWidget);
     expect(find.text('How to play'), findsOneWidget);
     expect(find.textContaining('Test Ace'), findsOneWidget);
   });
