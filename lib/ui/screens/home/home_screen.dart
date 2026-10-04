@@ -950,7 +950,7 @@ class GameHud extends ConsumerWidget {
               ),
               Positioned(
                 right: 12,
-                top: height * 0.25 + 64,
+                top: height * 0.25 + 54,
                 child: CasinoPlayerPill(
                   accent: accent,
                   name: game.opponent?.displayName ?? l10n.waitingEllipsisShort,
@@ -962,7 +962,7 @@ class GameHud extends ConsumerWidget {
               ),
               Positioned(
                 left: 12,
-                top: height * 0.75 - 102,
+                bottom: height * 0.25 + 80,
                 child: CasinoPlayerPill(
                   accent: accent,
                   name: game.you.displayName,
