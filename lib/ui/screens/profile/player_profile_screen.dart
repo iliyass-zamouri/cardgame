@@ -6,6 +6,7 @@ import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/data/ranking/ranking_api.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:cardgame/ui/screens/profile/avatar_selection_modal.dart';
 import 'package:cardgame/ui/screens/settings_screen.dart';
@@ -82,7 +83,9 @@ class PlayerProfileScreen extends ConsumerWidget {
             ref.invalidate(_targetMatchesProvider(effectivePlayerId));
           }
         },
-        child: Column(
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
             rankAsync.when(
               loading:
@@ -158,76 +161,55 @@ class PlayerProfileScreen extends ConsumerWidget {
                 );
               },
             ),
-            Expanded(
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Text(
-                    l10n.matchHistory.toUpperCase(),
-                    style: const TextStyle(
-                      color: CasinoColors.goldSoft,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
+            const SizedBox(height: 22),
+            FeltSectionHeader(label: l10n.matchHistory, suit: SuitShape.clubs),
+            matchesAsync.when(
+              loading:
+                  () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: SuitCardLoader(height: 24),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  matchesAsync.when(
-                    loading:
-                        () => const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: SuitCardLoader(height: 24),
-                          ),
+              error:
+                  (err, _) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        err.toString(),
+                        style: const TextStyle(
+                          color: CasinoColors.foldHi,
+                          fontSize: 13,
                         ),
-                    error:
-                        (err, _) => Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              err.toString(),
-                              style: const TextStyle(
-                                color: CasinoColors.foldHi,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ),
-                    data: (matches) {
-                      if (matches.isEmpty) {
-                        return Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: CasinoColors.surface,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: CasinoColors.surfaceHi),
-                          ),
-                          child: Center(
-                            child: Text(
-                              l10n.matchHistoryEmpty,
-                              style: const TextStyle(
-                                color: CasinoColors.textMuted,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-                      return ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: matches.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final item = matches[index];
-                          return _MatchCard(item: item);
-                        },
-                      );
-                    },
+                      ),
+                    ),
                   ),
-                ],
-              ),
+              data: (matches) {
+                if (matches.isEmpty) {
+                  return FeltPanel(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        l10n.matchHistoryEmpty,
+                        style: const TextStyle(
+                          color: CasinoColors.textMuted,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: matches.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final item = matches[index];
+                    return _MatchCard(item: item);
+                  },
+                );
+              },
             ),
           ],
         ),
@@ -271,308 +253,297 @@ class PlayerProfileScreen extends ConsumerWidget {
       _ => null,
     };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18),
-      decoration: const BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(26),
-          bottomRight: Radius.circular(26),
-        ),
-        border: Border(bottom: BorderSide(color: CasinoColors.surfaceHi)),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Row(
-              children: [
-                PlayerAvatar(
-                  avatarId: avatarId,
-                  size: 74,
-                  showGlow: true,
-                  showEditBadge: isSelf,
-                  onTap:
-                      isSelf
-                          ? () => showAvatarSelectionModal(
-                            context,
-                            currentAvatarId: avatarId,
-                            playerLevel: level,
-                          )
-                          : null,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FeltPanel(
+          highlighted: true,
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              PlayerAvatar(
+                avatarId: avatarId,
+                size: 74,
+                borderWidth: 2,
+                borderColor: CasinoColors.gold,
+                showGlow: true,
+                showEditBadge: isSelf,
+                onTap:
+                    isSelf
+                        ? () => showAvatarSelectionModal(
+                          context,
+                          currentAvatarId: avatarId,
+                          playerLevel: level,
+                        )
+                        : null,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: CasinoFonts.displayOf(context),
+                        color: CasinoColors.gold,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 19,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    GestureDetector(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: '@$username'));
+                        CasinoToast.show(context, l10n.copiedToClipboard);
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Flexible(
                             child: Text(
-                              name,
+                              '@$username',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: CasinoColors.text,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 18,
-                              ),
-                            ),
-                          ),
-                          if (authLabel != null) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: CasinoColors.bgElevated,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                authLabel,
-                                style: const TextStyle(
-                                  color: CasinoColors.textMuted,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      GestureDetector(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: '@$username'));
-                          CasinoToast.show(context, l10n.copiedToClipboard);
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '@$username',
                               style: const TextStyle(
                                 color: CasinoColors.goldSoft,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            const HugeIcon(
-                              icon: AppIcons.copy,
-                              size: 12,
-                              color: CasinoColors.textMuted,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap:
-                        () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder:
-                                (context) => DeckPreviewScreen(
-                                  title: deckName,
-                                  backSkinId: deck.skinId,
-                                ),
                           ),
-                        ),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 2,
-                      ),
-                      child: DeckFanPreview(
-                        skinId: deck.skinId,
-                        cardWidth: 52,
-                        spread: 8,
-                        heightPadding: 8,
+                          const SizedBox(width: 4),
+                          const HugeIcon(
+                            icon: AppIcons.copy,
+                            size: 12,
+                            color: CasinoColors.textMuted,
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          // Stats Row
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _StatBox(
-                    icon: AppIcons.trendingUp,
-                    iconColor: CasinoColors.gold,
-                    value: '$elo',
-                    label: l10n.elo,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _StatBox(
-                    icon: AppIcons.trophy,
-                    iconColor: CasinoColors.goldSoft,
-                    value: rank != null ? '#$rank' : '—',
-                    label: l10n.leaderboard,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _StatBox(
-                    icon: AppIcons.pieChart,
-                    iconColor: CasinoColors.raiseHi,
-                    value: '$winRate%',
-                    label: l10n.winRate,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          // Records Pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            margin: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: CasinoColors.bgElevated,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const HugeIcon(
-                  icon: AppIcons.game,
-                  size: 16,
-                  color: CasinoColors.goldSoft,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${l10n.matchesPlayed}: $totalMatches   ·   ${l10n.recordWinsLossesDraws(wins, losses, draws)}',
-                  style: const TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          // XP Progress Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            margin: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: CasinoColors.bgElevated,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
-                        Text(
-                          '${l10n.levelNumber(level)} · $rankTitle',
-                          style: const TextStyle(
-                            color: CasinoColors.gold,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        _GoldBadge(
+                          label: '${l10n.levelNumber(level)} · $rankTitle',
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${l10n.xp}: $currentLevelXp / $nextLevelXp',
-                          style: const TextStyle(
-                            color: CasinoColors.text,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        if (authLabel != null) _OutlineBadge(label: authLabel),
                       ],
-                    ),
-                    Text(
-                      '${l10n.totalXp}: $totalPoints',
-                      style: const TextStyle(
-                        color: CasinoColors.goldSoft,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 8,
-                    backgroundColor: Colors.white10,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      CasinoColors.gold,
+              ),
+              const SizedBox(width: 8),
+              Pressable(
+                onTap:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder:
+                            (context) => DeckPreviewScreen(
+                              title: deckName,
+                              backSkinId: deck.skinId,
+                            ),
+                      ),
+                    ),
+                child: DeckFanPreview(
+                  skinId: deck.skinId,
+                  cardWidth: 48,
+                  spread: 7,
+                  heightPadding: 8,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                suit: SuitShape.spades,
+                value: '$elo',
+                label: l10n.elo,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _StatCard(
+                suit: SuitShape.hearts,
+                value: rank != null ? '#$rank' : '—',
+                label: l10n.leaderboard,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _StatCard(
+                suit: SuitShape.diamonds,
+                value: '$winRate%',
+                label: l10n.winRate,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        FeltPanel(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${l10n.xp}: $currentLevelXp / $nextLevelXp',
+                      style: const TextStyle(
+                        color: CasinoColors.text,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                  Text(
+                    '${l10n.totalXp}: $totalPoints',
+                    style: const TextStyle(
+                      color: CasinoColors.goldSoft,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              GoldProgressBar(value: progress),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const HugeIcon(
+                    icon: AppIcons.game,
+                    size: 15,
+                    color: CasinoColors.goldSoft,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      '${l10n.matchesPlayed}: $totalMatches   ·   ${l10n.recordWinsLossesDraws(wins, losses, draws)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: CasinoColors.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _StatBox extends StatelessWidget {
-  const _StatBox({
-    required this.icon,
-    required this.iconColor,
-    required this.value,
-    required this.label,
-  });
+class _GoldBadge extends StatelessWidget {
+  const _GoldBadge({required this.label});
 
-  final List<List<dynamic>> icon;
-  final Color iconColor;
-  final String value;
   final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: CasinoColors.bgElevated,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFE08A), CasinoColors.gold],
+        ),
       ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: CardInk.black,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _OutlineBadge extends StatelessWidget {
+  const _OutlineBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: CasinoColors.goldSoft,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+/// A stat shown as a small ivory playing card with the value in suit ink.
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.suit,
+    required this.value,
+    required this.label,
+  });
+
+  final SuitShape suit;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    return IvoryCard(
+      suit: suit,
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
       child: Column(
         children: [
-          HugeIcon(icon: icon, color: iconColor, size: 18),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: CasinoColors.text,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontFamily: CasinoFonts.display,
+                color: suitColor(suit),
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                height: 1.1,
+              ),
             ),
           ),
+          const SizedBox(height: 4),
           Text(
-            label,
+            casinoButtonLabel(label, locale),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: CasinoColors.textMuted,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+              color: Color(0xFF5A4A2A),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
             ),
           ),
         ],
@@ -592,46 +563,55 @@ class _MatchCard extends StatelessWidget {
     final isWin = item.result.toLowerCase() == 'win';
     final isLoss = item.result.toLowerCase() == 'loss';
 
-    final resultColor =
+    final (resultLabel, resultInk, suit) =
         isWin
-            ? CasinoColors.raiseHi
+            ? (l10n.matchResultWin, const Color(0xFF1E7A45), SuitShape.spades)
             : isLoss
-            ? CasinoColors.foldHi
-            : CasinoColors.textMuted;
-
-    final resultLabel =
-        isWin
-            ? l10n.matchResultWin
-            : isLoss
-            ? l10n.matchResultLoss
-            : l10n.matchResultDraw;
+            ? (l10n.matchResultLoss, CardInk.red, SuitShape.hearts)
+            : (l10n.matchResultDraw, const Color(0xFF6B5A3A), SuitShape.clubs);
 
     final eloSign =
         item.eloDelta >= 0 ? '+${item.eloDelta}' : '${item.eloDelta}';
+    final eloColor =
+        isWin
+            ? CasinoColors.raiseHi
+            : (isLoss ? CasinoColors.foldHi : CasinoColors.goldSoft);
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CasinoColors.surfaceHi),
-      ),
+    return FeltPanel(
+      padding: const EdgeInsets.all(10),
       child: Row(
         children: [
+          // Result as a tiny playing card.
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            width: 46,
+            height: 56,
             decoration: BoxDecoration(
-              color: resultColor.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: resultColor.withValues(alpha: 0.5)),
-            ),
-            child: Text(
-              resultLabel,
-              style: TextStyle(
-                color: resultColor,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
+              borderRadius: BorderRadius.circular(7),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [CardInk.ivory, CardInk.ivoryShade],
               ),
+              border: Border.all(color: resultInk.withValues(alpha: 0.6)),
+            ),
+            padding: const EdgeInsets.all(4),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SuitGlyph(suit: suit, size: 16, color: resultInk),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    resultLabel,
+                    style: TextStyle(
+                      color: resultInk,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 12),
@@ -640,16 +620,16 @@ class _MatchCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'vs ${item.opponentName}',
+                  '${l10n.vs} ${item.opponentName}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: CasinoColors.text,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   l10n.matchScoreLine(item.cardTotal, item.opponentCardTotal),
                   style: const TextStyle(
@@ -664,24 +644,20 @@ class _MatchCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                eloSign,
+                '$eloSign ${l10n.elo}',
                 style: TextStyle(
-                  color:
-                      isWin
-                          ? CasinoColors.raiseHi
-                          : (isLoss
-                              ? CasinoColors.foldHi
-                              : CasinoColors.goldSoft),
-                  fontWeight: FontWeight.w800,
+                  color: eloColor,
+                  fontWeight: FontWeight.w900,
                   fontSize: 14,
                 ),
               ),
+              const SizedBox(height: 2),
               Text(
                 '+${item.pointsEarned} ${l10n.xp}',
                 style: const TextStyle(
                   color: CasinoColors.goldSoft,
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],

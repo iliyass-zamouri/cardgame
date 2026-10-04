@@ -40,7 +40,7 @@ class _LeaderboardTab extends ConsumerStatefulWidget {
 }
 
 class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
-  static const _approxRow = 64.0;
+  static const _approxRow = 72.0;
 
   final _viewportKey = GlobalKey();
   final _selfKey = GlobalKey();
@@ -100,23 +100,30 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
   }
 
   Widget _stickyRow({required RankingEntry entry, required String selfLabel}) {
-    return Material(
-      color: CasinoColors.surface,
-      elevation: 6,
-      shadowColor: Colors.black54,
-      child: InkWell(
-        onTap:
-            () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder:
-                    (_) => PlayerProfileScreen(targetPlayerId: entry.playerId),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap:
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder:
+                      (_) =>
+                          PlayerProfileScreen(targetPlayerId: entry.playerId),
+                ),
               ),
+          child: Ink(
+            decoration: leatherPanelDecoration(radius: 14, highlighted: true),
+            child: _RankRow(
+              entry: entry,
+              highlight: true,
+              isSelf: true,
+              selfLabel: selfLabel,
             ),
-        child: _RankRow(
-          entry: entry,
-          highlight: true,
-          isSelf: true,
-          selfLabel: selfLabel,
+          ),
         ),
       ),
     );
@@ -179,38 +186,46 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
                       },
                       child: ListView.separated(
                         controller: _scrollController,
-                        padding: EdgeInsets.only(
-                          top: 4,
-                          bottom:
-                              showStickyOverlay && _sticky == _SelfSticky.bottom
-                                  ? _approxRow + 8
-                                  : 4,
+                        padding: EdgeInsets.fromLTRB(
+                          12,
+                          6,
+                          12,
+                          showStickyOverlay && _sticky == _SelfSticky.bottom
+                              ? _approxRow + 16
+                              : 16,
                         ),
                         itemCount: entries.length,
-                        separatorBuilder:
-                            (_, _) => const Divider(
-                              height: 1,
-                              color: Color(0x22FFFFFF),
-                            ),
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           final entry = entries[index];
                           final isSelf = entry.playerId == myId;
-                          return InkWell(
+                          return Material(
                             key: isSelf ? _selfKey : null,
-                            onTap:
-                                () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder:
-                                        (_) => PlayerProfileScreen(
-                                          targetPlayerId: entry.playerId,
-                                        ),
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(14),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap:
+                                  () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder:
+                                          (_) => PlayerProfileScreen(
+                                            targetPlayerId: entry.playerId,
+                                          ),
+                                    ),
                                   ),
+                              child: Ink(
+                                decoration: leatherPanelDecoration(
+                                  radius: 14,
+                                  highlighted: isSelf,
                                 ),
-                            child: _RankRow(
-                              entry: entry,
-                              highlight: isSelf,
-                              isSelf: isSelf,
-                              selfLabel: l10n.you,
+                                child: _RankRow(
+                                  entry: entry,
+                                  highlight: isSelf,
+                                  isSelf: isSelf,
+                                  selfLabel: l10n.you,
+                                ),
+                              ),
                             ),
                           );
                         },
@@ -269,9 +284,9 @@ class _HistoryTab extends ConsumerWidget {
             await ref.read(matchHistoryProvider.future);
           },
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
             itemCount: matches.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               return _HistoryTile(item: matches[index]);
             },
@@ -299,16 +314,17 @@ class _LeaderboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     const style = TextStyle(
-      color: CasinoColors.textMuted,
+      color: CasinoColors.goldSoft,
       fontSize: 11,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.4,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.8,
     );
     return Container(
-      color: CasinoColors.bgElevated,
-      padding: const EdgeInsets.symmetric(
-        horizontal: _LbCols.hPad,
-        vertical: 8,
+      padding: const EdgeInsets.fromLTRB(
+        _LbCols.hPad + 12,
+        10,
+        _LbCols.hPad + 12,
+        4,
       ),
       child: Row(
         children: [
@@ -390,7 +406,6 @@ class _RankRow extends StatelessWidget {
     final rankColor = _rankColor(entry.rank);
     final isPodium = badge != null;
     return Container(
-      color: highlight ? CasinoColors.gold.withValues(alpha: 0.08) : null,
       padding: EdgeInsets.fromLTRB(
         _LbCols.hPad,
         isPodium ? 8 : 10,
@@ -405,9 +420,10 @@ class _RankRow extends StatelessWidget {
             child: Text(
               '#${entry.rank}',
               style: TextStyle(
+                fontFamily: CasinoFonts.display,
                 color: rankColor,
-                fontWeight: isPodium ? FontWeight.w800 : FontWeight.w700,
-                fontSize: isPodium ? 16 : 13,
+                fontWeight: FontWeight.w800,
+                fontSize: isPodium ? 17 : 14,
               ),
             ),
           ),
@@ -519,23 +535,29 @@ class _HistoryTile extends StatelessWidget {
             : '${when.year}-${when.month.toString().padLeft(2, '0')}-${when.day.toString().padLeft(2, '0')}';
 
     return Container(
-      decoration: BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.2)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: leatherPanelDecoration(radius: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 52,
+            width: 56,
+            margin: const EdgeInsetsDirectional.only(end: 12),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             alignment: Alignment.center,
-            child: Text(
-              resultLabel,
-              style: TextStyle(
-                color: resultColor,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
+            decoration: BoxDecoration(
+              color: resultColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: resultColor.withValues(alpha: 0.6)),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                resultLabel,
+                style: TextStyle(
+                  color: resultColor,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                ),
               ),
             ),
           ),
@@ -619,10 +641,10 @@ class _ErrorPane extends StatelessWidget {
               style: const TextStyle(color: CasinoColors.textMuted),
             ),
             const SizedBox(height: 12),
-            TextButton(
+            GoldButton(
+              label: l10n.retryConnection,
+              compact: true,
               onPressed: onRetry,
-              style: TextButton.styleFrom(foregroundColor: CasinoColors.gold),
-              child: Text(l10n.retryConnection),
             ),
           ],
         ),

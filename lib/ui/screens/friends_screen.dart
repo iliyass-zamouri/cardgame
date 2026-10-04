@@ -1,6 +1,7 @@
 import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/data/friends/friends_api.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/screens/profile/player_profile_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
@@ -116,10 +117,10 @@ class _FriendsListTab extends ConsumerWidget {
                     style: const TextStyle(color: CasinoColors.foldHi),
                   ),
                   const SizedBox(height: 12),
-                  CasinoActionButton(
+                  GoldButton(
                     label: l10n.retryConnection,
-                    tone: CasinoActionTone.raise,
-                    expanded: false,
+                    compact: true,
+                    leading: const HugeIcon(icon: AppIcons.refresh),
                     onPressed:
                         () => ref.read(friendsDataProvider.notifier).refresh(),
                   ),
@@ -159,11 +160,9 @@ class _FriendsListTab extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  CasinoActionButton(
+                  GoldButton(
                     label: l10n.addFriend,
-                    icon: AppIcons.personAdd,
-                    tone: CasinoActionTone.raise,
-                    expanded: false,
+                    leading: const HugeIcon(icon: AppIcons.personAdd),
                     onPressed: onGoToAdd,
                   ),
                 ],
@@ -201,7 +200,7 @@ class _FriendCard extends ConsumerWidget {
     final l10n = context.l10n;
 
     return Material(
-      color: CasinoColors.surface,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -212,12 +211,9 @@ class _FriendCard extends ConsumerWidget {
                     (_) => PlayerProfileScreen(targetPlayerId: friend.playerId),
               ),
             ),
-        child: Container(
+        child: Ink(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: CasinoColors.surfaceHi),
-          ),
+          decoration: leatherPanelDecoration(radius: 16),
           child: Row(
             children: [
               _PlayerAvatar(
@@ -250,8 +246,10 @@ class _FriendCard extends ConsumerWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: CasinoColors.bgElevated,
                             borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: CasinoColors.gold.withValues(alpha: 0.5),
+                            ),
                           ),
                           child: Text(
                             '${friend.elo} ${l10n.elo}',
@@ -297,10 +295,8 @@ class _FriendCard extends ConsumerWidget {
                   icon: AppIcons.moreVert,
                   color: CasinoColors.textMuted,
                 ),
-                color: CasinoColors.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                color: CasinoColors.leather,
+                shape: feltDialogShape,
                 onSelected: (val) async {
                   if (val == 'remove') {
                     final confirm = await showDialog<bool>(
@@ -308,9 +304,7 @@ class _FriendCard extends ConsumerWidget {
                       builder:
                           (ctx) => AlertDialog(
                             backgroundColor: CasinoColors.surface,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
+                            shape: feltDialogShape,
                             title: Text(
                               l10n.removeFriend,
                               style: const TextStyle(
@@ -360,9 +354,7 @@ class _FriendCard extends ConsumerWidget {
                       builder:
                           (ctx) => AlertDialog(
                             backgroundColor: CasinoColors.surface,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
+                            shape: feltDialogShape,
                             title: const Text(
                               'Block Player',
                               style: TextStyle(
@@ -560,30 +552,18 @@ class _FriendRequestsTab extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
               if (incoming.isNotEmpty) ...[
-                Text(
-                  l10n.incomingRequests.toUpperCase(),
-                  style: const TextStyle(
-                    color: CasinoColors.goldSoft,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                  ),
+                FeltSectionHeader(
+                  label: l10n.incomingRequests,
+                  suit: SuitShape.hearts,
                 ),
-                const SizedBox(height: 10),
                 ...incoming.map((req) => _IncomingRequestCard(request: req)),
                 const SizedBox(height: 24),
               ],
               if (outgoing.isNotEmpty) ...[
-                Text(
-                  l10n.outgoingRequests.toUpperCase(),
-                  style: const TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                  ),
+                FeltSectionHeader(
+                  label: l10n.outgoingRequests,
+                  suit: SuitShape.clubs,
                 ),
-                const SizedBox(height: 10),
                 ...outgoing.map((req) => _OutgoingRequestCard(request: req)),
               ],
             ],
@@ -606,11 +586,7 @@ class _IncomingRequestCard extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CasinoColors.surfaceHi),
-      ),
+      decoration: leatherPanelDecoration(radius: 16),
       child: Row(
         children: [
           _PlayerAvatar(avatarId: request.avatarId, isOnline: request.isOnline),
@@ -640,13 +616,11 @@ class _IncomingRequestCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(
-            icon: const HugeIcon(
-              icon: AppIcons.close,
-              color: CasinoColors.foldHi,
-            ),
+          FeltIconButton(
+            icon: AppIcons.close,
+            size: 36,
             tooltip: l10n.decline,
-            onPressed: () {
+            onTap: () {
               ref
                   .read(friendsDataProvider.notifier)
                   .declineRequest(
@@ -655,14 +629,10 @@ class _IncomingRequestCard extends ConsumerWidget {
                   );
             },
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: const HugeIcon(
-              icon: AppIcons.checkCircle,
-              color: CasinoColors.raiseHi,
-              size: 28,
-            ),
-            tooltip: l10n.accept,
+          const SizedBox(width: 8),
+          GoldButton(
+            label: l10n.accept,
+            compact: true,
             onPressed: () {
               ref
                   .read(friendsDataProvider.notifier)
@@ -690,11 +660,7 @@ class _OutgoingRequestCard extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CasinoColors.surfaceHi),
-      ),
+      decoration: leatherPanelDecoration(radius: 16),
       child: Row(
         children: [
           _PlayerAvatar(avatarId: request.avatarId, isOnline: request.isOnline),
@@ -723,7 +689,10 @@ class _OutgoingRequestCard extends ConsumerWidget {
               ],
             ),
           ),
-          TextButton(
+          LeatherButton(
+            label: l10n.cancel,
+            compact: true,
+            color: CasinoColors.textMuted,
             onPressed: () {
               ref
                   .read(friendsDataProvider.notifier)
@@ -732,13 +701,6 @@ class _OutgoingRequestCard extends ConsumerWidget {
                     requestId: request.requestId,
                   );
             },
-            child: Text(
-              l10n.cancel,
-              style: const TextStyle(
-                color: CasinoColors.textMuted,
-                fontSize: 13,
-              ),
-            ),
           ),
         ],
       ),
@@ -794,11 +756,13 @@ class _SearchPlayersTabState extends ConsumerState<_SearchPlayersTab> {
                         },
                       )
                       : null,
-              fillColor: CasinoColors.surface,
+              fillColor: Colors.black.withValues(alpha: 0.38),
               filled: true,
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: CasinoColors.surfaceHi),
+                borderSide: BorderSide(
+                  color: CasinoColors.gold.withValues(alpha: 0.35),
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -883,8 +847,8 @@ class _SearchResultCard extends ConsumerWidget {
         actionButton = Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: CasinoColors.bgElevated,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.4)),
           ),
           child: Text(
             l10n.youTag,
@@ -931,8 +895,8 @@ class _SearchResultCard extends ConsumerWidget {
         actionButton = Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: CasinoColors.bgElevated,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.4)),
           ),
           child: Text(
             l10n.requestSent,
@@ -945,24 +909,20 @@ class _SearchResultCard extends ConsumerWidget {
         );
         break;
       case FriendshipRelationship.pendingReceived:
-        actionButton = CasinoActionButton(
+        actionButton = GoldButton(
           label: l10n.accept,
-          icon: AppIcons.check,
-          tone: CasinoActionTone.raise,
-          expanded: false,
-          height: 38,
+          compact: true,
+          leading: const HugeIcon(icon: AppIcons.check),
           onPressed: () {
             ref.read(playerSearchProvider.notifier).acceptUserRequest(player);
           },
         );
         break;
       case FriendshipRelationship.none:
-        actionButton = CasinoActionButton(
+        actionButton = GoldButton(
           label: l10n.addFriend,
-          icon: AppIcons.personAdd,
-          tone: CasinoActionTone.gold,
-          expanded: false,
-          height: 38,
+          compact: true,
+          leading: const HugeIcon(icon: AppIcons.personAdd),
           onPressed: () {
             ref.read(playerSearchProvider.notifier).sendRequestToUser(player);
           },
@@ -972,11 +932,7 @@ class _SearchResultCard extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CasinoColors.surfaceHi),
-      ),
+      decoration: leatherPanelDecoration(radius: 16),
       child: Row(
         children: [
           _PlayerAvatar(avatarId: player.avatarId, isOnline: player.isOnline),
@@ -1006,8 +962,10 @@ class _SearchResultCard extends ConsumerWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: CasinoColors.bgElevated,
                         borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: CasinoColors.gold.withValues(alpha: 0.5),
+                        ),
                       ),
                       child: Text(
                         '${player.elo} ${l10n.elo}',
@@ -1048,7 +1006,12 @@ class _PlayerAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlayerAvatar(
       avatarId: avatarId,
-      size: 44,
+      size: 46,
+      borderWidth: 1.6,
+      borderColor:
+          isOnline
+              ? CasinoColors.gold
+              : CasinoColors.gold.withValues(alpha: 0.25),
       statusDotColor: isOnline ? const Color(0xFF7ED50E) : CasinoColors.foldHi,
     );
   }

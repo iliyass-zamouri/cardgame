@@ -15,6 +15,7 @@ import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/services/push_notification_api_service.dart';
 import 'package:cardgame/ui/screens/auth/auth_provider_buttons.dart';
 import 'package:cardgame/ui/screens/deck_preview_screen.dart';
+import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
@@ -144,7 +145,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return FeltScaffold(
       title: l10n.settings,
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
         children: [
           _ProfileCard(
             profile: profile,
@@ -160,99 +161,107 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ],
           if (PurchasesConfig.enableProUpgrade) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _ProCard(isPro: isPro),
           ],
-          const SizedBox(height: 16),
-          _SettingsTile(
-            icon: AppIcons.menuBook,
-            label: l10n.howToPlay,
-            onTap:
-                () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (context) => const HowToPlayScreen(),
-                  ),
-                ),
+          const SizedBox(height: 20),
+          FeltTileGroup(
+            children: [
+              FeltTile(
+                icon: AppIcons.menuBook,
+                title: l10n.howToPlay,
+                onTap:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (context) => const HowToPlayScreen(),
+                      ),
+                    ),
+              ),
+              FeltTile(
+                icon: AppIcons.style,
+                title: l10n.deck,
+                onTap:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder:
+                            (context) => DeckPreviewScreen(
+                              backSkinId: DeckCatalog.skinIdFor(profile.deckId),
+                            ),
+                      ),
+                    ),
+              ),
+              const _LanguageTile(),
+            ],
           ),
-          const SizedBox(height: 10),
-          _SettingsTile(
-            icon: AppIcons.style,
-            label: l10n.deck,
-            onTap:
-                () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder:
-                        (context) => DeckPreviewScreen(
-                          backSkinId: DeckCatalog.skinIdFor(profile.deckId),
-                        ),
-                  ),
-                ),
+          const SizedBox(height: 20),
+          const _NotifyPrefsGroup(),
+          const SizedBox(height: 20),
+          FeltTileGroup(
+            children: [
+              FeltTile(
+                icon: AppIcons.restore,
+                title: 'Restore Purchases',
+                onTap: () async {
+                  try {
+                    final info =
+                        await PurchasesService.instance.restorePurchases();
+                    await ref.read(customerInfoProvider.notifier).refresh();
+                    if (context.mounted) {
+                      final hasPro =
+                          info
+                              ?.entitlements
+                              .all[PurchasesConfig.entitlementPro]
+                              ?.isActive ??
+                          false;
+                      CasinoToast.show(
+                        context,
+                        hasPro
+                            ? 'Purchases restored. PRO active!'
+                            : 'Purchases restored.',
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      CasinoToast.show(
+                        context,
+                        'Restore failed: $e',
+                        success: false,
+                      );
+                    }
+                  }
+                },
+              ),
+              FeltTile(
+                icon: AppIcons.shield,
+                title: 'Privacy Policy',
+                onTap: () => _launchLegalUrl(PRIVACY_URL),
+              ),
+              FeltTile(
+                icon: AppIcons.menuBook,
+                title: 'Terms of Service',
+                onTap: () => _launchLegalUrl(TOS_URL),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          const _LanguageCard(),
-          const SizedBox(height: 10),
-          const _NotifyPrefsCard(),
-          const SizedBox(height: 10),
-          _SettingsTile(
-            icon: AppIcons.restore,
-            label: 'Restore Purchases',
-            onTap: () async {
-              try {
-                final info = await PurchasesService.instance.restorePurchases();
-                await ref.read(customerInfoProvider.notifier).refresh();
-                if (context.mounted) {
-                  final hasPro =
-                      info
-                          ?.entitlements
-                          .all[PurchasesConfig.entitlementPro]
-                          ?.isActive ??
-                      false;
-                  CasinoToast.show(
-                    context,
-                    hasPro
-                        ? 'Purchases restored. PRO active!'
-                        : 'Purchases restored.',
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  CasinoToast.show(
-                    context,
-                    'Restore failed: $e',
-                    success: false,
-                  );
-                }
-              }
-            },
-          ),
-          const SizedBox(height: 10),
-          _SettingsTile(
-            icon: AppIcons.shield,
-            label: 'Privacy Policy',
-            onTap: () => _launchLegalUrl(PRIVACY_URL),
-          ),
-          const SizedBox(height: 10),
-          _SettingsTile(
-            icon: AppIcons.menuBook,
-            label: 'Terms of Service',
-            onTap: () => _launchLegalUrl(TOS_URL),
-          ),
-          const SizedBox(height: 10),
-          _SettingsTile(
-            icon: AppIcons.removeCircle,
-            label: 'Delete Account',
-            destructive: true,
-            onTap: () => _confirmDeleteAccount(context),
-          ),
-          const SizedBox(height: 10),
-          _SettingsTile(
-            icon: AppIcons.logout,
-            label: l10n.signOut,
-            destructive: true,
-            onTap: () async {
-              await ref.read(sessionAuthProvider.notifier).signOut();
-              if (context.mounted) Navigator.of(context).pop();
-            },
+          const SizedBox(height: 20),
+          FeltTileGroup(
+            children: [
+              FeltTile(
+                icon: AppIcons.logout,
+                title: l10n.signOut,
+                destructive: true,
+                onTap: () async {
+                  await ref.read(sessionAuthProvider.notifier).signOut();
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+              ),
+              FeltTile(
+                icon: AppIcons.removeCircle,
+                title: 'Delete Account',
+                destructive: true,
+                onTap: () => _confirmDeleteAccount(context),
+              ),
+            ],
           ),
         ],
       ),
@@ -274,82 +283,85 @@ class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final locale = Localizations.localeOf(context);
     final authLabel = switch (authStatus) {
       SessionAuthStatus.guest => l10n.guest,
       SessionAuthStatus.google => l10n.google,
       _ => l10n.guest,
     };
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: CasinoColors.surfaceHi),
-      ),
+    return FeltPanel(
+      highlighted: true,
+      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
-          PlayerAvatar(avatarId: profile.avatarId, size: 52),
+          PlayerAvatar(
+            avatarId: profile.avatarId,
+            size: 58,
+            borderWidth: 1.8,
+            borderColor: CasinoColors.gold,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  profile.name.isEmpty ? l10n.player : profile.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: CasinoFonts.displayFor(locale),
+                    color: CasinoColors.gold,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 2),
                 Row(
                   children: [
                     Flexible(
                       child: Text(
-                        profile.name.isEmpty ? l10n.player : profile.name,
+                        '@${profile.username}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: CasinoColors.text,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
+                          color: CasinoColors.goldSoft,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: CasinoColors.bgElevated,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: CasinoColors.gold.withValues(alpha: 0.45),
+                        ),
                       ),
                       child: Text(
                         authLabel,
                         style: const TextStyle(
-                          color: CasinoColors.textMuted,
+                          color: CasinoColors.goldSoft,
                           fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '@${profile.username}',
-                  style: const TextStyle(
-                    color: CasinoColors.goldSoft,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
               ],
             ),
           ),
-          IconButton(
+          FeltIconButton(
+            icon: AppIcons.edit,
             tooltip: l10n.editProfile,
-            onPressed: onEdit,
-            icon: const HugeIcon(
-              icon: AppIcons.edit,
-              color: CasinoColors.gold,
-              size: 20,
-            ),
+            onTap: onEdit,
           ),
         ],
       ),
@@ -551,11 +563,9 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
             style: const TextStyle(color: CasinoColors.textMuted),
           ),
         ),
-        CasinoActionButton(
+        GoldButton(
           label: l10n.save,
-          tone: CasinoActionTone.raise,
-          expanded: false,
-          height: 40,
+          compact: true,
           onPressed: _saving ? null : _save,
         ),
       ],
@@ -620,24 +630,11 @@ class _ProCardState extends ConsumerState<_ProCard> {
   @override
   Widget build(BuildContext context) {
     if (widget.isPro) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2A2006), Color(0xFF1C1605)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.6)),
-        ),
-        child: const Row(
+      return const FeltPanel(
+        highlighted: true,
+        child: Row(
           children: [
-            HugeIcon(
-              icon: AppIcons.premium,
-              color: CasinoColors.gold,
-              size: 32,
-            ),
+            FeltMedallion(icon: AppIcons.premium, color: CasinoColors.gold),
             SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -646,6 +643,7 @@ class _ProCardState extends ConsumerState<_ProCard> {
                   Text(
                     'ShadowHand PRO',
                     style: TextStyle(
+                      fontFamily: CasinoFonts.display,
                       color: CasinoColors.gold,
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
@@ -667,30 +665,12 @@ class _ProCardState extends ConsumerState<_ProCard> {
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.3)),
-      ),
+    return IvoryCard(
+      suit: SuitShape.diamonds,
+      padding: const EdgeInsets.fromLTRB(26, 16, 18, 16),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: CasinoColors.gold.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: HugeIcon(
-                icon: AppIcons.star,
-                color: CasinoColors.gold,
-                size: 26,
-              ),
-            ),
-          ),
+          const HugeIcon(icon: AppIcons.premium, color: CardInk.red, size: 30),
           const SizedBox(width: 14),
           const Expanded(
             child: Column(
@@ -699,46 +679,23 @@ class _ProCardState extends ConsumerState<_ProCard> {
                 Text(
                   'Upgrade to PRO',
                   style: TextStyle(
-                    color: CasinoColors.text,
+                    fontFamily: CasinoFonts.display,
                     fontWeight: FontWeight.w800,
-                    fontSize: 15,
+                    fontSize: 16,
                   ),
                 ),
                 SizedBox(height: 2),
                 Text(
                   'Ad-free play & exclusive perks',
-                  style: TextStyle(color: CasinoColors.textMuted, fontSize: 12),
+                  style: TextStyle(color: Color(0xFF5A4A2A), fontSize: 12),
                 ),
               ],
             ),
           ),
-          ElevatedButton(
+          GoldButton(
+            label: _isLoading ? '…' : 'PRO',
+            compact: true,
             onPressed: _isLoading ? null : _upgradeToPro,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: CasinoColors.gold,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            ),
-            child:
-                _isLoading
-                    ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.black,
-                      ),
-                    )
-                    : const Text(
-                      'PRO',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                      ),
-                    ),
           ),
         ],
       ),
@@ -746,8 +703,8 @@ class _ProCardState extends ConsumerState<_ProCard> {
   }
 }
 
-class _LanguageCard extends ConsumerWidget {
-  const _LanguageCard();
+class _LanguageTile extends ConsumerWidget {
+  const _LanguageTile();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -755,195 +712,88 @@ class _LanguageCard extends ConsumerWidget {
     final current = LanguageSwitcher.optionFor(
       ref.watch(localeProvider).languageCode,
     );
-    return Material(
-      color: CasinoColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => LanguageSwitcher.openPicker(context),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: CasinoColors.surfaceHi),
+    return FeltTile(
+      leading: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.black.withValues(alpha: 0.32),
+          border: Border.all(
+            color: CasinoColors.goldSoft.withValues(alpha: 0.45),
           ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: SvgPicture.asset(
-                  current.flagAsset,
-                  width: 28,
-                  height: 20,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.language,
-                      style: const TextStyle(
-                        color: CasinoColors.text,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      current.name,
-                      style: const TextStyle(
-                        color: CasinoColors.textMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const HugeIcon(
-                icon: AppIcons.public,
-                color: CasinoColors.goldSoft,
-                size: 22,
-              ),
-            ],
+        ),
+        child: Center(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: SvgPicture.asset(
+              current.flagAsset,
+              width: 22,
+              height: 15,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
       ),
+      title: l10n.language,
+      subtitle: current.name,
+      onTap: () => LanguageSwitcher.openPicker(context),
     );
   }
 }
 
-class _SettingsTile extends StatelessWidget {
-  const _SettingsTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.destructive = false,
-  });
-
-  final List<List<dynamic>> icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = destructive ? CasinoColors.foldHi : CasinoColors.text;
-    final iconColor = destructive ? CasinoColors.foldHi : CasinoColors.goldSoft;
-    return Material(
-      color: CasinoColors.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: CasinoColors.surfaceHi),
-          ),
-          child: Row(
-            children: [
-              HugeIcon(icon: icon, color: iconColor, size: 22),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              HugeIcon(
-                icon: AppIcons.chevronRight,
-                color: CasinoColors.textMuted.withValues(alpha: 0.7),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NotifyPrefsCard extends ConsumerWidget {
-  const _NotifyPrefsCard();
+class _NotifyPrefsGroup extends ConsumerWidget {
+  const _NotifyPrefsGroup();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncPrefs = ref.watch(notifyPrefsProvider);
     final prefs = asyncPrefs.value ?? const NotifyPrefs.allOn();
+    final notifier = ref.read(notifyPrefsProvider.notifier);
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-      decoration: BoxDecoration(
-        color: CasinoColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CasinoColors.surfaceHi),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Notifications',
-            style: TextStyle(
-              color: CasinoColors.gold,
-              fontWeight: FontWeight.w800,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 4),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              'Table invites',
-              style: TextStyle(color: CasinoColors.text, fontSize: 14),
-            ),
-            value: prefs.invites,
-            activeThumbColor: CasinoColors.gold,
-            onChanged:
-                (v) => ref.read(notifyPrefsProvider.notifier).setInvites(v),
-          ),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              'Friends',
-              style: TextStyle(color: CasinoColors.text, fontSize: 14),
-            ),
-            value: prefs.social,
-            activeThumbColor: CasinoColors.gold,
-            onChanged:
-                (v) => ref.read(notifyPrefsProvider.notifier).setSocial(v),
-          ),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              'Ranking',
-              style: TextStyle(color: CasinoColors.text, fontSize: 14),
-            ),
-            value: prefs.ranking,
-            activeThumbColor: CasinoColors.gold,
-            onChanged:
-                (v) => ref.read(notifyPrefsProvider.notifier).setRanking(v),
-          ),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              'News & offers',
-              style: TextStyle(color: CasinoColors.text, fontSize: 14),
-            ),
-            value: prefs.marketing,
-            activeThumbColor: CasinoColors.gold,
-            onChanged:
-                (v) => ref.read(notifyPrefsProvider.notifier).setMarketing(v),
-          ),
-        ],
-      ),
+    FeltTile toggle(
+      List<List<dynamic>> icon,
+      String title,
+      bool value,
+      ValueChanged<bool> onChanged,
+    ) {
+      return FeltTile(
+        icon: icon,
+        title: title,
+        onTap: () => onChanged(!value),
+        trailing: Switch.adaptive(
+          value: value,
+          activeThumbColor: CasinoColors.gold,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          onChanged: onChanged,
+        ),
+      );
+    }
+
+    return FeltTileGroup(
+      header: 'Notifications',
+      suit: SuitShape.hearts,
+      children: [
+        toggle(
+          AppIcons.mail,
+          'Table invites',
+          prefs.invites,
+          notifier.setInvites,
+        ),
+        toggle(AppIcons.people, 'Friends', prefs.social, notifier.setSocial),
+        toggle(
+          AppIcons.trendingUp,
+          'Ranking',
+          prefs.ranking,
+          notifier.setRanking,
+        ),
+        toggle(
+          AppIcons.stars,
+          'News & offers',
+          prefs.marketing,
+          notifier.setMarketing,
+        ),
+      ],
     );
   }
 }

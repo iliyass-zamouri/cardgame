@@ -1,6 +1,6 @@
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/card_game.dart';
-import 'package:cardgame/ui/theme/casino_chrome.dart';
+import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
@@ -77,14 +77,17 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
     final steps = _steps(l10n);
     if (_index >= steps.length) _index = steps.length - 1;
     final step = steps[_index];
+    final suit = SuitShape.values[_index % SuitShape.values.length];
+    final ink = suitColor(suit);
     final displayFamily = CasinoFonts.displayFor(
       Localizations.localeOf(context),
     );
     return FeltScaffold(
       title: l10n.howToPlay,
       body: SafeArea(
+        top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -92,128 +95,139 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
                 l10n.stepOf(_index + 1, steps.length),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: CasinoColors.textMuted,
+                  color: CasinoColors.goldSoft,
                   fontSize: 13,
-                  letterSpacing: 0.4,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              // Progress as a row of suit pips.
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   for (var i = 0; i < steps.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 6),
-                    AnimatedContainer(
+                    if (i > 0) const SizedBox(width: 8),
+                    AnimatedScale(
                       duration: const Duration(milliseconds: 200),
-                      width: i == _index ? 18 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
+                      scale: i == _index ? 1.4 : 1,
+                      child: SuitGlyph(
+                        suit: SuitShape.values[i % SuitShape.values.length],
+                        size: 11,
                         color:
-                            i == _index
+                            i <= _index
                                 ? CasinoColors.gold
-                                : i < _index
-                                ? CasinoColors.gold.withValues(alpha: 0.45)
-                                : CasinoColors.surfaceHi,
-                        borderRadius: BorderRadius.circular(4),
+                                : CasinoColors.gold.withValues(alpha: 0.25),
                       ),
                     ),
                   ],
                 ],
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 18),
               Expanded(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 220),
                   switchInCurve: Curves.easeOut,
                   switchOutCurve: Curves.easeIn,
-                  child: KeyedSubtree(
+                  layoutBuilder:
+                      (current, previous) => Stack(
+                        fit: StackFit.expand,
+                        children: [...previous, if (current != null) current],
+                      ),
+                  child: IvoryCard(
                     key: ValueKey(_index),
+                    radius: 20,
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: CasinoColors.surfaceHi,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: CasinoColors.gold.withValues(
-                                    alpha: 0.7,
+                            // Step number as the card's corner rank.
+                            Column(
+                              children: [
+                                Text(
+                                  '${_index + 1}',
+                                  style: TextStyle(
+                                    fontFamily: CasinoFonts.display,
+                                    color: ink,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 30,
+                                    height: 1,
                                   ),
-                                  width: 1.4,
                                 ),
-                              ),
-                              child: Text(
-                                '${_index + 1}',
-                                style: const TextStyle(
-                                  color: CasinoColors.gold,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 16,
-                                ),
-                              ),
+                                const SizedBox(height: 4),
+                                SuitGlyph(suit: suit, size: 18),
+                              ],
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: 16),
                             Expanded(
-                              child: Text(
-                                step.title,
-                                style: TextStyle(
-                                  color: CasinoColors.text,
-                                  fontFamily: displayFamily,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 26,
-                                  letterSpacing: 0.6,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  step.title,
+                                  style: TextStyle(
+                                    color: CardInk.black,
+                                    fontFamily: displayFamily,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 24,
+                                    letterSpacing: 0.6,
+                                  ),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 14),
+                        Container(
+                          height: 1,
+                          color: CardInk.goldLine.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(height: 14),
                         Text(
                           step.body,
                           style: const TextStyle(
-                            color: CasinoColors.textMuted,
-                            fontSize: 17,
+                            color: Color(0xFF3D3020),
+                            fontSize: 16.5,
                             height: 1.45,
                           ),
                         ),
                         if (step.examples != null) ...[
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 18),
                           Expanded(
                             child: ListView.separated(
                               itemCount: step.examples!.length,
                               separatorBuilder:
-                                  (_, _) => const SizedBox(height: 16),
+                                  (_, _) => const SizedBox(height: 14),
                               itemBuilder: (context, i) {
                                 final example = step.examples![i];
                                 return _SpecialCardRow(example: example);
                               },
                             ),
                           ),
-                        ],
+                        ] else
+                          const Spacer(),
                       ],
                     ),
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   if (_index > 0) ...[
-                    CasinoActionButton(
-                      label: l10n.back,
-                      tone: CasinoActionTone.check,
-                      onPressed: _back,
+                    Expanded(
+                      child: LeatherButton(label: l10n.back, onPressed: _back),
                     ),
                     const SizedBox(width: 12),
                   ],
-                  CasinoActionButton(
-                    label: _isLast(steps.length) ? l10n.gotIt : l10n.next,
-                    tone: CasinoActionTone.raise,
-                    onPressed: () => _next(steps.length),
+                  Expanded(
+                    flex: 2,
+                    child: GoldButton(
+                      label: _isLast(steps.length) ? l10n.gotIt : l10n.next,
+                      onPressed: () => _next(steps.length),
+                    ),
                   ),
                 ],
               ),
@@ -230,7 +244,7 @@ class _SpecialCardRow extends StatelessWidget {
 
   final _CardExample example;
 
-  static const _cardW = 72.0;
+  static const _cardW = 64.0;
   static const _cardH = _cardW * 112 / 78;
 
   @override
@@ -238,31 +252,42 @@ class _SpecialCardRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SizedBox(
+        Container(
           width: _cardW,
           height: _cardH,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x40000000),
+                blurRadius: 6,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
           child: CustomPaint(painter: _DeckCardPainter(example.tag)),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 example.label,
-                style: const TextStyle(
-                  color: CasinoColors.gold,
+                style: TextStyle(
+                  fontFamily: CasinoFonts.displayOf(context),
+                  color: CardInk.red,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                   letterSpacing: 0.4,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 example.description,
                 style: const TextStyle(
-                  color: CasinoColors.textMuted,
-                  fontSize: 15,
+                  color: Color(0xFF3D3020),
+                  fontSize: 14.5,
                   height: 1.4,
                 ),
               ),

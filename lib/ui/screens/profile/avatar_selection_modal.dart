@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:cardgame/ui/widgets/suit_card_loader.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 
 Future<void> showAvatarSelectionModal(
   BuildContext context, {
@@ -124,10 +126,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
       builder:
           (dialogCtx) => AlertDialog(
             backgroundColor: CasinoColors.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: CasinoColors.gold, width: 1.5),
-            ),
+            shape: feltDialogShape,
             title: Text(
               avatarName,
               style: const TextStyle(
@@ -175,33 +174,17 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
                 ),
               ),
               if (canAfford)
-                ElevatedButton(
+                GoldButton(
+                  label: '${avatar.price} · ${l10n.buy}',
+                  compact: true,
+                  leading: CurrencyIcon(currency: avatar.currency, size: 14),
                   onPressed: () => Navigator.of(dialogCtx).pop(true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: CasinoColors.raise,
-                    foregroundColor: CasinoColors.text,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${l10n.buy} (',
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      CurrencyIcon(currency: avatar.currency, size: 14),
-                      const SizedBox(width: 2),
-                      Text(
-                        '${avatar.price})',
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ],
-                  ),
                 )
               else
-                ElevatedButton(
+                LeatherButton(
+                  label: l10n.marketplace,
+                  compact: true,
+                  leading: const HugeIcon(icon: AppIcons.shoppingBag),
                   onPressed: () {
                     Navigator.of(dialogCtx).pop(false);
                     Navigator.of(context).pop();
@@ -212,17 +195,6 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
                       ),
                     );
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: CasinoColors.check,
-                    foregroundColor: CasinoColors.text,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    l10n.marketplace,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
                 ),
             ],
           ),
@@ -287,7 +259,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: CasinoColors.gold.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -295,19 +267,25 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                l10n.customizeAvatar,
-                style: const TextStyle(
-                  color: CasinoColors.gold,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  fontFamily: CasinoFonts.display,
+              Expanded(
+                child: Text(
+                  casinoButtonLabel(
+                    l10n.customizeAvatar,
+                    Localizations.localeOf(context),
+                  ),
+                  style: TextStyle(
+                    color: CasinoColors.gold,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: CasinoFonts.displayOf(context),
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
-              IconButton(
-                icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.textMuted,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
+              FeltIconButton(
+                icon: AppIcons.close,
+                size: 36,
+                onTap: () => Navigator.of(context).pop(),
               ),
             ],
           ),
@@ -347,14 +325,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
           ),
           if (_isSaving) ...[
             const SizedBox(height: 12),
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: CasinoColors.gold,
-              ),
-            ),
+            const SuitCardLoader(height: 24),
           ],
         ],
       ),
@@ -388,32 +359,7 @@ class _AvatarGridTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-          decoration: BoxDecoration(
-            color:
-                isEquipped
-                    ? CasinoColors.gold.withValues(alpha: 0.12)
-                    : CasinoColors.bgElevated,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color:
-                  isEquipped
-                      ? CasinoColors.gold
-                      : isOwned
-                      ? Colors.white12
-                      : Colors.white10,
-              width: isEquipped ? 2 : 1,
-            ),
-            boxShadow:
-                isEquipped
-                    ? [
-                      const BoxShadow(
-                        color: Color(0x33F5A623),
-                        blurRadius: 10,
-                        spreadRadius: 1,
-                      ),
-                    ]
-                    : null,
-          ),
+          decoration: feltPanelDecoration(radius: 16, highlighted: isEquipped),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -490,9 +436,9 @@ class _AvatarGridTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: CasinoColors.raiseHi,
+                    color: CasinoColors.gold,
                     fontSize: 10,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 )
               else

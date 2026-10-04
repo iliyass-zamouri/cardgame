@@ -485,3 +485,504 @@ const feltDialogShape = RoundedRectangleBorder(
   borderRadius: BorderRadius.all(Radius.circular(20)),
   side: BorderSide(color: Color(0x66F5C542)),
 );
+
+/// Leather gradient with a gold hairline: the shared look of [FeltPanel],
+/// list rows and sheets.
+BoxDecoration leatherPanelDecoration({
+  double radius = 18,
+  bool highlighted = false,
+}) => BoxDecoration(
+  gradient: LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      CasinoColors.leather.withValues(alpha: 0.94),
+      CasinoColors.leatherDeep.withValues(alpha: 0.94),
+    ],
+  ),
+  borderRadius: BorderRadius.circular(radius),
+  border: Border.all(
+    color: CasinoColors.gold.withValues(alpha: highlighted ? 0.75 : 0.28),
+    width: highlighted ? 1.5 : 1,
+  ),
+  boxShadow: [
+    const BoxShadow(
+      color: Color(0x66000000),
+      blurRadius: 12,
+      offset: Offset(0, 5),
+    ),
+    if (highlighted)
+      BoxShadow(
+        color: CasinoColors.gold.withValues(alpha: 0.2),
+        blurRadius: 18,
+      ),
+  ],
+);
+
+/// Leather inlay panel for grouped content on the felt (settings groups,
+/// stats, list rows). [highlighted] adds a brighter gold rim and glow.
+class FeltPanel extends StatelessWidget {
+  const FeltPanel({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(14),
+    this.radius = 18,
+    this.highlighted = false,
+    this.onTap,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+  final bool highlighted;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(radius);
+    final decoration = leatherPanelDecoration(
+      radius: radius,
+      highlighted: highlighted,
+    );
+    if (onTap == null) {
+      return Container(padding: padding, decoration: decoration, child: child);
+    }
+    return Material(
+      color: Colors.transparent,
+      borderRadius: borderRadius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: borderRadius,
+        child: Ink(padding: padding, decoration: decoration, child: child),
+      ),
+    );
+  }
+}
+
+/// Ivory playing-card face for collectible and shop content. Text inside
+/// defaults to card ink; [suit] adds corner pips like a real card.
+class IvoryCard extends StatelessWidget {
+  const IvoryCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+    this.radius = 16,
+    this.suit,
+    this.highlighted = false,
+    this.onTap,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+  final SuitShape? suit;
+  final bool highlighted;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final pip = suit == null ? null : SuitGlyph(suit: suit!, size: 11);
+    final card = Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [CardInk.ivory, CardInk.ivoryShade],
+        ),
+        boxShadow: [
+          const BoxShadow(
+            color: Color(0x80000000),
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+          if (highlighted)
+            BoxShadow(
+              color: CasinoColors.gold.withValues(alpha: 0.45),
+              blurRadius: 16,
+              spreadRadius: 1,
+            ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              margin: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(radius - 4),
+                border: Border.all(
+                  color:
+                      highlighted
+                          ? CasinoColors.gold
+                          : CardInk.goldLine.withValues(alpha: 0.55),
+                  width: highlighted ? 1.6 : 1,
+                ),
+              ),
+            ),
+          ),
+          if (pip != null) ...[
+            Positioned(top: 9, left: 9, child: pip),
+            Positioned(
+              bottom: 9,
+              right: 9,
+              child: Transform.rotate(angle: 3.14159, child: pip),
+            ),
+          ],
+          Padding(
+            padding: padding,
+            child: DefaultTextStyle.merge(
+              style: const TextStyle(color: CardInk.black),
+              child: IconTheme.merge(
+                data: const IconThemeData(color: CardInk.black),
+                child: child,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (onTap == null) return card;
+    return Pressable(onTap: onTap, child: card);
+  }
+}
+
+/// Primary action in the gold "Play" style.
+class GoldButton extends StatelessWidget {
+  const GoldButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.leading,
+    this.height = 48,
+    this.compact = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final Widget? leading;
+  final double height;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    final h = compact ? 36.0 : height;
+    return Pressable(
+      onTap: onPressed,
+      child: Container(
+        height: h,
+        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(compact ? 11 : 14),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFFFE08A), CasinoColors.gold, Color(0xFFC8961E)],
+          ),
+          border: Border.all(
+            color: const Color(0xFF7A5A0E).withValues(alpha: 0.5),
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x55000000),
+              blurRadius: 6,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (leading != null) ...[
+              IconTheme.merge(
+                data: IconThemeData(
+                  color: CardInk.black,
+                  size: compact ? 16 : 20,
+                ),
+                child: leading!,
+              ),
+              SizedBox(width: compact ? 6 : 8),
+            ],
+            Flexible(
+              child: Text(
+                casinoButtonLabel(label, locale),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily:
+                      compact
+                          ? CasinoFonts.uiFor(locale)
+                          : CasinoFonts.displayFor(locale),
+                  color: CardInk.black,
+                  fontSize: compact ? 13 : 16,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: locale.languageCode == 'ar' ? 0 : 0.8,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Secondary action: dark leather with a gold (or [color]) outline.
+class LeatherButton extends StatelessWidget {
+  const LeatherButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.leading,
+    this.color = CasinoColors.gold,
+    this.height = 48,
+    this.compact = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final Widget? leading;
+  final Color color;
+  final double height;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    final h = compact ? 36.0 : height;
+    return Pressable(
+      onTap: onPressed,
+      child: Container(
+        height: h,
+        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(compact ? 11 : 14),
+          color: Colors.black.withValues(alpha: 0.32),
+          border: Border.all(color: color.withValues(alpha: 0.7)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (leading != null) ...[
+              IconTheme.merge(
+                data: IconThemeData(color: color, size: compact ? 16 : 20),
+                child: leading!,
+              ),
+              SizedBox(width: compact ? 6 : 8),
+            ],
+            Flexible(
+              child: Text(
+                casinoButtonLabel(label, locale),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: compact ? 13 : 15,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: locale.languageCode == 'ar' ? 0 : 0.8,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Round gold-rimmed medallion holding an icon, used to lead list rows.
+class FeltMedallion extends StatelessWidget {
+  const FeltMedallion({
+    super.key,
+    required this.icon,
+    this.color = CasinoColors.goldSoft,
+    this.size = 38,
+  });
+
+  final List<List<dynamic>> icon;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.black.withValues(alpha: 0.32),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Center(
+        child: HugeIcon(icon: icon, color: color, size: size * 0.5),
+      ),
+    );
+  }
+}
+
+/// Row inside a [FeltTileGroup]: medallion, title/subtitle, trailing widget
+/// (a chevron by default when tappable).
+class FeltTile extends StatelessWidget {
+  const FeltTile({
+    super.key,
+    required this.title,
+    this.icon,
+    this.leading,
+    this.subtitle,
+    this.trailing,
+    this.onTap,
+    this.destructive = false,
+  });
+
+  final String title;
+  final List<List<dynamic>>? icon;
+  final Widget? leading;
+  final String? subtitle;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = destructive ? CasinoColors.foldHi : CasinoColors.goldSoft;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    Widget? trail = trailing;
+    if (trail == null && onTap != null) {
+      final chevron = HugeIcon(
+        icon: AppIcons.chevronRight,
+        size: 20,
+        color: CasinoColors.gold.withValues(alpha: 0.6),
+      );
+      trail = rtl ? Transform.flip(flipX: true, child: chevron) : chevron;
+    }
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            leading ??
+                (icon == null
+                    ? const SizedBox.shrink()
+                    : FeltMedallion(icon: icon!, color: accent)),
+            if (leading != null || icon != null) const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color:
+                          destructive ? CasinoColors.foldHi : CasinoColors.text,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        color: CasinoColors.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (trail != null) ...[const SizedBox(width: 8), trail],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Leather panel holding [FeltTile]s separated by gold hairlines, with an
+/// optional suited section header above it.
+class FeltTileGroup extends StatelessWidget {
+  const FeltTileGroup({
+    super.key,
+    required this.children,
+    this.header,
+    this.suit = SuitShape.spades,
+  });
+
+  final List<Widget> children;
+  final String? header;
+  final SuitShape suit;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      if (i > 0) {
+        rows.add(
+          Divider(
+            height: 1,
+            thickness: 1,
+            indent: 64,
+            endIndent: 14,
+            color: CasinoColors.gold.withValues(alpha: 0.12),
+          ),
+        );
+      }
+      rows.add(children[i]);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (header != null) FeltSectionHeader(label: header!, suit: suit),
+        FeltPanel(
+          padding: EdgeInsets.zero,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Column(children: rows),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Gold progress bar on a recessed track (XP, levels).
+class GoldProgressBar extends StatelessWidget {
+  const GoldProgressBar({super.key, required this.value, this.height = 10});
+
+  final double value;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(height),
+        border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.25)),
+      ),
+      child: FractionallySizedBox(
+        alignment: AlignmentDirectional.centerStart,
+        widthFactor: value.clamp(0.0, 1.0),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(height),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFC8961E), CasinoColors.gold, Color(0xFFFFE08A)],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

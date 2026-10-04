@@ -5,9 +5,9 @@ import 'package:cardgame/services/push_notification_api_service.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/flame/suit_shapes.dart';
 
 Future<void> showNotificationsPanel(BuildContext context, WidgetRef ref) {
   ref.read(notificationsInboxProvider.notifier).refresh();
@@ -33,7 +33,7 @@ class NotificationsPanel extends ConsumerWidget {
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: 380, maxHeight: maxHeight),
           child: Material(
-            color: CasinoColors.surface,
+            color: CasinoColors.leather,
             shape: feltDialogShape,
             clipBehavior: Clip.antiAlias,
             child: Padding(
@@ -43,13 +43,21 @@ class NotificationsPanel extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
+                      const SuitGlyph(
+                        suit: SuitShape.hearts,
+                        size: 12,
+                        color: CasinoColors.gold,
+                      ),
+                      const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
-                          'Notifications',
+                          'NOTIFICATIONS',
                           style: TextStyle(
+                            fontFamily: CasinoFonts.display,
                             color: CasinoColors.gold,
                             fontWeight: FontWeight.w800,
-                            fontSize: 18,
+                            fontSize: 17,
+                            letterSpacing: 1.2,
                           ),
                         ),
                       ),
@@ -63,10 +71,10 @@ class NotificationsPanel extends ConsumerWidget {
                             style: TextStyle(color: CasinoColors.gold),
                           ),
                         ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.textMuted,
-                        ),
+                      FeltIconButton(
+                        icon: AppIcons.close,
+                        size: 34,
+                        onTap: () => Navigator.of(context).maybePop(),
                       ),
                     ],
                   ),
@@ -166,13 +174,14 @@ class _NotificationTile extends StatelessWidget {
     final unread = !notification.read;
 
     return Material(
-      color: CasinoColors.bgElevated,
-      borderRadius: BorderRadius.circular(12),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
           padding: const EdgeInsets.all(12),
+          decoration: feltPanelDecoration(radius: 14, highlighted: unread),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -211,13 +220,7 @@ class _NotificationTile extends StatelessWidget {
                 const SizedBox(height: 8),
                 Align(
                   alignment: AlignmentDirectional.centerEnd,
-                  child: TextButton(
-                    onPressed: onCta,
-                    child: Text(
-                      cta,
-                      style: const TextStyle(color: CasinoColors.gold),
-                    ),
-                  ),
+                  child: GoldButton(label: cta, compact: true, onPressed: onCta),
                 ),
               ],
             ],
