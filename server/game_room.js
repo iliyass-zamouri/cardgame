@@ -427,10 +427,6 @@ class GameRoom {
 
   end(clientId) {
     this.#requirePlayer(clientId);
-    if (this.matchType === 'random' && this.status === 'playing') {
-      this.forfeit(clientId);
-      return;
-    }
     this.lastAction = null;
     this.discardSource = null;
     this.#endGame();

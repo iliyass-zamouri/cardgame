@@ -98,7 +98,7 @@ class SfxService {
       _oneshots.add(player);
       player.onPlayerComplete.listen((_) {
         _oneshots.remove(player);
-        player.dispose();
+        unawaited(_safeDispose(player));
       });
       await player.play(AssetSource(_assets[kind]!));
     } catch (e) {
@@ -125,6 +125,22 @@ class SfxService {
         return null;
       }
     });
+  }
+
+  /// Players can be disposed from several paths (completion, stopSearch,
+  /// stopShuffle); a second call hits a native "already disposed" error.
+  Future<void> _safeDispose(
+    AudioPlayer player, {
+    bool stopFirst = false,
+  }) async {
+    if (stopFirst) {
+      try {
+        await player.stop();
+      } catch (_) {}
+    }
+    try {
+      await player.dispose();
+    } catch (_) {}
   }
 
   bool _isCardActionSfx(SfxKind kind) =>
@@ -166,9 +182,7 @@ class SfxService {
       } on TimeoutException {
         // Clip hung — continue search cadence anyway.
       }
-      try {
-        await player.dispose();
-      } catch (_) {}
+      await _safeDispose(player);
       if (_searchPlayer == player) _searchPlayer = null;
       if (!_searching) return;
       await Future<void>.delayed(_searchBreak);
@@ -186,12 +200,7 @@ class SfxService {
     final player = _searchPlayer;
     _searchPlayer = null;
     if (player == null) return;
-    try {
-      await player.stop();
-      await player.dispose();
-    } catch (e) {
-      debugPrint('Sfx stopSearch failed: $e');
-    }
+    await _safeDispose(player, stopFirst: true);
   }
 
   /// Stop search cue, mute deal flips briefly, play match-found sting.
@@ -266,11 +275,6 @@ class SfxService {
     final player = _shufflePlayer;
     _shufflePlayer = null;
     if (player == null) return;
-    try {
-      await player.stop();
-      await player.dispose();
-    } catch (e) {
-      debugPrint('Sfx stopShuffle failed: $e');
-    }
+    await _safeDispose(player, stopFirst: true);
   }
 }

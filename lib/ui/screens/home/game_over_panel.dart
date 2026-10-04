@@ -87,6 +87,8 @@ class GameOverPanel extends ConsumerWidget {
         missing: opponentTotal == null,
       ),
       pot: game.potAmount,
+      // Practice (robot) and private matches are unranked: no XP/ELO shown.
+      neutral: game.matchType != 'random',
       xp: youXp,
       eloDelta: youEloDelta,
       status:
@@ -130,6 +132,7 @@ class _Recap extends StatefulWidget {
     required this.you,
     required this.opponent,
     required this.pot,
+    required this.neutral,
     required this.xp,
     required this.eloDelta,
     required this.status,
@@ -144,6 +147,7 @@ class _Recap extends StatefulWidget {
   final _SeatData you;
   final _SeatData opponent;
   final int pot;
+  final bool neutral;
   final int xp;
   final int eloDelta;
   final _RematchStatus status;
@@ -336,18 +340,20 @@ class _RecapState extends State<_Recap> with TickerProviderStateMixin {
                                 spacing: 8,
                                 runSpacing: 6,
                                 children: [
-                                  _StatChip(
-                                    label: '+${widget.xp} ${l10n.xp}',
-                                    color: _inkGold,
-                                  ),
-                                  _StatChip(
-                                    label:
-                                        '${widget.eloDelta >= 0 ? '+${widget.eloDelta}' : '${widget.eloDelta}'} ${l10n.elo}',
-                                    color:
-                                        widget.eloDelta >= 0
-                                            ? const Color(0xFF1E7A45)
-                                            : CardInk.red,
-                                  ),
+                                  if (!widget.neutral) ...[
+                                    _StatChip(
+                                      label: '+${widget.xp} ${l10n.xp}',
+                                      color: _inkGold,
+                                    ),
+                                    _StatChip(
+                                      label:
+                                          '${widget.eloDelta >= 0 ? '+${widget.eloDelta}' : '${widget.eloDelta}'} ${l10n.elo}',
+                                      color:
+                                          widget.eloDelta >= 0
+                                              ? const Color(0xFF1E7A45)
+                                              : CardInk.red,
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
