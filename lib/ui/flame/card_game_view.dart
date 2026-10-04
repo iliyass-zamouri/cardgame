@@ -4,7 +4,9 @@ import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/sfx_service.dart';
 import 'package:cardgame/ui/flame/card_game.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:flame/extensions.dart';
 import 'package:flame/game.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +19,7 @@ class CardGameView extends ConsumerStatefulWidget {
 
 class _CardGameViewState extends ConsumerState<CardGameView> {
   late final CardGame _game;
+  int? _scrollPointer;
 
   @override
   void initState() {
@@ -102,6 +105,34 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
       });
     }
 
-    return GameWidget(game: _game);
+    // Raw pointer events stay out of the gesture arena, so card taps still
+    // work; a tap that moves past slop is rejected by Flame and becomes a scroll.
+    return Listener(
+      onPointerDown: (event) {
+        if (_scrollPointer != null) return;
+        _scrollPointer = event.pointer;
+        _game.beginHandScroll(event.localPosition.toVector2());
+      },
+      onPointerMove: (event) {
+        if (event.pointer != _scrollPointer) return;
+        _game.scrollHandBy(event.delta.dy);
+      },
+      onPointerUp: (event) => _endScroll(event.pointer),
+      onPointerCancel: (event) => _endScroll(event.pointer),
+      onPointerSignal: (event) {
+        if (event is! PointerScrollEvent) return;
+        _game
+          ..beginHandScroll(event.localPosition.toVector2())
+          ..scrollHandBy(-event.scrollDelta.dy)
+          ..endHandScroll();
+      },
+      child: GameWidget(game: _game),
+    );
+  }
+
+  void _endScroll(int pointer) {
+    if (pointer != _scrollPointer) return;
+    _scrollPointer = null;
+    _game.endHandScroll();
   }
 }

@@ -1532,6 +1532,31 @@ class CardGame extends FlameGame {
       ..priority = 100;
   }
 
+  HandArea? _scrollingHand;
+
+  /// Starts a hand scroll if [worldPoint] is over a scrollable hand.
+  void beginHandScroll(Vector2 worldPoint) {
+    _scrollingHand = null;
+    if (!_ready) return;
+    for (final hand in [_localHand, _opponentHand]) {
+      if (hand.windowContainsWorld(worldPoint)) {
+        _scrollingHand = hand;
+        return;
+      }
+    }
+  }
+
+  void scrollHandBy(double dy) {
+    // Action animations aim at slot positions captured up front.
+    if (_animatingAction) return;
+    _scrollingHand?.scrollBy(dy);
+  }
+
+  void endHandScroll() {
+    _scrollingHand?.settleScroll();
+    _scrollingHand = null;
+  }
+
   void _layoutHands() {
     _opponentHand.layout();
     _localHand.layout();
@@ -1550,7 +1575,140 @@ class HandArea extends PositionComponent {
   static const gapX = 14.0;
   static const gapY = 16.0;
 
+  /// Rows shown at once. Larger hands scroll vertically inside this window.
+  static const visibleRows = 2;
+  static const _rowStride = cardHeight + gapY;
+  // Window margin toward the table (tight) and away from it (peek lift,
+  // highlight glow).
+  static const _clipPadNear = 16.0;
+  static const _clipPadFar = 40.0;
+
+  /// How far later rows have been scrolled into the window, in pixels.
+  double _scroll = 0;
+  int _laidOutCount = 0;
+  bool _shuffling = false;
+
   List<PlayingCardComponent> get cards => List.unmodifiable(_cards);
+
+  int get _visibleCount => math.max(_cards.length, _laidOutCount);
+
+  double _maxScrollFor(int count) {
+    final rows = (count + cardsPerRow - 1) ~/ cardsPerRow;
+    return math.max(0, rows - visibleRows) * _rowStride;
+  }
+
+  bool get isScrollable => _maxScrollFor(_visibleCount) > 0;
+
+  /// Local rect cards are clipped to (and hit-tested in) while scrollable.
+  Rect get _window {
+    const near = cardHeight / 2 + _clipPadNear;
+    const far = (visibleRows - 1) * _rowStride + cardHeight / 2 + _clipPadFar;
+    const halfWidth = 4000.0;
+    return isSelf
+        ? const Rect.fromLTRB(-halfWidth, -near, halfWidth, far)
+        : const Rect.fromLTRB(-halfWidth, -far, halfWidth, near);
+  }
+
+  bool windowContainsWorld(Vector2 worldPoint) {
+    if (!isScrollable) return false;
+    return _window.contains(absoluteToLocal(worldPoint).toOffset());
+  }
+
+  /// Drag delta [dy] (screen pixels) scrolls the hand; cards follow the finger.
+  void scrollBy(double dy) {
+    if (!isScrollable || _shuffling) return;
+    final next = (_scroll + (isSelf ? -dy : dy)).clamp(
+      0.0,
+      _maxScrollFor(_visibleCount),
+    );
+    if (next == _scroll) return;
+    _scroll = next;
+    for (var i = 0; i < _cards.length; i++) {
+      final card = _cards[i];
+      if (card.peeking) continue;
+      card.snapTo(_slotCenter(i, _visibleCount));
+    }
+  }
+
+  /// Settle on the nearest full row after a drag ends.
+  void settleScroll() {
+    if (!isScrollable || _shuffling) return;
+    _scroll = ((_scroll / _rowStride).round() * _rowStride).clamp(
+      0.0,
+      _maxScrollFor(_visibleCount),
+    );
+    layout(projectedCount: _visibleCount);
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (!isScrollable) return;
+    final window = _window;
+    canvas.clipRect(window);
+    _renderScrollBar(canvas, window);
+  }
+
+  void _renderScrollBar(Canvas canvas, Rect window) {
+    final count = _visibleCount;
+    final rows = (count + cardsPerRow - 1) ~/ cardsPerRow;
+    final widest = math.min(cardsPerRow, count);
+    final rowWidth = widest * cardWidth + (widest - 1) * gapX;
+    final screenHalf = (findGame()?.size.x ?? double.infinity) / 2;
+    final x = math.min(rowWidth / 2 + 8, screenHalf - 5);
+    final top =
+        isSelf
+            ? -cardHeight / 2
+            : -(visibleRows - 1) * _rowStride - cardHeight / 2;
+    final trackHeight = (visibleRows - 1) * _rowStride + cardHeight;
+    final thumbHeight = trackHeight * visibleRows / rows;
+    final progress = _scroll / _maxScrollFor(count);
+    final thumbTop =
+        isSelf
+            ? top + (trackHeight - thumbHeight) * progress
+            : top + (trackHeight - thumbHeight) * (1 - progress);
+    canvas
+      ..drawRRect(
+        RRect.fromLTRBR(
+          x - 2,
+          top,
+          x + 2,
+          top + trackHeight,
+          const Radius.circular(2),
+        ),
+        Paint()..color = const Color(0x33FFFFFF),
+      )
+      ..drawRRect(
+        RRect.fromLTRBR(
+          x - 2,
+          thumbTop,
+          x + 2,
+          thumbTop + thumbHeight,
+          const Radius.circular(2),
+        ),
+        Paint()..color = const Color(0xCCFFFFFF),
+      );
+  }
+
+  @override
+  Iterable<Component> componentsAtLocation<T>(
+    T locationContext,
+    List<T>? nestedContexts,
+    T? Function(CoordinateTransform, T) transformContext,
+    bool Function(Component, T) checkContains,
+  ) {
+    // Clipped-away cards must not steal taps from the table.
+    if (locationContext is Vector2 &&
+        isScrollable &&
+        !_window.contains(locationContext.toOffset())) {
+      return const [];
+    }
+    return super.componentsAtLocation(
+      locationContext,
+      nestedContexts,
+      transformContext,
+      checkContains,
+    );
+  }
 
   Vector2 get worldOrigin => absolutePositionOfAnchor(Anchor.topLeft);
 
@@ -1583,7 +1741,7 @@ class HandArea extends PositionComponent {
     final rowWidth = cardsInRow * cardWidth + (cardsInRow - 1) * gapX;
     final x = -rowWidth / 2 + cardWidth / 2 + col * (cardWidth + gapX);
     final rowSign = isSelf ? 1.0 : -1.0;
-    final y = rowSign * row * (cardHeight + gapY);
+    final y = rowSign * (row * _rowStride - _scroll);
     return Vector2(x, y);
   }
 
@@ -1712,6 +1870,7 @@ class HandArea extends PositionComponent {
       return;
     }
     unawaited(SfxService.instance.startShuffle());
+    _shuffling = true;
     final count = _cards.length;
     final pileCenter = Vector2(0, isSelf ? 8 : -8);
     var pending = count;
@@ -1722,6 +1881,7 @@ class HandArea extends PositionComponent {
       for (final card in _cards) {
         card.priority = 0;
       }
+      _shuffling = false;
       layout();
       unawaited(SfxService.instance.stopShuffle());
       onComplete();
@@ -1797,6 +1957,10 @@ class HandArea extends PositionComponent {
     const peekForward = 34.0;
 
     final count = projectedCount ?? _cards.length;
+    // A hand that just grew (penalty draw) scrolls to show its newest row.
+    if (count > _laidOutCount) _scroll = _maxScrollFor(count);
+    _laidOutCount = count;
+    _scroll = _scroll.clamp(0.0, _maxScrollFor(count));
     final peeking = _cards.where((card) => card.peeking).toList();
     final peekWidth = cardWidth * peekScale;
     final peekSpan = peeking.length * peekWidth;
@@ -2068,6 +2232,15 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
         ]),
       );
     }
+  }
+
+  /// Jump to [target] with no tween (finger-tracking scroll).
+  void snapTo(Vector2 target) {
+    for (final effect in children.whereType<MoveEffect>().toList()) {
+      effect.removeFromParent();
+    }
+    _targetPosition = target.clone();
+    position = target;
   }
 
   void moveTo(Vector2 target) {
