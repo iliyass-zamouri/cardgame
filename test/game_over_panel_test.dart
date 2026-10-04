@@ -128,6 +128,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
 
     // Verify Headline & Series
     expect(find.text('VICTORY'), findsOneWidget);
@@ -142,5 +143,116 @@ void main() {
     // Verify opponent XP and Elo are NOT shown
     expect(find.text('+2 XP'), findsNothing);
     expect(find.text('-16 Elo'), findsNothing);
+  });
+
+  testWidgets('GameOverPanel shows defeat for the higher total', (
+    tester,
+  ) async {
+    const profile = PlayerProfile(
+      playerId: 'guest-1',
+      name: 'Alice',
+      username: 'alice_ace',
+      avatarId: 'golden-king',
+    );
+
+    const snapshot = GameSnapshot(
+      roomId: 'room-1',
+      version: 2,
+      status: GameStatus.ended,
+      ready: true,
+      deckCount: 0,
+      discardTopTag: 'A2',
+      discardRecentTags: ['A2'],
+      isYourTurn: false,
+      potAmount: 100,
+      stakePool: 100,
+      stakePerPlayer: 50,
+      you: PlayerSnapshot(
+        connected: true,
+        displayName: 'Alice',
+        playerId: 'guest-1',
+        launch: LaunchStatus.ended,
+        total: 20,
+        cards: [],
+        handCardTag: null,
+        hasHandCard: false,
+      ),
+      opponent: PlayerSnapshot(
+        connected: true,
+        displayName: 'Bob',
+        playerId: 'guest-2',
+        launch: LaunchStatus.ended,
+        total: 12,
+        cards: [],
+        handCardTag: null,
+        hasHandCard: false,
+      ),
+      result: GameResult(
+        scores: [20, 12],
+        winnerIndex: 1,
+        ratings: [
+          PlayerResultRating(
+            playerId: 'guest-1',
+            result: 'loss',
+            pointsEarned: 2,
+            eloDelta: -16,
+          ),
+          PlayerResultRating(
+            playerId: 'guest-2',
+            result: 'win',
+            pointsEarned: 30,
+            eloDelta: 16,
+          ),
+        ],
+      ),
+      lastAction: null,
+    );
+
+    const gameState = GameSessionState(
+      connection: ConnectionStatus.connected,
+      game: snapshot,
+      clientId: 'guest-1',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameSessionProvider.overrideWith(
+            () => _FixedGameSessionController(gameState),
+          ),
+          sessionAuthRepositoryProvider.overrideWithValue(
+            SessionAuthRepository.memory(SessionAuthStatus.guest),
+          ),
+          playerProfileRepositoryProvider.overrideWithValue(
+            PlayerProfileRepository.memory(profile),
+          ),
+          rankingApiProvider.overrideWithValue(
+            RankingApi(
+              baseUrl: 'http://localhost',
+              client: MockClient(
+                (_) async => http.Response('{"matches":[],"elo":1200}', 200),
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: Scaffold(body: GameOverPanel()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(find.text('DEFEAT'), findsOneWidget);
+    expect(find.text('+2 XP'), findsOneWidget);
+    expect(find.text('-16 Elo'), findsOneWidget);
+    expect(find.text('VICTORY'), findsNothing);
   });
 }

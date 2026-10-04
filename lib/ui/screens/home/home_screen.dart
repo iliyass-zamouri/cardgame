@@ -14,11 +14,13 @@ import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:cardgame/ui/flame/card_game_view.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/screens/friends_screen.dart';
+import 'package:cardgame/ui/screens/home/game_over_panel.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
 import 'package:cardgame/ui/screens/home/home_menu_widgets.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/theme/city_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
@@ -26,9 +28,11 @@ import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+
+export 'package:cardgame/ui/screens/home/game_over_panel.dart'
+    show GameOverPanel;
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -806,12 +810,17 @@ class _GameBoardState extends ConsumerState<GameBoard> {
         (state) => state.game?.status == GameStatus.ended,
       ),
     );
+    final city = ref.watch(
+      gameSessionProvider.select(
+        (state) => CityTheme.forStake(state.game?.stakePool ?? 0),
+      ),
+    );
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const CasinoTableFrame(child: CardGameView()),
+          CasinoTableFrame(city: city, child: const CardGameView()),
           // No live blur over the board: it repaints every frame.
           const CasinoGlassScope(blur: false, child: GameHud()),
           if (ended)
@@ -841,6 +850,8 @@ class GameHud extends ConsumerWidget {
     );
     final canPeek = game.canJackPeek;
     final canQueen = game.canQueenAbility;
+    final city = CityTheme.forStake(game.stakePool);
+    final accent = city?.accent;
     final queenPicking = queenMode != QueenMode.none;
     final youId = game.you.playerId ?? '';
     final opponentId = game.opponent?.playerId ?? '';
@@ -869,6 +880,7 @@ class GameHud extends ConsumerWidget {
                     if (game.potAmount > 0)
                       CasinoGlass(
                         shape: const StadiumBorder(),
+                        rimColor: accent,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 6,
@@ -905,6 +917,7 @@ class GameHud extends ConsumerWidget {
                     const Spacer(),
                     if (playing)
                       CasinoCircleButton(
+                        rimColor: accent,
                         icon: AppIcons.flag,
                         tooltip: l10n.endGame,
                         onPressed:
@@ -919,6 +932,7 @@ class GameHud extends ConsumerWidget {
                       ),
                     if (playing) const SizedBox(width: 4),
                     CasinoCircleButton(
+                      rimColor: accent,
                       icon: AppIcons.menu,
                       tooltip: l10n.menu,
                       onPressed:
@@ -938,6 +952,7 @@ class GameHud extends ConsumerWidget {
                 right: 12,
                 top: height * 0.25 + 64,
                 child: CasinoPlayerPill(
+                  accent: accent,
                   name: game.opponent?.displayName ?? l10n.waitingEllipsisShort,
                   connected: game.opponent?.connected ?? false,
                   active: playing && !game.isYourTurn,
@@ -949,6 +964,7 @@ class GameHud extends ConsumerWidget {
                 left: 12,
                 top: height * 0.75 - 102,
                 child: CasinoPlayerPill(
+                  accent: accent,
                   name: game.you.displayName,
                   connected: game.you.connected,
                   active: playing && game.isYourTurn,
@@ -1046,491 +1062,6 @@ class GameHud extends ConsumerWidget {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class GameOverPanel extends ConsumerWidget {
-  const GameOverPanel({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
-    final game = ref.watch(gameSessionProvider.select((state) => state.game));
-    if (game == null) return const SizedBox.shrink();
-    final notifier = ref.read(gameSessionProvider.notifier);
-    final youAvatarId =
-        ref.watch(playerProfileProvider).asData?.value.avatarId ?? 'default';
-    final yourTotal = game.you.total;
-    final opponentTotal = game.opponent?.total;
-    final youWin = opponentTotal != null && yourTotal < opponentTotal;
-    final theyWin = opponentTotal != null && yourTotal > opponentTotal;
-    final isDraw = opponentTotal != null && yourTotal == opponentTotal;
-    final yourName = game.you.displayName;
-    final opponentName = game.opponent?.displayName ?? l10n.opponent;
-    final yourSeries = game.you.seriesWins;
-    final opponentSeries = game.opponent?.seriesWins ?? 0;
-    final rematchReady = game.you.rematchReady;
-    final opponentRematchReady = game.opponent?.rematchReady ?? false;
-    final headline =
-        opponentTotal == null
-            ? l10n.gameOver
-            : youWin
-            ? l10n.victory
-            : theyWin
-            ? l10n.defeat
-            : l10n.draw;
-
-    final youId = game.you.playerId ?? '';
-    final ratings = game.result?.ratings;
-    final youRating = _findRating(ratings, youId);
-
-    final youXp =
-        youRating?.pointsEarned ??
-        _calculateXp(youWin, isDraw, yourTotal, opponentTotal);
-    final youEloDelta = youRating?.eloDelta ?? _calculateElo(youWin, isDraw);
-
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 28),
-        padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [CasinoColors.leather, CasinoColors.leatherDeep],
-          ),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: CasinoColors.gold.withValues(alpha: 0.55),
-            width: 1.4,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x99000000),
-              blurRadius: 24,
-              offset: Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _GameOverHeadline(label: headline, glow: youWin),
-            const SizedBox(height: 4),
-            Text(
-              l10n.seriesScore(yourSeries, opponentSeries),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: CasinoColors.goldSoft,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 40),
-            Row(
-              children: [
-                Expanded(
-                  child: _ResultSeat(
-                    name: yourName,
-                    score: yourTotal,
-                    connected: game.you.connected,
-                    winner: youWin,
-                    avatarId: youAvatarId,
-                  ),
-                ),
-                Column(
-                  children: [
-                    if (game.potAmount > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: CasinoColors.surfaceHi,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              youWin
-                                  ? '${game.potAmount}'
-                                  : theyWin
-                                  ? '${game.potAmount}'
-                                  : '${game.potAmount} (${l10n.draw})',
-                              style: TextStyle(
-                                color:
-                                    youWin
-                                        ? CasinoColors.gold
-                                        : theyWin
-                                        ? CasinoColors.foldHi
-                                        : CasinoColors.textMuted,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 24,
-                                height: 0.8,
-                              ),
-                            ),
-                            const CashIcon(size: 24),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ] else
-                      const SizedBox(height: 50),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        l10n.vs,
-                        style: const TextStyle(
-                          color: CasinoColors.goldSoft,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Expanded(
-                  child: _ResultSeat(
-                    name: opponentName,
-                    score: opponentTotal ?? 0,
-                    connected: game.opponent?.connected ?? false,
-                    winner: theyWin,
-                    avatarId: 'default',
-                    missing: opponentTotal == null,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 40),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '+$youXp ${l10n.xp}',
-                  style: const TextStyle(
-                    color: CasinoColors.gold,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    '•',
-                    style: TextStyle(
-                      color: CasinoColors.textMuted,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${youEloDelta >= 0 ? '+$youEloDelta' : '$youEloDelta'} ${l10n.elo}',
-                  style: TextStyle(
-                    color:
-                        youEloDelta >= 0
-                            ? const Color(0xFF7ED50E)
-                            : CasinoColors.foldHi,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            ),
-            if (rematchReady && !opponentRematchReady) ...[
-              const SizedBox(height: 16),
-              const SuitCardLoader(height: 24),
-              const SizedBox(height: 10),
-              Text(
-                l10n.waitingRematch,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: CasinoColors.textMuted,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ] else if (!rematchReady && opponentRematchReady) ...[
-              const SizedBox(height: 16),
-              Text(
-                l10n.opponentAskingRematch(opponentName),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: CasinoColors.goldSoft,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                CasinoActionButton(
-                  label: l10n.leave,
-                  icon: AppIcons.logout,
-                  tone: CasinoActionTone.fold,
-                  onPressed: notifier.leaveRoom,
-                ),
-                const SizedBox(width: 10),
-                CasinoActionButton(
-                  label: rematchReady ? l10n.waitingEllipsis : l10n.rematch,
-                  icon: AppIcons.replay,
-                  tone: CasinoActionTone.raise,
-                  onPressed: rematchReady ? null : notifier.rematch,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GameOverHeadline extends StatefulWidget {
-  const _GameOverHeadline({required this.label, required this.glow});
-
-  final String label;
-  final bool glow;
-
-  @override
-  State<_GameOverHeadline> createState() => _GameOverHeadlineState();
-}
-
-class _GameOverHeadlineState extends State<_GameOverHeadline>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _glow;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    );
-    _glow = Tween<double>(
-      begin: 0.25,
-      end: 0.85,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    if (widget.glow) {
-      _controller.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _GameOverHeadline oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.glow && !_controller.isAnimating) {
-      _controller.repeat(reverse: true);
-    } else if (!widget.glow && _controller.isAnimating) {
-      _controller.stop();
-      _controller.value = 0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String get _displayLabel {
-    final locale = Localizations.localeOf(context);
-    return casinoButtonLabel(widget.label, locale);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final displayFamily = CasinoFonts.displayFor(
-      Localizations.localeOf(context),
-    );
-    final text = Text(
-      _displayLabel,
-      style: TextStyle(
-        fontFamily: displayFamily,
-        color: CasinoColors.gold,
-        fontSize: 22,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.4,
-      ),
-    );
-
-    if (!widget.glow) return text;
-
-    return AnimatedBuilder(
-      animation: _glow,
-      builder: (context, child) {
-        final intensity = _glow.value;
-        return Text(
-          _displayLabel,
-          style: TextStyle(
-            fontFamily: displayFamily,
-            color: CasinoColors.gold,
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.4,
-            shadows: [
-              Shadow(
-                color: CasinoColors.gold.withValues(alpha: intensity),
-                blurRadius: 8 + intensity * 16,
-              ),
-              Shadow(
-                color: CasinoColors.goldSoft.withValues(alpha: intensity * 0.7),
-                blurRadius: 4 + intensity * 10,
-              ),
-              Shadow(
-                color: CasinoColors.gold.withValues(alpha: intensity * 0.45),
-                blurRadius: 22 + intensity * 18,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-int _calculateXp(bool isWin, bool isDraw, int score, int? oppScore) {
-  if (isDraw) return 8;
-  if (!isWin) return 2;
-  final diff = oppScore != null ? (oppScore - score).clamp(0, 100) : 0;
-  final bonus = (diff * 1.5).round().clamp(0, 15);
-  return 20 + bonus;
-}
-
-int _calculateElo(bool isWin, bool isDraw) {
-  if (isDraw) return 0;
-  return isWin ? 16 : -16;
-}
-
-PlayerResultRating? _findRating(List<PlayerResultRating>? ratings, String id) {
-  if (ratings == null || id.isEmpty) return null;
-  for (final r in ratings) {
-    if (r.playerId == id) return r;
-  }
-  return null;
-}
-
-class _ResultSeat extends StatelessWidget {
-  const _ResultSeat({
-    required this.name,
-    required this.score,
-    required this.connected,
-    required this.winner,
-    this.avatarId,
-    this.missing = false,
-  });
-
-  final String name;
-  final int score;
-  final bool connected;
-  final bool winner;
-  final String? avatarId;
-  final bool missing;
-
-  @override
-  Widget build(BuildContext context) {
-    const avatarSize = 52.0;
-    final ring = winner ? CasinoColors.gold : Colors.white24;
-    final l10n = context.l10n;
-
-    return Opacity(
-      opacity: missing ? 0.45 : 1,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: avatarSize,
-            height: avatarSize,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                PlayerAvatar(
-                  avatarId: avatarId ?? 'default',
-                  size: avatarSize,
-                  borderWidth: winner ? 0.5 : 0.0,
-                  borderColor: ring,
-                  showGlow: winner,
-                  glowColor: CasinoColors.gold.withValues(alpha: 0.35),
-                  statusDotColor:
-                      connected ? const Color(0xFF7ED50E) : CasinoColors.foldHi,
-                ),
-                if (winner)
-                  Positioned(
-                    top: -20,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: SvgPicture.asset(
-                        'assets/crown.svg',
-                        width: 36,
-                        height: 38,
-                        colorFilter: const ColorFilter.mode(
-                          CasinoColors.gold,
-                          BlendMode.srcIn,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: winner ? CasinoColors.gold : CasinoColors.text,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                missing ? '—' : '$score',
-                style: TextStyle(
-                  color:
-                      winner ? CasinoColors.goldSoft : CasinoColors.textMuted,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                  height: 1,
-                ),
-              ),
-              if (!missing) ...[
-                const SizedBox(width: 3),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Text(
-                    l10n.points,
-                    style: const TextStyle(
-                      color: CasinoColors.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.8,
-                      height: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
       ),
     );
   }

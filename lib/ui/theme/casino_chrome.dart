@@ -4,6 +4,8 @@ import 'dart:ui';
 import 'package:cardgame/gen/assets.gen.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/theme/city_table.dart';
+import 'package:cardgame/ui/theme/city_theme.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -35,6 +37,7 @@ class CasinoGlass extends StatelessWidget {
     this.borderRadius,
     this.shape,
     this.padding,
+    this.rimColor,
     this.clipBehavior = Clip.antiAlias,
   }) : assert(
          borderRadius != null || shape != null,
@@ -45,6 +48,9 @@ class CasinoGlass extends StatelessWidget {
   final BorderRadius? borderRadius;
   final ShapeBorder? shape;
   final EdgeInsetsGeometry? padding;
+
+  /// Rim tint; defaults to gold. The in-game HUD passes the city accent.
+  final Color? rimColor;
   final Clip clipBehavior;
 
   @override
@@ -55,11 +61,21 @@ class CasinoGlass extends StatelessWidget {
     final blur = CasinoGlassScope.blurOf(context);
     final surface = DecoratedBox(
       decoration: ShapeDecoration(
-        color: CasinoColors.bg.withValues(alpha: blur ? 0.55 : 0.78),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            CasinoColors.leather.withValues(alpha: blur ? 0.7 : 0.94),
+            CasinoColors.leatherDeep.withValues(alpha: blur ? 0.7 : 0.94),
+          ],
+        ),
         shape: resolvedShape,
       ),
       child: CustomPaint(
-        foregroundPainter: _GlassBorderPainter(shape: resolvedShape),
+        foregroundPainter: _GlassBorderPainter(
+          shape: resolvedShape,
+          color: (rimColor ?? CasinoColors.gold).withValues(alpha: 0.5),
+        ),
         child:
             padding == null ? child : Padding(padding: padding!, child: child),
       ),
@@ -79,9 +95,10 @@ class CasinoGlass extends StatelessWidget {
 }
 
 class _GlassBorderPainter extends CustomPainter {
-  _GlassBorderPainter({required this.shape});
+  _GlassBorderPainter({required this.shape, required this.color});
 
   final ShapeBorder shape;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -90,13 +107,13 @@ class _GlassBorderPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.0
-          ..color = Colors.white.withValues(alpha: 0.12);
+          ..color = color;
     canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant _GlassBorderPainter oldDelegate) =>
-      oldDelegate.shape != shape;
+      oldDelegate.shape != shape || oldDelegate.color != color;
 }
 
 /// Circular frosted HUD button (menu / info / end).
@@ -107,17 +124,20 @@ class CasinoCircleButton extends StatelessWidget {
     required this.onPressed,
     this.tooltip,
     this.size = 38,
+    this.rimColor,
   });
 
   final List<List<dynamic>> icon;
   final VoidCallback onPressed;
   final String? tooltip;
   final double size;
+  final Color? rimColor;
 
   @override
   Widget build(BuildContext context) {
     final button = CasinoGlass(
       shape: const CircleBorder(),
+      rimColor: rimColor,
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(),
@@ -131,7 +151,7 @@ class CasinoCircleButton extends StatelessWidget {
             child: HugeIcon(
               icon: icon,
               size: size * 0.45,
-              color: CasinoColors.text,
+              color: rimColor ?? CasinoColors.gold,
             ),
           ),
         ),
@@ -563,6 +583,7 @@ class CasinoPlayerPill extends StatelessWidget {
     this.avatarId,
     this.points,
     this.height = 38,
+    this.accent,
   });
 
   final String name;
@@ -571,25 +592,49 @@ class CasinoPlayerPill extends StatelessWidget {
   final String? avatarId;
   final int? points;
   final double height;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
-    // return CasinoGlass(
-    //   shape: const StadiumBorder(),
-    //   child: SizedBox(
-    //     height: height,
-    //     child: Padding(
-    //       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-    return CasinoPlayerSeat(
-      name: name,
-      avatarId: avatarId,
-      connected: connected,
-      active: active,
-      points: points,
-      avatarSize: 34,
-      // ),
-      //   ),
-      // ),
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [CasinoColors.leather, CasinoColors.leatherDeep],
+        ),
+        shape: StadiumBorder(
+          side: BorderSide(
+            color: (accent ?? CasinoColors.gold).withValues(
+              alpha: active ? 0.95 : 0.35,
+            ),
+            width: active ? 1.6 : 1,
+          ),
+        ),
+        shadows: [
+          const BoxShadow(
+            color: Color(0x80000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+          if (active)
+            BoxShadow(
+              color: (accent ?? CasinoColors.gold).withValues(alpha: 0.35),
+              blurRadius: 14,
+            ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(5, 4, 14, 4),
+        child: CasinoPlayerSeat(
+          name: name,
+          avatarId: avatarId,
+          connected: connected,
+          active: active,
+          points: points,
+          avatarSize: 34,
+        ),
+      ),
     );
   }
 }
@@ -664,30 +709,37 @@ class CasinoMenuPlayersPill extends StatelessWidget {
   }
 }
 
-/// Felt table from [Assets.table] behind the Flame board.
+/// Table behind the Flame board. With a [city] a custom painted table (richer
+/// for bigger pots) fills the stage; without one (private / free
+/// games) it falls back to the classic [Assets.table] art.
 class CasinoTableFrame extends StatelessWidget {
-  const CasinoTableFrame({super.key, required this.child});
+  const CasinoTableFrame({super.key, required this.child, this.city});
 
   final Widget child;
+  final CityTheme? city;
 
   @override
   Widget build(BuildContext context) {
+    final city = this.city;
     return Stack(
       fit: StackFit.expand,
       children: [
         RepaintBoundary(
-          child: ClipRect(
-            child: ColoredBox(
-              color: const Color(0xFF0B1E2D),
-              child: Assets.table.image(
-                fit: BoxFit.fitHeight,
-                width: double.infinity,
-                height: double.infinity,
-                alignment: Alignment.center,
-                filterQuality: FilterQuality.high,
-              ),
-            ),
-          ),
+          child:
+              city == null
+                  ? ClipRect(
+                    child: ColoredBox(
+                      color: const Color(0xFF0B1E2D),
+                      child: Assets.table.image(
+                        fit: BoxFit.fitHeight,
+                        width: double.infinity,
+                        height: double.infinity,
+                        alignment: Alignment.center,
+                        filterQuality: FilterQuality.high,
+                      ),
+                    ),
+                  )
+                  : CityTable(city: city),
         ),
         child,
       ],
