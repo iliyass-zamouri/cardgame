@@ -809,8 +809,10 @@ class _GameBoardState extends ConsumerState<GameBoard> {
         fit: StackFit.expand,
         children: [
           const CasinoTableFrame(child: CardGameView()),
-          const GameHud(),
-          if (ended) const GameOverPanel(),
+          // No live blur over the board: it repaints every frame.
+          const CasinoGlassScope(blur: false, child: GameHud()),
+          if (ended)
+            const CasinoGlassScope(blur: false, child: GameOverPanel()),
         ],
       ),
     );

@@ -9,6 +9,24 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 
+/// Turns [CasinoGlass] blur off for a subtree.
+///
+/// A [BackdropFilter] over the Flame board re-blurs every frame because the
+/// board repaints every frame; the in-game HUD opts out and uses a denser
+/// tint instead.
+class CasinoGlassScope extends InheritedWidget {
+  const CasinoGlassScope({super.key, required this.blur, required super.child});
+
+  final bool blur;
+
+  static bool blurOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<CasinoGlassScope>()?.blur ??
+      true;
+
+  @override
+  bool updateShouldNotify(CasinoGlassScope oldWidget) => oldWidget.blur != blur;
+}
+
 /// Frosted glass shell for HUD chrome over the felt table.
 class CasinoGlass extends StatelessWidget {
   const CasinoGlass({
@@ -34,25 +52,28 @@ class CasinoGlass extends StatelessWidget {
     final resolvedShape =
         shape ??
         RoundedRectangleBorder(borderRadius: borderRadius ?? BorderRadius.zero);
+    final blur = CasinoGlassScope.blurOf(context);
+    final surface = DecoratedBox(
+      decoration: ShapeDecoration(
+        color: CasinoColors.bg.withValues(alpha: blur ? 0.55 : 0.78),
+        shape: resolvedShape,
+      ),
+      child: CustomPaint(
+        foregroundPainter: _GlassBorderPainter(shape: resolvedShape),
+        child:
+            padding == null ? child : Padding(padding: padding!, child: child),
+      ),
+    );
     return ClipPath(
       clipper: ShapeBorderClipper(shape: resolvedShape),
       clipBehavior: clipBehavior,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-        child: DecoratedBox(
-          decoration: ShapeDecoration(
-            color: CasinoColors.bg.withValues(alpha: 0.55),
-            shape: resolvedShape,
-          ),
-          child: CustomPaint(
-            foregroundPainter: _GlassBorderPainter(shape: resolvedShape),
-            child:
-                padding == null
-                    ? child
-                    : Padding(padding: padding!, child: child),
-          ),
-        ),
-      ),
+      child:
+          blur
+              ? BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+                child: surface,
+              )
+              : surface,
     );
   }
 }
@@ -107,7 +128,11 @@ class CasinoCircleButton extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: HugeIcon(icon: icon, size: size * 0.45, color: CasinoColors.text),
+            child: HugeIcon(
+              icon: icon,
+              size: size * 0.45,
+              color: CasinoColors.text,
+            ),
           ),
         ),
       ),
@@ -650,15 +675,17 @@ class CasinoTableFrame extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        ClipRect(
-          child: ColoredBox(
-            color: const Color(0xFF0B1E2D),
-            child: Assets.table.image(
-              fit: BoxFit.fitHeight,
-              width: double.infinity,
-              height: double.infinity,
-              alignment: Alignment.center,
-              filterQuality: FilterQuality.high,
+        RepaintBoundary(
+          child: ClipRect(
+            child: ColoredBox(
+              color: const Color(0xFF0B1E2D),
+              child: Assets.table.image(
+                fit: BoxFit.fitHeight,
+                width: double.infinity,
+                height: double.infinity,
+                alignment: Alignment.center,
+                filterQuality: FilterQuality.high,
+              ),
             ),
           ),
         ),

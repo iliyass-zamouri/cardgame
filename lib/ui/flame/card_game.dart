@@ -386,6 +386,11 @@ class CardGame extends FlameGame {
       }
     }
     final currentDiscardSkin = _discardBackSkinId ?? _turnBackSkinId;
+    _CardArt.warmBacks({
+      _youBackSkinId,
+      _opponentBackSkinId,
+      currentDiscardSkin,
+    });
 
     _opponentHand.syncCards(
       snapshot.opponent?.cards ?? const [],
@@ -2211,28 +2216,33 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     final squeeze = _flip.abs().clamp(0.08, 1.0);
     final faceUp = _visible && _tag != null && _flip >= 0;
 
-    canvas.saveLayer(
-      Rect.fromLTWH(-6, -6, size.x + 12, size.y + 12),
-      Paint()..color = Color.fromRGBO(255, 255, 255, opacityOverride),
-    );
+    // Opacity is only ever 0 or 1 in practice; an offscreen layer per card per
+    // frame is the single most expensive thing on the board, so only pay for
+    // it on a genuine partial fade.
+    final fading = opacityOverride < 1;
+    if (fading) {
+      canvas.saveLayer(
+        Rect.fromLTWH(-30, -30, size.x + 60, size.y + 60),
+        Paint()..color = Color.fromRGBO(255, 255, 255, opacityOverride),
+      );
+    }
     canvas.save();
     canvas.translate(size.x / 2, 0);
     canvas.scale(squeeze, 1);
     canvas.translate(-size.x / 2, 0);
-    canvas.drawPicture(
-      _CardArt.picture(
-        tag: faceUp ? _tag : null,
-        width: size.x,
-        height: size.y,
-        highlighted: highlighted,
-        backSkinId: backSkinId,
-      ),
+    _CardArt.paint(
+      canvas,
+      tag: faceUp ? _tag : null,
+      width: size.x,
+      height: size.y,
+      highlighted: highlighted,
+      backSkinId: backSkinId,
     );
     canvas.restore();
     if (_zoomCueActive && _zoomCue > 0) {
       _paintZoomCue(canvas, _zoomCue);
     }
-    canvas.restore();
+    if (fading) canvas.restore();
   }
 
   void _paintZoomCue(Canvas canvas, double progress) {
@@ -2269,56 +2279,124 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
 /// Engraved Roman capitals, the register printed decks use for their indices.
 const String _cardFontFamily = 'Cinzel';
 
-/// Draws card faces and backs once per tag/size and replays the recording, so
-/// the pip layouts cost nothing per frame.
+/// Card art is rasterized once into GPU textures and blitted every frame.
+///
+/// Replaying a vector [Picture] per frame re-ran two Gaussian blurs plus every
+/// court/joker SVG path for each card on the board. Now:
+/// - the body (face or back) is rasterized once per tag/skin at a canonical
+///   size and device resolution, then scaled to whichever slot draws it;
+/// - the drop shadow is identical for every card of a size, so it is one
+///   small shared texture per size;
+/// - the border (the only highlight-dependent part) is a single stroke drawn
+///   live, so highlight changes never touch the cache.
 class _CardArt {
-  static final Map<String, Picture> _cache = {};
+  /// Largest card on the board; every other size is a proportional scale.
+  static const _baseW = 86.0;
+  static const _baseH = 124.0;
 
-  static Picture picture({
+  /// Shadow blur reach (3σ of the 7px blur) plus its 4px drop.
+  static const _shadowPad = 26.0;
+
+  /// Bounded so a long session cycling skins cannot grow texture memory
+  /// without limit. Comfortably above a single match's working set.
+  static const _maxBodies = 64;
+
+  static final Map<String, Image> _bodies = <String, Image>{};
+  static final Map<String, Image> _shadows = <String, Image>{};
+
+  static final Paint _imagePaint =
+      Paint()..filterQuality = FilterQuality.medium;
+  static final Paint _shadowPaint = Paint()..filterQuality = FilterQuality.low;
+  static final Paint _borderPaint = Paint()..style = PaintingStyle.stroke;
+
+  /// Device pixels per logical pixel, with headroom for the 1.35x peek lift.
+  static double get _rasterScale {
+    final dpr =
+        PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 2.0;
+    return (dpr.clamp(1.0, 3.0)) * 1.2;
+  }
+
+  static void paint(
+    Canvas canvas, {
     required String? tag,
     required double width,
     required double height,
     required bool highlighted,
     required String backSkinId,
   }) {
-    final face = tag ?? 'back';
-    final key = '$face|$backSkinId|$width|$height|$highlighted';
-    return _cache.putIfAbsent(
-      key,
-      () => _record(tag, width, height, highlighted, backSkinId),
+    final shadow = _shadow(width, height);
+    canvas.drawImageRect(
+      shadow,
+      Rect.fromLTWH(0, 0, shadow.width.toDouble(), shadow.height.toDouble()),
+      Rect.fromLTWH(
+        -_shadowPad,
+        -_shadowPad,
+        width + _shadowPad * 2,
+        height + _shadowPad * 2,
+      ),
+      _shadowPaint,
+    );
+
+    final body = _body(tag, backSkinId);
+    canvas.drawImageRect(
+      body,
+      Rect.fromLTWH(0, 0, body.width.toDouble(), body.height.toDouble()),
+      Rect.fromLTWH(0, 0, width, height),
+      _imagePaint,
+    );
+
+    final faceTheme = CardBackSkins.byId(backSkinId).faceTheme;
+    _borderPaint
+      ..strokeWidth = highlighted ? 3 : 1.5
+      ..color =
+          highlighted ? faceTheme.highlightBorderColor : faceTheme.borderColor;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, width, height),
+        Radius.circular(width * 0.1),
+      ).deflate(0.75),
+      _borderPaint,
     );
   }
 
-  static Picture _record(
-    String? tag,
-    double w,
-    double h,
-    bool highlighted,
-    String backSkinId,
-  ) {
+  /// Rasterize the art for [backSkinIds] ahead of first use so a deal or skin
+  /// change never records new art mid-animation.
+  static void warmBacks(Iterable<String> backSkinIds) {
+    for (final id in backSkinIds) {
+      _body(null, id);
+    }
+  }
+
+  static Image _body(String? tag, String backSkinId) {
+    final key = '${tag ?? 'back'}|$backSkinId';
+    final cached = _bodies.remove(key);
+    if (cached != null) {
+      // Re-insert to mark most recently used.
+      _bodies[key] = cached;
+      return cached;
+    }
+    final image = _rasterizeBody(tag, backSkinId);
+    _bodies[key] = image;
+    if (_bodies.length > _maxBodies) {
+      // Drop the reference only; frames already recorded keep their own
+      // handle, and the finalizer frees the texture once nothing uses it.
+      _bodies.remove(_bodies.keys.first);
+    }
+    return image;
+  }
+
+  static Image _rasterizeBody(String? tag, String backSkinId) {
+    final scale = _rasterScale;
     final recorder = PictureRecorder();
-    final canvas = Canvas(recorder);
+    final canvas = Canvas(recorder)..scale(scale);
+    const w = _baseW;
+    const h = _baseH;
     final rect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, w, h),
-      Radius.circular(w * 0.1),
+      const Rect.fromLTWH(0, 0, w, h),
+      const Radius.circular(w * 0.1),
     );
-
-    canvas.drawRRect(
-      rect.shift(const Offset(0, 4)),
-      Paint()
-        ..color = const Color(0x3F000000)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
-    );
-    canvas.drawRRect(
-      rect.shift(const Offset(0, 1)),
-      Paint()
-        ..color = const Color(0x33000000)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
-    );
-
     final skin = CardBackSkins.byId(backSkinId);
     final faceTheme = skin.faceTheme;
-
     if (tag == null) {
       _paintBack(canvas, rect, w, h, skin);
     } else {
@@ -2331,18 +2409,43 @@ class _CardArt {
         faceTheme,
       );
     }
+    final picture = recorder.endRecording();
+    final image = picture.toImageSync((w * scale).ceil(), (h * scale).ceil());
+    picture.dispose();
+    return image;
+  }
 
-    canvas.drawRRect(
-      rect.deflate(0.75),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = highlighted ? 3 : 1.5
-        ..color =
-            highlighted
-                ? faceTheme.highlightBorderColor
-                : faceTheme.borderColor,
+  /// Soft drop shadow, rasterized at 1x: it is a blur, so extra resolution
+  /// buys nothing visible.
+  static Image _shadow(double w, double h) {
+    final key = '$w|$h';
+    final cached = _shadows[key];
+    if (cached != null) return cached;
+    final recorder = PictureRecorder();
+    final canvas = Canvas(recorder)..translate(_shadowPad, _shadowPad);
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, w, h),
+      Radius.circular(w * 0.1),
     );
-    return recorder.endRecording();
+    canvas.drawRRect(
+      rect.shift(const Offset(0, 4)),
+      Paint()
+        ..color = const Color(0x3F000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
+    );
+    canvas.drawRRect(
+      rect.shift(const Offset(0, 1)),
+      Paint()
+        ..color = const Color(0x33000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+    );
+    final picture = recorder.endRecording();
+    final image = picture.toImageSync(
+      (w + _shadowPad * 2).ceil(),
+      (h + _shadowPad * 2).ceil(),
+    );
+    picture.dispose();
+    return _shadows[key] = image;
   }
 
   /// Hands the back over to the selected skin in a space one unit wide, so a
@@ -2758,16 +2861,21 @@ class _TableHintLabel extends PositionComponent {
     _message = message;
     if (message == null) {
       size = Vector2(1, 1);
+      _laidOut = null;
       return;
     }
     _relayout();
   }
+
+  /// Laid out once per message/style change; [render] only paints it.
+  TextPainter? _laidOut;
 
   void _relayout() {
     final message = _message;
     if (message == null) return;
     final painter = _painter(message)..layout();
     size = Vector2((painter.width + 8).clamp(80, 320), painter.height + 4);
+    _laidOut = _painter(message)..layout(maxWidth: size.x);
   }
 
   TextPainter _painter(String text) {
@@ -2790,9 +2898,9 @@ class _TableHintLabel extends PositionComponent {
 
   @override
   void render(Canvas canvas) {
-    final message = _message;
-    if (message == null) return;
-    final painter = _painter(message)..layout(maxWidth: size.x);
+    if (_message == null) return;
+    final painter = _laidOut;
+    if (painter == null) return;
     painter.paint(
       canvas,
       Offset((size.x - painter.width) / 2, (size.y - painter.height) / 2),
@@ -2803,20 +2911,51 @@ class _TableHintLabel extends PositionComponent {
 class _ShufflePickLabel extends PositionComponent with TapCallbacks {
   _ShufflePickLabel({
     required this.onPressed,
-    this.label = 'Shuffle',
-    this.textDirection = TextDirection.ltr,
-    this.fontFamily,
-  }) {
+    String label = 'Shuffle',
+    TextDirection textDirection = TextDirection.ltr,
+    String? fontFamily,
+  }) : _label = label,
+       _textDirection = textDirection,
+       _fontFamily = fontFamily {
     size = Vector2(120, 36);
     anchor = Anchor.center;
     priority = 50;
   }
 
   final VoidCallback onPressed;
-  String label;
-  TextDirection textDirection;
-  String? fontFamily;
+  String _label;
+  TextDirection _textDirection;
+  String? _fontFamily;
   bool visible = false;
+  TextPainter? _painter;
+
+  String get label => _label;
+  set label(String value) {
+    if (_label == value) return;
+    _label = value;
+    _painter = null;
+  }
+
+  TextDirection get textDirection => _textDirection;
+  set textDirection(TextDirection value) {
+    if (_textDirection == value) return;
+    _textDirection = value;
+    _painter = null;
+  }
+
+  String? get fontFamily => _fontFamily;
+  set fontFamily(String? value) {
+    if (_fontFamily == value) return;
+    _fontFamily = value;
+    _painter = null;
+  }
+
+  static final Paint _fillPaint = Paint()..color = const Color(0x99000000);
+  static final Paint _strokePaint =
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = const Color(0xAAFFD54F);
 
   @override
   bool containsLocalPoint(Vector2 point) {
@@ -2837,27 +2976,22 @@ class _ShufflePickLabel extends PositionComponent with TapCallbacks {
       Rect.fromLTWH(0, 0, size.x, size.y),
       const Radius.circular(18),
     );
-    canvas.drawRRect(rect, Paint()..color = const Color(0x99000000));
-    canvas.drawRRect(
-      rect,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = const Color(0xAAFFD54F),
-    );
-    final painter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: TextStyle(
-          fontFamily: fontFamily,
-          color: const Color(0xEEFFFFFF),
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 4)],
-        ),
-      ),
-      textDirection: textDirection,
-    )..layout();
+    canvas.drawRRect(rect, _fillPaint);
+    canvas.drawRRect(rect, _strokePaint);
+    final painter =
+        _painter ??= TextPainter(
+          text: TextSpan(
+            text: _label,
+            style: TextStyle(
+              fontFamily: _fontFamily,
+              color: const Color(0xEEFFFFFF),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 4)],
+            ),
+          ),
+          textDirection: _textDirection,
+        )..layout();
     painter.paint(
       canvas,
       Offset((size.x - painter.width) / 2, (size.y - painter.height) / 2),
