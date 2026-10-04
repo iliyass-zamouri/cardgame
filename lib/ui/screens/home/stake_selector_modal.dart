@@ -50,14 +50,18 @@ const _tierSuits = [
   SuitShape.spades,
 ];
 
-/// Casino chip colours per tier (blue, red, green, black, purple).
+/// Chip colour per city, in pot order: London green, Paris blue, Moscow red,
+/// Cairo black, Marrakech white.
 const _tierChipColors = [
+  Color(0xFF2E7D32),
   Color(0xFF2F6DB5),
   Color(0xFFC62828),
-  Color(0xFF2E7D32),
   Color(0xFF1E1E22),
-  Color(0xFF6A1B9A),
+  Color(0xFFF3EFE6),
 ];
+
+/// Light chips (white) take dark details so the value and spots stay legible.
+bool _isLightChip(Color color) => color.computeLuminance() > 0.5;
 
 /// Decoded width for pot art, sized to what the card window actually paints
 /// so the raster cache never holds full-resolution bitmaps.
@@ -829,11 +833,14 @@ class _PokerChip extends StatelessWidget {
         child: Center(
           child: Text(
             '$value',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: _isLightChip(color) ? CardInk.black : Colors.white,
               fontSize: 13,
               fontWeight: FontWeight.w900,
-              shadows: [Shadow(color: Color(0x99000000), blurRadius: 2)],
+              shadows:
+                  _isLightChip(color)
+                      ? null
+                      : const [Shadow(color: Color(0x99000000), blurRadius: 2)],
             ),
           ),
         ),
@@ -852,12 +859,15 @@ class _PokerChipPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final c = size.center(Offset.zero);
     final r = size.width / 2;
+    // Ivory details on dark chips, dark details on the white chip.
+    final detail =
+        _isLightChip(color) ? const Color(0xFF1E1E22) : CardInk.ivory;
     canvas.drawCircle(c, r, Paint()..color = color);
 
-    // Edge spots: six ivory blocks around the rim.
+    // Edge spots: six blocks around the rim.
     final spot =
         Paint()
-          ..color = CardInk.ivory
+          ..color = detail
           ..style = PaintingStyle.stroke
           ..strokeWidth = r * 0.22;
     final rimRect = Rect.fromCircle(center: c, radius: r * 0.86);
@@ -868,7 +878,7 @@ class _PokerChipPainter extends CustomPainter {
     // Inner dashed ring and centre inlay.
     final ring =
         Paint()
-          ..color = CardInk.ivory.withValues(alpha: 0.85)
+          ..color = detail.withValues(alpha: 0.85)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.2;
     final innerRect = Rect.fromCircle(center: c, radius: r * 0.62);
@@ -878,7 +888,9 @@ class _PokerChipPainter extends CustomPainter {
     canvas.drawCircle(
       c,
       r * 0.52,
-      Paint()..color = Color.lerp(color, Colors.black, 0.25)!,
+      Paint()
+        ..color =
+            Color.lerp(color, Colors.black, _isLightChip(color) ? 0.08 : 0.25)!,
     );
     canvas.drawCircle(
       c,
