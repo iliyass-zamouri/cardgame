@@ -19,6 +19,8 @@ import 'package:cardgame/services/app_tracking_service.dart';
 import 'package:cardgame/services/crashlytics_service.dart';
 import 'package:cardgame/services/guest_link_prefs_repository.dart';
 import 'package:cardgame/services/push_prefs_repository.dart';
+import 'package:cardgame/trailer/trailer_director.dart';
+import 'package:cardgame/trailer/trailer_mode.dart';
 import 'package:cardgame/ui/background.dart';
 import 'package:cardgame/ui/flame/card_fonts.dart';
 import 'package:cardgame/ui/screens/auth/authentication_screen.dart';
@@ -61,7 +63,9 @@ Future<void> main() async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
 
-      if (!kIsWeb &&
+      // Trailer capture builds skip Firebase, ATT, consent and ads.
+      if (!TrailerMode.enabled &&
+          !kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.android ||
               defaultTargetPlatform == TargetPlatform.iOS)) {
         try {
@@ -84,18 +88,20 @@ Future<void> main() async {
         }
       }
 
-      final crashlytics = CrashlyticsService();
-      await crashlytics.enableCollection();
-      crashlytics.installFlutterErrorHandlers();
+      if (!TrailerMode.enabled) {
+        final crashlytics = CrashlyticsService();
+        await crashlytics.enableCollection();
+        crashlytics.installFlutterErrorHandlers();
 
-      // Request ATT on iOS before initializing mobile ads
-      try {
-        await AppTrackingService().requestTrackingAuthorization();
-      } catch (e) {
-        debugPrint('ATT request failed: $e');
+        // Request ATT on iOS before initializing mobile ads
+        try {
+          await AppTrackingService().requestTrackingAuthorization();
+        } catch (e) {
+          debugPrint('ATT request failed: $e');
+        }
       }
 
-      if (AdIds.isSupported) {
+      if (AdIds.isSupported && !TrailerMode.enabled) {
         try {
           await _requestUmpConsent();
         } catch (e) {
@@ -254,7 +260,15 @@ class _MyAppState extends ConsumerState<MyApp> {
             color: CasinoColors.text,
             decoration: TextDecoration.none,
           ),
-          child: child ?? const SizedBox.shrink(),
+          child:
+              TrailerMode.enabled
+                  ? Stack(
+                    children: [
+                      child ?? const SizedBox.shrink(),
+                      const TrailerDirector(),
+                    ],
+                  )
+                  : child ?? const SizedBox.shrink(),
         );
       },
       home: GameBackground(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cardgame/ads/ad_ids.dart';
 import 'package:cardgame/core/monetization/purchases_providers.dart';
+import 'package:cardgame/trailer/trailer_mode.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -43,6 +44,7 @@ class InterstitialAdService {
 
   /// Shows interstitial if ready. Completes on dismiss/fail/nothing loaded.
   Future<void> show() async {
+    if (TrailerMode.enabled) return;
     if (_isPro?.call() == true) return;
     if (!AdIds.isSupported) return;
     final ad = _ad;

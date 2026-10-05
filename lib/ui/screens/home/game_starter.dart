@@ -31,6 +31,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:cardgame/trailer/trailer_mode.dart';
 
 class StartGameWidget extends ConsumerStatefulWidget {
   const StartGameWidget({super.key});
@@ -49,7 +50,7 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
   }
 
   Future<void> _maybeSoftPrompts() async {
-    if (_softPromptChecked || !mounted) return;
+    if (_softPromptChecked || !mounted || TrailerMode.enabled) return;
     _softPromptChecked = true;
 
     final showedPush = await _maybeSoftPushPrompt();

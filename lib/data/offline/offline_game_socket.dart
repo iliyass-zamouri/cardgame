@@ -5,6 +5,7 @@ import 'package:cardgame/data/game_socket.dart';
 import 'package:cardgame/domain/offline/game_room.dart';
 import 'package:cardgame/domain/offline/game_rule_error.dart';
 import 'package:cardgame/domain/offline/robot_player.dart';
+import 'package:cardgame/trailer/trailer_mode.dart';
 
 const kOfflineHumanId = 'local';
 const kOfflineRobotId = 'robot';
@@ -141,7 +142,13 @@ class OfflineGameSocket implements GameSocket {
   }
 
   void _pushSnapshot() {
-    _emit(_room.snapshotFor(kOfflineHumanId));
+    final snapshot = _room.snapshotFor(kOfflineHumanId);
+    if (TrailerMode.enabled && TrailerMode.stakePool > 0) {
+      snapshot['stakePool'] = TrailerMode.stakePool;
+      snapshot['stakePerPlayer'] = TrailerMode.stakePool ~/ 2;
+      snapshot['potAmount'] = TrailerMode.stakePool;
+    }
+    _emit(snapshot);
   }
 
   void _emitConnected() {

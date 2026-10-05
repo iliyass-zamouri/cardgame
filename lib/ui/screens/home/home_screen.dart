@@ -31,6 +31,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:cardgame/trailer/trailer_mode.dart';
 
 export 'package:cardgame/ui/screens/home/game_over_panel.dart'
     show GameOverPanel;
@@ -45,6 +46,11 @@ class HomeScreen extends ConsumerWidget {
       message,
     ) {
       if (message == null || message == previous) return;
+      // Capture builds: offline backend calls fail; keep the frame clean.
+      if (TrailerMode.enabled) {
+        ref.read(gameSessionProvider.notifier).clearMessage();
+        return;
+      }
       CasinoToast.show(
         context,
         localizeErrorCode(context.l10n, message),
