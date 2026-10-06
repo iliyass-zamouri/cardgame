@@ -12,6 +12,14 @@ const POINTS_MARGIN_CAP = 15;
 /** Points removed from a player who quits (leaves or abandons) a match. */
 const POINTS_QUIT_PENALTY = 15;
 
+/** Balance columns a stake can be paid in. */
+const STAKE_CURRENCIES = ['money', 'chips'];
+
+/** Whitelisted balance column for a stake currency (defaults to money). */
+function stakeColumn(currency) {
+  return STAKE_CURRENCIES.includes(currency) ? currency : 'money';
+}
+
 /**
  * Classic Elo expected score for player A vs B.
  * @param {number} eloA
@@ -186,12 +194,13 @@ async function ensureRankingSchema() {
  *   winnerIndex: 0|1|null,
  * }} input
  */
-async function assertCanAfford(playerId, stake) {
+async function assertCanAfford(playerId, stake, currency = 'money') {
   const safeStake = Math.max(0, Number(stake) || 0);
   if (!playerId || safeStake <= 0) return true;
+  const column = stakeColumn(currency);
   const pool = getPool();
   const [rows] = await pool.execute(
-    `SELECT money FROM players WHERE id = :playerId LIMIT 1`,
+    `SELECT ${column} AS balance FROM players WHERE id = :playerId LIMIT 1`,
     { playerId },
   );
   if (rows.length === 0) {
@@ -199,10 +208,11 @@ async function assertCanAfford(playerId, stake) {
     error.code = 'player_not_found';
     throw error;
   }
-  const money = Number(rows[0].money) || 0;
-  if (money < safeStake) {
+  const balance = Number(rows[0].balance) || 0;
+  if (balance < safeStake) {
     const error = new Error('Insufficient funds for stake');
     error.code = 'insufficient_funds';
+    error.currency = column;
     throw error;
   }
   return true;
@@ -210,11 +220,12 @@ async function assertCanAfford(playerId, stake) {
 
 /**
  * Debit stake from each player into escrow (pre-match).
- * @param {{ playerIds: string[], stake: number }} input
+ * @param {{ playerIds: string[], stake: number, currency?: 'money'|'chips' }} input
  */
-async function escrowStake({ playerIds, stake }) {
+async function escrowStake({ playerIds, stake, currency = 'money' }) {
   const ids = Array.isArray(playerIds) ? playerIds.filter(Boolean) : [];
   const safeStake = Math.max(0, Number(stake) || 0);
+  const column = stakeColumn(currency);
   if (ids.length === 0 || safeStake <= 0) {
     return { ok: true, stake: safeStake, escrowed: false };
   }
@@ -226,7 +237,7 @@ async function escrowStake({ playerIds, stake }) {
     const balances = {};
     for (const playerId of ids) {
       const [rows] = await conn.execute(
-        `SELECT id, money FROM players WHERE id = :playerId FOR UPDATE`,
+        `SELECT id, ${column} AS balance FROM players WHERE id = :playerId FOR UPDATE`,
         { playerId },
       );
       if (rows.length === 0) {
@@ -235,24 +246,25 @@ async function escrowStake({ playerIds, stake }) {
         error.code = 'player_not_found';
         throw error;
       }
-      const money = Number(rows[0].money) || 0;
-      if (money < safeStake) {
+      const balance = Number(rows[0].balance) || 0;
+      if (balance < safeStake) {
         await conn.rollback();
         const error = new Error('Insufficient funds for stake');
         error.code = 'insufficient_funds';
         error.playerId = playerId;
         error.required = safeStake;
-        error.money = money;
+        error.currency = column;
+        error[column] = balance;
         throw error;
       }
       await conn.execute(
-        `UPDATE players SET money = money - :stake WHERE id = :playerId`,
+        `UPDATE players SET ${column} = ${column} - :stake WHERE id = :playerId`,
         { stake: safeStake, playerId },
       );
-      balances[playerId] = money - safeStake;
+      balances[playerId] = balance - safeStake;
     }
     await conn.commit();
-    return { ok: true, stake: safeStake, escrowed: true, balances };
+    return { ok: true, stake: safeStake, currency: column, escrowed: true, balances };
   } catch (error) {
     await conn.rollback().catch(() => {});
     throw error;
@@ -264,9 +276,10 @@ async function escrowStake({ playerIds, stake }) {
 /**
  * Refund previously escrowed stakes (e.g. cancelled match).
  */
-async function refundEscrow({ playerIds, stake }) {
+async function refundEscrow({ playerIds, stake, currency = 'money' }) {
   const ids = Array.isArray(playerIds) ? playerIds.filter(Boolean) : [];
   const safeStake = Math.max(0, Number(stake) || 0);
+  const column = stakeColumn(currency);
   if (ids.length === 0 || safeStake <= 0) return { ok: true };
   const pool = getPool();
   const conn = await pool.getConnection();
@@ -274,7 +287,7 @@ async function refundEscrow({ playerIds, stake }) {
     await conn.beginTransaction();
     for (const playerId of ids) {
       await conn.execute(
-        `UPDATE players SET money = money + :stake WHERE id = :playerId`,
+        `UPDATE players SET ${column} = ${column} + :stake WHERE id = :playerId`,
         { stake: safeStake, playerId },
       );
     }
@@ -295,6 +308,7 @@ async function refundEscrow({ playerIds, stake }) {
  *   quitterIndex?: 0|1|null,
  *   stakePerPlayer?: number,
  *   potAmount?: number,
+ *   stakeCurrency?: 'money'|'chips',
  *   escrowed?: boolean,
  * }} input
  */
@@ -305,6 +319,7 @@ async function recordRankedMatch({
   quitterIndex = null,
   stakePerPlayer = 0,
   potAmount = 0,
+  stakeCurrency = 'money',
   escrowed = false,
 }) {
   if (!Array.isArray(players) || players.length !== 2) return null;
@@ -314,6 +329,7 @@ async function recordRankedMatch({
   const safeStake = Math.max(0, Number(stakePerPlayer) || 0);
   const safePot = Math.max(0, Number(potAmount) || 0);
   const quitter = quitterIndex === 0 || quitterIndex === 1 ? quitterIndex : null;
+  const column = stakeColumn(stakeCurrency);
 
   const pool = getPool();
   const conn = await pool.getConnection();
@@ -357,13 +373,14 @@ async function recordRankedMatch({
           : null;
 
     await conn.execute(
-      `INSERT INTO matches (id, room_id, match_type, stake_per_player, pot_amount, winner_player_id, end_reason)
-       VALUES (:id, :roomId, 'random', :stakePerPlayer, :potAmount, :winnerPlayerId, :endReason)`,
+      `INSERT INTO matches (id, room_id, match_type, stake_per_player, pot_amount, stake_currency, winner_player_id, end_reason)
+       VALUES (:id, :roomId, 'random', :stakePerPlayer, :potAmount, :stakeCurrency, :winnerPlayerId, :endReason)`,
       {
         id: matchId,
         roomId,
         stakePerPlayer: safeStake,
         potAmount: safePot,
+        stakeCurrency: column,
         winnerPlayerId,
         endReason: quitter === null ? null : 'quit',
       },
@@ -401,7 +418,7 @@ async function recordRankedMatch({
       const lossInc = seat.result === 'loss' ? 1 : 0;
       const drawInc = seat.result === 'draw' ? 1 : 0;
 
-      let moneyUpdate = '';
+      let balanceUpdate = '';
       const updateParams = {
         elo: seat.eloAfter,
         points: seat.pointsEarned,
@@ -412,31 +429,32 @@ async function recordRankedMatch({
       };
 
       const playerRow = byId.get(seat.playerId);
-      const currentMoney = Number(playerRow?.money) || 0;
-      const currentChips = Number(playerRow?.chips) || 0;
-      let moneyAfter = currentMoney;
+      const after = {
+        money: Number(playerRow?.money) || 0,
+        chips: Number(playerRow?.chips) || 0,
+      };
 
       if (escrowed) {
         // Stakes already deducted; winner receives the full pot.
         if (seat.result === 'win' && safePot > 0) {
-          moneyUpdate = ', money = money + :pot';
+          balanceUpdate = `, ${column} = ${column} + :pot`;
           updateParams.pot = safePot;
-          moneyAfter = currentMoney + safePot;
+          after[column] += safePot;
         }
       } else if (safeStake > 0) {
         if (seat.result === 'win') {
-          moneyUpdate = ', money = money + :stake';
+          balanceUpdate = `, ${column} = ${column} + :stake`;
           updateParams.stake = safeStake;
-          moneyAfter = currentMoney + safeStake;
+          after[column] += safeStake;
         } else if (seat.result === 'loss') {
-          moneyUpdate = ', money = GREATEST(0, money - :stake)';
+          balanceUpdate = `, ${column} = GREATEST(0, ${column} - :stake)`;
           updateParams.stake = safeStake;
-          moneyAfter = Math.max(0, currentMoney - safeStake);
+          after[column] = Math.max(0, after[column] - safeStake);
         }
       }
 
-      seat.moneyAfter = moneyAfter;
-      seat.chipsAfter = currentChips;
+      seat.moneyAfter = after.money;
+      seat.chipsAfter = after.chips;
 
       await conn.execute(
         `UPDATE players
@@ -445,7 +463,7 @@ async function recordRankedMatch({
              wins = wins + :wins,
              losses = losses + :losses,
              draws = draws + :draws
-             ${moneyUpdate}
+             ${balanceUpdate}
          WHERE id = :playerId`,
         updateParams,
       );
@@ -602,6 +620,7 @@ async function getMatchHistory({ playerId, limit = 20, offset = 0 } = {}) {
 }
 
 module.exports = {
+  STAKE_CURRENCIES,
   ELO_START,
   ELO_K,
   ELO_FLOOR,

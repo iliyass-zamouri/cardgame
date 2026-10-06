@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
+import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
@@ -20,6 +21,7 @@ class PotOption {
     required this.assetPath,
     required this.pool,
     required this.nameBuilder,
+    this.currency = CurrencyType.money,
   });
 
   final String id;
@@ -27,7 +29,13 @@ class PotOption {
   final int pool;
   final String Function(AppLocalizations l10n) nameBuilder;
 
+  /// Balance the entry is paid in and the pot is won in.
+  final CurrencyType currency;
+
   int get entryStake => pool ~/ 2;
+
+  bool canAfford({required int money, required int chips}) =>
+      (currency == CurrencyType.chips ? chips : money) >= entryStake;
 }
 
 /// City art is 16:9; it sits uncropped in the card's picture window.
@@ -40,24 +48,31 @@ const double _viewportFraction = 0.72;
 /// Pot cards are laid out at this design width and scaled to fit.
 const double _designCardWidth = 240;
 
-/// Each pot tier reads as a higher card: 10♣ · J♦ · Q♥ · K♠ · A♠.
-const _tierRanks = ['10', 'J', 'Q', 'K', 'A'];
+/// Each pot tier reads as a higher card: 10♣ · J♦ · Q♥ · K♠ · A♠, then the
+/// chip tables as the remaining aces: A♥ · A♦ · A♣.
+const _tierRanks = ['10', 'J', 'Q', 'K', 'A', 'A', 'A', 'A'];
 const _tierSuits = [
   SuitShape.clubs,
   SuitShape.diamonds,
   SuitShape.hearts,
   SuitShape.spades,
   SuitShape.spades,
+  SuitShape.hearts,
+  SuitShape.diamonds,
+  SuitShape.clubs,
 ];
 
 /// Chip colour per city, in pot order: London green, Paris blue, Moscow red,
-/// Cairo black, Marrakech white.
+/// Cairo black, Marrakech white, Toronto teal, New York violet, Tokyo pink.
 const _tierChipColors = [
   Color(0xFF2E7D32),
   Color(0xFF2F6DB5),
   Color(0xFFC62828),
   Color(0xFF1E1E22),
   Color(0xFFF3EFE6),
+  Color(0xFF1F8A8A),
+  Color(0xFF6A3FA0),
+  Color(0xFFD6336C),
 ];
 
 /// Light chips (white) take dark details so the value and spots stay legible.
@@ -79,7 +94,12 @@ Future<void> showStakeSelectorModal(BuildContext context) {
   // of the page doesn't stall on image decode.
   final cacheWidth = _potCacheWidth(context);
   for (final option in StakeSelectorScreen.potOptions) {
-    precacheImage(_potImage(option.assetPath, cacheWidth), context);
+    precacheImage(
+      _potImage(option.assetPath, cacheWidth),
+      context,
+      // Missing art falls back to plain felt in the card window.
+      onError: (_, __) {},
+    );
   }
   return Navigator.of(context).push<void>(
     MaterialPageRoute<void>(builder: (_) => const StakeSelectorScreen()),
@@ -122,6 +142,28 @@ class StakeSelectorScreen extends ConsumerStatefulWidget {
       pool: 500,
       nameBuilder: (l10n) => l10n.cityMarrakech,
     ),
+    // Chip tables: entry 1 · 5 · 25 chips (1 chip = 1000 money).
+    PotOption(
+      id: 'toronto',
+      assetPath: 'assets/pots/toronto.webp',
+      pool: 2,
+      currency: CurrencyType.chips,
+      nameBuilder: (l10n) => l10n.cityToronto,
+    ),
+    PotOption(
+      id: 'new_york',
+      assetPath: 'assets/pots/new_york.webp',
+      pool: 10,
+      currency: CurrencyType.chips,
+      nameBuilder: (l10n) => l10n.cityNewYork,
+    ),
+    PotOption(
+      id: 'tokyo',
+      assetPath: 'assets/pots/tokyo.webp',
+      pool: 50,
+      currency: CurrencyType.chips,
+      nameBuilder: (l10n) => l10n.cityTokyo,
+    ),
   ];
 
   @override
@@ -150,7 +192,10 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
       final sessionNotifier = ref.read(gameSessionProvider.notifier);
       Navigator.of(context).pop();
       // Queue match first; MatchmakingWaiting shows the interstitial while searching.
-      sessionNotifier.findMatch(stakePool: option.pool);
+      sessionNotifier.findMatch(
+        stakePool: option.pool,
+        stakeCurrency: option.currency,
+      );
     } else {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(builder: (_) => const MarketplaceScreen()),
@@ -233,7 +278,10 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
                                     cacheWidth,
                                   ),
                                   cityName: option.nameBuilder(l10n),
-                                  canAfford: playerMoney >= option.entryStake,
+                                  canAfford: option.canAfford(
+                                    money: playerMoney,
+                                    chips: playerChips,
+                                  ),
                                   onTap: () => _snapTo(index),
                                 ),
                               ),
@@ -253,6 +301,7 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
                     options: options,
                     selected: selected,
                     playerMoney: playerMoney,
+                    playerChips: playerChips,
                     onTap: _snapTo,
                   ),
             ),
@@ -260,11 +309,19 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
               valueListenable: _selected,
               builder: (context, selected, _) {
                 final option = options[selected];
-                final canAfford = playerMoney >= option.entryStake;
+                final canAfford = option.canAfford(
+                  money: playerMoney,
+                  chips: playerChips,
+                );
                 return _ActionPanel(
                   option: option,
                   canAfford: canAfford,
-                  playLabel: canAfford ? l10n.play : l10n.getMoreMoney,
+                  playLabel:
+                      canAfford
+                          ? l10n.play
+                          : option.currency == CurrencyType.chips
+                          ? l10n.getMoreChips
+                          : l10n.getMoreMoney,
                   onPlay: () => _onPlay(option, canAfford),
                 );
               },
@@ -613,7 +670,7 @@ class _CardFace extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const CashIcon(size: 30),
+                    CurrencyIcon(currency: option.currency, size: 30),
                   ],
                 ),
                 const Spacer(),
@@ -629,7 +686,7 @@ class _CardFace extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    const CashIcon(size: 14),
+                    CurrencyIcon(currency: option.currency, size: 14),
                   ],
                 ),
               ],
@@ -752,43 +809,55 @@ class _ChipRail extends StatelessWidget {
     required this.options,
     required this.selected,
     required this.playerMoney,
+    required this.playerChips,
     required this.onTap,
   });
 
   final List<PotOption> options;
   final int selected;
   final int playerMoney;
+  final int playerChips;
   final ValueChanged<int> onTap;
 
   @override
   Widget build(BuildContext context) {
+    // Shrinks the rail on narrow screens so every pot's chip stays visible.
     return SizedBox(
       height: 70,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (var i = 0; i < options.length; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: Pressable(
-                onTap: () => onTap(i),
-                child: AnimatedSlide(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutBack,
-                  offset: Offset(0, i == selected ? -0.18 : 0.06),
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 200),
-                    opacity: playerMoney >= options[i].entryStake ? 1 : 0.45,
-                    child: _PokerChip(
-                      value: options[i].pool,
-                      color: _tierChipColors[i % _tierChipColors.length],
-                      selected: i == selected,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < options.length; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: Pressable(
+                  onTap: () => onTap(i),
+                  child: AnimatedSlide(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutBack,
+                    offset: Offset(0, i == selected ? -0.18 : 0.06),
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity:
+                          options[i].canAfford(
+                                money: playerMoney,
+                                chips: playerChips,
+                              )
+                              ? 1
+                              : 0.45,
+                      child: _PokerChip(
+                        value: options[i].pool,
+                        color: _tierChipColors[i % _tierChipColors.length],
+                        selected: i == selected,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -978,7 +1047,7 @@ class _ActionPanel extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const CashIcon(size: 16),
+              CurrencyIcon(currency: option.currency, size: 16),
             ],
           ),
           const SizedBox(height: 12),
@@ -1065,7 +1134,7 @@ class _ActionPanel extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const CashIcon(size: 16),
+                        CurrencyIcon(currency: option.currency, size: 16),
                       ],
                     ),
                   ),

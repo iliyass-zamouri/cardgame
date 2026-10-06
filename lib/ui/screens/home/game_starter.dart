@@ -238,10 +238,7 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
                   child:
                       connected
                           ? const SizedBox(width: double.infinity)
-                          : _ConnectionBanner(
-                            connection: connection,
-                            onRetry: notifier.connect,
-                          ),
+                          : _ConnectionBanner(connection: connection),
                 ),
                 Expanded(
                   child: LayoutBuilder(
@@ -742,11 +739,11 @@ class _HudIconButton extends StatelessWidget {
 }
 
 /// Shown under the top bar while the socket is down or reconnecting.
+/// Reconnecting is automatic (periodic check + backoff), so no retry button.
 class _ConnectionBanner extends StatelessWidget {
-  const _ConnectionBanner({required this.connection, required this.onRetry});
+  const _ConnectionBanner({required this.connection});
 
   final ConnectionStatus connection;
-  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -765,14 +762,11 @@ class _ConnectionBanner extends StatelessWidget {
         ),
         child: Row(
           children: [
-            if (offline)
-              HugeIcon(icon: AppIcons.info, size: 18, color: accent)
-            else
-              const SuitCardLoader(height: 16),
+            const SuitCardLoader(height: 16),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                offline ? l10n.offline : l10n.connecting,
+                offline ? l10n.offlineReconnecting : l10n.connecting,
                 style: const TextStyle(
                   color: CasinoColors.text,
                   fontSize: 13,
@@ -780,16 +774,6 @@ class _ConnectionBanner extends StatelessWidget {
                 ),
               ),
             ),
-            if (offline)
-              TextButton.icon(
-                onPressed: onRetry,
-                icon: HugeIcon(icon: AppIcons.refresh, size: 18, color: accent),
-                label: Text(l10n.retryConnection),
-                style: TextButton.styleFrom(
-                  foregroundColor: CasinoColors.gold,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
           ],
         ),
       ),

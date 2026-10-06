@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS matches (
   match_type ENUM('random') NOT NULL,
   stake_per_player INT NOT NULL DEFAULT 0,
   pot_amount INT NOT NULL DEFAULT 0,
+  stake_currency VARCHAR(8) NOT NULL DEFAULT 'money',
   winner_player_id VARCHAR(64) NULL,
   end_reason VARCHAR(16) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

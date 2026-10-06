@@ -76,6 +76,12 @@ async function ensureMarketplaceSchema() {
     );
     await addColumnIfMissing(
       conn,
+      'matches',
+      'stake_currency',
+      `stake_currency VARCHAR(8) NOT NULL DEFAULT 'money'`,
+    );
+    await addColumnIfMissing(
+      conn,
       'players',
       'avatar_id',
       `avatar_id VARCHAR(64) NOT NULL DEFAULT 'default'`,

@@ -36,6 +36,7 @@ class GameRoom {
     this.stakePool = 0;
     this.stakePerPlayer = 0;
     this.potAmount = 0;
+    this.stakeCurrency = 'money';
     this.seriesWins = [0, 0];
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
@@ -100,6 +101,7 @@ class GameRoom {
     this.stakePool = 0;
     this.stakePerPlayer = 0;
     this.potAmount = 0;
+    this.stakeCurrency = 'money';
     this.escrowed = false;
     this.seriesWins = [0, 0];
     this.lobbyReady = [false, false];
@@ -224,6 +226,7 @@ class GameRoom {
         roomId: this.id,
         playerIds,
         stake: this.stakePerPlayer,
+        currency: this.stakeCurrency,
       }))
       .then((result) => {
         if (!this.#rematchStillValid(playerIds)) return;
@@ -246,11 +249,17 @@ class GameRoom {
             code: 'insufficient_funds',
             playerId: error.playerId ?? null,
             required: Number(error.required) || this.stakePerPlayer,
+            currency: this.stakeCurrency,
           };
         } else {
           console.error('[rematch] stake failed', error);
           this.rematchReady = [false, false];
-          this.rematchError = { code: 'rematch_failed', playerId: null, required: this.stakePerPlayer };
+          this.rematchError = {
+            code: 'rematch_failed',
+            playerId: null,
+            required: this.stakePerPlayer,
+            currency: this.stakeCurrency,
+          };
         }
         this.#changed();
       });
@@ -620,6 +629,7 @@ class GameRoom {
       stakePool: this.stakePool,
       stakePerPlayer: this.stakePerPlayer,
       potAmount: this.potAmount,
+      stakeCurrency: this.stakeCurrency,
       deckCount: this.deck.length,
       discardTop: this.discard.at(-1) ?? null,
       discardRecent: this.discard.slice(-2),
@@ -685,7 +695,7 @@ class GameRoom {
       deckId: player.deckId || 'default',
       playerId: player.playerId || null,
       ...(isSelf && this.stakeBalances && player.playerId in this.stakeBalances
-        ? { money: this.stakeBalances[player.playerId] }
+        ? { [this.stakeCurrency]: this.stakeBalances[player.playerId] }
         : {}),
       seriesWins: this.seriesWins[seatIndex] ?? 0,
       lobbyReady: Boolean(this.lobbyReady[seatIndex]),
@@ -761,6 +771,7 @@ class GameRoom {
       roomId: this.id,
       stakePerPlayer: this.stakePerPlayer,
       potAmount: this.potAmount,
+      stakeCurrency: this.stakeCurrency,
       escrowed: Boolean(this.escrowed),
       players: this.players.map((player) => ({
         playerId: player.playerId,

@@ -4,11 +4,13 @@ import 'dart:convert';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_state.dart';
+import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/game_socket.dart';
 import 'package:cardgame/data/offline/offline_game_socket.dart';
 import 'package:cardgame/data/socket_client.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/services/analytics_service.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 typedef GameSocketFactory = GameSocket Function();
@@ -29,14 +31,102 @@ class GameSessionController extends Notifier<GameSessionState> {
   int _reconnectAttempt = 0;
   bool _offlineMode = false;
 
-  static const _reconnectDelaysSec = [1, 2, 4];
-  static const _maxReconnectAttempts = 3;
+  /// Periodic connection check: pings while connected, reconnects while down.
+  Timer? _healthTimer;
+  AppLifecycleListener? _lifecycle;
+  bool _backgrounded = false;
+  DateTime _lastInboundAt = DateTime.now();
+  DateTime? _connectStartedAt;
+
+  /// Backoff between automatic reconnects; retries never stop (last value repeats).
+  static const _reconnectDelaysSec = [1, 2, 4, 8, 15];
+  static const _healthInterval = Duration(seconds: 10);
+
+  /// No server message for this long while "connected" means a dead socket.
+  static const _staleAfter = Duration(seconds: 30);
+  static const _connectTimeout = Duration(seconds: 15);
 
   @override
   GameSessionState build() {
-    ref.onDispose(_disposeSocket);
+    ref.onDispose(() {
+      _healthTimer?.cancel();
+      _healthTimer = null;
+      _lifecycle?.dispose();
+      _lifecycle = null;
+      _disposeSocket();
+    });
+    _healthTimer = Timer.periodic(_healthInterval, (_) => _checkHealth());
+    _listenLifecycle();
     Future.microtask(connect);
     return const GameSessionState();
+  }
+
+  void _listenLifecycle() {
+    try {
+      _lifecycle = AppLifecycleListener(
+        onHide: () => _backgrounded = true,
+        onShow: () {
+          _backgrounded = false;
+          if (state.connection == ConnectionStatus.connected) {
+            _probe();
+          } else {
+            _checkHealth(force: true);
+          }
+        },
+      );
+    } catch (_) {
+      // No widgets binding (plain unit tests): periodic checks still run.
+    }
+  }
+
+  void _checkHealth({bool force = false}) {
+    if (_offlineMode || (_backgrounded && !force)) return;
+    final now = DateTime.now();
+    switch (state.connection) {
+      case ConnectionStatus.connected:
+        if (now.difference(_lastInboundAt) > _staleAfter) {
+          _onConnectionLost();
+          return;
+        }
+        _socket?.send(
+          jsonEncode({'type': 'ping', 'at': now.millisecondsSinceEpoch}),
+        );
+      case ConnectionStatus.connecting:
+        final startedAt = _connectStartedAt;
+        if (startedAt != null && now.difference(startedAt) > _connectTimeout) {
+          _onConnectionLost();
+        }
+      case ConnectionStatus.disconnected:
+        // Returning to the app retries at once instead of waiting out backoff.
+        if (force || _reconnectTimer == null) {
+          connect(resetReconnect: force);
+        }
+    }
+  }
+
+  /// After resuming, a socket can look open but be dead: ping and give the
+  /// server a few seconds to answer before reconnecting.
+  void _probe() {
+    final sentAt = DateTime.now();
+    _socket?.send(
+      jsonEncode({'type': 'ping', 'at': sentAt.millisecondsSinceEpoch}),
+    );
+    Timer(const Duration(seconds: 5), () {
+      if (state.connection == ConnectionStatus.connected &&
+          _lastInboundAt.isBefore(sentAt)) {
+        _onConnectionLost();
+      }
+    });
+  }
+
+  void _onConnectionLost() {
+    if (_offlineMode) return;
+    _disposeSocket(cancelReconnect: false);
+    state = state.copyWith(
+      connection: ConnectionStatus.disconnected,
+      searchingMatch: false,
+    );
+    _maybeScheduleReconnect();
   }
 
   Map<String, dynamic> get _identityPayload {
@@ -63,6 +153,7 @@ class GameSessionController extends Notifier<GameSessionState> {
     _reconnectTimer = null;
     if (resetReconnect) _reconnectAttempt = 0;
     _disposeSocket(cancelReconnect: false);
+    _connectStartedAt = DateTime.now();
     state = state.copyWith(
       connection: ConnectionStatus.connecting,
       message: null,
@@ -113,9 +204,11 @@ class GameSessionController extends Notifier<GameSessionState> {
       _handleMessage,
       onError: (_) {
         if (_offlineMode) return;
+        // Only announce losing a live connection, not each failed retry.
+        final wasConnected = state.connection == ConnectionStatus.connected;
         state = state.copyWith(
           connection: ConnectionStatus.disconnected,
-          message: 'connection_lost',
+          message: wasConnected ? 'connection_lost' : state.message,
           searchingMatch: false,
         );
         _maybeScheduleReconnect();
@@ -133,10 +226,6 @@ class GameSessionController extends Notifier<GameSessionState> {
 
   void _maybeScheduleReconnect() {
     if (_offlineMode) return;
-    final game = state.game;
-    final roomId = game?.roomId;
-    if (game == null || roomId == null || roomId.isEmpty) return;
-    if (_reconnectAttempt >= _maxReconnectAttempts) return;
     if (_reconnectTimer != null) return;
 
     final delaySec =
@@ -147,8 +236,7 @@ class GameSessionController extends Notifier<GameSessionState> {
     _reconnectAttempt++;
     _reconnectTimer = Timer(Duration(seconds: delaySec), () {
       _reconnectTimer = null;
-      if (_offlineMode) return;
-      if (state.game == null) return;
+      if (_offlineMode || _backgrounded) return;
       connect(resetReconnect: false);
     });
   }
@@ -170,9 +258,16 @@ class GameSessionController extends Notifier<GameSessionState> {
     _send('joinRoom', {'roomId': normalized, ..._identityPayload});
   }
 
-  void findMatch({int stakePool = 50}) {
+  void findMatch({
+    int stakePool = 50,
+    CurrencyType stakeCurrency = CurrencyType.money,
+  }) {
     state = state.copyWith(searchingMatch: true, message: null, game: null);
-    _send('findMatch', {'stakePool': stakePool, ..._identityPayload});
+    _send('findMatch', {
+      'stakePool': stakePool,
+      'stakeCurrency': stakeCurrency.name,
+      ..._identityPayload,
+    });
   }
 
   void cancelFindMatch() {
@@ -240,13 +335,15 @@ class GameSessionController extends Notifier<GameSessionState> {
   /// top-up sheet instead of the request.
   void rematch() {
     final game = state.game;
-    final money = ref.read(playerProfileProvider).value?.money;
+    final profile = ref.read(playerProfileProvider).value;
+    final balance =
+        game?.stakedInChips ?? false ? profile?.chips : profile?.money;
     if (!_offlineMode &&
         game != null &&
         game.matchType == 'random' &&
         game.stakePerPlayer > 0 &&
-        money != null &&
-        money < game.stakePerPlayer) {
+        balance != null &&
+        balance < game.stakePerPlayer) {
       state = state.copyWith(fundsPrompt: game.stakePerPlayer);
       return;
     }
@@ -364,10 +461,14 @@ class GameSessionController extends Notifier<GameSessionState> {
   }
 
   void _handleMessage(String raw) {
+    _lastInboundAt = DateTime.now();
     final message = jsonDecode(raw) as Map<String, dynamic>;
     switch (message['type']) {
+      case 'pong':
+        break;
       case 'connected':
         _reconnectAttempt = 0;
+        _connectStartedAt = null;
         state = state.copyWith(
           connection: ConnectionStatus.connected,
           clientId: message['clientId'] as String?,
@@ -401,11 +502,13 @@ class GameSessionController extends Notifier<GameSessionState> {
             state = state.copyWith(fundsPrompt: blocked!.required);
           }
           final stakedMoney = snapshot.you.money;
-          if (stakedMoney != null &&
-              ref.read(playerProfileProvider).value?.money != stakedMoney) {
+          final stakedChips = snapshot.you.chips;
+          final profile = ref.read(playerProfileProvider).value;
+          if ((stakedMoney != null && profile?.money != stakedMoney) ||
+              (stakedChips != null && profile?.chips != stakedChips)) {
             ref
                 .read(playerProfileProvider.notifier)
-                .updateBalances(money: stakedMoney)
+                .updateBalances(money: stakedMoney, chips: stakedChips)
                 .ignore();
           }
           if (previousStatus != GameStatus.playing &&

@@ -55,8 +55,10 @@ class PlayerSnapshot {
   final bool jackPeekAvailable;
   final bool queenAbilityAvailable;
 
-  /// Balance after a rematch stake was taken (own seat only).
+  /// Balance after a rematch stake was taken (own seat only), in the
+  /// room's stake currency.
   final int? money;
+  final int? chips;
 
   const PlayerSnapshot({
     required this.connected,
@@ -75,6 +77,7 @@ class PlayerSnapshot {
     this.jackPeekAvailable = false,
     this.queenAbilityAvailable = false,
     this.money,
+    this.chips,
   });
 
   factory PlayerSnapshot.fromJson(Map<String, dynamic> json) {
@@ -101,6 +104,7 @@ class PlayerSnapshot {
       jackPeekAvailable: json['jackPeekAvailable'] as bool? ?? false,
       queenAbilityAvailable: json['queenAbilityAvailable'] as bool? ?? false,
       money: (json['money'] as num?)?.toInt(),
+      chips: (json['chips'] as num?)?.toInt(),
     );
   }
 
@@ -333,6 +337,9 @@ class GameSnapshot {
   final int stakePool;
   final int stakePerPlayer;
   final int potAmount;
+
+  /// Balance the stake and pot are paid in: `money` or `chips`.
+  final String stakeCurrency;
   final int deckCount;
   final String? discardTopTag;
 
@@ -361,6 +368,7 @@ class GameSnapshot {
     this.stakePool = 0,
     this.stakePerPlayer = 0,
     this.potAmount = 0,
+    this.stakeCurrency = 'money',
     required this.deckCount,
     required this.discardTopTag,
     required this.discardRecentTags,
@@ -392,6 +400,7 @@ class GameSnapshot {
       stakePool: (json['stakePool'] as num?)?.toInt() ?? 0,
       stakePerPlayer: (json['stakePerPlayer'] as num?)?.toInt() ?? 0,
       potAmount: (json['potAmount'] as num?)?.toInt() ?? 0,
+      stakeCurrency: json['stakeCurrency'] == 'chips' ? 'chips' : 'money',
       deckCount: json['deckCount'] as int? ?? 0,
       discardTopTag: json['discardTop'] as String?,
       discardRecentTags:
@@ -410,6 +419,8 @@ class GameSnapshot {
       ),
     );
   }
+
+  bool get stakedInChips => stakeCurrency == 'chips';
 
   bool get bothRevealed =>
       you.launch == LaunchStatus.ended &&

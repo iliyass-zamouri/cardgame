@@ -82,6 +82,15 @@ const {
   exportAdminGooglePlayersCsv,
 } = require('./admin/stats');
 
+/**
+ * Pot sizes matchmaking accepts, per stake currency (each player pays half).
+ * Must match `StakeSelectorScreen.potOptions` in the app.
+ */
+const ALLOWED_STAKE_POOLS = {
+  money: [20, 50, 100, 200, 500],
+  chips: [2, 10, 50],
+};
+
 const ADMIN_HTML_PATH = path.join(__dirname, 'public', 'admin.html');
 let _adminHtmlCache = null;
 
@@ -263,6 +272,7 @@ class GameServer {
       mapId: null,
       stakePerPlayer: room.stakePerPlayer || 0,
       potAmount: room.potAmount || 0,
+      stakeCurrency: room.stakeCurrency || 'money',
       players: room.players.map((p) => ({
         playerId: p.playerId,
         displayName: p.displayName,
@@ -1414,6 +1424,11 @@ class GameServer {
       Promise.resolve()
         .then(async () => {
           const command = JSON.parse(raw.toString());
+          // Client heartbeat: proves the socket is alive end to end.
+          if (command.type === 'ping') {
+            this.#send(socket, { type: 'pong', at: command.at ?? null });
+            return;
+          }
           await this.#handle(context, command);
         })
         .catch((error) => {
@@ -1614,11 +1629,14 @@ class GameServer {
           deckId: context.deckId,
         }).catch((err) => console.error('[findMatch cosmetics]', err));
       }
-      const allowedStakes = [20, 50, 100, 200, 500];
       const reqStake = Number(command.stakePool ?? command.stake ?? 50);
-      context.stakePool = allowedStakes.includes(reqStake) ? reqStake : 50;
+      const reqCurrency = command.stakeCurrency === 'chips' ? 'chips' : 'money';
+      const allowed = ALLOWED_STAKE_POOLS[reqCurrency].includes(reqStake);
+      context.stakePool = allowed ? reqStake : 50;
+      context.stakeCurrency = allowed ? reqCurrency : 'money';
+      const entryStake = Math.floor(context.stakePool / 2) || context.stakePool;
       try {
-        await assertCanAfford(context.playerId, Math.floor(context.stakePool / 2) || context.stakePool);
+        await assertCanAfford(context.playerId, entryStake, context.stakeCurrency);
       } catch (error) {
         if (!error?.message?.includes('MySQL pool not initialized')) {
           this.#error(context.socket, error.code || 'insufficient_funds', error.message);
@@ -1691,7 +1709,7 @@ class GameServer {
       const room = this.rooms.get(context.roomId);
       if (room?.matchType === 'random' && room.stakePerPlayer > 0) {
         try {
-          await assertCanAfford(context.playerId, room.stakePerPlayer);
+          await assertCanAfford(context.playerId, room.stakePerPlayer, room.stakeCurrency);
         } catch (error) {
           if (!error?.message?.includes('MySQL pool not initialized')) {
             this.#send(context.socket, {
@@ -1699,6 +1717,7 @@ class GameServer {
               code: error.code || 'insufficient_funds',
               message: error.message,
               required: room.stakePerPlayer,
+              currency: room.stakeCurrency,
             });
             return;
           }
@@ -1847,12 +1866,14 @@ class GameServer {
     let roomId;
     do roomId = createRoomCode(); while (this.rooms.has(roomId));
     const stakePool = context.stakePool || 50;
+    const stakeCurrency = context.stakeCurrency || 'money';
     const stakePerPlayer = Math.floor(stakePool / 2) || stakePool;
     let escrowed = false;
     try {
       const result = await escrowStake({
         playerIds: [context.playerId, botUser.playerId],
         stake: stakePerPlayer,
+        currency: stakeCurrency,
       });
       escrowed = Boolean(result?.escrowed);
     } catch (error) {
@@ -1867,7 +1888,7 @@ class GameServer {
         return;
       }
     }
-    const room = this.#createRoom(roomId, 'random', stakePool);
+    const room = this.#createRoom(roomId, 'random', stakePool, stakeCurrency);
     room.escrowed = escrowed;
     context.roomId = roomId;
 
@@ -1907,14 +1928,17 @@ class GameServer {
       (ctx) => ctx.socket && ctx.socket.readyState === WebSocket.OPEN
     );
 
+    // Pair only players queued for the same pot (amount and currency).
     const byStake = new Map();
     for (const ctx of this.matchQueue) {
-      const stake = ctx.stakePool || 50;
-      if (!byStake.has(stake)) byStake.set(stake, []);
-      byStake.get(stake).push(ctx);
+      const key = `${ctx.stakeCurrency || 'money'}:${ctx.stakePool || 50}`;
+      if (!byStake.has(key)) byStake.set(key, []);
+      byStake.get(key).push(ctx);
     }
 
-    for (const [stake, queue] of byStake.entries()) {
+    for (const queue of byStake.values()) {
+      const stake = queue[0].stakePool || 50;
+      const stakeCurrency = queue[0].stakeCurrency || 'money';
       while (queue.length >= 2) {
         const first = queue.shift();
         const second = queue.shift();
@@ -1932,6 +1956,7 @@ class GameServer {
           const result = await escrowStake({
             playerIds: [first.playerId, second.playerId],
             stake: stakePerPlayer,
+            currency: stakeCurrency,
           });
           escrowed = Boolean(result?.escrowed);
         } catch (error) {
@@ -1948,7 +1973,7 @@ class GameServer {
 
         let roomId;
         do roomId = createRoomCode(); while (this.rooms.has(roomId));
-        const room = this.#createRoom(roomId, 'random', stake);
+        const room = this.#createRoom(roomId, 'random', stake, stakeCurrency);
         room.escrowed = escrowed;
         first.roomId = roomId;
         second.roomId = roomId;
@@ -1975,7 +2000,7 @@ class GameServer {
     }
   }
 
-  #createRoom(roomId, matchType = 'private', stakePool = 0) {
+  #createRoom(roomId, matchType = 'private', stakePool = 0, stakeCurrency = 'money') {
     const room = new GameRoom(roomId, {
       onChange: (changedRoom) => {
         this.#broadcastRoom(changedRoom);
@@ -1985,7 +2010,7 @@ class GameServer {
         }
       },
       onRankedEnd: (payload) => recordRankedMatch(payload),
-      beforeRematch: ({ playerIds, stake }) => escrowStake({ playerIds, stake })
+      beforeRematch: ({ playerIds, stake, currency }) => escrowStake({ playerIds, stake, currency })
         .catch((error) => {
           // Without a DB (tests/local), rematch unstaked as matchmaking does.
           if (error?.message?.includes('MySQL pool not initialized')) {
@@ -1998,6 +2023,7 @@ class GameServer {
     room.stakePool = Number(stakePool) || 0;
     room.stakePerPlayer = Math.floor(room.stakePool / 2);
     room.potAmount = room.stakePool;
+    room.stakeCurrency = stakeCurrency === 'chips' ? 'chips' : 'money';
     room.escrowed = false;
     this.rooms.set(roomId, room);
     return room;

@@ -371,6 +371,9 @@
   "cityMoscow": "Moscow",
   "cityCairo": "Cairo",
   "cityMarrakech": "Marrakech",
+  "cityToronto": "Toronto",
+  "cityNewYork": "New York",
+  "cityTokyo": "Tokyo",
   "prize": "Prize",
   "entryFee": "Entry fee",
   "linkGoogleAccount": "Link Google account",
@@ -401,5 +404,11 @@
   "buyMoney": "Buy money",
   "rematchStarting": "Taking stakes…",
   "opponentCantAffordRematch": "{name} can't cover the stake",
-  "@opponentCantAffordRematch": {"placeholders": {"name": {"type": "String"}}}
+  "@opponentCantAffordRematch": {"placeholders": {"name": {"type": "String"}}},
+  "offlineReconnecting": "Offline · reconnecting…",
+  "getMoreChips": "Get Chips",
+  "notEnoughChipsTitle": "Not enough chips",
+  "notEnoughChipsMessage": "The stake is {required} chips but you have {chips}. Buy more chips to play the rematch.",
+  "@notEnoughChipsMessage": {"placeholders": {"required": {"type": "int"}, "chips": {"type": "int"}}},
+  "buyChips": "Buy chips"
 }

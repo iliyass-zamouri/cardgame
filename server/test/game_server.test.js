@@ -99,6 +99,70 @@ test('findMatch queues two clients and auto-starts', async (t) => {
   assert.equal(a.you.seriesWins, 0);
 });
 
+test('findMatch pairs chip pots and tags the room with the currency', async (t) => {
+  const server = new GameServer({ port: 0 });
+  const address = await server.start();
+  t.after(() => server.stop());
+
+  const first = await connect(address.port);
+  const second = await connect(address.port);
+  t.after(() => first.close());
+  t.after(() => second.close());
+
+  const firstPlaying = waitFor(
+    first,
+    (message) => message.type === 'snapshot' && message.status === 'playing',
+  );
+  const secondPlaying = waitFor(
+    second,
+    (message) => message.type === 'snapshot' && message.status === 'playing',
+  );
+  for (const [socket, name] of [[first, 'chip-a'], [second, 'chip-b']]) {
+    socket.send(JSON.stringify({
+      type: 'findMatch',
+      stakePool: 10,
+      stakeCurrency: 'chips',
+      token: await authToken(name),
+    }));
+  }
+
+  const [a, b] = await Promise.all([firstPlaying, secondPlaying]);
+  assert.equal(a.roomId, b.roomId);
+  assert.equal(a.stakePool, 10);
+  assert.equal(a.stakePerPlayer, 5);
+  assert.equal(a.stakeCurrency, 'chips');
+});
+
+test('findMatch keeps money and chip pots of the same size apart', async (t) => {
+  const server = new GameServer({ port: 0 });
+  const address = await server.start();
+  t.after(() => server.stop());
+
+  const first = await connect(address.port);
+  const second = await connect(address.port);
+  t.after(() => first.close());
+  t.after(() => second.close());
+
+  first.send(JSON.stringify({
+    type: 'findMatch',
+    stakePool: 50,
+    token: await authToken('money-50'),
+  }));
+  second.send(JSON.stringify({
+    type: 'findMatch',
+    stakePool: 50,
+    stakeCurrency: 'chips',
+    token: await authToken('chips-50'),
+  }));
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  assert.equal(server.matchQueue.length, 2);
+  assert.deepEqual(
+    server.matchQueue.map((ctx) => ctx.stakeCurrency).sort(),
+    ['chips', 'money'],
+  );
+});
+
 test('cancelFindMatch leaves queue', async (t) => {
   const server = new GameServer({ port: 0 });
   const address = await server.start();
@@ -416,4 +480,17 @@ test('staked rematch blocked when a player cannot cover the stake', async () => 
   // Pressing again clears the block and retries.
   room.rematch('p2');
   assert.equal(room.snapshotFor('p2').rematchBlocked, null);
+});
+
+test('ping is answered with pong', async (t) => {
+  const server = new GameServer({ port: 0 });
+  const address = await server.start();
+  t.after(() => server.stop());
+
+  const client = await connect(address.port);
+  t.after(() => client.close());
+
+  const pong = waitFor(client, (message) => message.type === 'pong');
+  client.send(JSON.stringify({ type: 'ping', at: 42 }));
+  assert.equal((await pong).at, 42);
 });

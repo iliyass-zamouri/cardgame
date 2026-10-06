@@ -866,6 +866,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cityMarrakech => 'Marrakech';
 
   @override
+  String get cityToronto => 'Toronto';
+
+  @override
+  String get cityNewYork => 'New York';
+
+  @override
+  String get cityTokyo => 'Tokyo';
+
+  @override
   String get prize => 'Prix';
 
   @override
@@ -944,4 +953,21 @@ class AppLocalizationsFr extends AppLocalizations {
   String opponentCantAffordRematch(String name) {
     return '$name ne peut pas couvrir la mise';
   }
+
+  @override
+  String get offlineReconnecting => 'Hors ligne · reconnexion…';
+
+  @override
+  String get getMoreChips => 'Obtenir des jetons';
+
+  @override
+  String get notEnoughChipsTitle => 'Pas assez de jetons';
+
+  @override
+  String notEnoughChipsMessage(int required, int chips) {
+    return 'La mise est de $required jetons mais vous avez $chips. Achetez des jetons pour rejouer.';
+  }
+
+  @override
+  String get buyChips => 'Acheter des jetons';
 }

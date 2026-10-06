@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
+import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
@@ -37,9 +38,12 @@ class GameOverPanel extends ConsumerWidget {
     ) async {
       if (required == null) return;
       notifier.clearFundsPrompt();
+      final stakedInChips =
+          ref.read(gameSessionProvider).game?.stakedInChips ?? false;
       final covered = await InsufficientFundsSheet.show(
         context,
         required: required,
+        currency: stakedInChips ? CurrencyType.chips : CurrencyType.money,
       );
       if (covered && context.mounted) notifier.rematch();
     });
@@ -115,6 +119,7 @@ class GameOverPanel extends ConsumerWidget {
         missing: opponentTotal == null,
       ),
       pot: game.potAmount,
+      potCurrency: game.stakedInChips ? CurrencyType.chips : CurrencyType.money,
       // Practice (robot) and private matches are unranked: no XP/ELO shown.
       neutral: game.matchType != 'random',
       xp: youXp,
@@ -164,6 +169,7 @@ class _Recap extends StatefulWidget {
     required this.you,
     required this.opponent,
     required this.pot,
+    required this.potCurrency,
     required this.neutral,
     required this.xp,
     required this.eloDelta,
@@ -179,6 +185,7 @@ class _Recap extends StatefulWidget {
   final _SeatData you;
   final _SeatData opponent;
   final int pot;
+  final CurrencyType potCurrency;
   final bool neutral;
   final int xp;
   final int eloDelta;
@@ -362,6 +369,7 @@ class _RecapState extends State<_Recap> with TickerProviderStateMixin {
                           _RewardBlock(
                             outcome: outcome,
                             pot: widget.pot,
+                            potCurrency: widget.potCurrency,
                             count: countIn,
                             drawLabel: l10n.draw,
                             prizeLabel: l10n.prize,
@@ -845,6 +853,7 @@ class _RewardBlock extends StatelessWidget {
   const _RewardBlock({
     required this.outcome,
     required this.pot,
+    required this.potCurrency,
     required this.count,
     required this.drawLabel,
     required this.prizeLabel,
@@ -853,6 +862,7 @@ class _RewardBlock extends StatelessWidget {
 
   final _Outcome outcome;
   final int pot;
+  final CurrencyType potCurrency;
   final Animation<double> count;
   final String drawLabel;
   final String prizeLabel;
@@ -909,7 +919,7 @@ class _RewardBlock extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const CashIcon(size: 30),
+                    CurrencyIcon(currency: potCurrency, size: 30),
                   ],
                 );
               },

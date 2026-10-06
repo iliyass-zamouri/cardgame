@@ -1700,6 +1700,24 @@ abstract class AppLocalizations {
   /// **'Marrakech'**
   String get cityMarrakech;
 
+  /// No description provided for @cityToronto.
+  ///
+  /// In en, this message translates to:
+  /// **'Toronto'**
+  String get cityToronto;
+
+  /// No description provided for @cityNewYork.
+  ///
+  /// In en, this message translates to:
+  /// **'New York'**
+  String get cityNewYork;
+
+  /// No description provided for @cityTokyo.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokyo'**
+  String get cityTokyo;
+
   /// No description provided for @prize.
   ///
   /// In en, this message translates to:
@@ -1843,6 +1861,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{name} can\'t cover the stake'**
   String opponentCantAffordRematch(String name);
+
+  /// No description provided for @offlineReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline · reconnecting…'**
+  String get offlineReconnecting;
+
+  /// No description provided for @getMoreChips.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Chips'**
+  String get getMoreChips;
+
+  /// No description provided for @notEnoughChipsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough chips'**
+  String get notEnoughChipsTitle;
+
+  /// No description provided for @notEnoughChipsMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The stake is {required} chips but you have {chips}. Buy more chips to play the rematch.'**
+  String notEnoughChipsMessage(int required, int chips);
+
+  /// No description provided for @buyChips.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy chips'**
+  String get buyChips;
 }
 
 class _AppLocalizationsDelegate

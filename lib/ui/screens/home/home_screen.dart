@@ -941,9 +941,7 @@ class _GameBoardState extends ConsumerState<GameBoard> {
       ),
     );
     final city = ref.watch(
-      gameSessionProvider.select(
-        (state) => CityTheme.forStake(state.game?.stakePool ?? 0),
-      ),
+      gameSessionProvider.select((state) => CityTheme.forGame(state.game)),
     );
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -980,7 +978,7 @@ class GameHud extends ConsumerWidget {
     );
     final canPeek = game.canJackPeek;
     final canQueen = game.canQueenAbility;
-    final city = CityTheme.forStake(game.stakePool);
+    final city = CityTheme.forGame(game);
     final accent = city?.accent;
     final queenPicking = queenMode != QueenMode.none;
     final youId = game.you.playerId ?? '';
@@ -1039,7 +1037,10 @@ class GameHud extends ConsumerWidget {
                                 ),
                               ),
                               const SizedBox(width: 2),
-                              const CashIcon(size: 22),
+                              if (game.stakedInChips)
+                                const ChipIcon(size: 22)
+                              else
+                                const CashIcon(size: 22),
                             ],
                           ),
                         ),

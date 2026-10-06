@@ -1,4 +1,5 @@
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
@@ -12,28 +13,37 @@ import 'package:hugeicons/hugeicons.dart';
 /// Money per chip on the server exchange (`MONEY_PER_CHIP`).
 const _moneyPerChip = 1000;
 
-/// Shown when the player can't cover a stake (e.g. a rematch): offers to
-/// exchange chips for money or open the store. Resolves to true once the
-/// balance covers [required].
+/// Shown when the player can't cover a stake (e.g. a rematch). A money
+/// stake offers to exchange chips for money or open the store; a chip stake
+/// offers the store. Resolves to true once the balance covers [required].
 class InsufficientFundsSheet extends ConsumerWidget {
-  const InsufficientFundsSheet({super.key, required this.required});
+  const InsufficientFundsSheet({
+    super.key,
+    required this.required,
+    this.currency = CurrencyType.money,
+  });
 
   final int required;
+  final CurrencyType currency;
 
   static Future<bool> show(
     BuildContext context, {
     required int required,
+    CurrencyType currency = CurrencyType.money,
   }) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => InsufficientFundsSheet(required: required),
+      builder:
+          (_) => InsufficientFundsSheet(required: required, currency: currency),
     );
     if (!context.mounted) return false;
     final container = ProviderScope.containerOf(context, listen: false);
-    final money = container.read(playerProfileProvider).value?.money ?? 0;
-    return money >= required;
+    final profile = container.read(playerProfileProvider).value;
+    final balance =
+        currency == CurrencyType.chips ? profile?.chips : profile?.money;
+    return (balance ?? 0) >= required;
   }
 
   @override
@@ -42,9 +52,11 @@ class InsufficientFundsSheet extends ConsumerWidget {
     final profile = ref.watch(playerProfileProvider).value;
     final money = profile?.money ?? 0;
     final chips = profile?.chips ?? 0;
+    final inChips = currency == CurrencyType.chips;
+    final balance = inChips ? chips : money;
     final shortfall = (required - money).clamp(0, required);
     final chipsNeeded = (shortfall / _moneyPerChip).ceil().clamp(1, 1 << 30);
-    final covered = money >= required;
+    final covered = balance >= required;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
@@ -65,11 +77,13 @@ class InsufficientFundsSheet extends ConsumerWidget {
           children: [
             Row(
               children: [
-                const CashIcon(size: 22),
+                CurrencyIcon(currency: currency, size: 22),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    l10n.notEnoughMoneyTitle,
+                    inChips
+                        ? l10n.notEnoughChipsTitle
+                        : l10n.notEnoughMoneyTitle,
                     style: TextStyle(
                       color: CasinoColors.gold,
                       fontWeight: FontWeight.w800,
@@ -89,6 +103,8 @@ class InsufficientFundsSheet extends ConsumerWidget {
             Text(
               covered
                   ? l10n.stakeCovered
+                  : inChips
+                  ? l10n.notEnoughChipsMessage(required, chips)
                   : l10n.notEnoughMoneyMessage(required, money),
               style: const TextStyle(color: CasinoColors.text, fontSize: 14),
             ),
@@ -109,6 +125,17 @@ class InsufficientFundsSheet extends ConsumerWidget {
               GoldButton(
                 label: l10n.rematch,
                 onPressed: () => Navigator.of(context).pop(),
+              )
+            else if (inChips)
+              GoldButton(
+                label: l10n.buyChips,
+                leading: const HugeIcon(icon: AppIcons.shoppingBag),
+                onPressed:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MarketplaceScreen(),
+                      ),
+                    ),
               )
             else ...[
               GoldButton(

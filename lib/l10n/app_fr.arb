@@ -299,6 +299,9 @@
   "cityMoscow": "Moscou",
   "cityCairo": "Le Caire",
   "cityMarrakech": "Marrakech",
+  "cityToronto": "Toronto",
+  "cityNewYork": "New York",
+  "cityTokyo": "Tokyo",
   "prize": "Prix",
   "entryFee": "Frais d'entrée",
   "linkGoogleAccount": "Lier un compte Google",
@@ -327,5 +330,10 @@
   "exchangeChips": "Échanger des jetons",
   "buyMoney": "Acheter de l'argent",
   "rematchStarting": "Prélèvement des mises…",
-  "opponentCantAffordRematch": "{name} ne peut pas couvrir la mise"
+  "opponentCantAffordRematch": "{name} ne peut pas couvrir la mise",
+  "offlineReconnecting": "Hors ligne · reconnexion…",
+  "getMoreChips": "Obtenir des jetons",
+  "notEnoughChipsTitle": "Pas assez de jetons",
+  "notEnoughChipsMessage": "La mise est de {required} jetons mais vous avez {chips}. Achetez des jetons pour rejouer.",
+  "buyChips": "Acheter des jetons"
 }

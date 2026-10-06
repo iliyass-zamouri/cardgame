@@ -855,6 +855,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get cityMarrakech => 'مراكش';
 
   @override
+  String get cityToronto => 'تورونتو';
+
+  @override
+  String get cityNewYork => 'نيويورك';
+
+  @override
+  String get cityTokyo => 'طوكيو';
+
+  @override
   String get prize => 'الجائزة';
 
   @override
@@ -933,4 +942,21 @@ class AppLocalizationsAr extends AppLocalizations {
   String opponentCantAffordRematch(String name) {
     return '$name لا يستطيع تغطية الرهان';
   }
+
+  @override
+  String get offlineReconnecting => 'غير متصل · جارٍ إعادة الاتصال…';
+
+  @override
+  String get getMoreChips => 'الحصول على رقائق';
+
+  @override
+  String get notEnoughChipsTitle => 'الرقائق غير كافية';
+
+  @override
+  String notEnoughChipsMessage(int required, int chips) {
+    return 'الرهان $required رقائق ولديك $chips. اشترِ المزيد من الرقائق لإعادة المباراة.';
+  }
+
+  @override
+  String get buyChips => 'شراء رقائق';
 }

@@ -276,6 +276,9 @@
   "cityMoscow": "Moscou",
   "cityCairo": "Cairo",
   "cityMarrakech": "Marrakech",
+  "cityToronto": "Toronto",
+  "cityNewYork": "Nova York",
+  "cityTokyo": "Tóquio",
   "prize": "Prêmio",
   "entryFee": "Taxa de entrada",
   "linkGoogleAccount": "Vincular conta Google",
@@ -304,5 +307,10 @@
   "exchangeChips": "Trocar fichas",
   "buyMoney": "Comprar dinheiro",
   "rematchStarting": "Cobrando apostas…",
-  "opponentCantAffordRematch": "{name} não pode cobrir a aposta"
+  "opponentCantAffordRematch": "{name} não pode cobrir a aposta",
+  "offlineReconnecting": "Offline · reconectando…",
+  "getMoreChips": "Obter fichas",
+  "notEnoughChipsTitle": "Fichas insuficientes",
+  "notEnoughChipsMessage": "A aposta é {required} fichas, mas você tem {chips}. Compre mais fichas para a revanche.",
+  "buyChips": "Comprar fichas"
 }

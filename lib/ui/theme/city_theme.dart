@@ -1,7 +1,9 @@
+import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:flutter/material.dart';
 
 /// Look of one pot city on the gameplay screen: a custom painted table whose
-/// richness grows with the pot ([tier] 0 = London … 4 = Marrakech).
+/// richness grows with the pot ([tier] 0 = London … 4 = Marrakech and the
+/// chip tables).
 @immutable
 class CityTheme {
   const CityTheme({
@@ -94,18 +96,65 @@ class CityTheme {
     backdrop: Color(0xFF0C1620),
   );
 
-  /// In stake-pool order (20 · 50 · 100 · 200 · 500).
+  /// Chip table: icy teal felt on a silver rail.
+  static const toronto = CityTheme(
+    id: 'toronto',
+    tier: 4,
+    accent: Color(0xFFE6F2F5),
+    feltLight: Color(0xFF2A6F73),
+    feltDark: Color(0xFF103538),
+    railLight: Color(0xFFE3E7EC),
+    railDark: Color(0xFF7B8794),
+    backdrop: Color(0xFF061416),
+  );
+
+  /// Chip table: midnight violet felt on a gold rail.
+  static const newYork = CityTheme(
+    id: 'new_york',
+    tier: 4,
+    accent: Color(0xFFE7C8FF),
+    feltLight: Color(0xFF4B2A7A),
+    feltDark: Color(0xFF1F0F3A),
+    railLight: Color(0xFFF5D27A),
+    railDark: Color(0xFF8F6A1C),
+    backdrop: Color(0xFF0D0618),
+  );
+
+  /// Chip table: sakura plum felt on a rose-gold rail.
+  static const tokyo = CityTheme(
+    id: 'tokyo',
+    tier: 4,
+    accent: Color(0xFFFF9EC7),
+    feltLight: Color(0xFF7A1F4E),
+    feltDark: Color(0xFF2E0A1E),
+    railLight: Color(0xFFF7C6B5),
+    railDark: Color(0xFF9A5A48),
+    backdrop: Color(0xFF14040D),
+  );
+
+  /// Money tables in stake-pool order (20 · 50 · 100 · 200 · 500).
   static const all = [london, paris, moscow, cairo, marrakech];
   static const _pools = [20, 50, 100, 200, 500];
 
+  /// Chip tables in stake-pool order (2 · 10 · 50 chips).
+  static const chipTables = [toronto, newYork, tokyo];
+  static const _chipPools = [2, 10, 50];
+
   /// City for a stake pool: the highest tier the pool reaches. Free or
   /// private games (pool 0) have no city.
-  static CityTheme? forStake(int stakePool) {
+  static CityTheme? forStake(int stakePool, {bool chips = false}) {
     if (stakePool <= 0) return null;
+    final pools = chips ? _chipPools : _pools;
+    final cities = chips ? chipTables : all;
     var index = 0;
-    for (var i = 0; i < _pools.length; i++) {
-      if (stakePool >= _pools[i]) index = i;
+    for (var i = 0; i < pools.length; i++) {
+      if (stakePool >= pools[i]) index = i;
     }
-    return all[index];
+    return cities[index];
   }
+
+  static CityTheme? forGame(GameSnapshot? game) =>
+      game == null
+          ? null
+          : CityTheme.forStake(game.stakePool, chips: game.stakedInChips);
 }

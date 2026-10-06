@@ -197,10 +197,13 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
     return false;
   }
 
-  Future<void> updateBalances({required int money, int? chips}) async {
+  Future<void> updateBalances({int? money, int? chips}) async {
     final current = await future;
     if (current.isEmpty) return;
-    final next = current.copyWith(money: money, chips: chips ?? current.chips);
+    final next = current.copyWith(
+      money: money ?? current.money,
+      chips: chips ?? current.chips,
+    );
     await _repo.save(next);
     state = AsyncData(next);
   }

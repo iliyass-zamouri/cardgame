@@ -299,6 +299,9 @@
   "cityMoscow": "موسكو",
   "cityCairo": "القاهرة",
   "cityMarrakech": "مراكش",
+  "cityToronto": "تورونتو",
+  "cityNewYork": "نيويورك",
+  "cityTokyo": "طوكيو",
   "prize": "الجائزة",
   "entryFee": "رسوم الدخول",
   "linkGoogleAccount": "ربط حساب Google",
@@ -327,5 +330,10 @@
   "exchangeChips": "استبدال الرقائق",
   "buyMoney": "شراء المال",
   "rematchStarting": "جارٍ خصم الرهانات…",
-  "opponentCantAffordRematch": "{name} لا يستطيع تغطية الرهان"
+  "opponentCantAffordRematch": "{name} لا يستطيع تغطية الرهان",
+  "offlineReconnecting": "غير متصل · جارٍ إعادة الاتصال…",
+  "getMoreChips": "الحصول على رقائق",
+  "notEnoughChipsTitle": "الرقائق غير كافية",
+  "notEnoughChipsMessage": "الرهان {required} رقائق ولديك {chips}. اشترِ المزيد من الرقائق لإعادة المباراة.",
+  "buyChips": "شراء رقائق"
 }

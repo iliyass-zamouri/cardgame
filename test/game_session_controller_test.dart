@@ -28,6 +28,47 @@ List<dynamic> _authOverrides() => [
 ];
 
 void main() {
+  test(
+    'reconnects automatically when the socket drops outside a game',
+    () async {
+      final sockets = <FakeGameSocket>[];
+      final container = ProviderContainer(
+        overrides: [
+          gameSocketFactoryProvider.overrideWithValue(() {
+            final socket = FakeGameSocket();
+            sockets.add(socket);
+            return socket;
+          }),
+          ..._authOverrides(),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(gameSessionProvider);
+      await Future<void>.delayed(Duration.zero);
+      sockets.single.emit({'type': 'connected', 'clientId': 'client-1'});
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        container.read(gameSessionProvider).connection,
+        ConnectionStatus.connected,
+      );
+
+      sockets.single.close();
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        container.read(gameSessionProvider).connection,
+        ConnectionStatus.disconnected,
+      );
+
+      // First backoff step is 1s; no user action needed.
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      expect(sockets.length, 2);
+      expect(
+        container.read(gameSessionProvider).connection,
+        ConnectionStatus.connecting,
+      );
+    },
+  );
+
   test('parses authoritative snapshot into immutable state', () async {
     final socket = FakeGameSocket();
     final container = ProviderContainer(
