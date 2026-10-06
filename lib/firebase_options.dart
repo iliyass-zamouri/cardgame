@@ -41,18 +41,17 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBvQiqtNGZJCbRkiOZs30Sy6VjaLk7xIkk',
+    apiKey: 'AIzaSyCd4UqXR94-odGwnlhsjupVMuwKMxaaO3o',
     appId: '1:52368643344:android:265f570ea20ac9bf510195',
     messagingSenderId: '52368643344',
     projectId: 'shadow-hand',
     storageBucket: 'shadow-hand.firebasestorage.app',
   );
 
-  /// Replace via `flutterfire configure` after adding the iOS app in Firebase
-  /// Console and downloading `ios/Runner/GoogleService-Info.plist`.
+  /// Mirrors `ios/Runner/GoogleService-Info.plist`.
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBvQiqtNGZJCbRkiOZs30Sy6VjaLk7xIkk',
-    appId: '1:52368643344:ios:REPLACE_WITH_FIREBASE_IOS_APP_ID',
+    apiKey: 'AIzaSyCd4UqXR94-odGwnlhsjupVMuwKMxaaO3o',
+    appId: '1:52368643344:ios:3fb0be6fe2798b86510195',
     messagingSenderId: '52368643344',
     projectId: 'shadow-hand',
     storageBucket: 'shadow-hand.firebasestorage.app',

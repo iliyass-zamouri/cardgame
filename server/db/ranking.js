@@ -9,6 +9,8 @@ const POINTS_WIN_BASE = 20;
 const POINTS_DRAW_BASE = 8;
 const POINTS_LOSS_BASE = 2;
 const POINTS_MARGIN_CAP = 15;
+/** Points removed from a player who quits (leaves or abandons) a match. */
+const POINTS_QUIT_PENALTY = 15;
 
 /**
  * Classic Elo expected score for player A vs B.
@@ -53,8 +55,9 @@ function marginPoints(result, myTotal, oppTotal) {
  * @param {{ cardTotal: number, elo: number }} a
  * @param {{ cardTotal: number, elo: number }} b
  * @param {0|1|null} winnerIndex
+ * @param {0|1|null} [quitterIndex] seat that quit; loses and pays the quit penalty
  */
-function computeMatchRatings(a, b, winnerIndex) {
+function computeMatchRatings(a, b, winnerIndex, quitterIndex = null) {
   const resultA =
     winnerIndex === null ? 'draw' : winnerIndex === 0 ? 'win' : 'loss';
   const resultB =
@@ -66,14 +69,22 @@ function computeMatchRatings(a, b, winnerIndex) {
   return {
     a: {
       result: resultA,
-      pointsEarned: marginPoints(resultA, a.cardTotal, b.cardTotal),
+      pointsEarned:
+        quitterIndex === 0
+          ? -POINTS_QUIT_PENALTY
+          : marginPoints(resultA, a.cardTotal, b.cardTotal),
+      quit: quitterIndex === 0,
       eloBefore: a.elo,
       eloAfter: eloA.eloAfter,
       eloDelta: eloA.eloDelta,
     },
     b: {
       result: resultB,
-      pointsEarned: marginPoints(resultB, b.cardTotal, a.cardTotal),
+      pointsEarned:
+        quitterIndex === 1
+          ? -POINTS_QUIT_PENALTY
+          : marginPoints(resultB, b.cardTotal, a.cardTotal),
+      quit: quitterIndex === 1,
       eloBefore: b.elo,
       eloAfter: eloB.eloAfter,
       eloDelta: eloB.eloDelta,
@@ -144,6 +155,18 @@ async function ensureRankingSchema() {
       'draws',
       'draws INT NOT NULL DEFAULT 0',
     );
+    await addColumnIfMissing(
+      conn,
+      'matches',
+      'end_reason',
+      'end_reason VARCHAR(16) NULL',
+    );
+    await addColumnIfMissing(
+      conn,
+      'match_players',
+      'quit',
+      'quit TINYINT(1) NOT NULL DEFAULT 0',
+    );
     await addIndexIfMissing(
       conn,
       'players',
@@ -200,6 +223,7 @@ async function escrowStake({ playerIds, stake }) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+    const balances = {};
     for (const playerId of ids) {
       const [rows] = await conn.execute(
         `SELECT id, money FROM players WHERE id = :playerId FOR UPDATE`,
@@ -216,15 +240,19 @@ async function escrowStake({ playerIds, stake }) {
         await conn.rollback();
         const error = new Error('Insufficient funds for stake');
         error.code = 'insufficient_funds';
+        error.playerId = playerId;
+        error.required = safeStake;
+        error.money = money;
         throw error;
       }
       await conn.execute(
         `UPDATE players SET money = money - :stake WHERE id = :playerId`,
         { stake: safeStake, playerId },
       );
+      balances[playerId] = money - safeStake;
     }
     await conn.commit();
-    return { ok: true, stake: safeStake, escrowed: true };
+    return { ok: true, stake: safeStake, escrowed: true, balances };
   } catch (error) {
     await conn.rollback().catch(() => {});
     throw error;
@@ -264,6 +292,7 @@ async function refundEscrow({ playerIds, stake }) {
  *   roomId: string,
  *   players: Array<{ playerId: string, cardTotal: number }>,
  *   winnerIndex: 0|1|null,
+ *   quitterIndex?: 0|1|null,
  *   stakePerPlayer?: number,
  *   potAmount?: number,
  *   escrowed?: boolean,
@@ -273,6 +302,7 @@ async function recordRankedMatch({
   roomId,
   players,
   winnerIndex,
+  quitterIndex = null,
   stakePerPlayer = 0,
   potAmount = 0,
   escrowed = false,
@@ -283,6 +313,7 @@ async function recordRankedMatch({
 
   const safeStake = Math.max(0, Number(stakePerPlayer) || 0);
   const safePot = Math.max(0, Number(potAmount) || 0);
+  const quitter = quitterIndex === 0 || quitterIndex === 1 ? quitterIndex : null;
 
   const pool = getPool();
   const conn = await pool.getConnection();
@@ -314,6 +345,7 @@ async function recordRankedMatch({
       { cardTotal: p0.cardTotal, elo: row0.elo },
       { cardTotal: p1.cardTotal, elo: row1.elo },
       winnerIndex,
+      quitter,
     );
 
     const matchId = `match-${randomUUID()}`;
@@ -325,14 +357,15 @@ async function recordRankedMatch({
           : null;
 
     await conn.execute(
-      `INSERT INTO matches (id, room_id, match_type, stake_per_player, pot_amount, winner_player_id)
-       VALUES (:id, :roomId, 'random', :stakePerPlayer, :potAmount, :winnerPlayerId)`,
+      `INSERT INTO matches (id, room_id, match_type, stake_per_player, pot_amount, winner_player_id, end_reason)
+       VALUES (:id, :roomId, 'random', :stakePerPlayer, :potAmount, :winnerPlayerId, :endReason)`,
       {
         id: matchId,
         roomId,
         stakePerPlayer: safeStake,
         potAmount: safePot,
         winnerPlayerId,
+        endReason: quitter === null ? null : 'quit',
       },
     );
 
@@ -345,10 +378,10 @@ async function recordRankedMatch({
       await conn.execute(
         `INSERT INTO match_players (
            match_id, player_id, seat, card_total, result,
-           points_earned, elo_before, elo_after, elo_delta
+           points_earned, elo_before, elo_after, elo_delta, quit
          ) VALUES (
            :matchId, :playerId, :seat, :cardTotal, :result,
-           :pointsEarned, :eloBefore, :eloAfter, :eloDelta
+           :pointsEarned, :eloBefore, :eloAfter, :eloDelta, :quit
          )`,
         {
           matchId,
@@ -360,6 +393,7 @@ async function recordRankedMatch({
           eloBefore: seat.eloBefore,
           eloAfter: seat.eloAfter,
           eloDelta: seat.eloDelta,
+          quit: seat.quit ? 1 : 0,
         },
       );
 
@@ -407,7 +441,7 @@ async function recordRankedMatch({
       await conn.execute(
         `UPDATE players
          SET elo = :elo,
-             total_points = total_points + :points,
+             total_points = GREATEST(0, total_points + :points),
              wins = wins + :wins,
              losses = losses + :losses,
              draws = draws + :draws
@@ -427,6 +461,7 @@ async function recordRankedMatch({
         eloBefore: seat.eloBefore,
         eloAfter: seat.eloAfter,
         eloDelta: seat.eloDelta,
+        quit: seat.quit,
         moneyAfter: seat.moneyAfter,
         chipsAfter: seat.chipsAfter,
       })),
@@ -530,6 +565,8 @@ async function getMatchHistory({ playerId, limit = 20, offset = 0 } = {}) {
        mp.points_earned,
        mp.elo_delta,
        mp.elo_after,
+       mp.quit,
+       opp_mp.quit AS opponent_quit,
        opp.display_name AS opponent_name,
        opp.username AS opponent_username,
        opp_mp.card_total AS opponent_card_total
@@ -558,6 +595,8 @@ async function getMatchHistory({ playerId, limit = 20, offset = 0 } = {}) {
       pointsEarned: row.points_earned,
       eloDelta: row.elo_delta,
       eloAfter: row.elo_after,
+      quit: Boolean(row.quit),
+      opponentQuit: Boolean(row.opponent_quit),
     })),
   };
 }
@@ -568,6 +607,7 @@ module.exports = {
   ELO_FLOOR,
   POINTS_WIN_BASE,
   POINTS_DRAW_BASE,
+  POINTS_QUIT_PENALTY,
   POINTS_LOSS_BASE,
   POINTS_MARGIN_CAP,
   expectedScore,

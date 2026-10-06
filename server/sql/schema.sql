@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS matches (
   stake_per_player INT NOT NULL DEFAULT 0,
   pot_amount INT NOT NULL DEFAULT 0,
   winner_player_id VARCHAR(64) NULL,
+  end_reason VARCHAR(16) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_matches_created (created_at),
   KEY idx_matches_winner (winner_player_id)
@@ -51,6 +52,7 @@ CREATE TABLE IF NOT EXISTS match_players (
   elo_before INT NOT NULL,
   elo_after INT NOT NULL,
   elo_delta INT NOT NULL,
+  quit TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (match_id, player_id),
   KEY idx_mp_player (player_id),
   CONSTRAINT fk_mp_match FOREIGN KEY (match_id) REFERENCES matches (id),

@@ -10,6 +10,7 @@ const {
   POINTS_WIN_BASE,
   POINTS_DRAW_BASE,
   POINTS_LOSS_BASE,
+  POINTS_QUIT_PENALTY,
 } = require('../db/ranking');
 const { GameRoom } = require('../game_room');
 
@@ -120,4 +121,46 @@ test('random without playerIds skips ranking', async () => {
   room.end('c1');
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.length, 0);
+});
+
+test('computeMatchRatings applies quit penalty to the quitter', () => {
+  const rated = computeMatchRatings(
+    { cardTotal: 5, elo: 1000 },
+    { cardTotal: 20, elo: 1000 },
+    1,
+    0,
+  );
+  assert.equal(rated.a.result, 'loss');
+  assert.equal(rated.a.quit, true);
+  assert.equal(rated.a.pointsEarned, -POINTS_QUIT_PENALTY);
+  assert.ok(rated.a.eloDelta < 0);
+  assert.equal(rated.b.result, 'win');
+  assert.equal(rated.b.quit, false);
+  assert.ok(rated.b.pointsEarned >= POINTS_WIN_BASE);
+});
+
+test('forfeit with quit reason records quitter for ranking', async () => {
+  const calls = [];
+  const room = new GameRoom('QUIT01', {
+    random: () => 0.25,
+    onRankedEnd: (payload) => {
+      calls.push(payload);
+      return Promise.resolve(null);
+    },
+  });
+  room.matchType = 'random';
+  room.addPlayer('c1', { playerId: 'guest-a', displayName: 'A' });
+  room.addPlayer('c2', { playerId: 'guest-b', displayName: 'B' });
+  room.start('c1');
+  room.forfeit('c2', { reason: 'quit' });
+
+  assert.equal(room.status, 'ended');
+  assert.equal(room.result.reason, 'quit');
+  assert.equal(room.result.winnerIndex, 0);
+  assert.equal(room.result.quitterIndex, 1);
+  assert.equal(room.lastAction.type, 'quit');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].quitterIndex, 1);
+  assert.equal(calls[0].winnerIndex, 0);
 });

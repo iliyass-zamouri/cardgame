@@ -46,6 +46,10 @@ class GameSessionState {
   final String? replaceFirstSide;
   final int? replaceFirstIndex;
 
+  /// Stake the player must cover before a rematch; set to open the
+  /// top-up sheet, cleared once shown.
+  final int? fundsPrompt;
+
   const GameSessionState({
     this.connection = ConnectionStatus.disconnected,
     this.game,
@@ -59,6 +63,7 @@ class GameSessionState {
     this.friendAlert,
     this.replaceFirstSide,
     this.replaceFirstIndex,
+    this.fundsPrompt,
   });
 
   GameSessionState copyWith({
@@ -74,6 +79,7 @@ class GameSessionState {
     Object? friendAlert = _unset,
     Object? replaceFirstSide = _unset,
     Object? replaceFirstIndex = _unset,
+    Object? fundsPrompt = _unset,
   }) {
     return GameSessionState(
       connection: connection ?? this.connection,
@@ -101,6 +107,10 @@ class GameSessionState {
           identical(replaceFirstIndex, _unset)
               ? this.replaceFirstIndex
               : replaceFirstIndex as int?,
+      fundsPrompt:
+          identical(fundsPrompt, _unset)
+              ? this.fundsPrompt
+              : fundsPrompt as int?,
     );
   }
 }

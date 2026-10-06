@@ -316,5 +316,16 @@
   },
   "switchToGoogleAccount": "Changer de compte",
   "dontAskAgain": "Ne plus demander",
-  "later": "Plus tard"
+  "later": "Plus tard",
+  "youQuit": "Vous avez abandonné",
+  "opponentQuit": "L'adversaire a abandonné",
+  "matchResultQuit": "ABANDON",
+  "leaveMatchPenaltyMessage": "Partir maintenant compte comme une défaite : vous perdrez votre mise et 15 points.",
+  "notEnoughMoneyTitle": "Pas assez d'argent",
+  "notEnoughMoneyMessage": "La mise est de {required} mais vous avez {money}. Échangez des jetons ou achetez-en pour rejouer.",
+  "stakeCovered": "C'est couvert — prêt pour la revanche.",
+  "exchangeChips": "Échanger des jetons",
+  "buyMoney": "Acheter de l'argent",
+  "rematchStarting": "Prélèvement des mises…",
+  "opponentCantAffordRematch": "{name} ne peut pas couvrir la mise"
 }

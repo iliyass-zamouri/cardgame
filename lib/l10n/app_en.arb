@@ -388,5 +388,18 @@
   },
   "switchToGoogleAccount": "Switch account",
   "dontAskAgain": "Don't ask again",
-  "later": "Later"
+  "later": "Later",
+  "youQuit": "You quit",
+  "opponentQuit": "Opponent quit",
+  "matchResultQuit": "QUIT",
+  "leaveMatchPenaltyMessage": "Leaving now counts as a loss: you'll lose your stake and 15 points.",
+  "notEnoughMoneyTitle": "Not enough money",
+  "notEnoughMoneyMessage": "The stake is {required} but you have {money}. Exchange chips or buy more to play the rematch.",
+  "@notEnoughMoneyMessage": {"placeholders": {"required": {"type": "int"}, "money": {"type": "int"}}},
+  "stakeCovered": "You're covered — ready for the rematch.",
+  "exchangeChips": "Exchange chips",
+  "buyMoney": "Buy money",
+  "rematchStarting": "Taking stakes…",
+  "opponentCantAffordRematch": "{name} can't cover the stake",
+  "@opponentCantAffordRematch": {"placeholders": {"name": {"type": "String"}}}
 }

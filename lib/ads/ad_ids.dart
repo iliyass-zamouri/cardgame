@@ -13,13 +13,13 @@ abstract final class AdIds {
 
   // Production IDs
   static const prodAndroidAppId = 'ca-app-pub-9698112281637218~1212411796';
-  static const prodIosAppId = 'ca-app-pub-9698112281637218~1212411796';
+  static const prodIosAppId = 'ca-app-pub-9698112281637218~7363462538';
   static const prodAndroidInterstitial =
       'ca-app-pub-9698112281637218/1397183976';
-  static const prodIosInterstitial = 'ca-app-pub-9698112281637218/1397183976';
+  static const prodIosInterstitial = 'ca-app-pub-9698112281637218/7679068017';
   // Marketplace "Watch Video Ad" (AdMob daily-reward)
   static const prodAndroidRewarded = 'ca-app-pub-9698112281637218/6328096978';
-  static const prodIosRewarded = 'ca-app-pub-9698112281637218/6328096978';
+  static const prodIosRewarded = 'ca-app-pub-9698112281637218/7067949066';
 
   static bool _forceTestIds = false;
 

@@ -902,4 +902,42 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get later => 'Depois';
+
+  @override
+  String get youQuit => 'Você desistiu';
+
+  @override
+  String get opponentQuit => 'O adversário desistiu';
+
+  @override
+  String get matchResultQuit => 'DESISTÊNCIA';
+
+  @override
+  String get leaveMatchPenaltyMessage =>
+      'Sair agora conta como derrota: você perderá sua aposta e 15 pontos.';
+
+  @override
+  String get notEnoughMoneyTitle => 'Dinheiro insuficiente';
+
+  @override
+  String notEnoughMoneyMessage(int required, int money) {
+    return 'A aposta é $required, mas você tem $money. Troque fichas ou compre mais para a revanche.';
+  }
+
+  @override
+  String get stakeCovered => 'Saldo suficiente — pronto para a revanche.';
+
+  @override
+  String get exchangeChips => 'Trocar fichas';
+
+  @override
+  String get buyMoney => 'Comprar dinheiro';
+
+  @override
+  String get rematchStarting => 'Cobrando apostas…';
+
+  @override
+  String opponentCantAffordRematch(String name) {
+    return '$name não pode cobrir a aposta';
+  }
 }

@@ -895,4 +895,42 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get later => 'لاحقاً';
+
+  @override
+  String get youQuit => 'لقد انسحبت';
+
+  @override
+  String get opponentQuit => 'انسحب الخصم';
+
+  @override
+  String get matchResultQuit => 'انسحاب';
+
+  @override
+  String get leaveMatchPenaltyMessage =>
+      'المغادرة الآن تُحتسب خسارة: ستخسر رهانك و15 نقطة.';
+
+  @override
+  String get notEnoughMoneyTitle => 'المال غير كافٍ';
+
+  @override
+  String notEnoughMoneyMessage(int required, int money) {
+    return 'الرهان $required ولديك $money. استبدل الرقائق أو اشترِ المزيد لإعادة المباراة.';
+  }
+
+  @override
+  String get stakeCovered => 'رصيدك كافٍ — جاهز لإعادة المباراة.';
+
+  @override
+  String get exchangeChips => 'استبدال الرقائق';
+
+  @override
+  String get buyMoney => 'شراء المال';
+
+  @override
+  String get rematchStarting => 'جارٍ خصم الرهانات…';
+
+  @override
+  String opponentCantAffordRematch(String name) {
+    return '$name لا يستطيع تغطية الرهان';
+  }
 }

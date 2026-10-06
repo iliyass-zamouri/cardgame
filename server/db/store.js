@@ -220,11 +220,26 @@ async function bumpTokenVersion(playerId) {
 async function deletePlayerAccount(playerId) {
   if (!playerId) throw new Error('playerId is required');
   const pool = getPool();
-  const [result] = await pool.execute(
-    `DELETE FROM players WHERE id = :playerId`,
-    { playerId },
-  );
-  return result.affectedRows > 0;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    // match_players.fk_mp_player has no ON DELETE CASCADE, so remove the
+    // player's match rows first or the players delete is rejected.
+    await conn.execute(`DELETE FROM match_players WHERE player_id = :playerId`, {
+      playerId,
+    });
+    const [result] = await conn.execute(
+      `DELETE FROM players WHERE id = :playerId`,
+      { playerId },
+    );
+    await conn.commit();
+    return result.affectedRows > 0;
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
 }
 
 /**

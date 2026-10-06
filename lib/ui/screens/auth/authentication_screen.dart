@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/data/auth/guest_auth_service.dart';
+import 'package:cardgame/data/auth/legal_urls.dart';
 import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/data/auth/server_identity.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
@@ -14,6 +15,7 @@ import 'package:cardgame/ui/widgets/language_switcher.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AuthenticationScreen extends ConsumerStatefulWidget {
   const AuthenticationScreen({super.key});
@@ -166,10 +168,47 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
               const SuitCardLoader(height: 22)
             else
               const SizedBox(height: 22),
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _LegalLink(label: 'Terms of Service', url: TOS_URL),
+                const Text(
+                  '·',
+                  style: TextStyle(color: CasinoColors.goldSoft),
+                ),
+                _LegalLink(label: 'Privacy Policy', url: PRIVACY_URL),
+              ],
+            ),
             const Spacer(flex: 1),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LegalLink extends StatelessWidget {
+  const _LegalLink({required this.label, required this.url});
+
+  final String label;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () => launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      ),
+      style: TextButton.styleFrom(
+        foregroundColor: CasinoColors.goldSoft,
+        textStyle: const TextStyle(
+          fontSize: 12,
+          decoration: TextDecoration.underline,
+        ),
+      ),
+      child: Text(label),
     );
   }
 }

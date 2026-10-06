@@ -642,11 +642,14 @@ class _HistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final resultLabel = switch (item.result) {
-      'win' => l10n.matchResultWin,
-      'loss' => l10n.matchResultLoss,
-      _ => l10n.matchResultDraw,
-    };
+    final resultLabel =
+        item.quit
+            ? l10n.matchResultQuit
+            : switch (item.result) {
+              'win' => l10n.matchResultWin,
+              'loss' => l10n.matchResultLoss,
+              _ => l10n.matchResultDraw,
+            };
     final resultColor = switch (item.result) {
       'win' => const Color(0xFF5DCF8A),
       'loss' => const Color(0xFFE07070),
@@ -721,7 +724,7 @@ class _HistoryTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '+${item.pointsEarned} ${l10n.points}',
+                '${item.pointsEarned >= 0 ? '+' : ''}${item.pointsEarned} ${l10n.points}',
                 style: const TextStyle(
                   color: CasinoColors.goldSoft,
                   fontWeight: FontWeight.w700,

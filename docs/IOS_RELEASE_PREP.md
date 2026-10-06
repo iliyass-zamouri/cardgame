@@ -271,32 +271,29 @@ Run on a **release build on a physical device** (or at least TestFlight):
 
 ---
 
-## 14. cardgame — gap analysis (as of 2026-10-05)
+## 14. cardgame — status (updated 2026-10-06)
 
-Compared against the Chameleon baseline:
-
-| Item | Chameleon (done) | cardgame now | Action |
-|---|---|---|---|
-| Bundle ID | `com.hailsom.chameleon2d` | `com.hailsom.shadowhand` | Register App ID + App Store Connect app |
-| `Podfile` platform | 15.0 | 15.0 ✅ | — |
-| `IPHONEOS_DEPLOYMENT_TARGET` in pbxproj | 15.0 | **13.0** | Bump to 15.0 (§3.1) |
-| `DEVELOPMENT_TEAM` | set | **not set** in pbxproj | Set correct team (§3.4) |
-| `GoogleService-Info.plist` | present + in target | **missing** in `ios/Runner/` | Add iOS app in Firebase, add to target (§2) |
-| `firebase_options.dart` iOS | real IDs | **placeholder** `REPLACE_WITH_FIREBASE_IOS_APP_ID` (line 55) | Update after adding iOS app in Firebase |
-| `GOOGLE_REVERSED_CLIENT_ID` in xcconfigs | iOS client | set, but it's a copy of Chameleon's *Web* client (`1078123174745-…`), and Release has a prod `GAD_` ID | Replace with cardgame's own iOS OAuth client reversed ID; confirm the AdMob iOS app ID is cardgame's (§2.5, §3.3) |
-| `CLANG_ALLOW_NON_MODULAR_INCLUDES…` | set | not set | Add to both xcconfigs (§3.2) |
-| `GADApplicationIdentifier` | `$(GAD_APPLICATION_IDENTIFIER)` | present in Info.plist | Confirm it resolves per config (§3.3) |
-| `SKAdNetworkItems` / `NSUserTrackingUsageDescription` | present | present ✅ | Compare list to Google's current list |
-| `ITSAppUsesNonEncryption` | `false` | **missing** | Add (§4) |
-| `CFBundleDisplayName` | set | **missing** | Add (§4) |
-| `UIRequiresFullScreen` | `true` | **missing** | Add if landscape-only (§4) |
-| ATS exception | for backend IP | n/a | Prefer HTTPS/WSS backend |
-| `PrivacyInfo.xcprivacy` | present + in target | **missing** | Create + add to target (§5) |
-| `Runner.entitlements` | push + Apple sign-in | push only | Add Sign in with Apple if/when supported |
-| Real iOS AdMob units | done | check `lib/ads/` config | Create iOS units (§6) |
-| In-app account deletion | done | **exists** (`settings_screen.dart:99`, `profile_api.dart:90`) | Verify server verifies ownership & cascades (§7) |
-| Legal links in app | done | check | Add Terms/Privacy links (§8) |
-| Version | `1.0.7+21` | `1.0.0+10` | Pick iOS release version |
+| Item | Status |
+|---|---|
+| Bundle ID `com.hailsom.shadowhand` | ✅ Firebase iOS app + Google OAuth iOS client created |
+| Deployment target 15.0 (Podfile + pbxproj) | ✅ done |
+| `DEVELOPMENT_TEAM = ADH269CTVQ` | ✅ done (verify the App ID is registered under this team) |
+| `GoogleService-Info.plist` + in Runner target | ✅ done |
+| `firebase_options.dart` iOS | ✅ real app ID / API key |
+| Google Sign-In (`GOOGLE_REVERSED_CLIENT_ID`, `GIDClientID`) | ✅ ShadowHand iOS client; build with `--dart-define-from-file=flavors/prod.json` for `GOOGLE_SERVER_CLIENT_ID` |
+| `CLANG_ALLOW_NON_MODULAR_INCLUDES…` | ✅ both xcconfigs |
+| `ITSAppUsesNonEncryption`, `CFBundleDisplayName` | ✅ added |
+| `UIRequiresFullScreen` | ➖ not needed (portrait + all iPad orientations supported) |
+| `PrivacyInfo.xcprivacy` + in target | ✅ added and reviewed against the published policy (+ CoarseLocation for AdMob) |
+| AdMob iOS app + interstitial + rewarded IDs | ✅ `lib/ads/ad_ids.dart`, `Release.xcconfig` |
+| ATT + UMP consent before `MobileAds.initialize()` | ✅ already in `lib/main.dart` |
+| RevenueCat iOS key (`REVENUECAT_APPLE_API_KEY`) | ✅ in `flavors/*.json`; IAP products configured |
+| In-app account deletion | ✅ UI exists; server fixed (`match_players` rows deleted in a transaction) — **deploy server before submitting** |
+| Terms / Privacy links | ✅ live on GitHub Pages (`apps-privacy/shadowhand/{privacy,terms,delete-account}`), wired in app + flavors |
+| Sign in with Apple entitlement | ➖ not used (Google + guest only) |
+| Push: APNs key uploaded to Firebase, `aps-environment` | ✅ key uploaded (verify with a TestFlight push) |
+| Version | ✅ `1.0.0+11` (bump `+N` for every upload) |
+| Archive, TestFlight, App Store Connect form | ⬜ |
 
 ---
 

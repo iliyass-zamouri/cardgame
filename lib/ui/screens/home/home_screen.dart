@@ -1070,6 +1070,7 @@ class GameHud extends ConsumerWidget {
                             context,
                             roomId: game.roomId,
                             playing: playing,
+                            ranked: game.matchType == 'random',
                             isYourTurn: game.isYourTurn,
                             onEndGame: notifier.endGame,
                             onLeaveRoom: notifier.leaveRoom,
@@ -1201,6 +1202,7 @@ Future<void> _showGameMenu(
   BuildContext context, {
   required String roomId,
   required bool playing,
+  required bool ranked,
   required bool isYourTurn,
   required VoidCallback onEndGame,
   required VoidCallback onLeaveRoom,
@@ -1285,7 +1287,11 @@ Future<void> _showGameMenu(
                     await _confirm(
                       context,
                       title: l10n.leaveRoomTitle,
-                      message: l10n.leaveRoomMessage,
+                      // Quitting a live ranked match counts as a loss.
+                      message:
+                          playing && ranked
+                              ? l10n.leaveMatchPenaltyMessage
+                              : l10n.leaveRoomMessage,
                       confirmLabel: l10n.leave,
                       tone: CasinoActionTone.fold,
                       onConfirm: onLeaveRoom,

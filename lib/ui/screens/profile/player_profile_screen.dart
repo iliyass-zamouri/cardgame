@@ -612,7 +612,7 @@ class _MatchCard extends StatelessWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    resultLabel,
+                    item.quit ? l10n.matchResultQuit : resultLabel,
                     style: TextStyle(
                       color: resultInk,
                       fontWeight: FontWeight.w900,
@@ -662,7 +662,7 @@ class _MatchCard extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '+${item.pointsEarned} ${l10n.xp}',
+                '${item.pointsEarned >= 0 ? '+' : ''}${item.pointsEarned} ${l10n.xp}',
                 style: const TextStyle(
                   color: CasinoColors.goldSoft,
                   fontSize: 11,

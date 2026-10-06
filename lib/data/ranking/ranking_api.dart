@@ -76,6 +76,8 @@ class MatchHistoryItem {
     required this.pointsEarned,
     required this.eloDelta,
     required this.eloAfter,
+    this.quit = false,
+    this.opponentQuit = false,
   });
 
   final String matchId;
@@ -87,6 +89,8 @@ class MatchHistoryItem {
   final int pointsEarned;
   final int eloDelta;
   final int eloAfter;
+  final bool quit;
+  final bool opponentQuit;
 
   factory MatchHistoryItem.fromJson(Map<String, dynamic> json) {
     DateTime? createdAt;
@@ -104,6 +108,8 @@ class MatchHistoryItem {
       pointsEarned: (json['pointsEarned'] as num?)?.toInt() ?? 0,
       eloDelta: (json['eloDelta'] as num?)?.toInt() ?? 0,
       eloAfter: (json['eloAfter'] as num?)?.toInt() ?? 0,
+      quit: json['quit'] as bool? ?? false,
+      opponentQuit: json['opponentQuit'] as bool? ?? false,
     );
   }
 }

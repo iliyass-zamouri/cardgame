@@ -114,6 +114,44 @@ test('cancelFindMatch leaves queue', async (t) => {
   assert.equal(server.matchQueue.length, 0);
 });
 
+test('leaveRoom mid random match ends it as a quit for the opponent', async (t) => {
+  const server = new GameServer({ port: 0 });
+  const address = await server.start();
+  t.after(() => server.stop());
+
+  const first = await connect(address.port);
+  const second = await connect(address.port);
+  t.after(() => first.close());
+  t.after(() => second.close());
+
+  const firstPlaying = waitFor(
+    first,
+    (message) => message.type === 'snapshot' && message.status === 'playing',
+  );
+  const secondPlaying = waitFor(
+    second,
+    (message) => message.type === 'snapshot' && message.status === 'playing',
+  );
+  first.send(JSON.stringify({ type: 'findMatch', displayName: 'Ace', token: await authToken('quit-a') }));
+  second.send(JSON.stringify({ type: 'findMatch', displayName: 'King', token: await authToken('quit-b') }));
+  const [a] = await Promise.all([firstPlaying, secondPlaying]);
+
+  const left = waitFor(first, (message) => message.type === 'leftRoom');
+  const ended = waitFor(
+    second,
+    (message) => message.type === 'snapshot' && message.status === 'ended',
+  );
+  first.send(JSON.stringify({ type: 'leaveRoom' }));
+  const [, opponentView] = await Promise.all([left, ended]);
+
+  assert.equal(opponentView.roomId, a.roomId);
+  assert.equal(opponentView.result.reason, 'quit');
+  assert.equal(opponentView.result.quitter, 'opponent');
+  const room = server.rooms.get(a.roomId);
+  assert.equal(room.status, 'ended');
+  assert.equal(room.players.length, 2);
+});
+
 test('lobby ready requires both players then auto-starts', () => {
   const room = new GameRoom('READY1', { random: () => 0.2 });
   room.addPlayer('p1', { displayName: 'A' });
@@ -297,3 +335,85 @@ function waitFor(socket, predicate, timeout = 2000) {
     socket.on('message', onMessage);
   });
 }
+
+function endedRandomRoom(id, beforeRematch) {
+  const room = new GameRoom(id, {
+    random: () => 0.1,
+    onRankedEnd: () => Promise.resolve(null),
+    beforeRematch,
+  });
+  room.matchType = 'random';
+  room.stakePool = 100;
+  room.stakePerPlayer = 50;
+  room.potAmount = 100;
+  room.escrowed = true;
+  room.addPlayer('p1', { playerId: 'pa', displayName: 'A' });
+  room.addPlayer('p2', { playerId: 'pb', displayName: 'B' });
+  room.start('p1');
+  room.players[0].cards = ['A1'];
+  room.players[1].cards = ['A5'];
+  room.end('p1');
+  return room;
+}
+
+test('staked rematch escrows both stakes before starting', async () => {
+  const calls = [];
+  let release;
+  const room = endedRandomRoom('STAKE1', (payload) => {
+    calls.push(payload);
+    return new Promise((resolve) => {
+      release = () => resolve({ escrowed: true, balances: { pa: 150, pb: 30 } });
+    });
+  });
+
+  room.rematch('p1');
+  room.rematch('p2');
+  assert.equal(room.status, 'ended');
+  assert.equal(room.snapshotFor('p1').rematchPending, true);
+  // A third press while pending is ignored.
+  room.rematch('p2');
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].playerIds, ['pa', 'pb']);
+  assert.equal(calls[0].stake, 50);
+
+  release();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(room.status, 'playing');
+  assert.equal(room.escrowed, true);
+  const snap = room.snapshotFor('p2');
+  assert.equal(snap.rematchPending, false);
+  assert.equal(snap.you.money, 30);
+  assert.equal(snap.opponent.money, undefined);
+});
+
+test('staked rematch blocked when a player cannot cover the stake', async () => {
+  const room = endedRandomRoom('STAKE2', () => {
+    const error = new Error('Insufficient funds for stake');
+    error.code = 'insufficient_funds';
+    error.playerId = 'pb';
+    error.required = 50;
+    return Promise.reject(error);
+  });
+
+  room.rematch('p1');
+  room.rematch('p2');
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(room.status, 'ended');
+  assert.deepEqual(room.rematchReady, [true, false]);
+  const short = room.snapshotFor('p2');
+  assert.equal(short.rematchPending, false);
+  assert.deepEqual(short.rematchBlocked, {
+    reason: 'insufficient_funds',
+    required: 50,
+    who: 'you',
+  });
+  assert.equal(room.snapshotFor('p1').rematchBlocked.who, 'opponent');
+
+  // Pressing again clears the block and retries.
+  room.rematch('p2');
+  assert.equal(room.snapshotFor('p2').rematchBlocked, null);
+});

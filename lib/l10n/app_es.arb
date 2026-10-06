@@ -293,5 +293,16 @@
   },
   "switchToGoogleAccount": "Cambiar de cuenta",
   "dontAskAgain": "No volver a preguntar",
-  "later": "Más tarde"
+  "later": "Más tarde",
+  "youQuit": "Abandonaste",
+  "opponentQuit": "El rival abandonó",
+  "matchResultQuit": "ABANDONO",
+  "leaveMatchPenaltyMessage": "Salir ahora cuenta como derrota: perderás tu apuesta y 15 puntos.",
+  "notEnoughMoneyTitle": "Dinero insuficiente",
+  "notEnoughMoneyMessage": "La apuesta es {required} pero tienes {money}. Cambia fichas o compra más para la revancha.",
+  "stakeCovered": "Ya tienes suficiente: listo para la revancha.",
+  "exchangeChips": "Cambiar fichas",
+  "buyMoney": "Comprar dinero",
+  "rematchStarting": "Cobrando apuestas…",
+  "opponentCantAffordRematch": "{name} no puede cubrir la apuesta"
 }

@@ -901,4 +901,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get later => 'Later';
+
+  @override
+  String get youQuit => 'You quit';
+
+  @override
+  String get opponentQuit => 'Opponent quit';
+
+  @override
+  String get matchResultQuit => 'QUIT';
+
+  @override
+  String get leaveMatchPenaltyMessage =>
+      'Leaving now counts as a loss: you\'ll lose your stake and 15 points.';
+
+  @override
+  String get notEnoughMoneyTitle => 'Not enough money';
+
+  @override
+  String notEnoughMoneyMessage(int required, int money) {
+    return 'The stake is $required but you have $money. Exchange chips or buy more to play the rematch.';
+  }
+
+  @override
+  String get stakeCovered => 'You\'re covered — ready for the rematch.';
+
+  @override
+  String get exchangeChips => 'Exchange chips';
+
+  @override
+  String get buyMoney => 'Buy money';
+
+  @override
+  String get rematchStarting => 'Taking stakes…';
+
+  @override
+  String opponentCantAffordRematch(String name) {
+    return '$name can\'t cover the stake';
+  }
 }

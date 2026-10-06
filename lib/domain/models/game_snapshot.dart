@@ -55,6 +55,9 @@ class PlayerSnapshot {
   final bool jackPeekAvailable;
   final bool queenAbilityAvailable;
 
+  /// Balance after a rematch stake was taken (own seat only).
+  final int? money;
+
   const PlayerSnapshot({
     required this.connected,
     this.displayName = 'Player',
@@ -71,6 +74,7 @@ class PlayerSnapshot {
     required this.hasHandCard,
     this.jackPeekAvailable = false,
     this.queenAbilityAvailable = false,
+    this.money,
   });
 
   factory PlayerSnapshot.fromJson(Map<String, dynamic> json) {
@@ -96,6 +100,7 @@ class PlayerSnapshot {
       hasHandCard: json['hasHandCard'] as bool? ?? false,
       jackPeekAvailable: json['jackPeekAvailable'] as bool? ?? false,
       queenAbilityAvailable: json['queenAbilityAvailable'] as bool? ?? false,
+      money: (json['money'] as num?)?.toInt(),
     );
   }
 
@@ -122,6 +127,9 @@ class PlayerResultRating {
   final int? moneyAfter;
   final int? chipsAfter;
 
+  /// True when this player quit (left or abandoned) the match.
+  final bool quit;
+
   const PlayerResultRating({
     this.playerId,
     required this.result,
@@ -131,6 +139,7 @@ class PlayerResultRating {
     this.eloAfter,
     this.moneyAfter,
     this.chipsAfter,
+    this.quit = false,
   });
 
   factory PlayerResultRating.fromJson(Map<String, dynamic> json) {
@@ -143,6 +152,7 @@ class PlayerResultRating {
       eloAfter: (json['eloAfter'] as num?)?.toInt(),
       moneyAfter: (json['moneyAfter'] as num?)?.toInt(),
       chipsAfter: (json['chipsAfter'] as num?)?.toInt(),
+      quit: json['quit'] as bool? ?? false,
     );
   }
 }
@@ -152,11 +162,22 @@ class GameResult {
   final int? winnerIndex;
   final List<PlayerResultRating>? ratings;
 
+  /// Why the match ended early: `call`, `forfeit` or `quit`.
+  final String? reason;
+
+  /// Who quit, from this viewer's perspective: `you` or `opponent`.
+  final String? quitter;
+
   const GameResult({
     required this.scores,
     required this.winnerIndex,
     this.ratings,
+    this.reason,
+    this.quitter,
   });
+
+  bool get youQuit => quitter == 'you';
+  bool get opponentQuit => quitter == 'opponent';
 
   factory GameResult.fromJson(Map<String, dynamic> json) {
     final ratingsJson = json['ratings'] as List<dynamic>?;
@@ -166,6 +187,8 @@ class GameResult {
       ratings: ratingsJson
           ?.map((r) => PlayerResultRating.fromJson(r as Map<String, dynamic>))
           .toList(growable: false),
+      reason: json['reason'] as String?,
+      quitter: json['quitter'] as String?,
     );
   }
 }
@@ -273,6 +296,34 @@ class LastAction {
   }
 }
 
+/// Why a staked rematch could not start.
+class RematchBlocked {
+  final String reason;
+  final int required;
+
+  /// `you`, `opponent`, or null when nobody in particular is at fault.
+  final String? who;
+
+  const RematchBlocked({
+    required this.reason,
+    required this.required,
+    this.who,
+  });
+
+  bool get youCantAfford => reason == 'insufficient_funds' && who == 'you';
+  bool get opponentCantAfford =>
+      reason == 'insufficient_funds' && who == 'opponent';
+
+  static RematchBlocked? tryParse(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    return RematchBlocked(
+      reason: json['reason'] as String? ?? 'rematch_failed',
+      required: (json['required'] as num?)?.toInt() ?? 0,
+      who: json['who'] as String?,
+    );
+  }
+}
+
 class GameSnapshot {
   final String roomId;
   final int version;
@@ -297,6 +348,10 @@ class GameSnapshot {
   /// Where the newest discard came from: `hand`, `drawn`, or null.
   final String? discardSource;
 
+  /// Both players accepted a staked rematch; stakes are being taken.
+  final bool rematchPending;
+  final RematchBlocked? rematchBlocked;
+
   const GameSnapshot({
     required this.roomId,
     required this.version,
@@ -316,6 +371,8 @@ class GameSnapshot {
     required this.result,
     required this.lastAction,
     this.discardSource,
+    this.rematchPending = false,
+    this.rematchBlocked,
   });
 
   factory GameSnapshot.fromJson(Map<String, dynamic> json) {
@@ -347,6 +404,10 @@ class GameSnapshot {
       result: resultJson == null ? null : GameResult.fromJson(resultJson),
       lastAction: LastAction.tryParse(lastActionJson),
       discardSource: json['discardSource'] as String?,
+      rematchPending: json['rematchPending'] as bool? ?? false,
+      rematchBlocked: RematchBlocked.tryParse(
+        json['rematchBlocked'] as Map<String, dynamic>?,
+      ),
     );
   }
 

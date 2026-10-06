@@ -12,6 +12,12 @@
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
+		<key>CFBundleDisplayName</key>
+		<string>ShadowHand</string>
+		<key>ITSAppUsesNonEncryption</key>
+		<false/>
+		<key>GIDClientID</key>
+		<string>$(GOOGLE_IOS_CLIENT_ID)</string>
 		<key>CFBundleName</key>
 		<string>ShadowHand</string>
 		<key>CFBundlePackageType</key>

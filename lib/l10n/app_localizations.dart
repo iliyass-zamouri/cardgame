@@ -1777,6 +1777,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Later'**
   String get later;
+
+  /// No description provided for @youQuit.
+  ///
+  /// In en, this message translates to:
+  /// **'You quit'**
+  String get youQuit;
+
+  /// No description provided for @opponentQuit.
+  ///
+  /// In en, this message translates to:
+  /// **'Opponent quit'**
+  String get opponentQuit;
+
+  /// No description provided for @matchResultQuit.
+  ///
+  /// In en, this message translates to:
+  /// **'QUIT'**
+  String get matchResultQuit;
+
+  /// No description provided for @leaveMatchPenaltyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaving now counts as a loss: you\'ll lose your stake and 15 points.'**
+  String get leaveMatchPenaltyMessage;
+
+  /// No description provided for @notEnoughMoneyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough money'**
+  String get notEnoughMoneyTitle;
+
+  /// No description provided for @notEnoughMoneyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The stake is {required} but you have {money}. Exchange chips or buy more to play the rematch.'**
+  String notEnoughMoneyMessage(int required, int money);
+
+  /// No description provided for @stakeCovered.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re covered — ready for the rematch.'**
+  String get stakeCovered;
+
+  /// No description provided for @exchangeChips.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange chips'**
+  String get exchangeChips;
+
+  /// No description provided for @buyMoney.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy money'**
+  String get buyMoney;
+
+  /// No description provided for @rematchStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Taking stakes…'**
+  String get rematchStarting;
+
+  /// No description provided for @opponentCantAffordRematch.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} can\'t cover the stake'**
+  String opponentCantAffordRematch(String name);
 }
 
 class _AppLocalizationsDelegate

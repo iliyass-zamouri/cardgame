@@ -12,6 +12,7 @@ class GameRoom {
     random = Math.random,
     onChange = () => {},
     onRankedEnd = null,
+    beforeRematch = null,
     peekDurationMs = 3500,
     queenShuffleDurationMs = 1200,
     queenReplaceDurationMs = 1400,
@@ -20,6 +21,12 @@ class GameRoom {
     this.random = random;
     this.onChange = onChange;
     this.onRankedEnd = onRankedEnd;
+    /** Async hook that takes the stakes for a staked rematch; throws if a seat can't pay. */
+    this.beforeRematch = beforeRematch;
+    this.rankedPromise = null;
+    this.rematchPending = false;
+    this.rematchError = null;
+    this.stakeBalances = null;
     this.peekDurationMs = peekDurationMs;
     this.queenShuffleDurationMs = queenShuffleDurationMs;
     this.queenReplaceDurationMs = queenReplaceDurationMs;
@@ -98,6 +105,9 @@ class GameRoom {
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
     this.rankedSaved = false;
+    this.rematchPending = false;
+    this.rematchError = null;
+    this.stakeBalances = null;
     this.deck = [];
     this.discard = [];
     this.discardDeckId = null;
@@ -154,6 +164,8 @@ class GameRoom {
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
     this.rankedSaved = false;
+    this.rematchPending = false;
+    this.rematchError = null;
     this.players.forEach((player) => {
       player.cards = [];
       player.handCard = null;
@@ -177,13 +189,78 @@ class GameRoom {
     if (this.status !== 'ended') {
       throw new GameRuleError('not_ended', 'Game is not over');
     }
+    if (this.rematchPending) return;
     const index = this.players.findIndex((player) => player.id === clientId);
     this.rematchReady[index] = true;
+    this.rematchError = null;
     if (this.rematchReady[0] && this.rematchReady[1]) {
+      if (this.#rematchNeedsStake()) {
+        this.#startStakedRematch(clientId);
+        return;
+      }
       this.start(clientId);
       return;
     }
     this.#changed();
+  }
+
+  #rematchNeedsStake() {
+    return this.matchType === 'random'
+      && this.stakePerPlayer > 0
+      && typeof this.beforeRematch === 'function';
+  }
+
+  /**
+   * Take both stakes again before a random rematch; the previous match's
+   * settlement (pot payout) must commit first.
+   */
+  #startStakedRematch(clientId) {
+    this.rematchPending = true;
+    this.#changed();
+    const playerIds = this.players.map((player) => player.playerId);
+    Promise.resolve(this.rankedPromise)
+      .catch(() => {})
+      .then(() => this.beforeRematch({
+        roomId: this.id,
+        playerIds,
+        stake: this.stakePerPlayer,
+      }))
+      .then((result) => {
+        if (!this.#rematchStillValid(playerIds)) return;
+        this.escrowed = Boolean(result?.escrowed);
+        this.stakeBalances = result?.balances ?? null;
+        const starter = this.players.find((p) => p.id === clientId) ?? this.players[0];
+        this.start(starter.id);
+      })
+      .catch((error) => {
+        if (!this.#rematchStillValid(playerIds)) return;
+        this.rematchPending = false;
+        if (error?.code === 'insufficient_funds') {
+          const shortIndex = this.players.findIndex((p) => p.playerId === error.playerId);
+          if (shortIndex >= 0) {
+            this.rematchReady[shortIndex] = false;
+          } else {
+            this.rematchReady = [false, false];
+          }
+          this.rematchError = {
+            code: 'insufficient_funds',
+            playerId: error.playerId ?? null,
+            required: Number(error.required) || this.stakePerPlayer,
+          };
+        } else {
+          console.error('[rematch] stake failed', error);
+          this.rematchReady = [false, false];
+          this.rematchError = { code: 'rematch_failed', playerId: null, required: this.stakePerPlayer };
+        }
+        this.#changed();
+      });
+  }
+
+  #rematchStillValid(playerIds) {
+    return this.rematchPending
+      && this.status === 'ended'
+      && this.players.length === 2
+      && this.players.every((player, i) => player.playerId === playerIds[i]);
   }
 
   launch(clientId) {
@@ -457,7 +534,7 @@ class GameRoom {
   /**
    * Caller loses; opponent wins. Settles ranked if applicable.
    */
-  forfeit(clientId) {
+  forfeit(clientId, { reason = 'forfeit' } = {}) {
     const index = this.players.findIndex((player) => player.id === clientId);
     if (index < 0) {
       throw new GameRuleError('not_in_room', 'Player not in room');
@@ -467,12 +544,14 @@ class GameRoom {
     }
     this.lastAction = {
       playerId: clientId,
-      type: 'forfeit',
+      type: reason,
     };
     this.discardSource = null;
     this.status = 'ended';
     this.turnIndex = null;
     this.rematchReady = [false, false];
+    // Post-settlement balances arrive via result.ratings[].moneyAfter.
+    this.stakeBalances = null;
     this.players.forEach((player) => {
       player.total = player.cards.reduce((sum, tag) => sum + gameValue(tag), 0);
     });
@@ -480,7 +559,8 @@ class GameRoom {
     this.result = {
       scores: this.players.map((player) => player.total),
       winnerIndex,
-      reason: 'forfeit',
+      reason,
+      quitterIndex: index,
     };
     this.seriesWins[winnerIndex] += 1;
     this.#clearTimers();
@@ -553,7 +633,24 @@ class GameRoom {
       opponent: opponent
         ? this.#playerView(opponent, false, showAll, clientId, 1 - viewerIndex)
         : null,
-      result: this.result,
+      rematchPending: this.rematchPending,
+      rematchBlocked: this.rematchError
+        ? {
+          reason: this.rematchError.code,
+          required: this.rematchError.required,
+          who: this.rematchError.playerId == null
+            ? null
+            : viewer && viewer.playerId === this.rematchError.playerId ? 'you' : 'opponent',
+        }
+        : null,
+      result: this.result
+        ? {
+          ...this.result,
+          ...(this.result.quitterIndex != null
+            ? { quitter: this.result.quitterIndex === viewerIndex ? 'you' : 'opponent' }
+            : {}),
+        }
+        : null,
       discardSource: this.discardSource,
       lastAction: this.lastAction
         ? {
@@ -587,6 +684,9 @@ class GameRoom {
       avatarId: player.avatarId || 'default',
       deckId: player.deckId || 'default',
       playerId: player.playerId || null,
+      ...(isSelf && this.stakeBalances && player.playerId in this.stakeBalances
+        ? { money: this.stakeBalances[player.playerId] }
+        : {}),
       seriesWins: this.seriesWins[seatIndex] ?? 0,
       lobbyReady: Boolean(this.lobbyReady[seatIndex]),
       rematchReady: Boolean(this.rematchReady[seatIndex]),
@@ -629,6 +729,8 @@ class GameRoom {
     this.status = 'ended';
     this.turnIndex = null;
     this.rematchReady = [false, false];
+    // Post-settlement balances arrive via result.ratings[].moneyAfter.
+    this.stakeBalances = null;
     this.players.forEach((player) => {
       player.total = player.cards.reduce((sum, tag) => sum + gameValue(tag), 0);
     });
@@ -665,8 +767,9 @@ class GameRoom {
         cardTotal: player.total,
       })),
       winnerIndex,
+      quitterIndex: this.result?.quitterIndex ?? null,
     };
-    Promise.resolve()
+    this.rankedPromise = Promise.resolve()
       .then(() => this.onRankedEnd(payload))
       .then((rankedResult) => {
         if (rankedResult && Array.isArray(rankedResult.players) && this.result) {

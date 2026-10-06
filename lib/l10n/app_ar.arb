@@ -316,5 +316,16 @@
   },
   "switchToGoogleAccount": "تبديل الحساب",
   "dontAskAgain": "لا تسأل مرة أخرى",
-  "later": "لاحقاً"
+  "later": "لاحقاً",
+  "youQuit": "لقد انسحبت",
+  "opponentQuit": "انسحب الخصم",
+  "matchResultQuit": "انسحاب",
+  "leaveMatchPenaltyMessage": "المغادرة الآن تُحتسب خسارة: ستخسر رهانك و15 نقطة.",
+  "notEnoughMoneyTitle": "المال غير كافٍ",
+  "notEnoughMoneyMessage": "الرهان {required} ولديك {money}. استبدل الرقائق أو اشترِ المزيد لإعادة المباراة.",
+  "stakeCovered": "رصيدك كافٍ — جاهز لإعادة المباراة.",
+  "exchangeChips": "استبدال الرقائق",
+  "buyMoney": "شراء المال",
+  "rematchStarting": "جارٍ خصم الرهانات…",
+  "opponentCantAffordRematch": "{name} لا يستطيع تغطية الرهان"
 }

@@ -1457,7 +1457,7 @@ class GameServer {
       if (hasBot) {
         room.markDisconnected(context.id);
         try {
-          room.forfeit(context.id);
+          room.forfeit(context.id, { reason: 'quit' });
         } catch (error) {
           console.error('[disconnect bot forfeit]', error);
         }
@@ -1478,7 +1478,7 @@ class GameServer {
         const seat = live.players.find((p) => p.id === oldClientId || p.playerId === playerId);
         if (!seat || seat.connected) return;
         try {
-          live.forfeit(seat.id);
+          live.forfeit(seat.id, { reason: 'quit' });
         } catch (error) {
           console.error('[disconnect forfeit]', error);
         }
@@ -1683,6 +1683,27 @@ class GameServer {
         deckId: context.deckId,
       });
       return;
+    }
+
+    if (command.type === 'rematch' && context.roomId) {
+      // Staked rematch: tell a short player right away so they can top up,
+      // instead of waiting for the opponent to accept.
+      const room = this.rooms.get(context.roomId);
+      if (room?.matchType === 'random' && room.stakePerPlayer > 0) {
+        try {
+          await assertCanAfford(context.playerId, room.stakePerPlayer);
+        } catch (error) {
+          if (!error?.message?.includes('MySQL pool not initialized')) {
+            this.#send(context.socket, {
+              type: 'error',
+              code: error.code || 'insufficient_funds',
+              message: error.message,
+              required: room.stakePerPlayer,
+            });
+            return;
+          }
+        }
+      }
     }
 
     if (command.type === 'leaveRoom') {
@@ -1964,6 +1985,14 @@ class GameServer {
         }
       },
       onRankedEnd: (payload) => recordRankedMatch(payload),
+      beforeRematch: ({ playerIds, stake }) => escrowStake({ playerIds, stake })
+        .catch((error) => {
+          // Without a DB (tests/local), rematch unstaked as matchmaking does.
+          if (error?.message?.includes('MySQL pool not initialized')) {
+            return { escrowed: false };
+          }
+          throw error;
+        }),
     });
     room.matchType = matchType;
     room.stakePool = Number(stakePool) || 0;
@@ -1976,6 +2005,8 @@ class GameServer {
 
   #broadcastRoom(room) {
     for (const player of room.players) {
+      // A seat left via quit stays in the room but its socket has moved on.
+      if (!player.connected) continue;
       const client = this.clients.get(player.id);
       if (client?.socket.readyState === WebSocket.OPEN) {
         this.#send(client.socket, room.snapshotFor(player.id));
@@ -2344,6 +2375,20 @@ class GameServer {
   #leaveCurrentRoom(context) {
     if (!context.roomId) return;
     const room = this.rooms.get(context.roomId);
+    // Leaving a live match counts as quitting: settle as a loss, keep the seat
+    // (disconnected) so the opponent still sees the result.
+    if (room && room.status === 'playing' && room.players.length === 2) {
+      room.markDisconnected(context.id);
+      try {
+        room.forfeit(context.id, { reason: 'quit' });
+      } catch (error) {
+        console.error('[leave forfeit]', error);
+      }
+      if (context.playerId) this.#clearDisconnectGrace(room.id, context.playerId);
+      context.roomId = null;
+      this.#deleteAbandonedRoom(room);
+      return;
+    }
     room?.removePlayer(context.id);
     context.roomId = null;
     this.#deleteAbandonedRoom(room);

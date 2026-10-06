@@ -1,5 +1,9 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
 #include "Generated.xcconfig"
 
-GOOGLE_REVERSED_CLIENT_ID=com.googleusercontent.apps.1078123174745-61g8fa3uiba0p573g9kkr7jh5m7utqgn
-GAD_APPLICATION_IDENTIFIER=ca-app-pub-9698112281637218~1212411796
+GOOGLE_IOS_CLIENT_ID=1078123174745-vqtuf28vb3aurkmkslg657rel2gfv7cg.apps.googleusercontent.com
+GOOGLE_REVERSED_CLIENT_ID=com.googleusercontent.apps.1078123174745-vqtuf28vb3aurkmkslg657rel2gfv7cg
+GAD_APPLICATION_IDENTIFIER=ca-app-pub-9698112281637218~7363462538
+
+// google_mobile_ads imports a non-modular GMA header; required for device/release builds.
+CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES=YES

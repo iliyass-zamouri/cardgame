@@ -9,6 +9,7 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
+import 'package:cardgame/ui/widgets/insufficient_funds_sheet.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
@@ -28,18 +29,42 @@ class GameOverPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final game = ref.watch(gameSessionProvider.select((state) => state.game));
-    if (game == null) return const SizedBox.shrink();
     final notifier = ref.read(gameSessionProvider.notifier);
+    // Rematch stake not covered: offer to exchange chips / buy, then retry.
+    ref.listen<int?>(gameSessionProvider.select((state) => state.fundsPrompt), (
+      _,
+      required,
+    ) async {
+      if (required == null) return;
+      notifier.clearFundsPrompt();
+      final covered = await InsufficientFundsSheet.show(
+        context,
+        required: required,
+      );
+      if (covered && context.mounted) notifier.rematch();
+    });
+    if (game == null) return const SizedBox.shrink();
     final youAvatarId =
         ref.watch(playerProfileProvider).asData?.value.avatarId ?? 'default';
     final yourTotal = game.you.total;
     final opponentTotal = game.opponent?.total;
-    // Lowest total wins.
-    final youWin = opponentTotal != null && yourTotal < opponentTotal;
-    final theyWin = opponentTotal != null && yourTotal > opponentTotal;
-    final isDraw = opponentTotal != null && yourTotal == opponentTotal;
+    final result = game.result;
+    final youQuit = result?.youQuit ?? false;
+    final opponentQuit = result?.opponentQuit ?? false;
+    // Lowest total wins, unless someone quit: the quitter always loses.
+    final youWin =
+        opponentQuit ||
+        (!youQuit && opponentTotal != null && yourTotal < opponentTotal);
+    final theyWin =
+        youQuit ||
+        (!opponentQuit && opponentTotal != null && yourTotal > opponentTotal);
+    final isDraw =
+        !youWin &&
+        !theyWin &&
+        opponentTotal != null &&
+        yourTotal == opponentTotal;
     final outcome =
-        opponentTotal == null
+        opponentTotal == null && !youQuit && !opponentQuit
             ? _Outcome.none
             : youWin
             ? _Outcome.win
@@ -54,10 +79,12 @@ class GameOverPanel extends ConsumerWidget {
     };
 
     final youId = game.you.playerId ?? '';
-    final youRating = _findRating(game.result?.ratings, youId);
+    final youRating = _findRating(result?.ratings, youId);
     final youXp =
         youRating?.pointsEarned ??
-        _calculateXp(youWin, isDraw, yourTotal, opponentTotal);
+        (youQuit
+            ? -_quitPenaltyPoints
+            : _calculateXp(youWin, isDraw, yourTotal, opponentTotal));
     final youEloDelta = youRating?.eloDelta ?? _calculateElo(youWin, isDraw);
 
     final rematchReady = game.you.rematchReady;
@@ -67,10 +94,11 @@ class GameOverPanel extends ConsumerWidget {
     return _Recap(
       outcome: outcome,
       headline: headline,
-      series: l10n.seriesScore(
-        game.you.seriesWins,
-        game.opponent?.seriesWins ?? 0,
-      ),
+      series: [
+        if (youQuit) l10n.youQuit,
+        if (opponentQuit) l10n.opponentQuit,
+        l10n.seriesScore(game.you.seriesWins, game.opponent?.seriesWins ?? 0),
+      ].join(' · '),
       you: _SeatData(
         name: game.you.displayName,
         score: yourTotal,
@@ -92,7 +120,11 @@ class GameOverPanel extends ConsumerWidget {
       xp: youXp,
       eloDelta: youEloDelta,
       status:
-          rematchReady && !opponentRematchReady
+          game.rematchPending
+              ? _RematchStatus.starting
+              : game.rematchBlocked?.opponentCantAfford ?? false
+              ? _RematchStatus.opponentBroke
+              : rematchReady && !opponentRematchReady
               ? _RematchStatus.waiting
               : !rematchReady && opponentRematchReady
               ? _RematchStatus.asked
@@ -104,7 +136,7 @@ class GameOverPanel extends ConsumerWidget {
   }
 }
 
-enum _RematchStatus { none, waiting, asked }
+enum _RematchStatus { none, waiting, asked, starting, opponentBroke }
 
 class _SeatData {
   const _SeatData({
@@ -342,7 +374,8 @@ class _RecapState extends State<_Recap> with TickerProviderStateMixin {
                                 children: [
                                   if (!widget.neutral) ...[
                                     _StatChip(
-                                      label: '+${widget.xp} ${l10n.xp}',
+                                      label:
+                                          '${widget.xp >= 0 ? '+' : ''}${widget.xp} ${l10n.xp}',
                                       color: _inkGold,
                                     ),
                                     _StatChip(
@@ -358,12 +391,15 @@ class _RecapState extends State<_Recap> with TickerProviderStateMixin {
                               ),
                             ),
                           ),
-                          if (widget.status == _RematchStatus.waiting) ...[
+                          if (widget.status == _RematchStatus.waiting ||
+                              widget.status == _RematchStatus.starting) ...[
                             const SizedBox(height: 14),
                             const SuitCardLoader(height: 24),
                             const SizedBox(height: 8),
                             Text(
-                              l10n.waitingRematch,
+                              widget.status == _RematchStatus.starting
+                                  ? l10n.rematchStarting
+                                  : l10n.waitingRematch,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: _inkMuted,
@@ -371,10 +407,18 @@ class _RecapState extends State<_Recap> with TickerProviderStateMixin {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                          ] else if (widget.status == _RematchStatus.asked) ...[
+                          ] else if (widget.status == _RematchStatus.asked ||
+                              widget.status ==
+                                  _RematchStatus.opponentBroke) ...[
                             const SizedBox(height: 14),
                             Text(
-                              l10n.opponentAskingRematch(widget.opponent.name),
+                              widget.status == _RematchStatus.opponentBroke
+                                  ? l10n.opponentCantAffordRematch(
+                                    widget.opponent.name,
+                                  )
+                                  : l10n.opponentAskingRematch(
+                                    widget.opponent.name,
+                                  ),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: _inkGold,
@@ -1046,6 +1090,9 @@ class _ParticlePainter extends CustomPainter {
   bool shouldRepaint(covariant _ParticlePainter old) =>
       old.t != t || old.win != win;
 }
+
+/// Mirrors server `POINTS_QUIT_PENALTY` until the ranked result arrives.
+const _quitPenaltyPoints = 15;
 
 int _calculateXp(bool isWin, bool isDraw, int score, int? oppScore) {
   if (isDraw) return 8;

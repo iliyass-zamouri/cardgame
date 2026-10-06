@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cardgame/ads/rewarded_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
@@ -332,14 +334,8 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
     }
   }
 
-  Future<void> _showConversionModal() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _CurrencyConversionModal(onBusy: widget.onBusy),
-    );
-  }
+  Future<void> _showConversionModal() =>
+      CurrencyConversionModal.show(context, onBusy: widget.onBusy);
 
   @override
   Widget build(BuildContext context) {
@@ -632,19 +628,44 @@ class _ChipStack extends StatelessWidget {
   }
 }
 
-class _CurrencyConversionModal extends ConsumerStatefulWidget {
-  const _CurrencyConversionModal({required this.onBusy});
+/// Chips <-> money exchange sheet (1 chip = 1000 money).
+class CurrencyConversionModal extends ConsumerStatefulWidget {
+  const CurrencyConversionModal({
+    super.key,
+    this.onBusy,
+    this.initialChipsToConvert = 1,
+  });
 
-  final void Function(bool) onBusy;
+  final void Function(bool)? onBusy;
+
+  /// Pre-filled chips → money amount, e.g. enough to cover a stake.
+  final int initialChipsToConvert;
+
+  static Future<void> show(
+    BuildContext context, {
+    void Function(bool)? onBusy,
+    int initialChipsToConvert = 1,
+  }) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => CurrencyConversionModal(
+            onBusy: onBusy,
+            initialChipsToConvert: initialChipsToConvert,
+          ),
+    );
+  }
 
   @override
-  ConsumerState<_CurrencyConversionModal> createState() =>
+  ConsumerState<CurrencyConversionModal> createState() =>
       _CurrencyConversionModalState();
 }
 
 class _CurrencyConversionModalState
-    extends ConsumerState<_CurrencyConversionModal> {
-  int _chipsToConvert = 1;
+    extends ConsumerState<CurrencyConversionModal> {
+  late int _chipsToConvert = math.max(1, widget.initialChipsToConvert);
   int _moneyChipsToBuy = 1;
 
   Future<void> _convertChipsToMoney(PlayerProfile profile) async {
@@ -654,7 +675,7 @@ class _CurrencyConversionModalState
       return;
     }
 
-    widget.onBusy(true);
+    widget.onBusy?.call(true);
     try {
       await ref
           .read(playerProfileProvider.notifier)
@@ -678,7 +699,7 @@ class _CurrencyConversionModalState
         );
       }
     } finally {
-      if (mounted) widget.onBusy(false);
+      if (mounted) widget.onBusy?.call(false);
     }
   }
 
@@ -690,7 +711,7 @@ class _CurrencyConversionModalState
       return;
     }
 
-    widget.onBusy(true);
+    widget.onBusy?.call(true);
     try {
       await ref
           .read(playerProfileProvider.notifier)
@@ -714,7 +735,7 @@ class _CurrencyConversionModalState
         );
       }
     } finally {
-      if (mounted) widget.onBusy(false);
+      if (mounted) widget.onBusy?.call(false);
     }
   }
 

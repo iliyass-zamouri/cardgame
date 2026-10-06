@@ -236,7 +236,26 @@ class GameSessionController extends Notifier<GameSessionState> {
 
   void readyUp() => _send('startGame');
 
-  void rematch() => _send('rematch');
+  /// Staked rematches take the stake again; a short player gets the
+  /// top-up sheet instead of the request.
+  void rematch() {
+    final game = state.game;
+    final money = ref.read(playerProfileProvider).value?.money;
+    if (!_offlineMode &&
+        game != null &&
+        game.matchType == 'random' &&
+        game.stakePerPlayer > 0 &&
+        money != null &&
+        money < game.stakePerPlayer) {
+      state = state.copyWith(fundsPrompt: game.stakePerPlayer);
+      return;
+    }
+    _send('rematch');
+  }
+
+  void clearFundsPrompt() {
+    if (state.fundsPrompt != null) state = state.copyWith(fundsPrompt: null);
+  }
 
   void launch() => _send('launch');
 
@@ -362,6 +381,7 @@ class GameSessionController extends Notifier<GameSessionState> {
         final snapshot = GameSnapshot.fromJson(message);
         final currentVersion = state.game?.version ?? -1;
         final previousStatus = state.game?.status;
+        final wasBlocked = state.game?.rematchBlocked?.youCantAfford ?? false;
         if (snapshot.version >= currentVersion ||
             snapshot.roomId != state.game?.roomId) {
           final keepPeek = state.peekSelecting && snapshot.canJackPeek;
@@ -376,6 +396,18 @@ class GameSessionController extends Notifier<GameSessionState> {
             replaceFirstSide: keepQueen ? state.replaceFirstSide : null,
             replaceFirstIndex: keepQueen ? state.replaceFirstIndex : null,
           );
+          final blocked = snapshot.rematchBlocked;
+          if (!wasBlocked && (blocked?.youCantAfford ?? false)) {
+            state = state.copyWith(fundsPrompt: blocked!.required);
+          }
+          final stakedMoney = snapshot.you.money;
+          if (stakedMoney != null &&
+              ref.read(playerProfileProvider).value?.money != stakedMoney) {
+            ref
+                .read(playerProfileProvider.notifier)
+                .updateBalances(money: stakedMoney)
+                .ignore();
+          }
           if (previousStatus != GameStatus.playing &&
               snapshot.status == GameStatus.playing) {
             unawaited(
@@ -474,6 +506,12 @@ class GameSessionController extends Notifier<GameSessionState> {
         break;
       case 'error':
         final code = message['code'] as String?;
+        final required = (message['required'] as num?)?.toInt();
+        if (code == 'insufficient_funds' && required != null) {
+          state = state.copyWith(fundsPrompt: required);
+          ref.read(playerProfileProvider.notifier).refreshInventory().ignore();
+          break;
+        }
         state = state.copyWith(
           message: (code != null && code.isNotEmpty) ? code : 'command_failed',
         );
