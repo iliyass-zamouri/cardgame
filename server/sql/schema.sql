@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS players (
   device_id VARCHAR(191) NULL,
   created_ip VARCHAR(45) NULL,
   last_ip VARCHAR(45) NULL,
+  country_code CHAR(2) NULL,
   auth_type ENUM('guest', 'google') NOT NULL DEFAULT 'guest',
   google_sub VARCHAR(255) NULL,
   email VARCHAR(255) NULL,

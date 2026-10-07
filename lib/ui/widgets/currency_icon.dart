@@ -67,109 +67,176 @@ const _goldGradient = LinearGradient(
 class _CashPainter extends CustomPainter {
   const _CashPainter();
 
-  static const _edge = Color(0xFF8A6512);
-  static const _ink = Color(0xFF6E4F0A);
-  static const _highlight = Color(0xFFFFF4CC);
+  static const _amber = Color(0xFFB8690A);
+  static const _ink = Color(0xFF8C5C06);
+  static const _highlight = Color(0xFFFFF6C8);
 
   @override
   void paint(Canvas canvas, Size size) {
     final s = size.shortestSide;
     final c = size.center(Offset.zero);
-    final r = s * 0.47;
+    final r = s * 0.46;
+    final coin = Rect.fromCircle(center: c, radius: r);
 
-    // Coin thickness: a darker disc just below the face, like the chip.
+    // Coin thickness: deep amber edge peeking out to the lower right.
     canvas.drawCircle(
-      c + Offset(0, s * 0.035),
+      c + Offset(s * 0.025, s * 0.04),
       r,
-      Paint()..color = const Color(0xFF5C430A),
+      Paint()..color = const Color(0xFF94520A),
     );
 
-    final face = Rect.fromCircle(center: c, radius: r);
+    // Smooth polished rim, bright at the top left, amber at the bottom right.
     canvas.drawCircle(
       c,
       r,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFFFF6B0),
+            Color(0xFFFFD233),
+            Color(0xFFF0A818),
+            Color(0xFFC77A0A),
+          ],
+          stops: [0, 0.35, 0.7, 1],
+        ).createShader(coin),
+    );
+
+    // Recessed face: its bevel is shaded opposite to the rim.
+    final face = r * 0.78;
+    final faceRect = Rect.fromCircle(center: c, radius: face);
+    canvas.drawCircle(
+      c,
+      face,
       Paint()
         ..shader = const RadialGradient(
           center: Alignment(-0.35, -0.45),
-          radius: 1.15,
-          colors: [Color(0xFFFFEDB0), CasinoColors.gold, Color(0xFFB8860B)],
-          stops: [0, 0.55, 1],
-        ).createShader(face),
+          radius: 1.1,
+          colors: [Color(0xFFFFF0A0), Color(0xFFFFD43B), Color(0xFFF5AE1E)],
+          stops: [0, 0.5, 1],
+        ).createShader(faceRect),
     );
-
-    // Milled edge: short radial ticks around the rim.
-    final tickCount = s < 20 ? 16 : 28;
-    final tick =
-        Paint()
-          ..color = _edge.withValues(alpha: 0.7)
-          ..strokeWidth = math.max(0.6, r * 0.05)
-          ..strokeCap = StrokeCap.round;
-    for (var i = 0; i < tickCount; i++) {
-      final a = i * 2 * math.pi / tickCount;
-      final dir = Offset(math.cos(a), math.sin(a));
-      canvas.drawLine(c + dir * r * 0.86, c + dir * r * 0.97, tick);
-    }
-
-    // Outer rim line and raised inner ring.
     canvas.drawCircle(
       c,
-      r - r * 0.02,
+      face,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(0.7, r * 0.05)
-        ..color = _edge,
-    );
-    final inner = r * 0.72;
-    canvas.drawCircle(
-      c,
-      inner,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(0.7, r * 0.06)
-        ..color = _edge.withValues(alpha: 0.85),
-    );
-    canvas.drawCircle(
-      c + Offset(r * 0.03, r * 0.03),
-      inner,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(0.5, r * 0.03)
-        ..color = _highlight.withValues(alpha: 0.6),
+        ..strokeWidth = math.max(0.8, r * 0.07)
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFC77A0A), Color(0xFFE9A21C), Color(0xFFFFF4B8)],
+        ).createShader(faceRect),
     );
 
-    // Embossed "$": a light offset copy under the dark glyph.
-    _paintGlyph(canvas, c + Offset(r * 0.03, r * 0.04), r, _highlight);
+    // Embossed "$": light edge below right, amber body on top.
+    _paintGlyph(
+      canvas,
+      c + Offset(r * 0.02, r * 0.025),
+      r,
+      _highlight.withValues(alpha: 0.85),
+    );
     _paintGlyph(canvas, c, r, _ink);
 
-    // Soft glint on the upper-left of the face.
+    // Glossy shine along the upper-left rim, plus a small sparkle.
     canvas.drawArc(
-      Rect.fromCircle(center: c, radius: r * 0.84),
-      math.pi * 1.08,
-      math.pi * 0.32,
+      Rect.fromCircle(center: c, radius: r * 0.89),
+      math.pi * 1.05,
+      math.pi * 0.38,
       false,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round
-        ..strokeWidth = math.max(0.6, r * 0.06)
-        ..color = Colors.white.withValues(alpha: 0.55),
+        ..strokeWidth = math.max(0.7, r * 0.09)
+        ..color = Colors.white.withValues(alpha: 0.7),
+    );
+    if (s >= 20) {
+      canvas.drawCircle(
+        c + Offset(-r * 0.5, -r * 0.62),
+        r * 0.06,
+        Paint()..color = Colors.white.withValues(alpha: 0.9),
+      );
+    }
+
+    // Fine outline keeps the coin crisp on light and dark backgrounds.
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(0.5, r * 0.025)
+        ..color = _amber.withValues(alpha: 0.75),
     );
   }
 
+  /// Drawn "$" so its ink, not a font's line box, sits dead centre.
   void _paintGlyph(Canvas canvas, Offset c, double r, Color color) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: r'$',
-        style: TextStyle(
-          fontFamily: CasinoFonts.display,
-          color: color,
-          fontSize: r * 0.95,
-          fontWeight: FontWeight.w800,
-          height: 1,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, c - Offset(tp.width / 2, tp.height / 2));
+    final h = r * 0.46;
+    final w = r * 0.27;
+    final s =
+        Path()
+          ..moveTo(c.dx + w * 0.92, c.dy - h * 0.62)
+          ..cubicTo(
+            c.dx + w * 0.72,
+            c.dy - h * 0.9,
+            c.dx + w * 0.4,
+            c.dy - h,
+            c.dx,
+            c.dy - h,
+          )
+          ..cubicTo(
+            c.dx - w * 0.6,
+            c.dy - h,
+            c.dx - w,
+            c.dy - h * 0.76,
+            c.dx - w,
+            c.dy - h * 0.48,
+          )
+          ..cubicTo(
+            c.dx - w,
+            c.dy - h * 0.14,
+            c.dx - w * 0.5,
+            c.dy - h * 0.08,
+            c.dx,
+            c.dy,
+          )
+          ..cubicTo(
+            c.dx + w * 0.5,
+            c.dy + h * 0.08,
+            c.dx + w,
+            c.dy + h * 0.14,
+            c.dx + w,
+            c.dy + h * 0.48,
+          )
+          ..cubicTo(
+            c.dx + w,
+            c.dy + h * 0.76,
+            c.dx + w * 0.6,
+            c.dy + h,
+            c.dx,
+            c.dy + h,
+          )
+          ..cubicTo(
+            c.dx - w * 0.4,
+            c.dy + h,
+            c.dx - w * 0.72,
+            c.dy + h * 0.9,
+            c.dx - w * 0.92,
+            c.dy + h * 0.62,
+          );
+    final stroke =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..color = color;
+    canvas.drawPath(s, stroke..strokeWidth = math.max(1.2, r * 0.14));
+    canvas.drawLine(
+      c - Offset(0, h * 1.36),
+      c + Offset(0, h * 1.36),
+      stroke..strokeWidth = math.max(0.9, r * 0.085),
+    );
   }
 
   @override

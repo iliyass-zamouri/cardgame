@@ -29,7 +29,12 @@ const AVATAR_CATALOG = [
 
 const DECK_CATALOG = [
   { id: 'default', name: 'Classic Blue', price: 0, currency: 'chips' },
+  { id: 'sapphire_frost', name: 'Sapphire Dragon', price: 6, currency: 'chips' },
+  { id: 'imperial_jade', name: 'High Victorian', price: 8, currency: 'chips' },
+  { id: 'royal_crimson', name: 'Royal Crimson', price: 12, currency: 'chips' },
+  { id: 'neon_nights', name: 'Neon Nights', price: 15, currency: 'chips' },
   { id: 'black_onyx', name: 'Onyx Black', price: 20, currency: 'chips' },
+  { id: 'gilded_gold', name: '24K Gold', price: 35, currency: 'chips' },
 ];
 
 async function addColumnIfMissing(conn, table, column, definition) {

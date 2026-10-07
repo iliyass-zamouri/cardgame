@@ -341,6 +341,14 @@ async function touchGuest(playerId, clientIp) {
   );
 }
 
+async function setPlayerCountry(playerId, countryCode) {
+  if (!playerId || !/^[A-Z]{2}$/.test(countryCode ?? '')) return;
+  await getPool().execute(
+    `UPDATE players SET country_code = :countryCode WHERE id = :playerId`,
+    { playerId, countryCode },
+  );
+}
+
 async function bindGuestIp(playerId, clientIp) {
   const pool = getPool();
   await pool.execute(
@@ -709,6 +717,7 @@ module.exports = {
   GoogleAccountInUseError,
   mapPlayerRow,
   findOrCreateGuest,
+  setPlayerCountry,
   findOrLinkOAuth,
   findGuestByDevice,
   findPlayerByGoogleSub,

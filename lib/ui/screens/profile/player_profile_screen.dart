@@ -1,3 +1,4 @@
+import 'package:cardgame/ui/widgets/country_flag.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/ranking_providers.dart';
@@ -34,16 +35,6 @@ class PlayerProfileScreen extends ConsumerWidget {
     if (level <= 14) return l10n.rankTitleTableMaster;
     if (level <= 19) return l10n.rankTitleGrandAce;
     return l10n.rankTitleShadowLegend;
-  }
-
-  static String _deckDisplayName(AppLocalizations l10n, String nameKey) {
-    switch (nameKey) {
-      case 'onyxBlackDeck':
-        return l10n.onyxBlackDeck;
-      case 'classicDeck':
-      default:
-        return l10n.classicDeck;
-    }
   }
 
   @override
@@ -149,6 +140,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                   username: username,
                   avatarId: avatarId,
                   deckId: deckId,
+                  countryCode: entry?.countryCode,
                   elo: elo,
                   totalPoints: totalPoints,
                   rank: rank,
@@ -223,6 +215,7 @@ class PlayerProfileScreen extends ConsumerWidget {
     required String username,
     required String avatarId,
     required String deckId,
+    String? countryCode,
     required int elo,
     required int totalPoints,
     required int? rank,
@@ -245,7 +238,7 @@ class PlayerProfileScreen extends ConsumerWidget {
     final progress = (currentLevelXp / nextLevelXp).clamp(0.0, 1.0);
     final rankTitle = getRankTitle(level, l10n);
     final deck = DeckCatalog.getById(deckId);
-    final deckName = _deckDisplayName(l10n, deck.nameKey);
+    final deckName = l10n.deckName(deck);
 
     final authLabel = switch (authStatus) {
       SessionAuthStatus.guest => l10n.guest,
@@ -282,16 +275,26 @@ class PlayerProfileScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: CasinoFonts.displayOf(context),
-                        color: CardInk.black,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 19,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: CasinoFonts.displayOf(context),
+                              color: CardInk.black,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 19,
+                            ),
+                          ),
+                        ),
+                        if (flagEmoji(countryCode).isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          CountryFlag(code: countryCode, size: 20),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     GestureDetector(

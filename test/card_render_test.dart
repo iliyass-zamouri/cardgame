@@ -8,6 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() async {
+    await CardBackSkins.ensureLoaded();
+  });
+
   void renderCard(PlayingCardComponent card) {
     final recorder = PictureRecorder();
     card.render(Canvas(recorder));

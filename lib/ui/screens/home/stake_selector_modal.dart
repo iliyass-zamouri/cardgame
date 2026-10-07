@@ -5,11 +5,11 @@ import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
-import 'package:cardgame/ui/screens/home/pot_card_style.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/pot_card_style.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +23,7 @@ class PotOption {
     required this.pool,
     required this.nameBuilder,
     this.currency = CurrencyType.money,
+    this.artAlignment = Alignment.center,
   });
 
   final String id;
@@ -32,6 +33,10 @@ class PotOption {
 
   /// Balance the entry is paid in and the pot is won in.
   final CurrencyType currency;
+
+  /// Where the 16:9 art is anchored in the narrower card window, so the
+  /// city's landmark survives the side crop.
+  final Alignment artAlignment;
 
   int get entryStake => pool ~/ 2;
 
@@ -81,25 +86,47 @@ bool _isLightChip(Color color) => color.computeLuminance() > 0.5;
 int _potCacheWidth(BuildContext context) {
   final mq = MediaQuery.of(context);
   final px = mq.size.width * _viewportFraction * 0.8 * mq.devicePixelRatio;
-  return px.round().clamp(320, 1280);
+  // Art ships at 1024px wide; decoding larger only wastes memory.
+  return px.round().clamp(320, 1024);
 }
 
 ImageProvider _potImage(String assetPath, int cacheWidth) =>
     ResizeImage(AssetImage(assetPath), width: cacheWidth);
 
-Future<void> showStakeSelectorModal(BuildContext context) {
+/// Pot art bundled with the app. Cities without art are never requested
+/// from the bundle; their card shows the city emblem instead.
+Set<String>? _shippedPotArt;
+
+Future<Set<String>> _loadShippedPotArt() async {
+  final cached = _shippedPotArt;
+  if (cached != null) return cached;
+  try {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    return _shippedPotArt =
+        manifest
+            .listAssets()
+            .where((path) => path.startsWith('assets/pots/'))
+            .toSet();
+  } catch (_) {
+    return const {};
+  }
+}
+
+Future<void> showStakeSelectorModal(BuildContext context) async {
+  final shipped = await _loadShippedPotArt();
+  if (!context.mounted) return;
   // Start decoding the art before the route transition so the first frame
   // of the page doesn't stall on image decode.
   final cacheWidth = _potCacheWidth(context);
   for (final option in StakeSelectorScreen.potOptions) {
+    if (!shipped.contains(option.assetPath)) continue;
     precacheImage(
       _potImage(option.assetPath, cacheWidth),
       context,
-      // Missing art falls back to plain felt in the card window.
       onError: (_, __) {},
     );
   }
-  return Navigator.of(context).push<void>(
+  await Navigator.of(context).push<void>(
     MaterialPageRoute<void>(builder: (_) => const StakeSelectorScreen()),
   );
 }
@@ -113,6 +140,7 @@ class StakeSelectorScreen extends ConsumerStatefulWidget {
     PotOption(
       id: 'london',
       assetPath: 'assets/pots/london.webp',
+      artAlignment: const Alignment(-0.85, 0),
       pool: 20,
       nameBuilder: (l10n) => l10n.cityLondon,
     ),
@@ -144,6 +172,7 @@ class StakeSelectorScreen extends ConsumerStatefulWidget {
     PotOption(
       id: 'toronto',
       assetPath: 'assets/pots/toronto.webp',
+      artAlignment: const Alignment(0.55, 0),
       pool: 2,
       currency: CurrencyType.chips,
       nameBuilder: (l10n) => l10n.cityToronto,
@@ -158,6 +187,7 @@ class StakeSelectorScreen extends ConsumerStatefulWidget {
     PotOption(
       id: 'tokyo',
       assetPath: 'assets/pots/tokyo.webp',
+      artAlignment: const Alignment(0.7, 0),
       pool: 50,
       currency: CurrencyType.chips,
       nameBuilder: (l10n) => l10n.cityTokyo,
@@ -177,6 +207,19 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
   /// Selection lives in a notifier so swiping only rebuilds the chip rail and
   /// the bottom action panel, never the carousel itself.
   final ValueNotifier<int> _selected = ValueNotifier<int>(0);
+
+  /// Art paths in the bundle; null until the manifest is read.
+  Set<String>? _shippedArt = _shippedPotArt;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_shippedArt == null) {
+      _loadShippedPotArt().then((shipped) {
+        if (mounted) setState(() => _shippedArt = shipped);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -271,10 +314,14 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
                                 child: _PotPlayingCard(
                                   option: option,
                                   tier: index,
-                                  image: _potImage(
-                                    option.assetPath,
-                                    cacheWidth,
-                                  ),
+                                  image:
+                                      _shippedArt?.contains(option.assetPath) ??
+                                              false
+                                          ? _potImage(
+                                            option.assetPath,
+                                            cacheWidth,
+                                          )
+                                          : null,
                                   cityName: option.nameBuilder(l10n),
                                   canAfford: option.canAfford(
                                     money: playerMoney,
@@ -490,7 +537,9 @@ class _PotPlayingCard extends StatelessWidget {
 
   final PotOption option;
   final int tier;
-  final ImageProvider image;
+
+  /// City art, or null when the app doesn't ship any for this city.
+  final ImageProvider? image;
   final String cityName;
   final bool canAfford;
   final VoidCallback onTap;
@@ -566,7 +615,9 @@ class _CardFace extends StatelessWidget {
   final PotOption option;
   final String rank;
   final SuitShape suit;
-  final ImageProvider image;
+
+  /// City art, or null when the app doesn't ship any for this city.
+  final ImageProvider? image;
   final String cityName;
 
   @override
@@ -578,11 +629,11 @@ class _CardFace extends StatelessWidget {
     final spaced = locale.languageCode != 'ar';
 
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [CardInk.ivory, CardInk.ivoryShade],
+          colors: [style.paper, style.paperShade],
         ),
       ),
       child: Stack(
@@ -614,31 +665,16 @@ class _CardFace extends StatelessWidget {
               foregroundPainter: PotWindowFramePainter(style),
               child: ClipPath(
                 clipper: PotWindowClipper(style.window),
-                child: Image(
-                  image: image,
-                  fit: BoxFit.cover,
-                  gaplessPlayback: true,
-                  errorBuilder:
-                      (_, __, ___) => DecoratedBox(
-                        // Art not shipped yet: city colours and emblem.
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [style.ink, style.inkDeep],
-                          ),
+                child:
+                    image == null
+                        ? _CitySign(style: style)
+                        : Image(
+                          image: image!,
+                          fit: BoxFit.cover,
+                          alignment: option.artAlignment,
+                          gaplessPlayback: true,
+                          errorBuilder: (_, __, ___) => _CitySign(style: style),
                         ),
-                        child: Center(
-                          child: Opacity(
-                            opacity: 0.45,
-                            child: CustomPaint(
-                              size: const Size.square(56),
-                              painter: PotEmblemPainter(style),
-                            ),
-                          ),
-                        ),
-                      ),
-                ),
               ),
             ),
           ),
@@ -660,12 +696,20 @@ class _CardFace extends StatelessWidget {
                       maxLines: 1,
                       style: TextStyle(
                         fontFamily: CasinoFonts.displayFor(locale),
-                        color: CardInk.ivory,
+                        color: style.onRibbon,
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         letterSpacing: spaced ? 1.4 : 0,
-                        shadows: const [
-                          Shadow(color: Color(0x66000000), blurRadius: 2),
+                        shadows: [
+                          style.onRibbon.computeLuminance() > 0.5
+                              ? const Shadow(
+                                color: Color(0x66000000),
+                                blurRadius: 2,
+                              )
+                              : const Shadow(
+                                color: Color(0x80FFF4CC),
+                                offset: Offset(0, 1),
+                              ),
                         ],
                       ),
                     ),
@@ -738,7 +782,7 @@ class _CardFace extends StatelessWidget {
                         '${l10n.entryFee} ${option.entryStake}',
                         style: TextStyle(
                           fontFamily: CasinoFonts.uiFor(locale),
-                          color: CardInk.ivory,
+                          color: style.onRibbon,
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
                         ),
@@ -752,6 +796,41 @@ class _CardFace extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Stand-in for missing city art: the city's colours and emblem.
+class _CitySign extends StatelessWidget {
+  const _CitySign({required this.style});
+
+  final PotCardStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          radius: 0.9,
+          colors: [Color.lerp(style.ink, Colors.white, 0.18)!, style.inkDeep],
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 74,
+          height: 74,
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: style.paper,
+            border: Border.all(color: style.trim, width: 2),
+            boxShadow: const [
+              BoxShadow(color: Color(0x66000000), blurRadius: 8),
+            ],
+          ),
+          child: CustomPaint(painter: PotEmblemPainter(style)),
+        ),
       ),
     );
   }
@@ -866,7 +945,10 @@ class _LockedVeil extends StatelessWidget {
   }
 }
 
-/// Row of poker chips, one per pot tier; the selected chip lifts off the felt.
+/// Poker chips, one per pot tier, shown like carousel dots: a window of
+/// [_ChipRail.visible] chips follows the selection, the chip just past each
+/// edge peeks in small and faded, and the rest are hidden. The selected chip
+/// lifts off the felt.
 class _ChipRail extends StatelessWidget {
   const _ChipRail({
     required this.options,
@@ -882,44 +964,98 @@ class _ChipRail extends StatelessWidget {
   final int playerChips;
   final ValueChanged<int> onTap;
 
+  static const visible = 5;
+  static const _slot = 60.0;
+
+  /// Room at each end for the peeking neighbour.
+  static const _peek = 26.0;
+  static const _duration = Duration(milliseconds: 260);
+
   @override
   Widget build(BuildContext context) {
-    // Shrinks the rail on narrow screens so every pot's chip stays visible.
+    final shown = math.min(visible, options.length);
+    // Keep the selection centred, but never scroll past either end.
+    final first = (selected - shown ~/ 2).clamp(0, options.length - shown);
+    final width = shown * _slot + 2 * _peek;
+
     return SizedBox(
       height: 70,
       child: FittedBox(
         fit: BoxFit.scaleDown,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (var i = 0; i < options.length; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                child: Pressable(
-                  onTap: () => onTap(i),
-                  child: AnimatedSlide(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutBack,
-                    offset: Offset(0, i == selected ? -0.18 : 0.06),
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 200),
-                      opacity:
-                          options[i].canAfford(
-                                money: playerMoney,
-                                chips: playerChips,
-                              )
-                              ? 1
-                              : 0.45,
-                      child: _PokerChip(
-                        value: options[i].pool,
-                        color: _tierChipColors[i % _tierChipColors.length],
-                        selected: i == selected,
-                      ),
+        child: SizedBox(
+          width: width,
+          height: 70,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              for (var i = 0; i < options.length; i++)
+                _chipAt(i, i - first, shown),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Chip [i] at [slot] positions from the window's first chip.
+  Widget _chipAt(int i, int slot, int shown) {
+    final inWindow = slot >= 0 && slot < shown;
+    // Distance past the window edge: 1 = peeking neighbour, 2+ = hidden.
+    final beyond = slot < 0 ? -slot : slot - shown + 1;
+    final double center =
+        inWindow
+            ? _peek + (slot + 0.5) * _slot
+            : slot < 0
+            ? _peek + (slot + 0.5) * _slot * 0.45
+            : _peek + shown * _slot + (beyond - 0.5) * _slot * 0.45;
+    final affordable = options[i].canAfford(
+      money: playerMoney,
+      chips: playerChips,
+    );
+    final double opacity =
+        inWindow
+            ? (affordable ? 1 : 0.45)
+            : beyond == 1
+            ? 0.35
+            : 0;
+
+    return AnimatedPositioned(
+      key: ValueKey(options[i].id),
+      duration: _duration,
+      curve: Curves.easeOutCubic,
+      left: center - _slot / 2,
+      top: 0,
+      width: _slot,
+      height: 70,
+      child: IgnorePointer(
+        ignoring: opacity == 0,
+        child: Center(
+          child: Pressable(
+            onTap: () => onTap(i),
+            child: AnimatedScale(
+              duration: _duration,
+              curve: Curves.easeOutCubic,
+              scale: inWindow ? 1 : 0.5,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutBack,
+                offset: Offset(0, i == selected ? -0.18 : 0.06),
+                child: AnimatedOpacity(
+                  duration: _duration,
+                  opacity: opacity,
+                  // Own layer: Impeller can't fold opacity into the chip's
+                  // shadows/text ops (SetInheritedOpacity validation error).
+                  child: RepaintBoundary(
+                    child: _PokerChip(
+                      value: options[i].pool,
+                      color: _tierChipColors[i % _tierChipColors.length],
+                      selected: i == selected,
                     ),
                   ),
                 ),
               ),
-          ],
+            ),
+          ),
         ),
       ),
     );

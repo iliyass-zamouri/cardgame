@@ -36,19 +36,19 @@ class CityTheme {
   /// Room colour around the table.
   final Color backdrop;
 
-  /// Plain green felt on a wooden rail.
+  /// Racing-green tartan felt, mahogany and brass, Big Ben's dial.
   static const london = CityTheme(
     id: 'london',
     tier: 0,
-    accent: Color(0xFF8BC98F),
+    accent: Color(0xFFE2B84C),
     feltLight: Color(0xFF1F6B45),
-    feltDark: Color(0xFF0E3A26),
-    railLight: Color(0xFF6B4527),
-    railDark: Color(0xFF2E1B0F),
-    backdrop: Color(0xFF07150F),
+    feltDark: Color(0xFF0C2E20),
+    railLight: Color(0xFF7A3A22),
+    railDark: Color(0xFF2A0F08),
+    backdrop: Color(0xFF06140E),
   );
 
-  /// Blue felt, brass rail, diamond lattice.
+  /// Navy velvet with fleur-de-lis damask, gilded rail and pearls.
   static const paris = CityTheme(
     id: 'paris',
     tier: 1,
@@ -60,7 +60,7 @@ class CityTheme {
     backdrop: Color(0xFF050B1E),
   );
 
-  /// Crimson felt, gold studded rail, double inlay and rosettes.
+  /// Crimson felt, gold studded rail, the Kremlin's ruby star.
   static const moscow = CityTheme(
     id: 'moscow',
     tier: 2,
@@ -72,7 +72,7 @@ class CityTheme {
     backdrop: Color(0xFF14050A),
   );
 
-  /// Black felt, gold rail, sun disc and meander border.
+  /// Black felt, gold rail with lapis, winged sun and a jewelled collar.
   static const cairo = CityTheme(
     id: 'cairo',
     tier: 3,
@@ -84,19 +84,20 @@ class CityTheme {
     backdrop: Color(0xFF0B0803),
   );
 
-  /// Ivory and gold: zellige stars, jewelled rail, sparkle.
+  /// Black and white, like its chip: monochrome zellige on charcoal felt
+  /// inside a mother-of-pearl rail.
   static const marrakech = CityTheme(
     id: 'marrakech',
     tier: 4,
-    accent: Color(0xFFFFE9A8),
-    feltLight: Color(0xFF3E7C9E),
-    feltDark: Color(0xFF173A52),
-    railLight: Color(0xFFFFF0C2),
-    railDark: Color(0xFFB98A2E),
-    backdrop: Color(0xFF0C1620),
+    accent: Color(0xFFF2F2F4),
+    feltLight: Color(0xFF34343B),
+    feltDark: Color(0xFF0E0E11),
+    railLight: Color(0xFFFFFFFF),
+    railDark: Color(0xFFB4B4BC),
+    backdrop: Color(0xFF09090B),
   );
 
-  /// Chip table: icy teal felt on a silver rail.
+  /// Chip table: teal felt with falling maple leaves, brushed silver.
   static const toronto = CityTheme(
     id: 'toronto',
     tier: 4,
@@ -108,7 +109,7 @@ class CityTheme {
     backdrop: Color(0xFF061416),
   );
 
-  /// Chip table: midnight violet felt on a gold rail.
+  /// Chip table: violet art-deco felt, gold rail of marquee bulbs.
   static const newYork = CityTheme(
     id: 'new_york',
     tier: 4,
@@ -120,15 +121,16 @@ class CityTheme {
     backdrop: Color(0xFF0D0618),
   );
 
-  /// Chip table: sakura plum felt on a rose-gold rail.
+  /// Chip table: plum felt with seigaiha waves and sakura, black lacquer
+  /// rail trimmed in rose gold.
   static const tokyo = CityTheme(
     id: 'tokyo',
     tier: 4,
-    accent: Color(0xFFFF9EC7),
-    feltLight: Color(0xFF7A1F4E),
+    accent: Color(0xFFF2B8A6),
+    feltLight: Color(0xFF8A2457),
     feltDark: Color(0xFF2E0A1E),
-    railLight: Color(0xFFF7C6B5),
-    railDark: Color(0xFF9A5A48),
+    railLight: Color(0xFF4A2E38),
+    railDark: Color(0xFF0B0507),
     backdrop: Color(0xFF14040D),
   );
 

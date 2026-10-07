@@ -20,7 +20,10 @@ enum SfxKind {
 
 /// Fire-and-forget card / match audio. Safe from Flame + Flutter UI.
 class SfxService {
-  SfxService._();
+  SfxService._() {
+    // Plugin logs every native load failure; we already fall back silently.
+    AudioLogger.logLevel = AudioLogLevel.none;
+  }
   static final SfxService instance = SfxService._();
 
   static const _assets = {
@@ -69,6 +72,7 @@ class SfxService {
   AudioPlayer? _shufflePlayer;
   bool _searching = false;
   bool _searchPulseBusy = false;
+  int _searchFailures = 0;
   DateTime? _muteFlipUntil;
   DateTime? _lastCardActionSfxAt;
 
@@ -114,16 +118,20 @@ class SfxService {
 
   Future<AudioPool?> _poolFor(SfxKind kind) {
     return _pools.putIfAbsent(kind, () async {
-      try {
-        return await AudioPool.createFromAsset(
-          path: _assets[kind]!,
-          minPlayers: 2,
-          maxPlayers: 4,
-        );
-      } catch (e) {
-        debugPrint('Sfx pool($kind) unavailable: $e');
-        return null;
+      for (var attempt = 0; attempt < 2; attempt++) {
+        try {
+          return await AudioPool.createFromAsset(
+            path: _assets[kind]!,
+            minPlayers: 2,
+            maxPlayers: 4,
+          );
+        } catch (_) {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        }
       }
+      // Don't cache the failure: a later play() gets a fresh attempt.
+      _pools.remove(kind);
+      return null;
     });
   }
 
@@ -157,6 +165,7 @@ class SfxService {
   Future<void> startSearch() async {
     if (!enabled) return;
     if (_searching) return;
+    _searchFailures = 0;
     // Matchmaking wait is the ideal moment to warm the in-game players.
     unawaited(preload());
     _searching = true;
@@ -170,13 +179,15 @@ class SfxService {
   Future<void> _fireSearchPulse() async {
     if (!_searching || !enabled || _searchPulseBusy) return;
     _searchPulseBusy = true;
+    AudioPlayer? player;
     try {
-      final player = AudioPlayer();
+      player = AudioPlayer();
       _searchPlayer = player;
       await player.setReleaseMode(ReleaseMode.release);
       await player.setPlaybackRate(1.0);
       await player.setVolume(0.55);
       await player.play(AssetSource(_assets[SfxKind.searching]!));
+      _searchFailures = 0;
       try {
         await player.onPlayerComplete.first.timeout(const Duration(seconds: 5));
       } on TimeoutException {
@@ -184,11 +195,21 @@ class SfxService {
       }
       await _safeDispose(player);
       if (_searchPlayer == player) _searchPlayer = null;
+      player = null;
       if (!_searching) return;
       await Future<void>.delayed(_searchBreak);
-    } catch (e) {
-      debugPrint('Sfx search pulse failed: $e');
+    } catch (_) {
+      // Native load failed (seen on the iOS simulator). Don't leak the
+      // player or hammer the plugin every second: give up after a few tries.
+      if (++_searchFailures >= 3) {
+        _searchTimer?.cancel();
+        _searchTimer = null;
+      }
     } finally {
+      if (player != null) {
+        await _safeDispose(player);
+        if (_searchPlayer == player) _searchPlayer = null;
+      }
       _searchPulseBusy = false;
     }
   }

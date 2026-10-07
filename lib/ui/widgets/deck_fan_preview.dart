@@ -75,7 +75,8 @@ class DeckBackPreview extends StatelessWidget {
 }
 
 class DeckBackPreviewPainter extends CustomPainter {
-  DeckBackPreviewPainter(this.skinId);
+  DeckBackPreviewPainter(this.skinId)
+    : super(repaint: CardBackSkins.byId(skinId).repaintListenable);
 
   final String skinId;
 

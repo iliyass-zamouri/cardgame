@@ -23,9 +23,21 @@ class RewardedAdService {
   RewardedAd? _ad;
   bool _loading = false;
   bool _showing = false;
+  int _retries = 0;
+  Timer? _retryTimer;
+  DateTime? _lastFailureAt;
+
+  /// AdMob throttles ad units that fail repeatedly ("Too many recently failed
+  /// requests"), so never re-request right after a failure.
+  static const _failureCooldown = Duration(seconds: 20);
 
   void preload() {
     if (!AdIds.isSupported || _ad != null || _loading) return;
+    final failedAt = _lastFailureAt;
+    if (failedAt != null &&
+        DateTime.now().difference(failedAt) < _failureCooldown) {
+      return;
+    }
     _loading = true;
     RewardedAd.load(
       adUnitId: AdIds.rewardedUnitId,
@@ -33,12 +45,20 @@ class RewardedAdService {
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
           _loading = false;
+          _retries = 0;
+          _lastFailureAt = null;
           _ad = ad;
         },
         onAdFailedToLoad: (error) {
           debugPrint('Rewarded ad failed to load: $error');
           _loading = false;
           _ad = null;
+          _lastFailureAt = DateTime.now();
+          if (_retries < 3) {
+            final delay = Duration(seconds: 30 * (1 << _retries++));
+            _retryTimer?.cancel();
+            _retryTimer = Timer(delay, preload);
+          }
         },
       ),
     );
@@ -94,6 +114,7 @@ class RewardedAdService {
   }
 
   void dispose() {
+    _retryTimer?.cancel();
     _ad?.dispose();
     _ad = null;
   }

@@ -136,6 +136,12 @@ async function ensureRankingSchema() {
     await addColumnIfMissing(
       conn,
       'players',
+      'country_code',
+      'country_code CHAR(2) NULL',
+    );
+    await addColumnIfMissing(
+      conn,
+      'players',
       'elo',
       `elo INT NOT NULL DEFAULT ${ELO_START}`,
     );
@@ -505,7 +511,7 @@ async function getLeaderboard({ limit = 50, offset = 0 } = {}) {
   const paging = clampPaging(limit, offset);
   const pool = getPool();
   const [rows] = await pool.execute(
-    `SELECT id, display_name, username, elo, total_points, wins, losses, draws, deck_id
+    `SELECT id, display_name, username, elo, total_points, wins, losses, draws, deck_id, country_code
      FROM players
      ORDER BY elo DESC, total_points DESC, id ASC
      LIMIT ${paging.limit} OFFSET ${paging.offset}`,
@@ -523,6 +529,7 @@ async function getLeaderboard({ limit = 50, offset = 0 } = {}) {
       losses: row.losses,
       draws: row.draws,
       deckId: row.deck_id || 'default',
+      countryCode: row.country_code || null,
     })),
   };
 }
@@ -531,7 +538,7 @@ async function getPlayerRank(playerId) {
   if (!playerId) return null;
   const pool = getPool();
   const [rows] = await pool.execute(
-    `SELECT id, display_name, username, elo, total_points, wins, losses, draws, deck_id
+    `SELECT id, display_name, username, elo, total_points, wins, losses, draws, deck_id, country_code
      FROM players
      WHERE id = :playerId
      LIMIT 1`,
@@ -564,6 +571,7 @@ async function getPlayerRank(playerId) {
     losses: row.losses,
     draws: row.draws,
     deckId: row.deck_id || 'default',
+    countryCode: row.country_code || null,
   };
 }
 

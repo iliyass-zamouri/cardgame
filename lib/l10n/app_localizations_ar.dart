@@ -834,6 +834,46 @@ class AppLocalizationsAr extends AppLocalizations {
   String get onyxBlackDeckDesc => 'ظهر أسود أونيكس بزخارف ذهبية';
 
   @override
+  String get sapphireFrostDeck => 'تنين الياقوت';
+
+  @override
+  String get sapphireFrostDeckDesc =>
+      'زخارف سلتية بالياقوت والذهب حول تنينين متشابكين';
+
+  @override
+  String get imperialJadeDeck => 'الفيكتوري الرفيع';
+
+  @override
+  String get imperialJadeDeckDesc => 'زخرفة زمردية في إطار ذهبي فيكتوري';
+
+  @override
+  String get royalCrimsonDeck => 'القرمزي الملكي';
+
+  @override
+  String get royalCrimsonDeckDesc => 'زخرفة ذهبية ووجه متوج على قرمزي';
+
+  @override
+  String get neonNightsDeck => 'ليالي النيون';
+
+  @override
+  String get neonNightsDeckDesc => 'غروب سينثويف فوق شبكة نيون متوهجة';
+
+  @override
+  String get gildedDeck => 'ذهب عيار 24';
+
+  @override
+  String get gildedDeckDesc => 'ذهب خالص منقوش مع ماسة مقطوعة ببراعة';
+
+  @override
+  String get rarityRare => 'نادر';
+
+  @override
+  String get rarityEpic => 'ملحمي';
+
+  @override
+  String get rarityLegendary => 'أسطوري';
+
+  @override
   String get price => 'السعر';
 
   @override

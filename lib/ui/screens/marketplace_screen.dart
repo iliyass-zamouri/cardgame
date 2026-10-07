@@ -1328,30 +1328,6 @@ class _DecksTab extends ConsumerWidget {
   final PlayerProfile profile;
   final void Function(bool) onBusy;
 
-  String _getDeckName(BuildContext context, String nameKey) {
-    final l10n = context.l10n;
-    switch (nameKey) {
-      case 'classicDeck':
-        return l10n.classicDeck;
-      case 'onyxBlackDeck':
-        return l10n.onyxBlackDeck;
-      default:
-        return nameKey;
-    }
-  }
-
-  String _getDeckDesc(BuildContext context, String descriptionKey) {
-    final l10n = context.l10n;
-    switch (descriptionKey) {
-      case 'classicDeckDesc':
-        return l10n.classicDeckDesc;
-      case 'onyxBlackDeckDesc':
-        return l10n.onyxBlackDeckDesc;
-      default:
-        return descriptionKey;
-    }
-  }
-
   Future<void> _equipDeck(
     BuildContext context,
     WidgetRef ref,
@@ -1360,10 +1336,7 @@ class _DecksTab extends ConsumerWidget {
     final l10n = context.l10n;
     await ref.read(playerProfileProvider.notifier).updateDeck(deck.id);
     if (context.mounted) {
-      CasinoToast.show(
-        context,
-        '${l10n.equipped}: ${_getDeckName(context, deck.nameKey)}',
-      );
+      CasinoToast.show(context, '${l10n.equipped}: ${l10n.deckName(deck)}');
     }
   }
 
@@ -1390,10 +1363,7 @@ class _DecksTab extends ConsumerWidget {
           );
       SfxService.instance.buy();
       if (context.mounted) {
-        CasinoToast.show(
-          context,
-          '${l10n.unlocked}! ${_getDeckName(context, deck.nameKey)}',
-        );
+        CasinoToast.show(context, '${l10n.unlocked}! ${l10n.deckName(deck)}');
       }
     } catch (e) {
       if (context.mounted) {
@@ -1420,8 +1390,10 @@ class _DecksTab extends ConsumerWidget {
         final deck = decks[index];
         final isOwned = profile.ownsDeck(deck.id);
         final isEquipped = profile.deckId == deck.id;
-        final name = _getDeckName(context, deck.nameKey);
-        final desc = _getDeckDesc(context, deck.descriptionKey);
+        final name = l10n.deckName(deck);
+        final desc = l10n.deckDescription(deck);
+        final rarity = l10n.deckRarity(deck.rarity);
+        final rarityColor = _rarityColor(deck.rarity);
 
         final Widget action;
         if (isEquipped) {
@@ -1458,20 +1430,49 @@ class _DecksTab extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Deck fanned out on a felt inset, like on the table.
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: const RadialGradient(
-                      radius: 0.9,
-                      colors: [Color(0xFF237A4F), CasinoColors.feltDeep],
+                // Deck fanned out on a felt inset, like on the table,
+                // glowing in its rarity colour.
+                Stack(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: RadialGradient(
+                          radius: 0.9,
+                          colors: [
+                            Color.lerp(
+                              const Color(0xFF237A4F),
+                              rarityColor,
+                              rarityColor == null ? 0 : 0.18,
+                            )!,
+                            CasinoColors.feltDeep,
+                          ],
+                        ),
+                        border: Border.all(
+                          color: (rarityColor ?? CasinoColors.gold).withValues(
+                            alpha: rarityColor == null ? 0.25 : 0.6,
+                          ),
+                          width: rarityColor == null ? 1 : 1.5,
+                        ),
+                        boxShadow: [
+                          if (rarityColor != null)
+                            BoxShadow(
+                              color: rarityColor.withValues(alpha: 0.25),
+                              blurRadius: 18,
+                            ),
+                        ],
+                      ),
+                      child: Center(child: DeckFanPreview(skinId: deck.skinId)),
                     ),
-                    border: Border.all(
-                      color: CasinoColors.gold.withValues(alpha: 0.25),
-                    ),
-                  ),
-                  child: Center(child: DeckFanPreview(skinId: deck.skinId)),
+                    if (rarity != null)
+                      PositionedDirectional(
+                        top: 10,
+                        start: 10,
+                        child: _RarityBadge(label: rarity, color: rarityColor!),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 14),
                 Text(
@@ -1503,6 +1504,61 @@ class _DecksTab extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+Color? _rarityColor(DeckRarity rarity) => switch (rarity) {
+  DeckRarity.standard => null,
+  DeckRarity.rare => const Color(0xFF4FA3FF),
+  DeckRarity.epic => const Color(0xFFB06BFF),
+  DeckRarity.legendary => const Color(0xFFFFC542),
+};
+
+/// Small gem-cut pill naming a deck's rarity.
+class _RarityBadge extends StatelessWidget {
+  const _RarityBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color.lerp(color, Colors.white, 0.25)!, color],
+        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const HugeIcon(
+            icon: AppIcons.diamond,
+            size: 12,
+            color: Color(0xFF17171C),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            casinoButtonLabel(label, locale),
+            style: const TextStyle(
+              color: Color(0xFF17171C),
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

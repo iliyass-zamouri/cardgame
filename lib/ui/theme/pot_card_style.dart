@@ -37,7 +37,13 @@ class PotCardStyle {
     required this.ornament,
     required this.palette,
     this.trim = _gold,
-  });
+    this.paper = const Color(0xFFFBF5E6),
+    this.paperShade = const Color(0xFFEADFC4),
+    Color? ribbon,
+    Color? ribbonDeep,
+    this.onRibbon = const Color(0xFFFBF5E6),
+  }) : ribbon = ribbon ?? ink,
+       ribbonDeep = ribbonDeep ?? inkDeep;
 
   /// Banner, pot value and corner index colour.
   final Color ink;
@@ -52,6 +58,16 @@ class PotCardStyle {
 
   /// Ornament colours, most prominent first (at least four).
   final List<Color> palette;
+
+  /// Banner and entry-fee tag fill (top to bottom) and their text colour;
+  /// the fill defaults to the ink.
+  final Color ribbon;
+  final Color ribbonDeep;
+  final Color onRibbon;
+
+  /// Card stock gradient, top left to bottom right.
+  final Color paper;
+  final Color paperShade;
 
   static const _gold = Color(0xFFC9A34A);
 
@@ -98,6 +114,9 @@ class PotCardStyle {
     ink: Color(0xFF1E1E22),
     inkDeep: Color(0xFF0B0B0E),
     trim: Color(0xFFD4A63A),
+    ribbon: Color(0xFFF2CF6B),
+    ribbonDeep: Color(0xFFC18F2C),
+    onRibbon: Color(0xFF1E1E22),
     window: PotWindowShape.pylon,
     ornament: PotOrnament.lotus,
     palette: [
@@ -108,16 +127,20 @@ class PotCardStyle {
     ],
   );
 
+  /// Black on white, like its chip: monochrome zellige on bright stock.
   static const marrakech = PotCardStyle(
-    ink: Color(0xFF0F5132),
-    inkDeep: Color(0xFF083622),
+    ink: Color(0xFF17171C),
+    inkDeep: Color(0xFF000000),
+    trim: Color(0xFF8C8C94),
+    paper: Color(0xFFFFFFFF),
+    paperShade: Color(0xFFEDEDEF),
     window: PotWindowShape.moorish,
     ornament: PotOrnament.zellige,
     palette: [
-      Color(0xFFE85D2A),
-      Color(0xFF1F7A6A),
-      Color(0xFFF2C14E),
-      Color(0xFFC9372C),
+      Color(0xFF17171C),
+      Color(0xFFFFFFFF),
+      Color(0xFF6E6E78),
+      Color(0xFF17171C),
     ],
   );
 
@@ -322,6 +345,8 @@ class PotRibbonPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
+    // Trim disappears on a light (gold) ribbon; edge it in ink instead.
+    final edge = style.ribbon.computeLuminance() > 0.4 ? style.ink : style.trim;
     if (tail) {
       final c = size.width / 2;
       canvas.drawPath(
@@ -330,18 +355,24 @@ class PotRibbonPainter extends CustomPainter {
           ..lineTo(c, size.height + 6)
           ..lineTo(c + 7, size.height - 1)
           ..close(),
-        Paint()..color = style.trim,
+        Paint()..color = edge,
       );
     }
     final outer = _ribbon(rect);
-    canvas.drawShadow(outer, Colors.black, 2, false);
+    // Not drawShadow: Impeller can't fold an ancestor Opacity into it.
+    canvas.drawPath(
+      outer.shift(const Offset(0, 1.5)),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.45)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+    );
     canvas.drawPath(
       outer,
       Paint()
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [style.ink, style.inkDeep],
+          colors: [style.ribbon, style.ribbonDeep],
         ).createShader(rect),
     );
     canvas.drawPath(
@@ -349,14 +380,14 @@ class PotRibbonPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.8
-        ..color = style.trim,
+        ..color = edge,
     );
     canvas.drawPath(
       _ribbon(rect.deflate(3.2)),
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 0.6
-        ..color = style.trim.withValues(alpha: 0.7),
+        ..color = edge.withValues(alpha: 0.7),
     );
   }
 

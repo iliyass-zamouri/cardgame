@@ -5,6 +5,7 @@ import 'package:cardgame/data/ranking/ranking_api.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/screens/profile/player_profile_screen.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/widgets/country_flag.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
@@ -329,7 +330,6 @@ abstract final class _LbCols {
   static const rank = 36.0;
   static const avatar = 56.0;
   static const gap = 10.0;
-  static const stat = 36.0;
   static const elo = 48.0;
   static const hPad = 12.0;
 }
@@ -358,30 +358,6 @@ class _LeaderboardHeader extends StatelessWidget {
           const SizedBox(width: _LbCols.rank),
           const SizedBox(width: _LbCols.avatar + _LbCols.gap),
           const Expanded(child: SizedBox.shrink()),
-          SizedBox(
-            width: _LbCols.stat,
-            child: Text(
-              l10n.colWins,
-              textAlign: TextAlign.center,
-              style: style,
-            ),
-          ),
-          SizedBox(
-            width: _LbCols.stat,
-            child: Text(
-              l10n.colLosses,
-              textAlign: TextAlign.center,
-              style: style,
-            ),
-          ),
-          SizedBox(
-            width: _LbCols.stat,
-            child: Text(
-              l10n.colDraws,
-              textAlign: TextAlign.center,
-              style: style,
-            ),
-          ),
           SizedBox(
             width: _LbCols.elo,
             child: Text(l10n.elo, textAlign: TextAlign.end, style: style),
@@ -432,6 +408,7 @@ class _RankRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final name = isSelf ? selfLabel : entry.displayName;
     final badge = _badgeAsset(entry.rank);
     final rankColor = _rankColor(entry.rank);
@@ -501,40 +478,59 @@ class _RankRow extends StatelessWidget {
           ),
           const SizedBox(width: _LbCols.gap),
           Expanded(
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: onIvory ? CasinoFonts.display : null,
-                color: nameColor,
-                fontWeight: onIvory ? FontWeight.w800 : FontWeight.w700,
-                fontSize: onIvory ? 16 : null,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: _LbCols.stat,
-            child: Text(
-              '${entry.wins}',
-              textAlign: TextAlign.center,
-              style: _statStyle.copyWith(color: winColor),
-            ),
-          ),
-          SizedBox(
-            width: _LbCols.stat,
-            child: Text(
-              '${entry.losses}',
-              textAlign: TextAlign.center,
-              style: _statStyle.copyWith(color: lossColor),
-            ),
-          ),
-          SizedBox(
-            width: _LbCols.stat,
-            child: Text(
-              '${entry.draws}',
-              textAlign: TextAlign.center,
-              style: _statStyle.copyWith(color: drawColor),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    CountryFlag(
+                      code: entry.countryCode,
+                      size: onIvory ? 16 : 14,
+                    ),
+                    if (flagEmoji(entry.countryCode).isNotEmpty)
+                      const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.visible,
+                        style: TextStyle(
+                          fontFamily: onIvory ? CasinoFonts.display : null,
+                          color: nameColor,
+                          fontWeight:
+                              onIvory ? FontWeight.w800 : FontWeight.w700,
+                          fontSize: onIvory ? 16 : null,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '${l10n.colWins} ${entry.wins}',
+                        style: TextStyle(color: winColor),
+                      ),
+                      const TextSpan(text: '   '),
+                      TextSpan(
+                        text: '${l10n.colLosses} ${entry.losses}',
+                        style: TextStyle(color: lossColor),
+                      ),
+                      const TextSpan(text: '   '),
+                      TextSpan(
+                        text: '${l10n.colDraws} ${entry.draws}',
+                        style: TextStyle(color: drawColor),
+                      ),
+                    ],
+                  ),
+                  maxLines: 1,
+                  style: _statStyle.copyWith(fontSize: 12),
+                ),
+              ],
             ),
           ),
           SizedBox(

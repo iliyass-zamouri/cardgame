@@ -20,6 +20,8 @@ class InterstitialAdService {
   InterstitialAd? _ad;
   bool _loading = false;
   bool _showing = false;
+  int _retries = 0;
+  Timer? _retryTimer;
 
   void preload() {
     if (_isPro?.call() == true) return;
@@ -31,12 +33,18 @@ class InterstitialAdService {
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
           _loading = false;
+          _retries = 0;
           _ad = ad;
         },
         onAdFailedToLoad: (error) {
           debugPrint('Interstitial failed to load: $error');
           _loading = false;
           _ad = null;
+          if (_retries < 3) {
+            final delay = Duration(seconds: 15 * (1 << _retries++));
+            _retryTimer?.cancel();
+            _retryTimer = Timer(delay, preload);
+          }
         },
       ),
     );
@@ -75,6 +83,7 @@ class InterstitialAdService {
   }
 
   void dispose() {
+    _retryTimer?.cancel();
     _ad?.dispose();
     _ad = null;
   }

@@ -1658,6 +1658,84 @@ abstract class AppLocalizations {
   /// **'Obsidian back with gold filigree'**
   String get onyxBlackDeckDesc;
 
+  /// No description provided for @sapphireFrostDeck.
+  ///
+  /// In en, this message translates to:
+  /// **'Sapphire Dragon'**
+  String get sapphireFrostDeck;
+
+  /// No description provided for @sapphireFrostDeckDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Celtic knotwork in sapphire and gold around twin dragons'**
+  String get sapphireFrostDeckDesc;
+
+  /// No description provided for @imperialJadeDeck.
+  ///
+  /// In en, this message translates to:
+  /// **'High Victorian'**
+  String get imperialJadeDeck;
+
+  /// No description provided for @imperialJadeDeckDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Emerald filigree in a gilt Victorian frame'**
+  String get imperialJadeDeckDesc;
+
+  /// No description provided for @royalCrimsonDeck.
+  ///
+  /// In en, this message translates to:
+  /// **'Royal Crimson'**
+  String get royalCrimsonDeck;
+
+  /// No description provided for @royalCrimsonDeckDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Gilt filigree and a crowned figure on crimson'**
+  String get royalCrimsonDeckDesc;
+
+  /// No description provided for @neonNightsDeck.
+  ///
+  /// In en, this message translates to:
+  /// **'Neon Nights'**
+  String get neonNightsDeck;
+
+  /// No description provided for @neonNightsDeckDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'A synthwave sunset over a glowing neon grid'**
+  String get neonNightsDeckDesc;
+
+  /// No description provided for @gildedDeck.
+  ///
+  /// In en, this message translates to:
+  /// **'24K Gold'**
+  String get gildedDeck;
+
+  /// No description provided for @gildedDeckDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Engraved solid gold with a brilliant-cut diamond'**
+  String get gildedDeckDesc;
+
+  /// No description provided for @rarityRare.
+  ///
+  /// In en, this message translates to:
+  /// **'Rare'**
+  String get rarityRare;
+
+  /// No description provided for @rarityEpic.
+  ///
+  /// In en, this message translates to:
+  /// **'Epic'**
+  String get rarityEpic;
+
+  /// No description provided for @rarityLegendary.
+  ///
+  /// In en, this message translates to:
+  /// **'Legendary'**
+  String get rarityLegendary;
+
   /// No description provided for @price.
   ///
   /// In en, this message translates to:

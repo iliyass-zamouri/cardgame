@@ -1,3 +1,4 @@
+import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:flutter/widgets.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
 
@@ -40,5 +41,36 @@ String localizeErrorCode(AppLocalizations l10n, String? code) {
     'unknown_command' => l10n.errUnknownCommand,
     'too_many_commands' => l10n.errTooManyCommands,
     _ => l10n.errCommandFailed,
+  };
+}
+
+/// Localized labels for market decks.
+extension DeckL10n on AppLocalizations {
+  String deckName(DeckItem deck) => switch (deck.id) {
+    DeckCatalog.onyxBlackDeckId => onyxBlackDeck,
+    'sapphire_frost' => sapphireFrostDeck,
+    'imperial_jade' => imperialJadeDeck,
+    'royal_crimson' => royalCrimsonDeck,
+    'neon_nights' => neonNightsDeck,
+    'gilded_gold' => gildedDeck,
+    _ => classicDeck,
+  };
+
+  String deckDescription(DeckItem deck) => switch (deck.id) {
+    DeckCatalog.onyxBlackDeckId => onyxBlackDeckDesc,
+    'sapphire_frost' => sapphireFrostDeckDesc,
+    'imperial_jade' => imperialJadeDeckDesc,
+    'royal_crimson' => royalCrimsonDeckDesc,
+    'neon_nights' => neonNightsDeckDesc,
+    'gilded_gold' => gildedDeckDesc,
+    _ => classicDeckDesc,
+  };
+
+  /// Null for standard decks, which carry no badge.
+  String? deckRarity(DeckRarity rarity) => switch (rarity) {
+    DeckRarity.standard => null,
+    DeckRarity.rare => rarityRare,
+    DeckRarity.epic => rarityEpic,
+    DeckRarity.legendary => rarityLegendary,
   };
 }

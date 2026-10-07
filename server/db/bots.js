@@ -7,6 +7,16 @@ const BOT_AVATAR_IDS = AVATAR_CATALOG && AVATAR_CATALOG.length > 0
   ? AVATAR_CATALOG.map((a) => a.id)
   : ['default', 'blue', 'red', 'bronze', 'silver', 'joker-girl', 'violet-joker-girl', 'violet-queen', 'queen-of-heart', 'golden-king'];
 
+const BOT_COUNTRIES = [
+  'US', 'GB', 'FR', 'ES', 'PT', 'DE', 'IT', 'BR', 'MX', 'AR', 'CA', 'MA',
+  'EG', 'DZ', 'TN', 'SA', 'AE', 'TR', 'RU', 'UA', 'PL', 'NL', 'SE', 'IN',
+  'JP', 'KR', 'CN', 'AU', 'ZA', 'NG', 'CO', 'CL',
+];
+
+function getRandomBotCountry() {
+  return BOT_COUNTRIES[Math.floor(Math.random() * BOT_COUNTRIES.length)];
+}
+
 function getRandomBotAvatarId() {
   return BOT_AVATAR_IDS[Math.floor(Math.random() * BOT_AVATAR_IDS.length)] || 'default';
 }
@@ -56,6 +66,17 @@ async function ensureBotSchema() {
       'idx_players_is_bot',
       'KEY idx_players_is_bot (is_bot)',
     );
+    // Give existing players/bots without a country a random one (ranking schema
+    // adds the column first). Real logins overwrite it via detected geo.
+    const [bots] = await conn.query(
+      `SELECT id FROM players WHERE country_code IS NULL`,
+    );
+    for (const row of bots) {
+      await conn.query(`UPDATE players SET country_code = ? WHERE id = ?`, [
+        getRandomBotCountry(),
+        row.id,
+      ]);
+    }
   } finally {
     conn.release();
   }
@@ -122,14 +143,15 @@ async function acquireBotUser(activeBotPlayerIds = new Set()) {
     try {
       await pool.execute(
         `INSERT INTO players (
-           id, display_name, username, auth_type, is_bot, elo, total_points, wins, losses, draws
+           id, display_name, username, auth_type, is_bot, elo, total_points, wins, losses, draws, country_code
          ) VALUES (
-           :id, :displayName, :username, 'guest', 1, 1000, 0, 0, 0, 0
+           :id, :displayName, :username, 'guest', 1, 1000, 0, 0, 0, 0, :countryCode
          )`,
         {
           id,
           displayName: identity.name,
           username: identity.username,
+          countryCode: getRandomBotCountry(),
         },
       );
       return {

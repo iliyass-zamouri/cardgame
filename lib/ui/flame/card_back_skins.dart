@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:cardgame/ui/flame/premium_card_backs.dart';
+import 'package:flutter/foundation.dart';
+
 /// Visual styling and color theme for the face of cards belonging to a deck preset.
 class CardFaceTheme {
   const CardFaceTheme({
@@ -10,14 +13,19 @@ class CardFaceTheme {
     this.frameAlpha = 0.14,
     this.borderColor = const Color(0x33263238),
     this.highlightBorderColor = const Color(0xFFFFD54F),
+    this.foil,
   });
 
   final List<Color> backgroundGradientColors;
+
+  /// Metal gradient (highlight to shadow) for premium faces: draws a foil
+  /// border and corner filigree. Null keeps the plain face.
   final Color blackColor;
   final Color redColor;
   final double frameAlpha;
   final Color borderColor;
   final Color highlightBorderColor;
+  final List<Color>? foil;
 
   static const classic = CardFaceTheme(
     backgroundGradientColors: [Color(0xFFFFFFFF), Color(0xFFFDF8EF)],
@@ -58,6 +66,9 @@ abstract class CardBackSkin {
 
   /// Face styling preset for cards using this deck skin.
   final CardFaceTheme faceTheme;
+
+  /// Fires when async plate art for this skin becomes paintable.
+  Listenable? get repaintListenable => null;
 
   /// Paints the back inside the unit-width space. Implementations may assume
   /// the canvas is already clipped to the card shape.
@@ -103,6 +114,12 @@ class CardBackSkins {
     faceTheme: CardFaceTheme.onyxBlack,
   );
 
+  static const royalCrimson = RoyalCrimsonBack();
+  static const sapphireFrost = SapphireDragonBack();
+  static const imperialJade = ImperialJadeBack();
+  static const neonNights = NeonNightsBack();
+  static const gilded = GildedBack();
+
   static const List<CardBackSkin> all = [
     ornateRed,
     ornateBlue,
@@ -110,6 +127,11 @@ class CardBackSkins {
     ornateMidnight,
     weave,
     blackOnyx,
+    royalCrimson,
+    sapphireFrost,
+    imperialJade,
+    neonNights,
+    gilded,
   ];
 
   static CardBackSkin byId(String? id) {
@@ -128,6 +150,14 @@ class CardBackSkins {
   /// Unknown ids fall back to the default skin, so a stale saved selection
   /// after a skin is retired cannot break rendering.
   static void select(String id) => _activeId = byId(id).id;
+
+  /// Decodes image plates before the first card paint.
+  static Future<void> ensureLoaded() async {
+    await Future.wait([
+      SapphireDragonBack.ensureLoaded(),
+      RoyalCrimsonBack.ensureLoaded(),
+    ]);
+  }
 }
 
 /// Ornate filigree back: scrolled border, hatched side panels, bead rows,

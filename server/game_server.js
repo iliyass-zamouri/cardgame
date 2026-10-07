@@ -29,7 +29,8 @@ const {
   authenticateOAuth,
   GoogleAccountInUseError,
 } = require('./auth/oauth');
-const { findOrCreateGuest } = require('./db/store');
+const { findOrCreateGuest, setPlayerCountry } = require('./db/store');
+const { getClientCountry } = require('./auth/geo');
 const {
   recordRankedMatch,
   getLeaderboard,
@@ -1264,6 +1265,7 @@ class GameServer {
 
     try {
       const identity = await findOrCreateGuest({ deviceId, clientIp });
+      await setPlayerCountry(identity.playerId, getClientCountry(request, clientIp)).catch(() => {});
       const tokenVersion = identity.tokenVersion ?? (await getPlayerTokenVersion(identity.playerId)) ?? 0;
       const accessToken = await signSession({
         playerId: identity.playerId,
@@ -1353,6 +1355,7 @@ class GameServer {
         clientIp,
         confirmSwitch,
       });
+      await setPlayerCountry(identity.playerId, getClientCountry(request, clientIp)).catch(() => {});
       const tokenVersion = identity.tokenVersion ?? (await getPlayerTokenVersion(identity.playerId)) ?? 0;
       const accessToken = await signSession({
         playerId: identity.playerId,

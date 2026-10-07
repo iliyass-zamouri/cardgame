@@ -22,6 +22,7 @@ import 'package:cardgame/services/push_prefs_repository.dart';
 import 'package:cardgame/trailer/trailer_director.dart';
 import 'package:cardgame/trailer/trailer_mode.dart';
 import 'package:cardgame/ui/background.dart';
+import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:cardgame/ui/flame/card_fonts.dart';
 import 'package:cardgame/ui/screens/auth/authentication_screen.dart';
 import 'package:cardgame/ui/screens/home/home_screen.dart';
@@ -121,7 +122,11 @@ Future<void> main() async {
       }
 
       await Hive.initFlutter();
-      await Future.wait([ensureCardFontsLoaded(), ensureArabicUiFontLoaded()]);
+      await Future.wait([
+        ensureCardFontsLoaded(),
+        ensureArabicUiFontLoaded(),
+        CardBackSkins.ensureLoaded(),
+      ]);
 
       final sessionRepo = await SessionAuthRepository.open();
       final profileRepo = await PlayerProfileRepository.open();

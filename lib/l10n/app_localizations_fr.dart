@@ -845,6 +845,49 @@ class AppLocalizationsFr extends AppLocalizations {
   String get onyxBlackDeckDesc => 'Dos obsidienne à filigrane doré';
 
   @override
+  String get sapphireFrostDeck => 'Dragon de Saphir';
+
+  @override
+  String get sapphireFrostDeckDesc =>
+      'Entrelacs celtiques saphir et or autour de deux dragons';
+
+  @override
+  String get imperialJadeDeck => 'Haut Victorien';
+
+  @override
+  String get imperialJadeDeckDesc =>
+      'Filigrane émeraude dans un cadre victorien doré';
+
+  @override
+  String get royalCrimsonDeck => 'Pourpre Royal';
+
+  @override
+  String get royalCrimsonDeckDesc =>
+      'Filigrane doré et figure couronnée sur cramoisi';
+
+  @override
+  String get neonNightsDeck => 'Nuits Néon';
+
+  @override
+  String get neonNightsDeckDesc =>
+      'Un coucher de soleil synthwave sur une grille néon';
+
+  @override
+  String get gildedDeck => 'Or 24 carats';
+
+  @override
+  String get gildedDeckDesc => 'Or massif gravé et diamant taille brillant';
+
+  @override
+  String get rarityRare => 'Rare';
+
+  @override
+  String get rarityEpic => 'Épique';
+
+  @override
+  String get rarityLegendary => 'Légendaire';
+
+  @override
   String get price => 'Prix';
 
   @override

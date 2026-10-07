@@ -42,7 +42,25 @@ void main() {
       expect(onyx.skinId, 'black_onyx');
       expect(DeckCatalog.skinIdFor('black_onyx'), 'black_onyx');
       expect(DeckCatalog.skinIdFor('unknown'), 'ornate_blue');
-      expect(DeckCatalog.all.map((d) => d.id), ['default', 'black_onyx']);
+      expect(DeckCatalog.all.map((d) => d.id), [
+        'default',
+        'sapphire_frost',
+        'imperial_jade',
+        'royal_crimson',
+        'neon_nights',
+        'black_onyx',
+        'gilded_gold',
+      ]);
+    });
+
+    test('every catalog deck has a registered back and is priced in order', () {
+      var previous = -1;
+      for (final deck in DeckCatalog.all) {
+        expect(CardBackSkins.byId(deck.skinId).id, deck.skinId);
+        expect(deck.chipPrice, greaterThanOrEqualTo(previous));
+        previous = deck.chipPrice;
+      }
+      expect(DeckCatalog.getById('gilded_gold').rarity, DeckRarity.legendary);
     });
 
     test('Onyx Black skin is registered for in-game backs', () {

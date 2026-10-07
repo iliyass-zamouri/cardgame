@@ -9,6 +9,7 @@ import 'package:cardgame/services/sfx_service.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/flame/court_svg_art.dart';
 import 'package:cardgame/ui/flame/joker_svg_art.dart';
+import 'package:cardgame/ui/flame/premium_card_backs.dart';
 import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
@@ -2671,6 +2672,8 @@ class _CardArt {
         ..strokeWidth = math.max(0.6, w * 0.008)
         ..color = meta.color.withValues(alpha: faceTheme.frameAlpha),
     );
+    final foil = faceTheme.foil;
+    if (foil != null) paintFoilFaceDecor(canvas, w, h, foil);
 
     if (meta.isJoker) {
       _paintJoker(canvas, w, h, meta);

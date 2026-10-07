@@ -55,13 +55,28 @@ test('marketplace IAP catalog contains expected consumable and subscription SKUs
   assert.equal(IAP_CATALOG.pro_monthly.type, 'pro');
 });
 
-test('marketplace deck catalog contains classic and onyx black at 20 chips', () => {
-  assert.equal(DECK_CATALOG.length, 2);
+test('marketplace deck catalog lists every deck the app sells, priced in chips', () => {
   const ids = DECK_CATALOG.map((d) => d.id);
-  assert.deepEqual(ids, ['default', 'black_onyx']);
-  const onyx = DECK_CATALOG.find((d) => d.id === 'black_onyx');
-  assert.equal(onyx.price, 20);
-  assert.equal(onyx.currency, 'chips');
+  assert.deepEqual(ids, [
+    'default',
+    'sapphire_frost',
+    'imperial_jade',
+    'royal_crimson',
+    'neon_nights',
+    'black_onyx',
+    'gilded_gold',
+  ]);
+  const prices = Object.fromEntries(DECK_CATALOG.map((d) => [d.id, d.price]));
+  assert.deepEqual(prices, {
+    default: 0,
+    sapphire_frost: 6,
+    imperial_jade: 8,
+    royal_crimson: 12,
+    neon_nights: 15,
+    black_onyx: 20,
+    gilded_gold: 35,
+  });
+  assert.ok(DECK_CATALOG.every((d) => d.currency === 'chips'));
 });
 
 test('GameRoom snapshot includes stakePool, stakePerPlayer, potAmount, avatarId, and deckId', () => {
