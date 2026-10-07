@@ -5,6 +5,7 @@ import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
+import 'package:cardgame/ui/screens/home/pot_card_style.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
@@ -37,9 +38,6 @@ class PotOption {
   bool canAfford({required int money, required int chips}) =>
       (currency == CurrencyType.chips ? chips : money) >= entryStake;
 }
-
-/// City art is 16:9; it sits uncropped in the card's picture window.
-const double _artAspect = 16 / 9;
 
 /// Portrait playing-card proportions for each pot.
 const double _cardAspect = 0.66;
@@ -553,6 +551,9 @@ class _PotPlayingCard extends StatelessWidget {
   }
 }
 
+/// Ivory card face laid out at [_designCardWidth]: city art in a shaped
+/// window, the city name on a ribbon, then the pot value and entry fee, all
+/// dressed in the city's own [PotCardStyle].
 class _CardFace extends StatelessWidget {
   const _CardFace({
     required this.option,
@@ -572,8 +573,9 @@ class _CardFace extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final locale = Localizations.localeOf(context);
-    final ink = suitColor(suit);
-    final corner = _CornerIndex(rank: rank, suit: suit);
+    final style = PotCardStyle.forCity(option.id);
+    final corner = _CornerIndex(rank: rank, suit: suit, color: style.ink);
+    final spaced = locale.languageCode != 'ar';
 
     return DecoratedBox(
       decoration: const BoxDecoration(
@@ -585,111 +587,168 @@ class _CardFace extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Inner gold frame line.
+          Positioned.fill(child: CustomPaint(painter: PotCornerPainter(style))),
+          // Inner trim frame line.
           Positioned.fill(
             child: Container(
               margin: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(11),
-                border: Border.all(
-                  color: CardInk.goldLine.withValues(alpha: 0.7),
+                border: Border.all(color: style.trim, width: 1.2),
+              ),
+            ),
+          ),
+          Positioned(top: 13, left: 11, child: corner),
+          Positioned(
+            bottom: 13,
+            right: 11,
+            child: Transform.rotate(angle: math.pi, child: corner),
+          ),
+          // City art window.
+          Positioned(
+            top: 18,
+            left: 36,
+            right: 36,
+            height: 122,
+            child: CustomPaint(
+              foregroundPainter: PotWindowFramePainter(style),
+              child: ClipPath(
+                clipper: PotWindowClipper(style.window),
+                child: Image(
+                  image: image,
+                  fit: BoxFit.cover,
+                  gaplessPlayback: true,
+                  errorBuilder:
+                      (_, __, ___) => DecoratedBox(
+                        // Art not shipped yet: city colours and emblem.
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [style.ink, style.inkDeep],
+                          ),
+                        ),
+                        child: Center(
+                          child: Opacity(
+                            opacity: 0.45,
+                            child: CustomPaint(
+                              size: const Size.square(56),
+                              painter: PotEmblemPainter(style),
+                            ),
+                          ),
+                        ),
+                      ),
                 ),
               ),
             ),
           ),
-          Positioned(top: 12, left: 12, child: corner),
+          // City name ribbon.
           Positioned(
-            bottom: 12,
+            top: 150,
+            left: 12,
             right: 12,
-            child: Transform.rotate(angle: math.pi, child: corner),
+            height: 36,
+            child: CustomPaint(
+              painter: PotRibbonPainter(style, tail: true),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 22),
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      casinoButtonLabel(cityName, locale),
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontFamily: CasinoFonts.displayFor(locale),
+                        color: CardInk.ivory,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: spaced ? 1.4 : 0,
+                        shadows: const [
+                          Shadow(color: Color(0x66000000), blurRadius: 2),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(40, 24, 40, 22),
+          Positioned(
+            top: 196,
+            left: 34,
+            right: 34,
+            height: 18,
+            child: _OrnamentDivider(style: style),
+          ),
+          Positioned(
+            top: 228,
+            left: 20,
+            right: 20,
             child: Column(
               children: [
-                // City art window.
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: CardInk.goldLine, width: 1.5),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: AspectRatio(
-                    aspectRatio: _artAspect,
-                    child: Image(
-                      image: image,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                      errorBuilder:
-                          (_, __, ___) =>
-                              const ColoredBox(color: CasinoColors.feltDeep),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    casinoButtonLabel(cityName, locale),
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontFamily: CasinoFonts.displayFor(locale),
-                      color: CardInk.black,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: locale.languageCode == 'ar' ? 0 : 1.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _SuitDivider(suit: suit),
-                const Spacer(),
                 Text(
                   casinoButtonLabel(l10n.pot, locale),
                   style: TextStyle(
                     fontFamily: CasinoFonts.displayFor(locale),
-                    color: ink.withValues(alpha: 0.8),
-                    fontSize: 11,
+                    color: style.ink.withValues(alpha: 0.85),
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: locale.languageCode == 'ar' ? 0 : 2.4,
+                    letterSpacing: spaced ? 2.4 : 0,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${option.pool}',
-                      style: TextStyle(
-                        fontFamily: CasinoFonts.display,
-                        color: ink,
-                        fontSize: 48,
-                        fontWeight: FontWeight.w800,
-                        height: 1.05,
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${option.pool}',
+                        style: TextStyle(
+                          fontFamily: CasinoFonts.display,
+                          color: style.ink,
+                          fontSize: 50,
+                          fontWeight: FontWeight.w800,
+                          height: 1.05,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    CurrencyIcon(currency: option.currency, size: 30),
-                  ],
-                ),
-                const Spacer(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${l10n.entryFee} ${option.entryStake}',
-                      style: const TextStyle(
-                        color: Color(0xFF5A4A2A),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    CurrencyIcon(currency: option.currency, size: 14),
-                  ],
+                      const SizedBox(width: 6),
+                      CurrencyIcon(currency: option.currency, size: 32),
+                    ],
+                  ),
                 ),
               ],
+            ),
+          ),
+          // Entry fee tag.
+          Positioned(
+            bottom: 26,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: CustomPaint(
+                painter: PotRibbonPainter(style),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 5, 16, 5),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${l10n.entryFee} ${option.entryStake}',
+                        style: TextStyle(
+                          fontFamily: CasinoFonts.uiFor(locale),
+                          color: CardInk.ivory,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      CurrencyIcon(currency: option.currency, size: 16),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -699,10 +758,15 @@ class _CardFace extends StatelessWidget {
 }
 
 class _CornerIndex extends StatelessWidget {
-  const _CornerIndex({required this.rank, required this.suit});
+  const _CornerIndex({
+    required this.rank,
+    required this.suit,
+    required this.color,
+  });
 
   final String rank;
   final SuitShape suit;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -715,40 +779,39 @@ class _CornerIndex extends StatelessWidget {
             rank,
             style: TextStyle(
               fontFamily: CasinoFonts.display,
-              color: suitColor(suit),
-              fontSize: rank.length > 1 ? 17 : 21,
+              color: color,
+              fontSize: rank.length > 1 ? 17 : 22,
               fontWeight: FontWeight.w800,
               height: 1,
               letterSpacing: rank.length > 1 ? -1.5 : 0,
             ),
           ),
           const SizedBox(height: 3),
-          SuitGlyph(suit: suit, size: 14),
+          SuitGlyph(suit: suit, size: 14, color: color),
         ],
       ),
     );
   }
 }
 
-class _SuitDivider extends StatelessWidget {
-  const _SuitDivider({required this.suit});
+/// Trim rule with the city emblem in the middle.
+class _OrnamentDivider extends StatelessWidget {
+  const _OrnamentDivider({required this.style});
 
-  final SuitShape suit;
+  final PotCardStyle style;
 
   @override
   Widget build(BuildContext context) {
-    final line = Expanded(
-      child: Container(
-        height: 1,
-        color: CardInk.goldLine.withValues(alpha: 0.6),
-      ),
-    );
+    final line = Expanded(child: Container(height: 1.2, color: style.trim));
     return Row(
       children: [
         line,
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: SuitGlyph(suit: suit, size: 12),
+          child: CustomPaint(
+            size: const Size.square(18),
+            painter: PotEmblemPainter(style),
+          ),
         ),
         line,
       ],
