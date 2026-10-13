@@ -1,4 +1,8 @@
 const { GameRuleError } = require('./game_room');
+const { profileForIq } = require('./bot_difficulty');
+
+// Average game value of a face-down card the bot has no memory of.
+const UNKNOWN_CARD_ESTIMATE = 6;
 
 function cardValue(tag) {
   return Number(tag.slice(1));
@@ -19,24 +23,27 @@ class ServerRobotPlayer {
   constructor({
     room,
     clientId,
-    thinkMinMs = 600,
-    thinkMaxMs = 1200,
+    iq = 50,
+    thinkMinMs,
+    thinkMaxMs,
     launchDelayMs = 400,
     actionDelayMs = 800,
     rematchDelayMs = 1000,
     // Own turns to play before the bot may call the match.
-    callMinTurns = 2,
+    callMinTurns,
     random = Math.random,
   }) {
     this.room = room;
     this.clientId = clientId;
-    this.thinkMinMs = thinkMinMs;
-    this.thinkMaxMs = thinkMaxMs;
+    this.random = random;
+    this.iq = iq;
+    this.profile = profileForIq(iq);
+    this.thinkMinMs = thinkMinMs ?? this.profile.thinkMinMs;
+    this.thinkMaxMs = thinkMaxMs ?? this.profile.thinkMaxMs;
     this.launchDelayMs = launchDelayMs;
     this.actionDelayMs = actionDelayMs;
     this.rematchDelayMs = rematchDelayMs;
-    this.callMinTurns = callMinTurns;
-    this.random = random;
+    this.callMinTurns = callMinTurns ?? this.profile.callMinTurns;
 
     this.memory = new Map();
     this.disposed = false;
@@ -124,6 +131,18 @@ class ServerRobotPlayer {
     });
   }
 
+  /** True with the given probability. */
+  chance(probability) {
+    return this.random() < probability;
+  }
+
+  /** Lower-IQ bots forget face-down cards they once saw. */
+  decayMemory() {
+    for (const index of [...this.memory.keys()]) {
+      if (!this.chance(this.profile.memoryRetention)) this.memory.delete(index);
+    }
+  }
+
   thinkDelay() {
     const span = this.thinkMaxMs - this.thinkMinMs;
     const ms = this.thinkMinMs + (span <= 0 ? 0 : Math.floor(this.random() * (span + 1)));
@@ -136,6 +155,7 @@ class ServerRobotPlayer {
     if (this.room.status !== 'playing' || !this.isMyTurn || !this.bothLaunched) return;
     if (this.abilityLocked) return;
 
+    this.decayMemory();
     this.syncMemoryFromLaunch(player);
 
     try {
@@ -146,7 +166,7 @@ class ServerRobotPlayer {
         }
         this.turnsTaken += 1;
         const matchIndex = this.findDiscardMatch(player);
-        if (matchIndex != null) {
+        if (matchIndex != null && !this.chance(this.profile.mistakeRate)) {
           this.room.tapCard(this.clientId, matchIndex);
           this.forgetIndex(matchIndex);
           return;
@@ -187,14 +207,14 @@ class ServerRobotPlayer {
     const handVal = cardValue(hand);
 
     for (let i = 0; i < player.cards.length; i += 1) {
-      if (cardValue(player.cards[i]) === handVal) {
+      if (cardValue(player.cards[i]) === handVal && !this.chance(this.profile.mistakeRate)) {
         this.room.tapCard(this.clientId, i);
         this.forgetIndex(i);
         return;
       }
     }
 
-    if (player.jackPeekAvailable && handVal === 11) {
+    if (player.jackPeekAvailable && handVal === 11 && this.chance(this.profile.abilityUse)) {
       const peekIndex = this.bestPeekIndex(player);
       if (peekIndex != null) {
         this.room.jackPeek(this.clientId, { side: 'you', cardIndex: peekIndex });
@@ -203,7 +223,7 @@ class ServerRobotPlayer {
       }
     }
 
-    if (player.queenAbilityAvailable && handVal === 12) {
+    if (player.queenAbilityAvailable && handVal === 12 && this.chance(this.profile.abilityUse)) {
       const ownWorst = this.worstKnownIndex(player);
       const opponent = this.opponent;
       if (
@@ -224,13 +244,13 @@ class ServerRobotPlayer {
     }
 
     const drawnScore = gameValue(hand);
-    if (drawnScore <= 3) {
+    if (drawnScore <= this.profile.throwThreshold) {
       this.room.throwHand(this.clientId);
       return;
     }
 
     const swapIndex = this.bestSwapTarget(player, drawnScore);
-    if (swapIndex != null) {
+    if (swapIndex != null && !this.chance(this.profile.mistakeRate)) {
       this.room.tapCard(this.clientId, swapIndex);
       this.memory.set(swapIndex, hand);
       return;
@@ -239,12 +259,22 @@ class ServerRobotPlayer {
     this.room.throwHand(this.clientId);
   }
 
-  /** True when ending the match now is a guaranteed win (strictly lower total). */
+  /**
+   * Calls when the bot's estimated total beats the estimated opponent total by
+   * the IQ-dependent margin. Face-down cards the bot has not seen count as an
+   * average card; no hidden information is read.
+   */
   canCallWin(player) {
     if (this.turnsTaken < this.callMinTurns) return false;
     const opponent = this.opponent;
     if (!opponent) return false;
-    return handTotal(player.cards) < handTotal(opponent.cards);
+    let own = 0;
+    for (let i = 0; i < player.cards.length; i += 1) {
+      const known = this.memory.get(i);
+      own += known ? gameValue(known) : UNKNOWN_CARD_ESTIMATE;
+    }
+    const theirs = opponent.cards.length * UNKNOWN_CARD_ESTIMATE;
+    return theirs - own >= this.profile.callMargin;
   }
 
   fallback() {
@@ -299,8 +329,8 @@ class ServerRobotPlayer {
     let bestIndex = null;
     let bestOutgoing = -999;
     for (let i = 0; i < player.cards.length; i += 1) {
-      const known = this.memory.get(i) ?? player.cards[i];
-      const outgoing = gameValue(known);
+      const known = this.memory.get(i);
+      const outgoing = known ? gameValue(known) : UNKNOWN_CARD_ESTIMATE;
       if (outgoing > drawnScore && outgoing > bestOutgoing) {
         bestOutgoing = outgoing;
         bestIndex = i;

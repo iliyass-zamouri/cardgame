@@ -1,5 +1,6 @@
 import 'package:cardgame/data/auth/auth_config.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -39,9 +40,19 @@ class GoogleSignInService {
         'GOOGLE_SERVER_CLIENT_ID missing (Web client ID via --dart-define).',
       );
     }
-    // Web GIS requires clientId; native uses serverClientId for idToken aud.
+    // Web GIS uses the Web client as clientId.
+    // iOS must pass the iOS OAuth client as clientId and the Web client as
+    // serverClientId. A null iOS clientId makes google_sign_in_ios skip
+    // configuration (no CLIENT_ID in GoogleService-Info.plist) and drop
+    // serverClientId, so the id token audience is wrong.
+    final clientId =
+        kIsWeb
+            ? serverClientId
+            : defaultTargetPlatform == TargetPlatform.iOS
+            ? googleIosClientId
+            : null;
     await GoogleSignIn.instance.initialize(
-      clientId: kIsWeb ? serverClientId : null,
+      clientId: clientId,
       serverClientId: serverClientId,
     );
     _initialized = true;

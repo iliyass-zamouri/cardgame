@@ -581,7 +581,6 @@ class _TopBar extends StatelessWidget {
               onTap: onProfile,
               child: Ink(
                 padding: const EdgeInsetsDirectional.fromSTEB(3, 3, 12, 3),
-                decoration: _hudDecoration(),
                 child: Row(
                   children: [
                     PlayerAvatar(
@@ -658,6 +657,24 @@ class _TopBar extends StatelessWidget {
                       color: CasinoColors.goldSoft,
                       fontWeight: FontWeight.w800,
                       fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [CasinoColors.goldSoft, CasinoColors.gold],
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.add_rounded,
+                      size: 16,
+                      color: CasinoColors.bg,
                     ),
                   ),
                 ],

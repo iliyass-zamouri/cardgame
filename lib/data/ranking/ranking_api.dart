@@ -81,6 +81,9 @@ class MatchHistoryItem {
     required this.eloAfter,
     this.quit = false,
     this.opponentQuit = false,
+    this.stakePerPlayer = 0,
+    this.potAmount = 0,
+    this.stakeCurrency = 'money',
   });
 
   final String matchId;
@@ -94,6 +97,19 @@ class MatchHistoryItem {
   final int eloAfter;
   final bool quit;
   final bool opponentQuit;
+  final int stakePerPlayer;
+  final int potAmount;
+
+  /// `money` or `chips`.
+  final String stakeCurrency;
+
+  /// Net coins or chips. Win is the pot minus the stake already paid;
+  /// loss is the stake; a draw or an unstaked match is 0.
+  int get balanceDelta {
+    if (result == 'win') return potAmount - stakePerPlayer;
+    if (result == 'loss') return -stakePerPlayer;
+    return 0;
+  }
 
   factory MatchHistoryItem.fromJson(Map<String, dynamic> json) {
     DateTime? createdAt;
@@ -113,6 +129,9 @@ class MatchHistoryItem {
       eloAfter: (json['eloAfter'] as num?)?.toInt() ?? 0,
       quit: json['quit'] as bool? ?? false,
       opponentQuit: json['opponentQuit'] as bool? ?? false,
+      stakePerPlayer: (json['stakePerPlayer'] as num?)?.toInt() ?? 0,
+      potAmount: (json['potAmount'] as num?)?.toInt() ?? 0,
+      stakeCurrency: json['stakeCurrency'] == 'chips' ? 'chips' : 'money',
     );
   }
 }

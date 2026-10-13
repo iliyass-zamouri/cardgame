@@ -282,7 +282,7 @@ function botCallRoom({ botCards, humanCards }) {
   return { room, bot };
 }
 
-test('ServerRobotPlayer calls the match when it is certain to win', () => {
+test('ServerRobotPlayer calls the match when its estimate clearly beats the opponent', () => {
   const { room, bot } = botCallRoom({ botCards: ['A1', 'B2'], humanCards: ['C10', 'D5'] });
   bot.turnsTaken = bot.callMinTurns;
 
@@ -296,8 +296,8 @@ test('ServerRobotPlayer calls the match when it is certain to win', () => {
   room.dispose();
 });
 
-test('ServerRobotPlayer does not call when it would tie or lose', () => {
-  const { room, bot } = botCallRoom({ botCards: ['A3', 'B4'], humanCards: ['C2', 'D5'] });
+test('ServerRobotPlayer does not call when its known total is not lower', () => {
+  const { room, bot } = botCallRoom({ botCards: ['A9', 'B9'], humanCards: ['C2', 'D5'] });
   bot.turnsTaken = bot.callMinTurns;
 
   bot.takeTurn();

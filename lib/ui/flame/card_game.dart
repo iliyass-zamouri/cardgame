@@ -351,6 +351,11 @@ class CardGame extends FlameGame {
     final previous = _snapshot;
     _snapshot = snapshot;
     _lastVersion = snapshot.version;
+    if (previous != null &&
+        previous.status != GameStatus.playing &&
+        snapshot.status == GameStatus.playing) {
+      _table.reset();
+    }
     final localSnapIndices = <int>{};
     final opponentSnapIndices = <int>{};
     final expectingSelf = _expectingPenaltyAppendSelf;
@@ -495,6 +500,8 @@ class CardGame extends FlameGame {
     }
     final canTapHand =
         snapshot.isYourTurn &&
+        snapshot.status == GameStatus.playing &&
+        snapshot.bothRevealed &&
         !snapshot.abilityLockActive &&
         _queenMode == QueenMode.none;
     _localHand.setTapHandler(canTapHand ? _handleHandTap : null);
@@ -1995,12 +2002,15 @@ class TableArea extends PositionComponent {
     visible: false,
     sizeOverride: Vector2(86, 124),
   )..position = Vector2(-70, 0);
-  final PlayingCardComponent _discard = PlayingCardComponent(
-    cardIndex: -2,
-    tag: null,
-    visible: true,
-    sizeOverride: Vector2(86, 124),
-  )..position = Vector2(70, 0);
+  final PlayingCardComponent _discard =
+      PlayingCardComponent(
+          cardIndex: -2,
+          tag: null,
+          visible: false,
+          sizeOverride: Vector2(86, 124),
+        )
+        ..position = Vector2(70, 0)
+        ..opacityOverride = 0;
   final _TableHintLabel _hint = _TableHintLabel()..position = Vector2(0, 88);
 
   @override
@@ -2089,17 +2099,47 @@ class TableArea extends PositionComponent {
     required bool animate,
   }) {
     final previous = _discard.tag;
+    final wasEmpty = previous == null || _discard.opacityOverride <= 0;
     if (backSkinId != null) {
       _discard.backSkinId = backSkinId;
     }
-    _discard.updateFromSnapshot(
-      CardSnapshot(index: -2, tag: discardTag, visible: discardTag != null),
-      tappable: false,
-    );
-    if (animate && discardTag != null && discardTag != previous) {
+    if (discardTag == null) {
+      _hideDiscard();
+      return;
+    }
+    _discard.opacityOverride = 1;
+    if (wasEmpty) {
+      // First card: show the face at once. A flip would flash the back.
+      _discard.reveal(tag: discardTag, visible: true);
+    } else {
+      _discard.updateFromSnapshot(
+        CardSnapshot(index: -2, tag: discardTag, visible: true),
+        tappable: false,
+      );
+    }
+    if (animate && discardTag != previous) {
       _discard.snapScale(0.7);
       _discard.scaleTo(1, duration: 0.2);
+    } else {
+      _discard.normalizeScale(1);
     }
+  }
+
+  void _hideDiscard() {
+    _discard.opacityOverride = 0;
+    _discard.reveal(tag: null, visible: false);
+    _discard.snapScale(1);
+  }
+
+  /// Hard reset between games (rematch): the pile is reused, so clear any
+  /// hold state and stale scale left over from the previous game's last throw.
+  void reset() {
+    _holdingDiscard = false;
+    _discardHoldTag = null;
+    _discardHoldSkinId = null;
+    _pendingDiscardTag = null;
+    _pendingDiscardSkinId = null;
+    _hideDiscard();
   }
 }
 
@@ -2348,8 +2388,13 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     add(SequenceEffect(effects));
   }
 
-  /// Instantly set face without animation (used inside sequenced swap reveal).
+  /// Instantly set face without animation. Drops any in-flight flip so a
+  /// queued callback cannot put the previous face back.
   void reveal({required String? tag, required bool visible}) {
+    for (final effect in children.whereType<SequenceEffect>().toList()) {
+      effect.removeFromParent();
+    }
+    _flip = 1;
     _tag = tag;
     _visible = visible;
   }
@@ -2520,18 +2565,36 @@ class _CardArt {
     );
 
     final faceTheme = CardBackSkins.byId(backSkinId).faceTheme;
-    _borderPaint
-      ..strokeWidth = highlighted ? 3 : 1.5
-      ..color =
-          highlighted ? faceTheme.highlightBorderColor : faceTheme.borderColor;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, width, height),
-        Radius.circular(width * 0.1),
-      ).deflate(0.75),
-      _borderPaint,
+    final border = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, width, height),
+      Radius.circular(width * 0.1),
     );
+    if (highlighted) {
+      // Skin-independent, high-contrast ring: soft cyan halo + dark keyline
+      // + bright cyan stroke, readable on felt and on light or dark faces.
+      _borderPaint
+        ..strokeWidth = 9
+        ..color = _highlightGlow;
+      canvas.drawRRect(border.inflate(1), _borderPaint);
+      _borderPaint
+        ..strokeWidth = 5.5
+        ..color = _highlightKeyline;
+      canvas.drawRRect(border.deflate(0.5), _borderPaint);
+      _borderPaint
+        ..strokeWidth = 3.5
+        ..color = _highlightRing;
+      canvas.drawRRect(border.deflate(0.5), _borderPaint);
+      return;
+    }
+    _borderPaint
+      ..strokeWidth = 1.5
+      ..color = faceTheme.borderColor;
+    canvas.drawRRect(border.deflate(0.75), _borderPaint);
   }
+
+  static const _highlightGlow = Color(0x5500E5FF);
+  static const _highlightKeyline = Color(0xFF0B1F2E);
+  static const _highlightRing = Color(0xFF00E5FF);
 
   /// Rasterize the art for [backSkinIds] ahead of first use so a deal or skin
   /// change never records new art mid-animation.

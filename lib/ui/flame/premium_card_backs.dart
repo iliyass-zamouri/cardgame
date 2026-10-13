@@ -205,32 +205,6 @@ void _sparkle(Canvas canvas, Offset c, double r) {
   canvas.drawPath(_star(c, r, r * 0.12, 4, 0), _fill(const Color(0xFFFFFFFF)));
 }
 
-/// Pearls or metal beads following [border].
-void _beads(
-  Canvas canvas,
-  RRect border,
-  double spacing,
-  double r,
-  List<Color> colors,
-) {
-  for (final m in (Path()..addRRect(border)).computeMetrics()) {
-    for (var d = spacing / 2; d < m.length; d += spacing) {
-      final p = m.getTangentForOffset(d)!.position;
-      canvas.drawCircle(
-        p,
-        r,
-        Paint()
-          ..shader = Gradient.radial(
-            p.translate(-r * 0.4, -r * 0.4),
-            r * 1.4,
-            [colors[0], colors[1], colors[2]],
-            const [0, 0.5, 1],
-          ),
-      );
-    }
-  }
-}
-
 /// Baroque C-scroll ornament for a corner, drawn in a unit box.
 final Path _cornerCurl =
     Path()
@@ -510,8 +484,9 @@ class _ArtReady extends ChangeNotifier {
 
 // ---- High Victorian ----------------------------------------------------------
 
-/// Emerald filigree under a gilt frame: guilloche ring, rosette medallion
-/// and corner scrolls, in the manner of an engraved Victorian back.
+/// Emerald and gold engraved plate: banner lettering, a roman-numeral clock
+/// medallion and filigree panels. Painted from a plate so the lettering and
+/// linework stay the supplied artwork.
 class ImperialJadeBack extends CardBackSkin {
   const ImperialJadeBack()
     : super(
@@ -520,235 +495,67 @@ class ImperialJadeBack extends CardBackSkin {
         faceTheme: PremiumFaces.imperialJade,
       );
 
-  static const _deep = Color(0xFF06281C);
-  static const _leaf = Color(0xFF146B4A);
+  static const _asset = 'assets/cards/high_victorian.webp';
+
+  static Image? _art;
+  static Future<void>? _loading;
+  static final _ready = _ArtReady();
+
+  @override
+  Listenable? get repaintListenable => _ready;
+
+  /// Decodes the plate before the first card paint. Safe to call twice.
+  static Future<void> ensureLoaded() {
+    if (_art != null) return Future<void>.value();
+    return _loading ??= _load();
+  }
+
+  static Future<void> _load() async {
+    try {
+      final data = await rootBundle.load(_asset);
+      final bytes = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
+      final codec = await instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      codec.dispose();
+      _art = frame.image;
+      _ready.ping();
+    } catch (e, st) {
+      _loading = null;
+      debugPrint('High Victorian back failed to load: $e\n$st');
+      rethrow;
+    }
+  }
 
   @override
   void paintUnit(Canvas canvas, double height) {
-    final card = _card(height);
-    canvas.drawRect(card, Paint()..shader = _metal(card, _goldMetal));
-    final plate = RRect.fromRectAndRadius(
-      Rect.fromLTRB(0.042, 0.042, 0.958, height - 0.042),
-      const Radius.circular(0.04),
-    );
-    canvas.drawRRect(plate, _fill(const Color(0xFF140E08)));
-    final field = plate.deflate(0.01);
-    canvas.drawRRect(
-      field,
-      Paint()
-        ..shader = Gradient.radial(
-          Offset(0.5, height * 0.42),
-          height * 0.72,
-          const [Color(0xFF1E8A64), Color(0xFF0E4A38), Color(0xFF06281C)],
-          const [0, 0.55, 1],
+    final dest = Rect.fromLTWH(0, 0, 1, height);
+    final art = _art;
+    if (art == null) {
+      canvas.drawRect(dest, _fill(const Color(0xFF06281C)));
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          dest.deflate(0.03),
+          const Radius.circular(0.04),
         ),
-    );
-
-    canvas.save();
-    canvas.clipRRect(field);
-    _filigree(canvas, height);
-    canvas.restore();
-
-    _rule(canvas, field.deflate(0.016), card, 0.007);
-    _rule(canvas, field.deflate(0.03), card, 0.003);
-    _beads(canvas, field.deflate(0.04), 0.026, 0.005, _goldMetal);
-    final inner = field.deflate(0.058).outerRect;
-    _rule(
-      canvas,
-      RRect.fromRectAndRadius(inner, const Radius.circular(0.02)),
-      card,
-      0.004,
-    );
-    _cornerScrolls(canvas, inner.deflate(0.01), 0.18, 0.011, _goldMetal);
-
-    final c = Offset(0.5, height / 2);
-    _shell(canvas, Offset(0.5, inner.top + 0.08), 1, card);
-    _shell(canvas, Offset(0.5, inner.bottom - 0.08), -1, card);
-    _seal(canvas, Offset(inner.left + 0.075, c.dy), 0.048, card);
-    _seal(canvas, Offset(inner.right - 0.075, c.dy), 0.048, card);
-    _medallion(canvas, c, 0.22, card);
-    _sheen(canvas, height, strength: 0.12);
-  }
-
-  /// Staggered gilt fleurs, large enough to read on a hand card.
-  void _filigree(Canvas canvas, double height) {
-    const cell = 0.092;
-    final gold = _fill(const Color(0xFFC9963A));
-    final dark = _fill(const Color(0xFF083528));
-    for (var row = 0; row < 28; row++) {
-      final y = 0.08 + row * cell * 0.72;
-      if (y > height - 0.06) break;
-      final shift = row.isOdd ? cell * 0.5 : 0.0;
-      for (var col = 0; col < 14; col++) {
-        final x = 0.055 + col * cell + shift;
-        if (x > 0.96) break;
-        canvas.save();
-        canvas.translate(x, y);
-        canvas.rotate(row.isOdd ? math.pi / 4 : 0);
-        canvas.scale(0.04);
-        canvas.drawPath(_fleur, dark);
-        canvas.scale(0.68);
-        canvas.drawPath(_fleur, gold);
-        canvas.restore();
-      }
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.04
+          ..shader = _metal(dest, _goldMetal),
+      );
+      return;
     }
-  }
-
-  void _rule(Canvas canvas, RRect rect, Rect card, double width) {
-    canvas.drawRRect(
-      rect,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = width
-        ..shader = _metal(card, _goldMetal),
+    canvas.drawImageRect(
+      art,
+      Rect.fromLTWH(0, 0, art.width.toDouble(), art.height.toDouble()),
+      dest,
+      Paint()..filterQuality = FilterQuality.high,
     );
-  }
-
-  /// Scallop shell, a stock Victorian corner of the frame.
-  void _shell(Canvas canvas, Offset c, double dir, Rect card) {
-    canvas.save();
-    canvas.translate(c.dx, c.dy);
-    canvas.scale(1, dir);
-    final shell =
-        Path()
-          ..moveTo(-0.1, 0.01)
-          ..quadraticBezierTo(-0.09, -0.06, 0, -0.085)
-          ..quadraticBezierTo(0.09, -0.06, 0.1, 0.01)
-          ..close();
-    canvas.drawPath(shell, _fill(_deep));
-    _emboss(
-      canvas,
-      shell,
-      0.005,
-      _goldMetal,
-      const Rect.fromLTWH(-0.12, -0.1, 0.24, 0.14),
-    );
-    final rib = _stroke(const Color(0xFFE2B84C), 0.0025);
-    for (var i = -3; i <= 3; i++) {
-      canvas.drawLine(Offset(i * 0.01, -0.005), Offset(i * 0.026, -0.065), rib);
-    }
-    canvas.restore();
-  }
-
-  /// Small side roundel: six gilt petals on emerald.
-  void _seal(Canvas canvas, Offset c, double r, Rect card) {
-    final bounds = Rect.fromCircle(center: c, radius: r);
-    canvas.drawCircle(c, r, _fill(_deep));
-    canvas.drawCircle(
-      c,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = r * 0.14
-        ..shader = _metal(bounds, _goldMetal),
-    );
-    canvas.drawCircle(c, r * 0.7, _fill(_leaf));
-    for (var i = 0; i < 6; i++) {
-      canvas.save();
-      canvas.translate(c.dx, c.dy);
-      canvas.rotate(i * math.pi / 3);
-      final petal =
-          Path()..addOval(
-            Rect.fromCenter(
-              center: Offset(0, -r * 0.28),
-              width: r * 0.26,
-              height: r * 0.42,
-            ),
-          );
-      canvas.drawPath(petal, Paint()..shader = _metal(card, _goldMetal));
-      canvas.restore();
-    }
-    canvas.drawCircle(c, r * 0.14, _fill(_deep));
-    canvas.drawCircle(c, r * 0.14, _stroke(const Color(0xFFE2B84C), 0.003));
-  }
-
-  /// Concentric gilt ring, guilloche, and an eight-point rosette.
-  void _medallion(Canvas canvas, Offset c, double r, Rect card) {
-    final bounds = Rect.fromCircle(center: c, radius: r);
-    canvas.drawCircle(
-      c.translate(0.006, 0.008),
-      r,
-      _fill(const Color(0x66000000)),
-    );
-    canvas.drawCircle(c, r, _fill(_deep));
-    canvas.drawCircle(
-      c,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.012
-        ..shader = _metal(card, _goldMetal),
-    );
-    _guilloche(canvas, c, r - 0.018, 0.007, 22);
-    canvas.drawCircle(c, r - 0.036, _stroke(const Color(0xFFE2B84C), 0.003));
-
-    for (var i = 0; i < 16; i++) {
-      canvas.save();
-      canvas.translate(c.dx, c.dy);
-      canvas.rotate(i * math.pi / 8);
-      final petal =
-          Path()
-            ..moveTo(0, -r * 0.34)
-            ..quadraticBezierTo(r * 0.1, -r * 0.55, 0, -r * 0.7)
-            ..quadraticBezierTo(-r * 0.1, -r * 0.55, 0, -r * 0.34)
-            ..close();
-      canvas.drawPath(petal, _fill(i.isEven ? _leaf : const Color(0xFF0C3D2E)));
-      _emboss(canvas, petal, 0.0035, _goldMetal, bounds);
-      canvas.restore();
-    }
-
-    canvas.drawCircle(
-      c,
-      r * 0.36,
-      Paint()..shader = _metal(bounds, _goldMetal),
-    );
-    canvas.drawCircle(c, r * 0.28, _fill(_deep));
-    canvas.drawPath(
-      _star(c, r * 0.22, r * 0.09, 8, -math.pi / 2),
-      Paint()..shader = _metal(bounds, _goldMetal),
-    );
-    canvas.drawCircle(c, r * 0.07, _fill(const Color(0xFF1E8A64)));
-    canvas.drawCircle(c, r * 0.07, _stroke(const Color(0xFFFFF4C2), 0.003));
-    _sparkle(canvas, c.translate(-r * 0.62, -r * 0.62), 0.03);
-  }
-
-  /// Two sine strands braided around a circle.
-  void _guilloche(Canvas canvas, Offset c, double r, double amp, int waves) {
-    for (final phase in const [0.0, math.pi]) {
-      final path = Path();
-      for (var i = 0; i <= 240; i++) {
-        final a = i * 2 * math.pi / 240;
-        final rr = r + math.sin(a * waves + phase) * amp;
-        final p = c + Offset(math.cos(a), math.sin(a)) * rr;
-        if (i == 0) {
-          path.moveTo(p.dx, p.dy);
-        } else {
-          path.lineTo(p.dx, p.dy);
-        }
-      }
-      canvas.drawPath(path, _stroke(const Color(0xFFE2B84C), 0.003));
-    }
   }
 }
 
-/// Four-petal fleur centred on the origin, inside a unit radius.
-final Path _fleur = _buildFleur();
-
-Path _buildFleur() {
-  final path = Path();
-  for (var i = 0; i < 4; i++) {
-    final a = i * math.pi / 2;
-    final tip = Offset(math.cos(a), math.sin(a));
-    final left = Offset(math.cos(a + 0.9), math.sin(a + 0.9)) * 0.45;
-    final right = Offset(math.cos(a - 0.9), math.sin(a - 0.9)) * 0.45;
-    path
-      ..moveTo(0, 0)
-      ..quadraticBezierTo(left.dx, left.dy, tip.dx, tip.dy)
-      ..quadraticBezierTo(right.dx, right.dy, 0, 0);
-  }
-  path.addOval(Rect.fromCircle(center: Offset.zero, radius: 0.16));
-  return path;
-}
 
 // ---- Neon Nights -------------------------------------------------------------
 

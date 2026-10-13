@@ -156,6 +156,7 @@ class CardBackSkins {
     await Future.wait([
       SapphireDragonBack.ensureLoaded(),
       RoyalCrimsonBack.ensureLoaded(),
+      ImperialJadeBack.ensureLoaded(),
     ]);
   }
 }

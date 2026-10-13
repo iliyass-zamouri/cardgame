@@ -62,6 +62,7 @@ const {
 } = require('./db/marketplace');
 const { acquireBotUser } = require('./db/bots');
 const { ServerRobotPlayer } = require('./bot_player');
+const { iqForPot } = require('./bot_difficulty');
 const {
   playerExists,
   upsertDeviceToken,
@@ -1909,12 +1910,16 @@ class GameServer {
       deckId: 'default',
     });
 
+    const iq = iqForPot(stakePool, stakeCurrency);
     const bot = new ServerRobotPlayer({
       room,
       clientId: botClientId,
+      iq,
     });
+    console.log(`[bot] room=${roomId} pot=${stakePool} ${stakeCurrency} iq=${iq}`);
     this.roomBots.set(roomId, {
       bot,
+      iq,
       botPlayerId: botUser.playerId,
       botClientId,
     });

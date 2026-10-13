@@ -113,6 +113,8 @@ class OfflineGameSocket implements GameSocket {
           _robot.rematchReady();
           break;
         case 'startGame':
+        case 'identity':
+        case 'ping':
           break;
         default:
           _emit({

@@ -586,6 +586,9 @@ async function getMatchHistory({ playerId, limit = 20, offset = 0 } = {}) {
     `SELECT
        m.id AS match_id,
        m.created_at,
+       m.stake_per_player,
+       m.pot_amount,
+       m.stake_currency,
        mp.result,
        mp.card_total,
        mp.points_earned,
@@ -623,6 +626,9 @@ async function getMatchHistory({ playerId, limit = 20, offset = 0 } = {}) {
       eloAfter: row.elo_after,
       quit: Boolean(row.quit),
       opponentQuit: Boolean(row.opponent_quit),
+      stakePerPlayer: Number(row.stake_per_player) || 0,
+      potAmount: Number(row.pot_amount) || 0,
+      stakeCurrency: row.stake_currency === 'chips' ? 'chips' : 'money',
     })),
   };
 }

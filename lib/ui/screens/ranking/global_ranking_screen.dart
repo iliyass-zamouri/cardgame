@@ -6,6 +6,7 @@ import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/screens/profile/player_profile_screen.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/country_flag.dart';
+import 'package:cardgame/ui/widgets/match_history_card.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
@@ -316,7 +317,7 @@ class _HistoryTab extends ConsumerWidget {
             itemCount: matches.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
-              return _HistoryTile(item: matches[index]);
+              return MatchHistoryCard(item: matches[index]);
             },
           ),
         );
@@ -626,120 +627,6 @@ class _CornerIndex extends StatelessWidget {
         const SizedBox(height: 3),
         SuitGlyph(suit: podium.suit, size: 14),
       ],
-    );
-  }
-}
-
-class _HistoryTile extends StatelessWidget {
-  const _HistoryTile({required this.item});
-
-  final MatchHistoryItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final resultLabel =
-        item.quit
-            ? l10n.matchResultQuit
-            : switch (item.result) {
-              'win' => l10n.matchResultWin,
-              'loss' => l10n.matchResultLoss,
-              _ => l10n.matchResultDraw,
-            };
-    final resultColor = switch (item.result) {
-      'win' => const Color(0xFF5DCF8A),
-      'loss' => const Color(0xFFE07070),
-      _ => CasinoColors.textMuted,
-    };
-    final eloSign = item.eloDelta > 0 ? '+' : '';
-    final when = item.createdAt;
-    final whenText =
-        when == null
-            ? ''
-            : '${when.year}-${when.month.toString().padLeft(2, '0')}-${when.day.toString().padLeft(2, '0')}';
-
-    return Container(
-      decoration: leatherPanelDecoration(radius: 14),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            margin: const EdgeInsetsDirectional.only(end: 12),
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: resultColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: resultColor.withValues(alpha: 0.6)),
-            ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                resultLabel,
-                style: TextStyle(
-                  color: resultColor,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.opponentName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: CasinoColors.text,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  l10n.matchScoreLine(item.cardTotal, item.opponentCardTotal),
-                  style: const TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 12,
-                  ),
-                ),
-                if (whenText.isNotEmpty)
-                  Text(
-                    whenText,
-                    style: const TextStyle(
-                      color: CasinoColors.textMuted,
-                      fontSize: 11,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${item.pointsEarned >= 0 ? '+' : ''}${item.pointsEarned} ${l10n.points}',
-                style: const TextStyle(
-                  color: CasinoColors.goldSoft,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                '$eloSign${item.eloDelta} ${l10n.elo}',
-                style: TextStyle(
-                  color:
-                      item.eloDelta >= 0
-                          ? const Color(0xFF5DCF8A)
-                          : const Color(0xFFE07070),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

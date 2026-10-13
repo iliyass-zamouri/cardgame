@@ -10,6 +10,10 @@
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.hailsom.shadowhand</string>
+	<key>CLIENT_ID</key>
+	<string>1078123174745-vqtuf28vb3aurkmkslg657rel2gfv7cg.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.1078123174745-vqtuf28vb3aurkmkslg657rel2gfv7cg</string>
 	<key>PROJECT_ID</key>
 	<string>shadow-hand</string>
 	<key>STORAGE_BUCKET</key>
