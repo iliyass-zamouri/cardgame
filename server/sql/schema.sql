@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS players (
   chips INT NOT NULL DEFAULT 1,
   avatar_id VARCHAR(64) NOT NULL DEFAULT 'default',
   deck_id VARCHAR(64) NOT NULL DEFAULT 'default',
+  tutorial_done TINYINT(1) NOT NULL DEFAULT 0,
   elo INT NOT NULL DEFAULT 1000,
   total_points INT NOT NULL DEFAULT 0,
   wins INT NOT NULL DEFAULT 0,

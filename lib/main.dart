@@ -26,6 +26,7 @@ import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:cardgame/ui/flame/card_fonts.dart';
 import 'package:cardgame/ui/screens/auth/authentication_screen.dart';
 import 'package:cardgame/ui/screens/home/home_screen.dart';
+import 'package:cardgame/ui/screens/tutorial/tutorial_progress_repository.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/force_update_gate.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
@@ -133,6 +134,7 @@ Future<void> main() async {
       final localeRepo = await LocaleRepository.open();
       final pushPrefsRepo = await PushPrefsRepository.open();
       final guestLinkPrefsRepo = await GuestLinkPrefsRepository.open();
+      final tutorialProgressRepo = await TutorialProgressRepository.open();
 
       runApp(
         ProviderScope(
@@ -143,6 +145,9 @@ Future<void> main() async {
             pushPrefsRepositoryProvider.overrideWithValue(pushPrefsRepo),
             guestLinkPrefsRepositoryProvider.overrideWithValue(
               guestLinkPrefsRepo,
+            ),
+            tutorialProgressRepositoryProvider.overrideWithValue(
+              tutorialProgressRepo,
             ),
           ],
           child: const MyApp(),

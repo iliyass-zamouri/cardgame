@@ -14,6 +14,7 @@ class PlayerProfile {
     this.ownedAvatars = const ['default'],
     this.ownedDecks = const ['default'],
     this.accessToken,
+    this.tutorialDone = false,
   });
 
   final String playerId;
@@ -28,6 +29,9 @@ class PlayerProfile {
   final List<String> ownedAvatars;
   final List<String> ownedDecks;
   final String? accessToken;
+
+  /// Seen (started or dismissed) the first-run tutorial prompt.
+  final bool tutorialDone;
 
   static const empty = PlayerProfile(
     playerId: '',
@@ -69,6 +73,7 @@ class PlayerProfile {
     List<String>? ownedAvatars,
     List<String>? ownedDecks,
     Object? accessToken = _unset,
+    bool? tutorialDone,
   }) {
     return PlayerProfile(
       playerId: playerId ?? this.playerId,
@@ -86,6 +91,7 @@ class PlayerProfile {
           identical(accessToken, _unset)
               ? this.accessToken
               : accessToken as String?,
+      tutorialDone: tutorialDone ?? this.tutorialDone,
     );
   }
 
@@ -108,6 +114,7 @@ class PlayerProfileRepository {
   static const _keyOwnedAvatars = 'ownedAvatars';
   static const _keyOwnedDecks = 'ownedDecks';
   static const _keyAccessToken = 'accessToken';
+  static const _keyTutorialDone = 'tutorialDone';
 
   final Box<dynamic>? _box;
   PlayerProfile? _memory;
@@ -152,6 +159,7 @@ class PlayerProfileRepository {
       ownedAvatars: storedAvatars.isEmpty ? const ['default'] : storedAvatars,
       ownedDecks: storedDecks.isEmpty ? const ['default'] : storedDecks,
       accessToken: _box.get(_keyAccessToken) as String?,
+      tutorialDone: _box.get(_keyTutorialDone) as bool? ?? false,
     );
   }
 
@@ -171,6 +179,7 @@ class PlayerProfileRepository {
     await _box.put(_keyAdRewardMoney, profile.adRewardMoney);
     await _box.put(_keyOwnedAvatars, profile.ownedAvatars);
     await _box.put(_keyOwnedDecks, profile.ownedDecks);
+    await _box.put(_keyTutorialDone, profile.tutorialDone);
     if (profile.accessToken != null && profile.accessToken!.isNotEmpty) {
       await _box.put(_keyAccessToken, profile.accessToken);
     } else {

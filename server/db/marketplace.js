@@ -47,8 +47,9 @@ async function addColumnIfMissing(conn, table, column, definition) {
      LIMIT 1`,
     { table, column },
   );
-  if (rows.length > 0) return;
+  if (rows.length > 0) return false;
   await conn.query(`ALTER TABLE \`${table}\` ADD COLUMN ${definition}`);
+  return true;
 }
 
 async function ensureMarketplaceSchema() {
@@ -97,6 +98,18 @@ async function ensureMarketplaceSchema() {
       'deck_id',
       `deck_id VARCHAR(64) NOT NULL DEFAULT 'default'`,
     );
+    const addedTutorialDone = await addColumnIfMissing(
+      conn,
+      'players',
+      'tutorial_done',
+      'tutorial_done TINYINT(1) NOT NULL DEFAULT 0',
+    );
+    if (addedTutorialDone) {
+      // Players who already finished a match know the rules: don't prompt them.
+      await conn.query(
+        'UPDATE players SET tutorial_done = 1 WHERE wins + losses + draws > 0',
+      );
+    }
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS player_items (

@@ -68,6 +68,7 @@ class ProfileApi {
     String? username,
     String? avatarId,
     String? deckId,
+    bool? tutorialDone,
     String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/player/profile');
@@ -81,6 +82,7 @@ class ProfileApi {
             if (username != null) 'username': username,
             if (avatarId != null) 'avatarId': avatarId,
             if (deckId != null) 'deckId': deckId,
+            if (tutorialDone != null) 'tutorialDone': tutorialDone,
           }),
         )
         .timeout(const Duration(seconds: 8));

@@ -104,6 +104,7 @@ class CardGame extends FlameGame {
   /// Hand slot this client last tapped. The server only reports public state,
   /// so the tap index is what lets the board animate the right card.
   int? _pendingTapIndex;
+  DateTime? _pendingTapAt;
 
   /// When set, next drawn-slot sync skips the pop-in (ghost already flew in).
   bool? _suppressDrawnAppearSelf;
@@ -1015,6 +1016,16 @@ class CardGame extends FlameGame {
   }
 
   void _handleHandTap(int cardIndex) {
+    // Swallow a second tap while the first is still on its way to the
+    // server (double taps); a stale pending tap stops blocking after a beat.
+    final now = DateTime.now();
+    final last = _pendingTapAt;
+    if (_pendingTapIndex != null &&
+        last != null &&
+        now.difference(last) < const Duration(milliseconds: 800)) {
+      return;
+    }
+    _pendingTapAt = now;
     _pendingTapIndex = cardIndex;
     onTapCard?.call(cardIndex);
   }

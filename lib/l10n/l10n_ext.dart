@@ -1,3 +1,4 @@
+import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:flutter/widgets.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
@@ -72,5 +73,24 @@ extension DeckL10n on AppLocalizations {
     DeckRarity.rare => rarityRare,
     DeckRarity.epic => rarityEpic,
     DeckRarity.legendary => rarityLegendary,
+  };
+}
+
+/// Localized avatar names.
+extension AvatarL10n on AppLocalizations {
+  String avatarName(AvatarItem avatar) => switch (avatar.nameKey) {
+    'defaultAvatar' => defaultAvatar,
+    'blueAvatar' => blueAvatar,
+    'redAvatar' => redAvatar,
+    'bronzeAvatar' => bronzeAvatar,
+    'silverAvatar' => silverAvatar,
+    'jokerGirlAvatar' => jokerGirlAvatar,
+    'violetJokerGirlAvatar' => violetJokerGirlAvatar,
+    'violetQueenAvatar' => violetQueenAvatar,
+    'queenOfHeartAvatar' => queenOfHeartAvatar,
+    'goldenKingAvatar' => goldenKingAvatar,
+    'queenAvatar' => queenAvatar,
+    'kingAvatar' => kingAvatar,
+    _ => avatar.nameKey,
   };
 }

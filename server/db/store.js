@@ -55,7 +55,7 @@ async function resolveLinkableGuest(deviceId) {
 const PLAYER_SELECT = `
   p.id, p.display_name, p.username, p.device_id,
   p.created_ip, p.last_ip, p.auth_type, p.google_sub, p.email,
-  p.money, p.chips, p.token_version
+  p.money, p.chips, p.token_version, p.tutorial_done
 `;
 
 /**
@@ -139,6 +139,7 @@ function mapPlayerRow(row) {
     authType: row.auth_type || 'guest',
     money: row.money != null ? Number(row.money) : 500,
     chips: row.chips != null ? Number(row.chips) : 1,
+    tutorialDone: Number(row.tutorial_done) === 1,
     tokenVersion:
       row.token_version != null ? Number(row.token_version) : 0,
   };

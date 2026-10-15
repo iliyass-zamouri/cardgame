@@ -5,6 +5,7 @@ import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/city_table.dart';
 import 'package:cardgame/ui/theme/city_theme.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -115,49 +116,141 @@ class _GlassBorderPainter extends CustomPainter {
       oldDelegate.shape != shape || oldDelegate.color != color;
 }
 
-/// Circular frosted HUD button (menu / info / end).
-class CasinoCircleButton extends StatelessWidget {
-  const CasinoCircleButton({
+enum CasinoHudTone { leather, danger }
+
+/// Raised HUD button for the in-game top bar: a round leather icon button,
+/// or with [label] a pill carrying icon and text. [danger] is the red
+/// variant for destructive actions such as ending the game.
+class CasinoHudButton extends StatelessWidget {
+  const CasinoHudButton({
     super.key,
     required this.icon,
     required this.onPressed,
+    this.label,
     this.tooltip,
-    this.size = 38,
-    this.rimColor,
+    this.tone = CasinoHudTone.leather,
+    this.accent,
   });
+
+  static const height = 40.0;
 
   final List<List<dynamic>> icon;
   final VoidCallback onPressed;
+  final String? label;
   final String? tooltip;
-  final double size;
-  final Color? rimColor;
+  final CasinoHudTone tone;
+
+  /// Rim and icon tint; defaults to gold. The HUD passes the city accent.
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
-    final button = CasinoGlass(
-      shape: const CircleBorder(),
-      rimColor: rimColor,
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        elevation: 0,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: HugeIcon(
-              icon: icon,
-              size: size * 0.45,
-              color: rimColor ?? CasinoColors.gold,
-            ),
+    final locale = Localizations.localeOf(context);
+    final danger = tone == CasinoHudTone.danger;
+    final rim = accent ?? CasinoColors.gold;
+    const dangerRed = Color(0xFFFF6B5E);
+    final foreground = danger ? Colors.white : rim;
+    final label = this.label;
+
+    final button = Pressable(
+      onTap: onPressed,
+      child: Container(
+        height: height,
+        width: label == null ? height : null,
+        padding:
+            label == null
+                ? null
+                : const EdgeInsetsDirectional.fromSTEB(12, 0, 16, 0),
+        decoration:
+            danger
+                // Deep red glass: mostly opaque so it reads on any table.
+                ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(height / 2),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      const Color(0xFFD32F2F).withValues(alpha: 0.85),
+                      const Color(0xFF7A1010).withValues(alpha: 0.85),
+                    ],
+                  ),
+                  border: Border.all(color: dangerRed, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: dangerRed.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                    ),
+                  ],
+                )
+                : BoxDecoration(
+                  borderRadius: BorderRadius.circular(height / 2),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF5A3826),
+                      CasinoColors.leather,
+                      CasinoColors.leatherDeep,
+                    ],
+                  ),
+                  border: Border.all(
+                    color: rim.withValues(alpha: 0.85),
+                    width: 1.4,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x8C000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+        foregroundDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(height / 2),
+          // Glossy top highlight.
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.center,
+            colors: [
+              Colors.white.withValues(alpha: danger ? 0.08 : 0.16),
+              Colors.white.withValues(alpha: 0),
+            ],
           ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            HugeIcon(icon: icon, size: 19, color: foreground),
+            if (label != null) ...[
+              const SizedBox(width: 7),
+              Text(
+                casinoButtonLabel(label, locale),
+                maxLines: 1,
+                style: TextStyle(
+                  fontFamily: CasinoFonts.displayFor(locale),
+                  color: foreground,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: locale.languageCode == 'ar' ? 0 : 0.8,
+                  height: 1.2,
+                  shadows: const [
+                    Shadow(
+                      color: Color(0x99000000),
+                      blurRadius: 3,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
-    if (tooltip == null) return button;
-    return Tooltip(message: tooltip!, child: button);
+    final message = tooltip ?? label;
+    if (message == null) return button;
+    return Tooltip(message: message, child: button);
   }
 }
 

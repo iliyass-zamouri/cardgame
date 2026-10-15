@@ -2,7 +2,7 @@ import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/marketplace/marketplace_api.dart';
-import 'package:cardgame/l10n/app_localizations.dart';
+import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
@@ -57,37 +57,6 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
     _selectedAvatarId = widget.currentAvatarId;
   }
 
-  String _getAvatarName(AvatarItem avatar, AppLocalizations l10n) {
-    switch (avatar.nameKey) {
-      case 'defaultAvatar':
-        return l10n.defaultAvatar;
-      case 'blueAvatar':
-        return l10n.blueAvatar;
-      case 'redAvatar':
-        return l10n.redAvatar;
-      case 'bronzeAvatar':
-        return l10n.bronzeAvatar;
-      case 'silverAvatar':
-        return l10n.silverAvatar;
-      case 'jokerGirlAvatar':
-        return l10n.jokerGirlAvatar;
-      case 'violetJokerGirlAvatar':
-        return l10n.violetJokerGirlAvatar;
-      case 'violetQueenAvatar':
-        return l10n.violetQueenAvatar;
-      case 'queenOfHeartAvatar':
-        return l10n.queenOfHeartAvatar;
-      case 'goldenKingAvatar':
-        return l10n.goldenKingAvatar;
-      case 'queenAvatar':
-        return l10n.queenAvatar;
-      case 'kingAvatar':
-        return l10n.kingAvatar;
-      default:
-        return avatar.id;
-    }
-  }
-
   Future<void> _equipAvatar(AvatarItem avatar) async {
     if (_selectedAvatarId == avatar.id) return;
 
@@ -115,7 +84,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
     PlayerProfile profile,
     AppLocalizations l10n,
   ) async {
-    final avatarName = _getAvatarName(avatar, l10n);
+    final avatarName = l10n.avatarName(avatar);
     final canAfford =
         avatar.currency == CurrencyType.money
             ? profile.money >= avatar.price
@@ -305,7 +274,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
                 final avatar = avatars[index];
                 final isOwned = profile.ownsAvatar(avatar.id);
                 final isEquipped = _selectedAvatarId == avatar.id;
-                final avatarName = _getAvatarName(avatar, l10n);
+                final avatarName = l10n.avatarName(avatar);
 
                 return _AvatarGridTile(
                   avatar: avatar,
@@ -378,7 +347,9 @@ class _AvatarGridTile extends StatelessWidget {
                         shape: BoxShape.circle,
                         color: Colors.black38,
                       ),
-                      child: const HugeIcon(icon: AppIcons.lock, color: Colors.white70,
+                      child: const HugeIcon(
+                        icon: AppIcons.lock,
+                        color: Colors.white70,
                         size: 24,
                       ),
                     ),
@@ -392,7 +363,9 @@ class _AvatarGridTile extends StatelessWidget {
                           shape: BoxShape.circle,
                           color: CasinoColors.gold,
                         ),
-                        child: const HugeIcon(icon: AppIcons.check, size: 12,
+                        child: const HugeIcon(
+                          icon: AppIcons.check,
+                          size: 12,
                           color: CasinoColors.bg,
                         ),
                       ),

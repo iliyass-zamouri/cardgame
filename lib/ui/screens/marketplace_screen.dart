@@ -15,7 +15,7 @@ import 'package:cardgame/ui/screens/deck_preview_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
-import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
+import 'package:cardgame/ui/widgets/deck_showcase_card.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
@@ -1012,38 +1012,6 @@ class _AvatarsTab extends ConsumerWidget {
   final PlayerProfile profile;
   final void Function(bool) onBusy;
 
-  String _getAvatarName(BuildContext context, String nameKey) {
-    final l10n = context.l10n;
-    switch (nameKey) {
-      case 'defaultAvatar':
-        return l10n.defaultAvatar;
-      case 'blueAvatar':
-        return l10n.blueAvatar;
-      case 'redAvatar':
-        return l10n.redAvatar;
-      case 'bronzeAvatar':
-        return l10n.bronzeAvatar;
-      case 'silverAvatar':
-        return l10n.silverAvatar;
-      case 'jokerGirlAvatar':
-        return l10n.jokerGirlAvatar;
-      case 'violetJokerGirlAvatar':
-        return l10n.violetJokerGirlAvatar;
-      case 'violetQueenAvatar':
-        return l10n.violetQueenAvatar;
-      case 'queenOfHeartAvatar':
-        return l10n.queenOfHeartAvatar;
-      case 'goldenKingAvatar':
-        return l10n.goldenKingAvatar;
-      case 'queenAvatar':
-        return l10n.queenAvatar;
-      case 'kingAvatar':
-        return l10n.kingAvatar;
-      default:
-        return nameKey;
-    }
-  }
-
   Future<void> _buyAvatar(
     BuildContext context,
     WidgetRef ref,
@@ -1080,7 +1048,7 @@ class _AvatarsTab extends ConsumerWidget {
       if (context.mounted) {
         CasinoToast.show(
           context,
-          '${l10n.unlocked}! ${_getAvatarName(context, avatar.nameKey)}',
+          '${l10n.unlocked}! ${l10n.avatarName(avatar)}',
         );
       }
     } catch (e) {
@@ -1104,10 +1072,7 @@ class _AvatarsTab extends ConsumerWidget {
     final l10n = context.l10n;
     await ref.read(playerProfileProvider.notifier).updateAvatar(avatar.id);
     if (context.mounted) {
-      CasinoToast.show(
-        context,
-        '${l10n.equipped}: ${_getAvatarName(context, avatar.nameKey)}',
-      );
+      CasinoToast.show(context, '${l10n.equipped}: ${l10n.avatarName(avatar)}');
     }
   }
 
@@ -1129,7 +1094,7 @@ class _AvatarsTab extends ConsumerWidget {
         final avatar = avatars[index];
         final isOwned = profile.ownsAvatar(avatar.id);
         final isEquipped = profile.avatarId == avatar.id;
-        final name = _getAvatarName(context, avatar.nameKey);
+        final name = l10n.avatarName(avatar);
 
         final Widget action;
         if (isEquipped) {
@@ -1383,182 +1348,60 @@ class _DecksTab extends ConsumerWidget {
     final l10n = context.l10n;
     final decks = DeckCatalog.all;
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 14,
+        childAspectRatio: 0.56,
+      ),
       itemCount: decks.length,
       itemBuilder: (context, index) {
         final deck = decks[index];
         final isOwned = profile.ownsDeck(deck.id);
         final isEquipped = profile.deckId == deck.id;
-        final name = l10n.deckName(deck);
-        final desc = l10n.deckDescription(deck);
-        final rarity = l10n.deckRarity(deck.rarity);
-        final rarityColor = _rarityColor(deck.rarity);
 
         final Widget action;
         if (isEquipped) {
-          action = _EquippedPill(label: l10n.equipped, onIvory: false);
+          action = _EquippedPill(
+            label: l10n.equipped,
+            compact: true,
+            onIvory: false,
+          );
         } else if (isOwned) {
           action = LeatherButton(
             label: l10n.equip,
+            compact: true,
             onPressed: () => _equipDeck(context, ref, deck),
           );
         } else {
           action = GoldButton(
             label: '${deck.chipPrice} · ${l10n.buy}',
-            leading: const ChipIcon(size: 20),
+            compact: true,
+            leading: const ChipIcon(size: 16),
             onPressed: () => _buyDeck(context, ref, deck),
           );
         }
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: FeltPanel(
-            highlighted: isEquipped,
-            radius: 22,
-            padding: const EdgeInsets.all(14),
-            onTap:
-                () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder:
-                        (context) => DeckPreviewScreen(
-                          title: name,
-                          backSkinId: deck.skinId,
-                        ),
-                  ),
-                ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Deck fanned out on a felt inset, like on the table,
-                // glowing in its rarity colour.
-                Stack(
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: RadialGradient(
-                          radius: 0.9,
-                          colors: [
-                            Color.lerp(
-                              const Color(0xFF237A4F),
-                              rarityColor,
-                              rarityColor == null ? 0 : 0.18,
-                            )!,
-                            CasinoColors.feltDeep,
-                          ],
-                        ),
-                        border: Border.all(
-                          color: (rarityColor ?? CasinoColors.gold).withValues(
-                            alpha: rarityColor == null ? 0.25 : 0.6,
-                          ),
-                          width: rarityColor == null ? 1 : 1.5,
-                        ),
-                        boxShadow: [
-                          if (rarityColor != null)
-                            BoxShadow(
-                              color: rarityColor.withValues(alpha: 0.25),
-                              blurRadius: 18,
-                            ),
-                        ],
+        return DeckShowcaseCard(
+          key: ValueKey('shop-deck-${deck.id}'),
+          deck: deck,
+          owned: isOwned,
+          equipped: isEquipped,
+          action: action,
+          onPreview:
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder:
+                      (context) => DeckPreviewScreen(
+                        title: l10n.deckName(deck),
+                        backSkinId: deck.skinId,
                       ),
-                      child: Center(child: DeckFanPreview(skinId: deck.skinId)),
-                    ),
-                    if (rarity != null)
-                      PositionedDirectional(
-                        top: 10,
-                        start: 10,
-                        child: _RarityBadge(label: rarity, color: rarityColor!),
-                      ),
-                  ],
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  casinoButtonLabel(name, Localizations.localeOf(context)),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: CasinoFonts.displayOf(context),
-                    color: CasinoColors.gold,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  desc,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                action,
-              ],
-            ),
-          ),
+              ),
         );
       },
-    );
-  }
-}
-
-Color? _rarityColor(DeckRarity rarity) => switch (rarity) {
-  DeckRarity.standard => null,
-  DeckRarity.rare => const Color(0xFF4FA3FF),
-  DeckRarity.epic => const Color(0xFFB06BFF),
-  DeckRarity.legendary => const Color(0xFFFFC542),
-};
-
-/// Small gem-cut pill naming a deck's rarity.
-class _RarityBadge extends StatelessWidget {
-  const _RarityBadge({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final locale = Localizations.localeOf(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color.lerp(color, Colors.white, 0.25)!, color],
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const HugeIcon(
-            icon: AppIcons.diamond,
-            size: 12,
-            color: Color(0xFF17171C),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            casinoButtonLabel(label, locale),
-            style: const TextStyle(
-              color: Color(0xFF17171C),
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

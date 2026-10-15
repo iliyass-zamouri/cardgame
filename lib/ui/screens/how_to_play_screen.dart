@@ -1,19 +1,191 @@
+import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
-import 'package:cardgame/ui/flame/card_game.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
+import 'package:cardgame/ui/screens/tutorial/tutorial_lessons.dart';
+import 'package:cardgame/ui/screens/tutorial/tutorial_progress_repository.dart';
+import 'package:cardgame/ui/screens/tutorial/tutorial_screen.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
-import 'package:flame/components.dart';
-import 'package:flutter/material.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/widgets/playing_card_face.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HowToPlayScreen extends StatefulWidget {
-  const HowToPlayScreen({super.key});
+/// Lesson hub: hands-on tutorial lessons plus the one-page rules reference.
+class HowToPlayScreen extends ConsumerStatefulWidget {
+  const HowToPlayScreen({super.key, this.autoStart = false});
+
+  /// Open straight into the first lesson (first-run prompt).
+  final bool autoStart;
 
   @override
-  State<HowToPlayScreen> createState() => _HowToPlayScreenState();
+  ConsumerState<HowToPlayScreen> createState() => _HowToPlayScreenState();
 }
 
-class _HowToPlayScreenState extends State<HowToPlayScreen> {
+class _HowToPlayScreenState extends ConsumerState<HowToPlayScreen> {
+  final _lessons = tutorialLessons();
+  late final _progress = ref.read(tutorialProgressRepositoryProvider);
+  late Set<String> _completed = _progress.completed();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _play(0);
+      });
+    }
+  }
+
+  Future<void> _markCompleted(String lessonId) async {
+    if (_completed.contains(lessonId)) return;
+    setState(() => _completed = {..._completed, lessonId});
+    await _progress.markCompleted(lessonId);
+  }
+
+  void _play(int startIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => TutorialScreen(
+              lessons: _lessons,
+              startIndex: startIndex,
+              onLessonCompleted: _markCompleted,
+              onFinished:
+                  () =>
+                      ref
+                          .read(playerProfileProvider.notifier)
+                          .markTutorialDone()
+                          .ignore(),
+            ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final nextIndex = _lessons.indexWhere((l) => !_completed.contains(l.id));
+    return FeltScaffold(
+      title: l10n.howToPlay,
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          children: [
+            IvoryCard(
+              radius: 18,
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l10n.tutHubIntro,
+                    style: const TextStyle(
+                      color: Color(0xFF3D3020),
+                      fontSize: 15,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  GoldButton(
+                    label:
+                        _completed.isEmpty || nextIndex < 0
+                            ? l10n.tutStartAll
+                            : l10n.tutContinue,
+                    onPressed: () => _play(nextIndex < 0 ? 0 : nextIndex),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            FeltTileGroup(
+              header: l10n.tutLessonsHeader,
+              suit: SuitShape.hearts,
+              children: [
+                for (var i = 0; i < _lessons.length; i++)
+                  FeltTile(
+                    key: ValueKey('lesson-${_lessons[i].id}'),
+                    leading: _LessonBadge(
+                      number: i + 1,
+                      suit: _lessons[i].suit,
+                      done: _completed.contains(_lessons[i].id),
+                    ),
+                    title: _lessons[i].title(l10n),
+                    onTap: () => _play(i),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            FeltTileGroup(
+              children: [
+                FeltTile(
+                  icon: AppIcons.menuBook,
+                  title: l10n.tutQuickRules,
+                  subtitle: l10n.tutQuickRulesSubtitle,
+                  onTap:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const QuickRulesScreen(),
+                        ),
+                      ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LessonBadge extends StatelessWidget {
+  const _LessonBadge({
+    required this.number,
+    required this.suit,
+    required this.done,
+  });
+
+  final int number;
+  final SuitShape suit;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: done ? CasinoColors.success : CardInk.ivory,
+        border: Border.all(color: CasinoColors.gold, width: 1.5),
+      ),
+      child:
+          done
+              ? const Icon(Icons.check_rounded, color: Colors.white, size: 22)
+              : Text(
+                '$number',
+                style: TextStyle(
+                  fontFamily: CasinoFonts.display,
+                  color: suitColor(suit),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                ),
+              ),
+    );
+  }
+}
+
+/// All the rules as a short card-by-card reference.
+class QuickRulesScreen extends StatefulWidget {
+  const QuickRulesScreen({super.key});
+
+  @override
+  State<QuickRulesScreen> createState() => _QuickRulesScreenState();
+}
+
+class _QuickRulesScreenState extends State<QuickRulesScreen> {
   int _index = 0;
 
   List<_RuleStep> _steps(AppLocalizations l10n) => [
@@ -83,7 +255,7 @@ class _HowToPlayScreenState extends State<HowToPlayScreen> {
       Localizations.localeOf(context),
     );
     return FeltScaffold(
-      title: l10n.howToPlay,
+      title: l10n.tutQuickRules,
       body: SafeArea(
         top: false,
         child: Padding(
@@ -245,28 +417,13 @@ class _SpecialCardRow extends StatelessWidget {
   final _CardExample example;
 
   static const _cardW = 64.0;
-  static const _cardH = _cardW * 112 / 78;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          width: _cardW,
-          height: _cardH,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x40000000),
-                blurRadius: 6,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: CustomPaint(painter: _DeckCardPainter(example.tag)),
-        ),
+        PlayingCardFace(tag: example.tag, width: _cardW),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -297,26 +454,6 @@ class _SpecialCardRow extends StatelessWidget {
       ],
     );
   }
-}
-
-/// Same face art as [DeckPreviewScreen] / the board.
-class _DeckCardPainter extends CustomPainter {
-  const _DeckCardPainter(this.tag);
-
-  final String tag;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    PlayingCardComponent(
-      cardIndex: 0,
-      tag: tag,
-      visible: true,
-      sizeOverride: Vector2(size.width, size.height),
-    ).render(canvas);
-  }
-
-  @override
-  bool shouldRepaint(_DeckCardPainter oldDelegate) => oldDelegate.tag != tag;
 }
 
 class _RuleStep {

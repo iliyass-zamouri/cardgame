@@ -73,6 +73,23 @@ class AppLocalizationsFr extends AppLocalizations {
   String get shop => 'Boutique';
 
   @override
+  String get collection => 'Collection';
+
+  @override
+  String get collectionCards => 'Cartes';
+
+  @override
+  String get collectionAvatars => 'Avatars';
+
+  @override
+  String ownedCount(int owned, int total) {
+    return '$owned/$total possédés';
+  }
+
+  @override
+  String get getMoreInShop => 'Plus dans la Boutique';
+
+  @override
   String get deck => 'Jeu';
 
   @override
@@ -292,42 +309,42 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get ruleGoalBody =>
-      'Videz vos quatre cartes, ou ayez le score le plus bas à la fin. Le total le plus bas gagne.';
+      'Termine avec le total le plus bas. La partie s\'arrête quand un joueur n\'a plus de cartes ou que quelqu\'un touche Finir la partie.';
 
   @override
   String get ruleSetupTitle => 'Mise en place';
 
   @override
   String get ruleSetupBody =>
-      'Deux joueurs. Chacun reçoit quatre cartes face cachée.';
+      'Deux joueurs. Chacun reçoit quatre cartes face cachée, en ligne.';
 
   @override
   String get ruleOpeningPeekTitle => 'Aperçu initial';
 
   @override
   String get ruleOpeningPeekBody =>
-      'Avant de jouer, les deux joueurs regardent deux de leurs cartes (rangée du bas) quelques secondes. Mémorisez-les — elles sont retournées face cachée.';
+      'Avant de jouer, touche Révéler pour voir tes deux cartes de gauche quelques secondes. Retiens-les — puis elles se retournent.';
 
   @override
   String get ruleYourTurnTitle => 'Votre tour';
 
   @override
   String get ruleYourTurnBody =>
-      'Piochez dans le deck, ou si la défausse correspond à une carte que vous connaissez, touchez-la pour la défausser (votre tour continue). Mauvaise guess = une carte pénalité dans votre disposition.';
+      'Avant de piocher, si le haut de la défausse correspond à une carte que tu connais, touche-la pour la défausser (ton tour continue). Erreur = carte de pénalité. Puis pioche.';
 
   @override
   String get ruleAfterDrawTitle => 'Après la pioche';
 
   @override
   String get ruleAfterDrawBody =>
-      'Touchez une de vos cartes pour échanger (rang différent) ou double-défausse (même rang), ou jetez la carte piochée. Puis votre tour se termine.';
+      'Touche une de tes cartes pour échanger (rang différent) ou double-défausser (même rang), ou touche la carte piochée pour la jeter. Ton tour se termine.';
 
   @override
   String get ruleSpecialTitle => 'Cartes spéciales';
 
   @override
   String get ruleSpecialBody =>
-      'Ces rangs déclenchent une capacité quand vous les piochez. Après la capacité, la carte est jetée.';
+      'Quand tu pioches ces cartes, tu peux utiliser leur pouvoir. Ensuite, la carte est jetée.';
 
   @override
   String get ruleJackLabel => 'Valet';
@@ -348,7 +365,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get ruleScoringBody =>
-      'Quand quelqu\'un vide sa disposition (ou la partie finit), additionnez les cartes restantes. Le total le plus bas gagne ; égalité = match nul.';
+      'Quand un joueur n\'a plus de cartes ou que quelqu\'un touche Finir la partie, toutes les cartes sont révélées et additionnées. As = 1, Valet = 11, Dame = 12. Le plus bas gagne ; égalité possible.';
 
   @override
   String get ruleJokerLabel => 'Joker';
@@ -1019,4 +1036,347 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get buyChips => 'Acheter des jetons';
+
+  @override
+  String get tutLessonValuesTitle => 'But & valeur des cartes';
+
+  @override
+  String get tutLessonDealTitle => 'La donne & premier coup d\'œil';
+
+  @override
+  String get tutLessonSwapTitle => 'Piocher & échanger';
+
+  @override
+  String get tutLessonThrowTitle => 'Jeter une carte';
+
+  @override
+  String get tutLessonDoubleTitle => 'Double défausse';
+
+  @override
+  String get tutLessonMatchTitle => 'Égaler la défausse';
+
+  @override
+  String get tutLessonJackTitle => 'Valet : regarder';
+
+  @override
+  String get tutLessonQueenTitle => 'Dame : échanger ou mélanger';
+
+  @override
+  String get tutLessonEndTitle => 'Fin & score';
+
+  @override
+  String get tutLessonTipsTitle => 'Astuces pour gagner';
+
+  @override
+  String get tutValuesIntro =>
+      'ShadowHand est un jeu de mémoire à deux. Chaque joueur a des cartes face cachée. À la fin de la partie, chacun additionne ses cartes — le total le plus bas gagne.';
+
+  @override
+  String get tutValuesChart =>
+      'Chaque carte vaut des points. As = 1, cartes numérotées = leur valeur, Valet = 11, Dame = 12, Roi rouge = 13. Les meilleures : un Roi noir vaut 0 et un Joker vaut −1 !';
+
+  @override
+  String get tutValuesQuizLowest =>
+      'Petit quiz : touche la carte qui vaut le moins de points.';
+
+  @override
+  String get tutValuesQuizLowestWrong =>
+      'Pas tout à fait. Le Joker vaut −1 — encore moins qu\'un As.';
+
+  @override
+  String get tutValuesQuizKing =>
+      'Voici deux Rois. Touche celui qui vaut 0 point.';
+
+  @override
+  String get tutValuesQuizKingWrong =>
+      'Seuls les Rois noirs (♠ ♣) valent 0. Les Rois rouges (♥ ♦) valent 13 — la pire carte du jeu !';
+
+  @override
+  String get tutValuesDone =>
+      'Parfait ! Ton objectif : garder les petites cartes et te débarrasser des grosses.';
+
+  @override
+  String get tutDealIntro =>
+      'Chaque joueur reçoit 4 cartes face cachée, en ligne. Tu ne sais pas encore ce qu\'elles sont — ton adversaire non plus.';
+
+  @override
+  String get tutDealReveal =>
+      'Avant de jouer, tu as droit à un coup d\'œil. Touche Révéler.';
+
+  @override
+  String get tutDealMemorize =>
+      'Tes deux cartes de gauche sont visibles quelques secondes. Retiens-les : un 2 et un 8 !';
+
+  @override
+  String get tutDealQuiz =>
+      'Elles sont de nouveau cachées. Où est ton 2 ? Touche-le.';
+
+  @override
+  String get tutDealQuizWrong =>
+      'Le 2 était ta première carte, tout à gauche. Dans ce jeu, la mémoire est tout !';
+
+  @override
+  String get tutDealDone =>
+      'Exact ! Tes deux autres cartes restent un mystère — tu en apprendras plus en jouant.';
+
+  @override
+  String get tutDrawPrompt =>
+      'C\'est ton tour. Touche la pioche pour piocher une carte.';
+
+  @override
+  String get tutSwapIntro =>
+      'Tu te souviens de tes deux premières cartes : un 2 et un 9. Un 9 coûte cher — remplaçons-le.';
+
+  @override
+  String get tutSwapPick =>
+      'Tu as pioché un 3. C\'est mieux que ton 9 ! Touche ton 9 (deuxième carte) pour les échanger.';
+
+  @override
+  String get tutSwapPickWrong =>
+      'Touche ton 9 — la deuxième carte en partant de la gauche. Échanger une carte inconnue, c\'est un pari.';
+
+  @override
+  String get tutSwapDone =>
+      'Le 3 prend la place du 9, face cachée, et le 9 part à la défausse. Ton tour est terminé — et tu viens d\'économiser 6 points.';
+
+  @override
+  String get tutThrowPick =>
+      'Aïe — un Roi rouge, qui vaut 13. Tu n\'en veux pas ! Touche la carte piochée pour la jeter sur la défausse.';
+
+  @override
+  String get tutThrowWrong =>
+      'Ne garde pas une mauvaise carte. Touche la carte piochée (en bas à gauche) pour la jeter.';
+
+  @override
+  String get tutThrowDone =>
+      'Jetée ! Tes cartes n\'ont pas changé et ton tour est fini. Jette toute carte qui n\'améliorerait pas ta main.';
+
+  @override
+  String get tutDoubleIntro => 'Tu te souviens que ta première carte est un 5.';
+
+  @override
+  String get tutDoublePick =>
+      'Encore un 5 ! Quand la carte piochée a le même rang qu\'une des tiennes, touche ta carte : les deux sont défaussées.';
+
+  @override
+  String get tutDoubleWrong => 'Touche ton 5 — la première carte à gauche.';
+
+  @override
+  String get tutDoubleDone =>
+      'Les deux 5 sont partis et tu as une carte de moins. Moins de cartes, moins de points — et si tu n\'as plus de cartes, la partie s\'arrête.';
+
+  @override
+  String get tutMatchIntro =>
+      'Tu te souviens que ta première carte est un 7. C\'est maintenant au tour de ton adversaire…';
+
+  @override
+  String get tutMatchPick =>
+      'Ton adversaire a jeté un 7 ! À ton tour, avant de piocher, tu peux toucher une carte du même rang que le haut de la défausse pour t\'en débarrasser. Touche ton 7.';
+
+  @override
+  String get tutMatchWrong => 'Touche ton 7 — la première carte à gauche.';
+
+  @override
+  String get tutMatchContinue =>
+      'Défausse gratuite ! Égaler ne termine pas ton tour : tu peux recommencer, puis tu pioches quand même. Touche la pioche.';
+
+  @override
+  String get tutMatchThrow =>
+      'Un 8 — pas terrible. Touche-le pour le jeter et finir ton tour.';
+
+  @override
+  String get tutMatchGuess =>
+      'Au tour suivant, la défausse montre un 4. Tu penses que ta carte du milieu est peut-être un 4… sans en être sûr. Voyons ce qui se passe en cas d\'erreur : touche-la.';
+
+  @override
+  String get tutMatchPenalty =>
+      'Raté — ce n\'était pas un 4. Tu reçois une carte de pénalité face cachée, et la carte touchée reste. N\'égale que si tu es sûr !';
+
+  @override
+  String get tutJackPeekButton =>
+      'Un Valet ! Quand tu pioches un Valet, tu peux regarder une carte — la tienne ou celle de ton adversaire. Touche Voir.';
+
+  @override
+  String get tutJackPick =>
+      'Touche maintenant la carte à voir. Espionnons la deuxième carte de ton adversaire.';
+
+  @override
+  String get tutJackPickWrong =>
+      'Touche la deuxième carte de ton adversaire en partant de la gauche.';
+
+  @override
+  String get tutJackReveal =>
+      'C\'est une Dame — 12 points pour lui. Retiens sa place : elle se cache dans un instant.';
+
+  @override
+  String get tutJackDone =>
+      'Après le coup d\'œil, le Valet est jeté automatiquement et ton tour se termine. Le pouvoir est facultatif : tu peux aussi garder ou jeter un Valet comme une autre carte.';
+
+  @override
+  String get tutQueenIntro =>
+      'Tu te souviens que ta deuxième carte est un 10. Donnons-le à ton adversaire.';
+
+  @override
+  String get tutQueenButtons =>
+      'Une Dame ! Tu as le choix. Mélanger mélange les cartes d\'un joueur. Échanger troque une de tes cartes contre une des siennes. Touche Échanger.';
+
+  @override
+  String get tutQueenButtonsWrong => 'Pour cette leçon, touche Échanger.';
+
+  @override
+  String get tutQueenPickYours =>
+      'Touche d\'abord la carte à donner : ton 10, la deuxième carte.';
+
+  @override
+  String get tutQueenPickYoursWrong =>
+      'Touche ton 10 — ta deuxième carte en partant de la gauche.';
+
+  @override
+  String get tutQueenPickTheirs =>
+      'Touche maintenant la carte adverse à prendre : sa première carte.';
+
+  @override
+  String get tutQueenPickTheirsWrong =>
+      'Touche la première carte de ton adversaire, à gauche.';
+
+  @override
+  String get tutQueenDone =>
+      'Échangé ! Ton 10 appartient maintenant à ton adversaire. Tu ne vois pas la carte reçue, mais la plupart valent moins de 10 — bonne affaire. La Dame est jetée après usage.';
+
+  @override
+  String get tutQueenShuffle =>
+      'Mélanger est l\'autre option : mélange les cartes de ton adversaire et tout ce qu\'il avait retenu ne sert plus à rien. Tu peux aussi mélanger les tiennes.';
+
+  @override
+  String get tutEndIntro =>
+      'La partie se termine de deux façons : un joueur n\'a plus de cartes, ou quelqu\'un touche Finir la partie.';
+
+  @override
+  String get tutEndPress =>
+      'Tu penses avoir le total le plus bas ? Chaque joueur peut toucher Finir la partie à tout moment. Essaie.';
+
+  @override
+  String get tutEndCount =>
+      'Toutes les cartes sont révélées. Additionne les tiennes : 3 + 2 + Roi noir + Joker. Quel est ton total ?';
+
+  @override
+  String get tutEndCountWrong =>
+      'Rappel : un Roi noir vaut 0 et un Joker −1. Donc 3 + 2 + 0 − 1 = 4.';
+
+  @override
+  String get tutEndWinner => 'Ton adversaire a 9 + 5 + 7 + 1 = 22. Qui gagne ?';
+
+  @override
+  String get tutEndWinnerWrong => 'Le total le plus bas gagne : 4 bat 22.';
+
+  @override
+  String get tutEndDone =>
+      'Tu gagnes ! Si les deux totaux sont égaux, c\'est une égalité.';
+
+  @override
+  String get tutTipMemory =>
+      'Astuce 1 — Retiens tout. Chaque carte vue — au départ, en échangeant, avec un Valet — t\'apprend quelque chose. Garde-la en tête.';
+
+  @override
+  String get tutTipKeepLow =>
+      'Astuce 2 — Garde les Rois noirs et les Jokers. Ils valent 0 et −1 : ne les échange jamais.';
+
+  @override
+  String get tutTipDiscard =>
+      'Astuce 3 — Surveille la défausse. Chaque carte jetée par ton adversaire est une chance d\'égaler gratuitement.';
+
+  @override
+  String get tutTipQueen =>
+      'Astuce 4 — Utilise bien les Dames. Donne ta plus grosse carte, ou Mélange pour ruiner la mémoire de ton adversaire.';
+
+  @override
+  String get tutTipEnd =>
+      'Astuce 5 — Termine au bon moment. Si tu penses avoir le total le plus bas, touche Finir la partie avant que ton adversaire ne te rattrape.';
+
+  @override
+  String get tutChoiceYou => 'Toi';
+
+  @override
+  String get tutChoiceOpponent => 'Adversaire';
+
+  @override
+  String get tutChoiceTie => 'Égalité';
+
+  @override
+  String get tutDeckLabel => 'Pioche';
+
+  @override
+  String get tutDiscardLabel => 'Défausse';
+
+  @override
+  String get tutDrawnLabel => 'Piochée';
+
+  @override
+  String get tutAceLabel => 'As';
+
+  @override
+  String get tutNumberCardsLabel => '2 à 10';
+
+  @override
+  String get tutRedKingLabel => 'Roi rouge';
+
+  @override
+  String get tutTapHighlighted =>
+      'Touche l\'élément qui brille pour continuer.';
+
+  @override
+  String tutLessonProgress(int current, int total) {
+    return 'Leçon $current sur $total';
+  }
+
+  @override
+  String get tutSkip => 'Passer';
+
+  @override
+  String get tutLessonDone => 'Leçon terminée !';
+
+  @override
+  String get tutReplay => 'Rejouer';
+
+  @override
+  String get tutFinish => 'Terminer';
+
+  @override
+  String get tutNextLesson => 'Leçon suivante';
+
+  @override
+  String get tutCompleteTitle => 'Tu es prêt !';
+
+  @override
+  String get tutCompleteBody =>
+      'Tu connais toutes les règles. Entraîne-toi contre le robot, puis affronte de vrais joueurs.';
+
+  @override
+  String get tutHubIntro =>
+      'Apprends ShadowHand en jouant. Chaque courte leçon te met les cartes en main et t\'explique une règle.';
+
+  @override
+  String get tutStartAll => 'Commencer le tutoriel';
+
+  @override
+  String get tutContinue => 'Continuer le tutoriel';
+
+  @override
+  String get tutLessonsHeader => 'Leçons';
+
+  @override
+  String get tutQuickRules => 'Règles rapides';
+
+  @override
+  String get tutQuickRulesSubtitle => 'Toutes les règles en 7 cartes';
+
+  @override
+  String get tutPromptTitle => 'Nouveau sur ShadowHand ?';
+
+  @override
+  String get tutPromptBody =>
+      'Apprends à jouer avec un tutoriel interactif. Ça prend environ 3 minutes.';
+
+  @override
+  String get tutPromptLater => 'Plus tard';
 }

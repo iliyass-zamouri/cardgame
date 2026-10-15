@@ -90,6 +90,10 @@ class OfflineGameRoom {
   int? turnIndex;
   Map<String, dynamic>? result;
   _LastAction? _lastAction;
+
+  /// Last penalty draw: lets a repeated tap on the same card be ignored.
+  ({String clientId, String tag, int discardSize, String discardTop})?
+  _lastPenalty;
   String? discardSource;
   String? discardDeckId;
 
@@ -374,6 +378,18 @@ class OfflineGameRoom {
     _changed();
   }
 
+  /// True when [selected] was just penalised against the same discard top
+  /// (e.g. a double tap): it can only miss again, so it must not cost a
+  /// second penalty card.
+  bool _isRepeatPenalty(String clientId, String selected) {
+    final last = _lastPenalty;
+    return last != null &&
+        last.clientId == clientId &&
+        last.tag == selected &&
+        last.discardSize == discard.length &&
+        last.discardTop == discard.last;
+  }
+
   void tapCard(String clientId, int cardIndex) {
     _requireAction(clientId);
     _requireNoAbilityLock(clientId);
@@ -387,6 +403,7 @@ class OfflineGameRoom {
       if (discard.isEmpty) {
         throw GameRuleError('draw_first', 'Draw a card first');
       }
+      if (_isRepeatPenalty(clientId, selected)) return;
       if (cardValue(selected) == cardValue(discard.last)) {
         player.cards.removeAt(cardIndex);
         discard.add(selected);
@@ -406,6 +423,12 @@ class OfflineGameRoom {
           playerId: clientId,
           type: 'penaltyDraw',
           cardIndex: cardIndex,
+        );
+        _lastPenalty = (
+          clientId: clientId,
+          tag: selected,
+          discardSize: discard.length,
+          discardTop: discard.last,
         );
       }
       _finishIfNeeded();

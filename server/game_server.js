@@ -705,14 +705,19 @@ class GameServer {
     }
 
     const playerId = auth.playerId;
-    const { name, username, avatarId, deckId } = body || {};
+    const { name, username, avatarId, deckId, tutorialDone } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
     }
 
     try {
-      const updated = await updatePlayerProfile({ playerId, name, username });
+      const updated = await updatePlayerProfile({
+        playerId,
+        name,
+        username,
+        tutorialDone: tutorialDone === true,
+      });
       if (!updated) {
         sendJson(response, 404, { error: 'not_found', message: 'Player not found' });
         return;
@@ -729,6 +734,7 @@ class GameServer {
         totalPoints: updated.total_points,
         avatarId: avatarId || updated.avatar_id || 'default',
         deckId: deckId || updated.deck_id || 'default',
+        tutorialDone: Number(updated.tutorial_done) === 1,
       });
     } catch (error) {
       if (error.code === 'invalid_format' || error.code === 'username_taken') {

@@ -18,6 +18,7 @@ import 'package:cardgame/ui/screens/home/game_over_panel.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
 import 'package:cardgame/ui/screens/home/home_menu_widgets.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
+import 'package:cardgame/ui/screens/tutorial/tutorial_prompt.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/city_theme.dart';
@@ -127,7 +128,9 @@ class HomeScreen extends ConsumerWidget {
     if (session.searchingMatch && game == null) {
       return const MatchmakingWaiting();
     }
-    if (game == null) return const StartGameWidget();
+    if (game == null) {
+      return const TutorialPromptGate(child: StartGameWidget());
+    }
     if (game.status == GameStatus.waiting) {
       return WaitingRoom(game: game);
     }
@@ -1047,10 +1050,11 @@ class GameHud extends ConsumerWidget {
                       ),
                     const Spacer(),
                     if (playing)
-                      CasinoCircleButton(
-                        rimColor: accent,
+                      CasinoHudButton(
+                        accent: accent,
                         icon: AppIcons.flag,
-                        tooltip: l10n.endGame,
+                        label: l10n.endGame,
+                        tone: CasinoHudTone.danger,
                         onPressed:
                             () => _confirm(
                               context,
@@ -1061,9 +1065,9 @@ class GameHud extends ConsumerWidget {
                               onConfirm: notifier.endGame,
                             ),
                       ),
-                    if (playing) const SizedBox(width: 4),
-                    CasinoCircleButton(
-                      rimColor: accent,
+                    if (playing) const SizedBox(width: 8),
+                    CasinoHudButton(
+                      accent: accent,
                       icon: AppIcons.menu,
                       tooltip: l10n.menu,
                       onPressed:

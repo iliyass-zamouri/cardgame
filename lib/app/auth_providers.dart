@@ -118,6 +118,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
   Future<void> applyIdentity(ServerIdentity identity) async {
     // Wait for initial build() so its empty Hive load cannot overwrite us.
     final current = await future;
+    final samePlayer = current.playerId == identity.playerId;
     final next = PlayerProfile(
       playerId: identity.playerId,
       name: identity.name,
@@ -136,9 +137,15 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
               ? current.ownedDecks
               : const ['default'],
       accessToken: identity.accessToken ?? current.accessToken,
+      tutorialDone:
+          identity.tutorialDone || (samePlayer && current.tutorialDone),
     );
     await _repo.save(next);
     state = AsyncData(next);
+    // A previous sync of the flag failed: retry now that we have a session.
+    if (next.tutorialDone && !identity.tutorialDone) {
+      _syncTutorialDone(next).ignore();
+    }
 
     final analytics = ref.read(analyticsServiceProvider);
     await analytics.setUserId(identity.playerId);
@@ -364,6 +371,32 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       } catch (_) {
         // Local equip still applied; server sync retries on next identity.
       }
+    }
+  }
+
+  /// Records that the first-run tutorial prompt was handled, so it is never
+  /// offered again on this or any other device.
+  Future<void> markTutorialDone() async {
+    final current = await future;
+    if (current.tutorialDone) return;
+    final next = current.copyWith(tutorialDone: true);
+    await _repo.save(next);
+    state = AsyncData(next);
+    await _syncTutorialDone(next);
+  }
+
+  Future<void> _syncTutorialDone(PlayerProfile profile) async {
+    if (profile.playerId.isEmpty) return;
+    try {
+      await ref
+          .read(profileApiServiceProvider)
+          .updateProfile(
+            playerId: profile.playerId,
+            tutorialDone: true,
+            accessToken: profile.accessToken,
+          );
+    } catch (_) {
+      // Local flag still applied; retried on next identity.
     }
   }
 

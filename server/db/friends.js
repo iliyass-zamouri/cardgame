@@ -73,7 +73,7 @@ async function isUsernameAvailable(username, currentPlayerId = null) {
 /**
  * Update a player's profile (display_name and/or username).
  */
-async function updatePlayerProfile({ playerId, name, username }) {
+async function updatePlayerProfile({ playerId, name, username, tutorialDone }) {
   if (!playerId) throw new Error('playerId is required');
   const pool = getPool();
 
@@ -104,10 +104,15 @@ async function updatePlayerProfile({ playerId, name, username }) {
     params.username = normalized;
   }
 
+  // One-way flag: the tutorial can be marked done but never reset.
+  if (tutorialDone === true) {
+    updates.push('tutorial_done = 1');
+  }
+
   if (updates.length === 0) {
     // Return existing
     const [rows] = await pool.execute(
-      `SELECT id, display_name, username, auth_type, money, chips, avatar_id, deck_id, elo, total_points, wins, losses, draws FROM players WHERE id = :playerId LIMIT 1`,
+      `SELECT id, display_name, username, auth_type, money, chips, avatar_id, deck_id, elo, total_points, wins, losses, draws, tutorial_done FROM players WHERE id = :playerId LIMIT 1`,
       { playerId },
     );
     return rows[0] || null;
@@ -119,7 +124,7 @@ async function updatePlayerProfile({ playerId, name, username }) {
   );
 
   const [rows] = await pool.execute(
-    `SELECT id, display_name, username, auth_type, money, chips, avatar_id, deck_id, elo, total_points, wins, losses, draws FROM players WHERE id = :playerId LIMIT 1`,
+    `SELECT id, display_name, username, auth_type, money, chips, avatar_id, deck_id, elo, total_points, wins, losses, draws, tutorial_done FROM players WHERE id = :playerId LIMIT 1`,
     { playerId },
   );
   return rows[0] || null;

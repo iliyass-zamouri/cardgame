@@ -8,6 +8,9 @@ class GameRuleError extends Error {
 }
 
 class GameRoom {
+  /** Last penalty draw: lets a repeated tap on the same card be ignored. */
+  #lastPenalty = null;
+
   constructor(id, {
     random = Math.random,
     onChange = () => {},
@@ -443,6 +446,7 @@ class GameRoom {
       if (this.discard.length === 0) {
         throw new GameRuleError('draw_first', 'Draw a card first');
       }
+      if (this.#isRepeatPenalty(clientId, selected)) return;
       if (cardValue(selected) === cardValue(this.discard.at(-1))) {
         player.cards.splice(index, 1);
         this.discard.push(selected);
@@ -462,6 +466,12 @@ class GameRoom {
           playerId: clientId,
           type: 'penaltyDraw',
           cardIndex: index,
+        };
+        this.#lastPenalty = {
+          clientId,
+          tag: selected,
+          discardSize: this.discard.length,
+          discardTop: this.discard.at(-1),
         };
       }
       this.#finishIfNeeded();
@@ -794,6 +804,22 @@ class GameRoom {
       .catch((error) => {
         console.error('[ranking] record failed', error);
       });
+  }
+
+  /**
+   * True when [selected] was just penalised against the same discard top
+   * (e.g. a double tap): it can only miss again, so it must not cost a
+   * second penalty card.
+   */
+  #isRepeatPenalty(clientId, selected) {
+    const last = this.#lastPenalty;
+    return (
+      last !== null &&
+      last.clientId === clientId &&
+      last.tag === selected &&
+      last.discardSize === this.discard.length &&
+      last.discardTop === this.discard.at(-1)
+    );
   }
 
   #restock() {

@@ -71,6 +71,23 @@ class AppLocalizationsAr extends AppLocalizations {
   String get shop => 'المتجر';
 
   @override
+  String get collection => 'المجموعة';
+
+  @override
+  String get collectionCards => 'البطاقات';
+
+  @override
+  String get collectionAvatars => 'الصور الرمزية';
+
+  @override
+  String ownedCount(int owned, int total) {
+    return '$owned/$total مملوكة';
+  }
+
+  @override
+  String get getMoreInShop => 'احصل على المزيد من المتجر';
+
+  @override
   String get deck => 'الورق';
 
   @override
@@ -288,41 +305,42 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get ruleGoalBody =>
-      'أفرغ أوراقك الأربع، أو احصل على أقل مجموع عند انتهاء اللعبة. الأقل مجموعًا يفوز.';
+      'أنهِ بأقل مجموع. تنتهي اللعبة عندما تنفد أوراق لاعب أو يضغط أحدهم على إنهاء اللعبة.';
 
   @override
   String get ruleSetupTitle => 'الإعداد';
 
   @override
-  String get ruleSetupBody => 'لاعبان. يحصل كل منهما على أربع أوراق مقلوبة.';
+  String get ruleSetupBody =>
+      'لاعبان. يحصل كل منهما على أربع أوراق مقلوبة في صف.';
 
   @override
   String get ruleOpeningPeekTitle => 'اطّلاع البداية';
 
   @override
   String get ruleOpeningPeekBody =>
-      'قبل اللعب، يطّلع كلا اللاعبين على ورقتين من أوراقهما (الصف السفلي) لبضع ثوانٍ. تذكّرهما — ثم تُقلبان مجددًا.';
+      'قبل اللعب، اضغط على كشف لرؤية ورقتيك على اليسار لبضع ثوانٍ. تذكّرهما — ثم تُقلبان مجددًا.';
 
   @override
   String get ruleYourTurnTitle => 'دورك';
 
   @override
   String get ruleYourTurnBody =>
-      'اسحب من الكومة، أو إذا طابقت أعلى ورقة في المرمى ورقة تعرفها، المسها لرميها (يستمر دورك). تخمين خاطئ = ورقة جزاء في صفّك.';
+      'قبل السحب، إذا طابقت الورقة العليا في كومة الرمي ورقة تعرفها، اضغط عليها لرميها (يستمر دورك). الخطأ = ورقة عقوبة. ثم اسحب من الرزمة.';
 
   @override
   String get ruleAfterDrawTitle => 'بعد السحب';
 
   @override
   String get ruleAfterDrawBody =>
-      'المس إحدى أوراقك للتبديل (رتبة مختلفة) أو الرمي المزدوج (نفس الرتبة)، أو ارْمِ الورقة المسحوبة إلى المرمى. ثم ينتهي دورك.';
+      'اضغط على إحدى أوراقك للتبديل (رتبة مختلفة) أو للرمي المزدوج (نفس الرتبة)، أو اضغط على الورقة المسحوبة لرميها. ثم ينتهي دورك.';
 
   @override
   String get ruleSpecialTitle => 'أوراق خاصة';
 
   @override
   String get ruleSpecialBody =>
-      'هذه الرتب تفعّل قدرة عند سحبها. بعد القدرة تُرمى الورقة.';
+      'عند سحب هذه الأوراق يمكنك استخدام قدرتها. بعدها تُرمى الورقة.';
 
   @override
   String get ruleJackLabel => 'جندي';
@@ -342,7 +360,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get ruleScoringBody =>
-      'عندما يفرغ أحد صفّه (أو تنتهي اللعبة)، اجمع الأوراق المتبقية. الأقل مجموعًا يفوز؛ التساوي = تعادل.';
+      'عندما تنفد أوراق لاعب أو يضغط أحدهم على إنهاء اللعبة، تُكشف كل الأوراق وتُجمع. الآس = 1، الولد = 11، الملكة = 12. الأقل يفوز؛ التساوي = تعادل.';
 
   @override
   String get ruleJokerLabel => 'جوكر';
@@ -1005,4 +1023,338 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get buyChips => 'شراء رقائق';
+
+  @override
+  String get tutLessonValuesTitle => 'الهدف وقيم الأوراق';
+
+  @override
+  String get tutLessonDealTitle => 'التوزيع والنظرة الأولى';
+
+  @override
+  String get tutLessonSwapTitle => 'السحب والتبديل';
+
+  @override
+  String get tutLessonThrowTitle => 'رمي ورقة';
+
+  @override
+  String get tutLessonDoubleTitle => 'الرمي المزدوج';
+
+  @override
+  String get tutLessonMatchTitle => 'مطابقة ورقة الرمي';
+
+  @override
+  String get tutLessonJackTitle => 'الولد: النظرة';
+
+  @override
+  String get tutLessonQueenTitle => 'الملكة: تبديل أو خلط';
+
+  @override
+  String get tutLessonEndTitle => 'نهاية اللعبة والنقاط';
+
+  @override
+  String get tutLessonTipsTitle => 'نصائح للفوز';
+
+  @override
+  String get tutValuesIntro =>
+      'ShadowHand لعبة ذاكرة لشخصين. لكل لاعب أوراق مقلوبة. عند نهاية اللعبة يجمع كل لاعب أوراقه — صاحب أقل مجموع يفوز.';
+
+  @override
+  String get tutValuesChart =>
+      'لكل ورقة نقاط. الآس = 1، أوراق الأرقام = رقمها، الولد = 11، الملكة = 12، الملك الأحمر = 13. أفضل الأوراق: الملك الأسود = 0 والجوكر = −1!';
+
+  @override
+  String get tutValuesQuizLowest =>
+      'اختبار سريع: اضغط على الورقة الأقل نقاطًا.';
+
+  @override
+  String get tutValuesQuizLowestWrong =>
+      'ليس تمامًا. الجوكر يساوي −1 — أقل حتى من الآس.';
+
+  @override
+  String get tutValuesQuizKing => 'هنا ملكان. اضغط على الملك الذي يساوي 0.';
+
+  @override
+  String get tutValuesQuizKingWrong =>
+      'الملوك السوداء فقط (♠ ♣) تساوي 0. الملوك الحمراء (♥ ♦) تساوي 13 — أسوأ ورقة في الرزمة!';
+
+  @override
+  String get tutValuesDone =>
+      'ممتاز! هدفك: احتفظ بالأوراق المنخفضة وتخلّص من المرتفعة.';
+
+  @override
+  String get tutDealIntro =>
+      'يحصل كل لاعب على 4 أوراق مقلوبة في صف واحد. لا تعرف ما هي بعد — وخصمك أيضًا.';
+
+  @override
+  String get tutDealReveal =>
+      'قبل بدء اللعب، لديك نظرة سريعة واحدة. اضغط على كشف.';
+
+  @override
+  String get tutDealMemorize =>
+      'تظهر ورقتاك على اليسار لبضع ثوانٍ. تذكّرهما: 2 و 8!';
+
+  @override
+  String get tutDealQuiz => 'أصبحتا مقلوبتين مجددًا. أين الـ 2؟ اضغط عليها.';
+
+  @override
+  String get tutDealQuizWrong =>
+      'كانت الـ 2 ورقتك الأولى في أقصى اليسار. الذاكرة هي كل شيء في هذه اللعبة!';
+
+  @override
+  String get tutDealDone =>
+      'صحيح! ورقتاك الأخريان ما زالتا لغزًا — ستعرف المزيد أثناء اللعب.';
+
+  @override
+  String get tutDrawPrompt => 'دورك الآن. اضغط على الرزمة لسحب ورقة.';
+
+  @override
+  String get tutSwapIntro =>
+      'تتذكر ورقتيك الأوليين: 2 و 9. الـ 9 نقاطها كثيرة — لنستبدلها.';
+
+  @override
+  String get tutSwapPick =>
+      'سحبت 3. إنها أفضل من الـ 9! اضغط على الـ 9 (الورقة الثانية) لتبديلهما.';
+
+  @override
+  String get tutSwapPickWrong =>
+      'اضغط على الـ 9 — الورقة الثانية من اليسار. تبديل ورقة لا تعرفها مخاطرة.';
+
+  @override
+  String get tutSwapDone =>
+      'توضع الـ 3 مقلوبة مكان الـ 9، وتذهب الـ 9 إلى كومة الرمي. انتهى دورك — ووفّرت 6 نقاط.';
+
+  @override
+  String get tutThrowPick =>
+      'آه — ملك أحمر قيمته 13. لا تريده! اضغط على الورقة المسحوبة لرميها في كومة الرمي.';
+
+  @override
+  String get tutThrowWrong =>
+      'لا تحتفظ بورقة سيئة. اضغط على الورقة المسحوبة (أسفل اليسار) لرميها.';
+
+  @override
+  String get tutThrowDone =>
+      'تم الرمي! لم تتغير أوراقك وانتهى دورك. ارمِ أي ورقة لا تحسّن يدك.';
+
+  @override
+  String get tutDoubleIntro => 'تتذكر أن ورقتك الأولى هي 5.';
+
+  @override
+  String get tutDoublePick =>
+      '5 أخرى! عندما تكون الورقة المسحوبة بنفس رتبة إحدى أوراقك، اضغط على ورقتك: تُرمى الورقتان معًا.';
+
+  @override
+  String get tutDoubleWrong => 'اضغط على الـ 5 — الورقة الأولى على اليسار.';
+
+  @override
+  String get tutDoubleDone =>
+      'ذهبت الخمستان وأصبح لديك ورقة أقل. أوراق أقل تعني نقاطًا أقل — وإذا نفدت أوراقك تنتهي اللعبة.';
+
+  @override
+  String get tutMatchIntro => 'تتذكر أن ورقتك الأولى هي 7. الآن دور خصمك…';
+
+  @override
+  String get tutMatchPick =>
+      'رمى خصمك 7! في دورك، وقبل السحب، يمكنك الضغط على ورقة بنفس رتبة الورقة العليا في كومة الرمي للتخلص منها. اضغط على الـ 7.';
+
+  @override
+  String get tutMatchWrong => 'اضغط على الـ 7 — الورقة الأولى على اليسار.';
+
+  @override
+  String get tutMatchContinue =>
+      'رمي مجاني! المطابقة لا تنهي دورك: يمكنك المطابقة مجددًا ثم تسحب كالمعتاد. اضغط على الرزمة.';
+
+  @override
+  String get tutMatchThrow => '8 — ليست جيدة. اضغط عليها لرميها وإنهاء دورك.';
+
+  @override
+  String get tutMatchGuess =>
+      'في الدور التالي، الورقة العليا 4. تظن أن ورقتك الوسطى قد تكون 4… لكنك لست متأكدًا. لنرَ ما يحدث عند الخطأ: اضغط عليها.';
+
+  @override
+  String get tutMatchPenalty =>
+      'خطأ — لم تكن 4. تحصل على ورقة عقوبة مقلوبة من الرزمة، وتبقى الورقة التي ضغطتها. طابق فقط عندما تكون متأكدًا!';
+
+  @override
+  String get tutJackPeekButton =>
+      'ولد! عند سحب الولد يمكنك النظر إلى ورقة واحدة — من أوراقك أو أوراق خصمك. اضغط على اطّلاع.';
+
+  @override
+  String get tutJackPick =>
+      'اضغط الآن على الورقة التي تريد رؤيتها. لنتجسس على الورقة الثانية لخصمك.';
+
+  @override
+  String get tutJackPickWrong => 'اضغط على الورقة الثانية لخصمك من اليسار.';
+
+  @override
+  String get tutJackReveal =>
+      'إنها ملكة — 12 نقطة له. تذكّر مكانها: ستختفي بعد لحظة.';
+
+  @override
+  String get tutJackDone =>
+      'بعد النظرة يُرمى الولد تلقائيًا وينتهي دورك. القدرة اختيارية: يمكنك أيضًا الاحتفاظ بالولد أو رميه كأي ورقة.';
+
+  @override
+  String get tutQueenIntro => 'تتذكر أن ورقتك الثانية هي 10. لنعطها لخصمك.';
+
+  @override
+  String get tutQueenButtons =>
+      'ملكة! لديك خيار. خلط يمزج أوراق أحد اللاعبين. استبدال يبدّل ورقة من أوراقك بورقة من أوراقه. اضغط على استبدال.';
+
+  @override
+  String get tutQueenButtonsWrong => 'في هذا الدرس، اضغط على استبدال.';
+
+  @override
+  String get tutQueenPickYours =>
+      'اضغط أولًا على الورقة التي تريد التخلي عنها: الـ 10، الورقة الثانية.';
+
+  @override
+  String get tutQueenPickYoursWrong =>
+      'اضغط على الـ 10 — ورقتك الثانية من اليسار.';
+
+  @override
+  String get tutQueenPickTheirs =>
+      'اضغط الآن على ورقة الخصم التي تريد أخذها: ورقته الأولى.';
+
+  @override
+  String get tutQueenPickTheirsWrong =>
+      'اضغط على الورقة الأولى لخصمك على اليسار.';
+
+  @override
+  String get tutQueenDone =>
+      'تم التبديل! الـ 10 أصبحت لخصمك. لا ترى الورقة التي حصلت عليها، لكن معظم الأوراق أقل من 10 — صفقة جيدة. تُرمى الملكة بعد استخدامها.';
+
+  @override
+  String get tutQueenShuffle =>
+      'الخلط هو الخيار الآخر: امزج أوراق خصمك فيصبح كل ما تذكّره بلا فائدة. يمكنك أيضًا خلط أوراقك.';
+
+  @override
+  String get tutEndIntro =>
+      'تنتهي اللعبة بطريقتين: لاعب نفدت أوراقه، أو ضغط أحدهم على إنهاء اللعبة.';
+
+  @override
+  String get tutEndPress =>
+      'تظن أن مجموعك أقل؟ يمكن لأي لاعب الضغط على إنهاء اللعبة في أي وقت. جرّب.';
+
+  @override
+  String get tutEndCount =>
+      'كُشفت كل الأوراق. اجمع أوراقك: 3 + 2 + ملك أسود + جوكر. كم مجموعك؟';
+
+  @override
+  String get tutEndCountWrong =>
+      'تذكّر: الملك الأسود = 0 والجوكر = −1. إذن 3 + 2 + 0 − 1 = 4.';
+
+  @override
+  String get tutEndWinner => 'مجموع خصمك 9 + 5 + 7 + 1 = 22. من الفائز؟';
+
+  @override
+  String get tutEndWinnerWrong => 'أقل مجموع يفوز: 4 تهزم 22.';
+
+  @override
+  String get tutEndDone => 'فزت! إذا تساوى المجموعان فهي تعادل.';
+
+  @override
+  String get tutTipMemory =>
+      'نصيحة 1 — تذكّر كل شيء. كل ورقة تراها — في البداية، عند التبديل، بالولد — معلومة. احفظها.';
+
+  @override
+  String get tutTipKeepLow =>
+      'نصيحة 2 — احتفظ بالملوك السوداء والجوكر. قيمتها 0 و −1: لا تبدّلها أبدًا.';
+
+  @override
+  String get tutTipDiscard =>
+      'نصيحة 3 — راقب كومة الرمي. كل ورقة يرميها خصمك فرصة لمطابقة إحدى أوراقك مجانًا.';
+
+  @override
+  String get tutTipQueen =>
+      'نصيحة 4 — استخدم الملكات بذكاء. تخلَّ عن أعلى ورقة لديك، أو اخلط لتفسد ذاكرة خصمك.';
+
+  @override
+  String get tutTipEnd =>
+      'نصيحة 5 — أنهِ في الوقت المناسب. إذا ظننت أن مجموعك أقل، اضغط على إنهاء اللعبة قبل أن يلحق بك خصمك.';
+
+  @override
+  String get tutChoiceYou => 'أنت';
+
+  @override
+  String get tutChoiceOpponent => 'الخصم';
+
+  @override
+  String get tutChoiceTie => 'تعادل';
+
+  @override
+  String get tutDeckLabel => 'الرزمة';
+
+  @override
+  String get tutDiscardLabel => 'الرمي';
+
+  @override
+  String get tutDrawnLabel => 'المسحوبة';
+
+  @override
+  String get tutAceLabel => 'آس';
+
+  @override
+  String get tutNumberCardsLabel => '2 إلى 10';
+
+  @override
+  String get tutRedKingLabel => 'ملك أحمر';
+
+  @override
+  String get tutTapHighlighted => 'اضغط على العنصر المضيء للمتابعة.';
+
+  @override
+  String tutLessonProgress(int current, int total) {
+    return 'الدرس $current من $total';
+  }
+
+  @override
+  String get tutSkip => 'تخطٍّ';
+
+  @override
+  String get tutLessonDone => 'اكتمل الدرس!';
+
+  @override
+  String get tutReplay => 'إعادة';
+
+  @override
+  String get tutFinish => 'إنهاء';
+
+  @override
+  String get tutNextLesson => 'الدرس التالي';
+
+  @override
+  String get tutCompleteTitle => 'أنت جاهز!';
+
+  @override
+  String get tutCompleteBody =>
+      'تعرف الآن كل القواعد. تدرّب ضد الروبوت ثم واجه لاعبين حقيقيين.';
+
+  @override
+  String get tutHubIntro =>
+      'تعلّم ShadowHand باللعب. كل درس قصير يضع الأوراق بين يديك ويشرح قاعدة واحدة.';
+
+  @override
+  String get tutStartAll => 'ابدأ الدرس التعليمي';
+
+  @override
+  String get tutContinue => 'تابع الدرس التعليمي';
+
+  @override
+  String get tutLessonsHeader => 'الدروس';
+
+  @override
+  String get tutQuickRules => 'قواعد سريعة';
+
+  @override
+  String get tutQuickRulesSubtitle => 'كل القواعد في 7 بطاقات';
+
+  @override
+  String get tutPromptTitle => 'جديد في ShadowHand؟';
+
+  @override
+  String get tutPromptBody =>
+      'تعلّم اللعب عبر درس تفاعلي سريع. يستغرق نحو 3 دقائق.';
+
+  @override
+  String get tutPromptLater => 'ليس الآن';
 }

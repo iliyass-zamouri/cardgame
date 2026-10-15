@@ -12,6 +12,7 @@ import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/analytics_service.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
+import 'package:cardgame/ui/screens/collection_screen.dart';
 import 'package:cardgame/ui/screens/friends_screen.dart';
 import 'package:cardgame/ui/screens/home/home_menu_widgets.dart';
 import 'package:cardgame/ui/screens/home/nav_art.dart';
@@ -407,9 +408,9 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
                   onTap: () {},
                 ),
                 RailDockItem(
-                  art: NavArt.ranking,
-                  label: l10n.leaderboard,
-                  onTap: () => _push(const GlobalRankingScreen()),
+                  art: NavArt.collection,
+                  label: l10n.collection,
+                  onTap: () => _push(const CollectionScreen()),
                 ),
                 RailDockItem(
                   art: NavArt.rules,

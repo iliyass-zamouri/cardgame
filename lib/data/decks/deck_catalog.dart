@@ -1,4 +1,14 @@
+import 'dart:ui' show Color;
+
 enum DeckRarity { standard, rare, epic, legendary }
+
+/// Glow / badge colour for a deck's rarity; null for standard decks.
+Color? deckRarityColor(DeckRarity rarity) => switch (rarity) {
+  DeckRarity.standard => null,
+  DeckRarity.rare => const Color(0xFF4FA3FF),
+  DeckRarity.epic => const Color(0xFFB06BFF),
+  DeckRarity.legendary => const Color(0xFFFFC542),
+};
 
 class DeckItem {
   const DeckItem({

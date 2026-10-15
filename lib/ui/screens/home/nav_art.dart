@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 /// Illustrated two-tone icons for the home navigation bar: pale silver
 /// bodies with gold accents and a soft drop shadow.
-enum NavArt { shop, friends, home, ranking, rules }
+enum NavArt { shop, friends, home, rules, collection }
 
 class NavArtIcon extends StatelessWidget {
   const NavArtIcon(this.art, {super.key, this.size = 40});
@@ -99,8 +99,8 @@ class _NavArtPainter extends CustomPainter {
     NavArt.shop => _shop(),
     NavArt.friends => _friends(),
     NavArt.home => _home(),
-    NavArt.ranking => _ranking(),
     NavArt.rules => _rules(),
+    NavArt.collection => _collection(),
   };
 
   static Path _circle(double x, double y, double r) =>
@@ -207,44 +207,38 @@ class _NavArtPainter extends CustomPainter {
     ];
   }
 
-  List<_Shape> _ranking() {
-    final cup =
-        Path()
-          ..moveTo(26, 14)
-          ..lineTo(74, 14)
-          ..lineTo(72, 40)
-          ..quadraticBezierTo(70, 62, 50, 64)
-          ..quadraticBezierTo(30, 62, 28, 40)
-          ..close();
-    final star = Path();
-    for (var i = 0; i < 10; i++) {
-      final r = i.isEven ? 11.0 : 4.8;
-      final a = -math.pi / 2 + i * math.pi / 5;
-      final p = Offset(50 + r * math.cos(a), 36 + r * math.sin(a));
-      i == 0 ? star.moveTo(p.dx, p.dy) : star.lineTo(p.dx, p.dy);
-    }
-    star.close();
+  List<_Shape> _collection() {
+    const backCenter = Offset(40, 40);
+    const frontCenter = Offset(64, 42);
+    const dieCenter = Offset(44, 70);
+    Path pip(double x, double y) =>
+        _rotated(_circle(x, y, 3.6), -12, dieCenter);
     return [
+      _Shape(_rotated(_rrect(18, 8, 62, 72, 6), -14, backCenter), _Tone.light),
       _Shape(
-        Path()
-          ..moveTo(30, 24)
-          ..quadraticBezierTo(12, 24, 15, 40)
-          ..quadraticBezierTo(18, 52, 34, 52),
-        _Tone.gold,
-        stroke: 6,
+        _rotated(_rrect(24, 15, 56, 65, 3), -14, backCenter),
+        _Tone.shade,
+        stroke: 2,
+        shadow: false,
+      ),
+      _Shape(_rotated(_rrect(42, 10, 86, 74, 6), 10, frontCenter), _Tone.light),
+      _Shape(
+        _rotated(_rrect(48, 17, 80, 67, 3), 10, frontCenter),
+        _Tone.shade,
+        stroke: 2,
+        shadow: false,
       ),
       _Shape(
-        Path()
-          ..moveTo(70, 24)
-          ..quadraticBezierTo(88, 24, 85, 40)
-          ..quadraticBezierTo(82, 52, 66, 52),
-        _Tone.gold,
-        stroke: 6,
+        _rotated(_circle(64, 42, 7), 10, frontCenter),
+        _Tone.shade,
+        shadow: false,
       ),
-      _Shape(cup, _Tone.gold),
-      _Shape(star, _Tone.light, shadow: false),
-      _Shape(_rrect(44, 62, 56, 76, 1), _Tone.light),
-      _Shape(_rrect(28, 74, 72, 90, 4), _Tone.light),
+      _Shape(_rotated(_rrect(26, 52, 62, 88, 8), -12, dieCenter), _Tone.gold),
+      _Shape(pip(35, 61), _Tone.ink, shadow: false),
+      _Shape(pip(53, 61), _Tone.ink, shadow: false),
+      _Shape(pip(44, 70), _Tone.ink, shadow: false),
+      _Shape(pip(35, 79), _Tone.ink, shadow: false),
+      _Shape(pip(53, 79), _Tone.ink, shadow: false),
     ];
   }
 

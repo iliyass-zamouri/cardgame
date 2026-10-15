@@ -224,6 +224,36 @@ abstract class AppLocalizations {
   /// **'Shop'**
   String get shop;
 
+  /// No description provided for @collection.
+  ///
+  /// In en, this message translates to:
+  /// **'Collection'**
+  String get collection;
+
+  /// No description provided for @collectionCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards'**
+  String get collectionCards;
+
+  /// No description provided for @collectionAvatars.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatars'**
+  String get collectionAvatars;
+
+  /// No description provided for @ownedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{owned}/{total} owned'**
+  String ownedCount(int owned, int total);
+
+  /// No description provided for @getMoreInShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Get more in the Shop'**
+  String get getMoreInShop;
+
   /// No description provided for @deck.
   ///
   /// In en, this message translates to:
@@ -623,7 +653,7 @@ abstract class AppLocalizations {
   /// No description provided for @ruleGoalBody.
   ///
   /// In en, this message translates to:
-  /// **'Empty your four cards, or hold the lowest score when the game ends. Lowest total wins.'**
+  /// **'Finish with the lowest total. The game ends when a player has no cards left or someone taps End game.'**
   String get ruleGoalBody;
 
   /// No description provided for @ruleSetupTitle.
@@ -635,7 +665,7 @@ abstract class AppLocalizations {
   /// No description provided for @ruleSetupBody.
   ///
   /// In en, this message translates to:
-  /// **'Two players. Each gets four face-down cards.'**
+  /// **'Two players. Each gets four face-down cards in a row.'**
   String get ruleSetupBody;
 
   /// No description provided for @ruleOpeningPeekTitle.
@@ -647,7 +677,7 @@ abstract class AppLocalizations {
   /// No description provided for @ruleOpeningPeekBody.
   ///
   /// In en, this message translates to:
-  /// **'Before play, both players peek at two of their own cards (bottom row) for a few seconds. Remember them — then they flip face-down again.'**
+  /// **'Before play, tap Reveal to see your two left cards for a few seconds. Remember them — then they flip face-down again.'**
   String get ruleOpeningPeekBody;
 
   /// No description provided for @ruleYourTurnTitle.
@@ -659,7 +689,7 @@ abstract class AppLocalizations {
   /// No description provided for @ruleYourTurnBody.
   ///
   /// In en, this message translates to:
-  /// **'Draw from the deck, or if the discard top matches a card you know, tap that card to discard it (your turn continues). Wrong guess = a penalty card into your layout.'**
+  /// **'Before drawing, if the top discard matches a card you know, tap it to discard it (your turn continues). Wrong guess = a penalty card. Then draw from the deck.'**
   String get ruleYourTurnBody;
 
   /// No description provided for @ruleAfterDrawTitle.
@@ -671,7 +701,7 @@ abstract class AppLocalizations {
   /// No description provided for @ruleAfterDrawBody.
   ///
   /// In en, this message translates to:
-  /// **'Tap one of your cards to swap (different rank) or double-discard (same rank), or throw the drawn card to the discard pile. Then your turn ends.'**
+  /// **'Tap one of your cards to swap (different rank) or double-discard (same rank), or tap the drawn card to throw it. Then your turn ends.'**
   String get ruleAfterDrawBody;
 
   /// No description provided for @ruleSpecialTitle.
@@ -683,7 +713,7 @@ abstract class AppLocalizations {
   /// No description provided for @ruleSpecialBody.
   ///
   /// In en, this message translates to:
-  /// **'These ranks trigger an ability when you draw them. After the ability, the card is thrown.'**
+  /// **'When you draw these, you may use their power. Afterwards the card is thrown.'**
   String get ruleSpecialBody;
 
   /// No description provided for @ruleJackLabel.
@@ -719,7 +749,7 @@ abstract class AppLocalizations {
   /// No description provided for @ruleScoringBody.
   ///
   /// In en, this message translates to:
-  /// **'When someone empties their layout (or the game ends), sum remaining cards. Lower total wins; equal = tie.'**
+  /// **'When a player has no cards left or someone taps End game, all cards are revealed and added up. Ace = 1, Jack = 11, Queen = 12. Lowest total wins; equal = tie.'**
   String get ruleScoringBody;
 
   /// No description provided for @ruleJokerLabel.
@@ -1981,6 +2011,576 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Buy chips'**
   String get buyChips;
+
+  /// No description provided for @tutLessonValuesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal & card values'**
+  String get tutLessonValuesTitle;
+
+  /// No description provided for @tutLessonDealTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The deal & first look'**
+  String get tutLessonDealTitle;
+
+  /// No description provided for @tutLessonSwapTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw & swap'**
+  String get tutLessonSwapTitle;
+
+  /// No description provided for @tutLessonThrowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Throw a card away'**
+  String get tutLessonThrowTitle;
+
+  /// No description provided for @tutLessonDoubleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Double discard'**
+  String get tutLessonDoubleTitle;
+
+  /// No description provided for @tutLessonMatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Match the discard'**
+  String get tutLessonMatchTitle;
+
+  /// No description provided for @tutLessonJackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Jack: peek'**
+  String get tutLessonJackTitle;
+
+  /// No description provided for @tutLessonQueenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Queen: swap or shuffle'**
+  String get tutLessonQueenTitle;
+
+  /// No description provided for @tutLessonEndTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ending & scoring'**
+  String get tutLessonEndTitle;
+
+  /// No description provided for @tutLessonTipsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Winning tips'**
+  String get tutLessonTipsTitle;
+
+  /// No description provided for @tutValuesIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'ShadowHand is a memory game for two. Each player has cards face down. When the game ends, everyone adds up their cards — the lowest total wins.'**
+  String get tutValuesIntro;
+
+  /// No description provided for @tutValuesChart.
+  ///
+  /// In en, this message translates to:
+  /// **'Each card is worth points. Ace = 1, number cards = their number, Jack = 11, Queen = 12, red King = 13. The best cards: a black King is worth 0 and a Joker is worth −1!'**
+  String get tutValuesChart;
+
+  /// No description provided for @tutValuesQuizLowest.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick quiz: tap the card worth the fewest points.'**
+  String get tutValuesQuizLowest;
+
+  /// No description provided for @tutValuesQuizLowestWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Not quite. The Joker is worth −1 — even lower than an Ace.'**
+  String get tutValuesQuizLowestWrong;
+
+  /// No description provided for @tutValuesQuizKing.
+  ///
+  /// In en, this message translates to:
+  /// **'Two Kings here. Tap the one worth 0 points.'**
+  String get tutValuesQuizKing;
+
+  /// No description provided for @tutValuesQuizKingWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Only black Kings (♠ ♣) are worth 0. Red Kings (♥ ♦) are worth 13 — the worst card in the deck!'**
+  String get tutValuesQuizKingWrong;
+
+  /// No description provided for @tutValuesDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Perfect! Your goal: keep low cards and get rid of high ones.'**
+  String get tutValuesDone;
+
+  /// No description provided for @tutDealIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Each player gets 4 cards face down in a row. You don\'t know what they are yet — and neither does your opponent.'**
+  String get tutDealIntro;
+
+  /// No description provided for @tutDealReveal.
+  ///
+  /// In en, this message translates to:
+  /// **'Before play starts, you get one quick look. Tap Reveal.'**
+  String get tutDealReveal;
+
+  /// No description provided for @tutDealMemorize.
+  ///
+  /// In en, this message translates to:
+  /// **'Your two cards on the left are shown for a few seconds. Remember them: a 2 and an 8!'**
+  String get tutDealMemorize;
+
+  /// No description provided for @tutDealQuiz.
+  ///
+  /// In en, this message translates to:
+  /// **'They\'re face down again. Where is your 2? Tap it.'**
+  String get tutDealQuiz;
+
+  /// No description provided for @tutDealQuizWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'The 2 was your first card, on the far left. Memory is everything in this game!'**
+  String get tutDealQuizWrong;
+
+  /// No description provided for @tutDealDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Right! Your other two cards are still a mystery — you\'ll learn more as you play.'**
+  String get tutDealDone;
+
+  /// No description provided for @tutDrawPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s your turn. Tap the deck to draw a card.'**
+  String get tutDrawPrompt;
+
+  /// No description provided for @tutSwapIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'You remember your first two cards: a 2 and a 9. A 9 costs a lot of points — let\'s replace it.'**
+  String get tutSwapIntro;
+
+  /// No description provided for @tutSwapPick.
+  ///
+  /// In en, this message translates to:
+  /// **'You drew a 3. That\'s better than your 9! Tap your 9 (second card) to swap them.'**
+  String get tutSwapPick;
+
+  /// No description provided for @tutSwapPickWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap your 9 — the second card from the left. Swapping a card you don\'t know is a gamble.'**
+  String get tutSwapPickWrong;
+
+  /// No description provided for @tutSwapDone.
+  ///
+  /// In en, this message translates to:
+  /// **'The 3 goes face down where the 9 was, and the 9 goes to the discard pile. That ends your turn — and you just saved 6 points.'**
+  String get tutSwapDone;
+
+  /// No description provided for @tutThrowPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Ouch — a red King, worth 13. You don\'t want it! Tap the drawn card to throw it on the discard pile.'**
+  String get tutThrowPick;
+
+  /// No description provided for @tutThrowWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t keep a bad card. Tap the drawn card (bottom left) to throw it away.'**
+  String get tutThrowWrong;
+
+  /// No description provided for @tutThrowDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Thrown away! Your cards didn\'t change and your turn is over. Throw any card that wouldn\'t make your hand better.'**
+  String get tutThrowDone;
+
+  /// No description provided for @tutDoubleIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'You remember your first card is a 5.'**
+  String get tutDoubleIntro;
+
+  /// No description provided for @tutDoublePick.
+  ///
+  /// In en, this message translates to:
+  /// **'Another 5! When the card you draw has the same rank as one of yours, tap your card: both get discarded.'**
+  String get tutDoublePick;
+
+  /// No description provided for @tutDoubleWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap your 5 — the first card on the left.'**
+  String get tutDoubleWrong;
+
+  /// No description provided for @tutDoubleDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Both 5s are gone and you have one card fewer. Fewer cards means fewer points — and if you run out of cards, the game ends.'**
+  String get tutDoubleDone;
+
+  /// No description provided for @tutMatchIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'You remember your first card is a 7. Now it\'s your opponent\'s turn…'**
+  String get tutMatchIntro;
+
+  /// No description provided for @tutMatchPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Your opponent threw a 7! On your turn, before you draw, you can tap a card with the same rank as the top of the discard pile to get rid of it. Tap your 7.'**
+  String get tutMatchPick;
+
+  /// No description provided for @tutMatchWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap your 7 — the first card on the left.'**
+  String get tutMatchWrong;
+
+  /// No description provided for @tutMatchContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'A free discard! Matching doesn\'t end your turn: you can match again, and then you still draw. Tap the deck.'**
+  String get tutMatchContinue;
+
+  /// No description provided for @tutMatchThrow.
+  ///
+  /// In en, this message translates to:
+  /// **'An 8 — not great. Tap it to throw it and end your turn.'**
+  String get tutMatchThrow;
+
+  /// No description provided for @tutMatchGuess.
+  ///
+  /// In en, this message translates to:
+  /// **'Next turn, the top card is a 4. You think your middle card might be a 4… but you\'re not sure. Let\'s see what a wrong guess does: tap it.'**
+  String get tutMatchGuess;
+
+  /// No description provided for @tutMatchPenalty.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong — it wasn\'t a 4. You get a penalty card from the deck, face down, and the card you tapped stays. Only match when you\'re sure!'**
+  String get tutMatchPenalty;
+
+  /// No description provided for @tutJackPeekButton.
+  ///
+  /// In en, this message translates to:
+  /// **'A Jack! When you draw a Jack you can peek at any one card — yours or your opponent\'s. Tap Peek.'**
+  String get tutJackPeekButton;
+
+  /// No description provided for @tutJackPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Now tap the card you want to see. Let\'s spy on your opponent\'s second card.'**
+  String get tutJackPick;
+
+  /// No description provided for @tutJackPickWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap your opponent\'s second card from the left.'**
+  String get tutJackPickWrong;
+
+  /// No description provided for @tutJackReveal.
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s a Queen — 12 points for them. Remember where it is: it hides again in a moment.'**
+  String get tutJackReveal;
+
+  /// No description provided for @tutJackDone.
+  ///
+  /// In en, this message translates to:
+  /// **'After the peek, the Jack is thrown automatically and your turn ends. The power is optional: you can also keep or throw a Jack like any other card.'**
+  String get tutJackDone;
+
+  /// No description provided for @tutQueenIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'You remember your second card is a 10. Let\'s give it to your opponent.'**
+  String get tutQueenIntro;
+
+  /// No description provided for @tutQueenButtons.
+  ///
+  /// In en, this message translates to:
+  /// **'A Queen! You get a choice. Shuffle mixes up one player\'s cards. Replace swaps one of your cards with one of theirs. Tap Replace.'**
+  String get tutQueenButtons;
+
+  /// No description provided for @tutQueenButtonsWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'For this lesson, tap Replace.'**
+  String get tutQueenButtonsWrong;
+
+  /// No description provided for @tutQueenPickYours.
+  ///
+  /// In en, this message translates to:
+  /// **'First tap the card you want to give away: your 10, the second card.'**
+  String get tutQueenPickYours;
+
+  /// No description provided for @tutQueenPickYoursWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap your 10 — your second card from the left.'**
+  String get tutQueenPickYoursWrong;
+
+  /// No description provided for @tutQueenPickTheirs.
+  ///
+  /// In en, this message translates to:
+  /// **'Now tap the opponent\'s card you want to take: their first card.'**
+  String get tutQueenPickTheirs;
+
+  /// No description provided for @tutQueenPickTheirsWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap your opponent\'s first card, on the left.'**
+  String get tutQueenPickTheirsWrong;
+
+  /// No description provided for @tutQueenDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Swapped! Your 10 now belongs to your opponent. You don\'t see the card you got, but most cards are worth less than 10 — a good deal. The Queen is thrown after use.'**
+  String get tutQueenDone;
+
+  /// No description provided for @tutQueenShuffle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle is the other option: mix up your opponent\'s cards and everything they remembered becomes useless. You can also shuffle your own cards.'**
+  String get tutQueenShuffle;
+
+  /// No description provided for @tutEndIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The game ends in one of two ways: a player has no cards left, or someone taps End game.'**
+  String get tutEndIntro;
+
+  /// No description provided for @tutEndPress.
+  ///
+  /// In en, this message translates to:
+  /// **'Think your total is lower? Either player can tap End game at any time. Try it.'**
+  String get tutEndPress;
+
+  /// No description provided for @tutEndCount.
+  ///
+  /// In en, this message translates to:
+  /// **'All cards are revealed. Add up yours: 3 + 2 + black King + Joker. What\'s your total?'**
+  String get tutEndCount;
+
+  /// No description provided for @tutEndCountWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember: a black King is 0 and a Joker is −1. So 3 + 2 + 0 − 1 = 4.'**
+  String get tutEndCountWrong;
+
+  /// No description provided for @tutEndWinner.
+  ///
+  /// In en, this message translates to:
+  /// **'Your opponent has 9 + 5 + 7 + 1 = 22. Who wins?'**
+  String get tutEndWinner;
+
+  /// No description provided for @tutEndWinnerWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'The lowest total wins: 4 beats 22.'**
+  String get tutEndWinnerWrong;
+
+  /// No description provided for @tutEndDone.
+  ///
+  /// In en, this message translates to:
+  /// **'You win! If both totals are equal, it\'s a tie.'**
+  String get tutEndDone;
+
+  /// No description provided for @tutTipMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip 1 — Remember everything. Every card you see — at the start, when you swap, with a Jack — tells you something. Keep track of it.'**
+  String get tutTipMemory;
+
+  /// No description provided for @tutTipKeepLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip 2 — Keep black Kings and Jokers. They\'re worth 0 and −1: never swap them away.'**
+  String get tutTipKeepLow;
+
+  /// No description provided for @tutTipDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip 3 — Watch the discard pile. Every card your opponent throws is a chance to match one of yours for free.'**
+  String get tutTipDiscard;
+
+  /// No description provided for @tutTipQueen.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip 4 — Use Queens well. Give away your highest card, or Shuffle to wreck your opponent\'s memory.'**
+  String get tutTipQueen;
+
+  /// No description provided for @tutTipEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip 5 — End at the right time. When you think your total is lower, tap End game before your opponent catches up.'**
+  String get tutTipEnd;
+
+  /// No description provided for @tutChoiceYou.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get tutChoiceYou;
+
+  /// No description provided for @tutChoiceOpponent.
+  ///
+  /// In en, this message translates to:
+  /// **'Opponent'**
+  String get tutChoiceOpponent;
+
+  /// No description provided for @tutChoiceTie.
+  ///
+  /// In en, this message translates to:
+  /// **'Tie'**
+  String get tutChoiceTie;
+
+  /// No description provided for @tutDeckLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Deck'**
+  String get tutDeckLabel;
+
+  /// No description provided for @tutDiscardLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get tutDiscardLabel;
+
+  /// No description provided for @tutDrawnLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawn'**
+  String get tutDrawnLabel;
+
+  /// No description provided for @tutAceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Ace'**
+  String get tutAceLabel;
+
+  /// No description provided for @tutNumberCardsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'2 to 10'**
+  String get tutNumberCardsLabel;
+
+  /// No description provided for @tutRedKingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Red King'**
+  String get tutRedKingLabel;
+
+  /// No description provided for @tutTapHighlighted.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the glowing spot to continue.'**
+  String get tutTapHighlighted;
+
+  /// No description provided for @tutLessonProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Lesson {current} of {total}'**
+  String tutLessonProgress(int current, int total);
+
+  /// No description provided for @tutSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get tutSkip;
+
+  /// No description provided for @tutLessonDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Lesson complete!'**
+  String get tutLessonDone;
+
+  /// No description provided for @tutReplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay'**
+  String get tutReplay;
+
+  /// No description provided for @tutFinish.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish'**
+  String get tutFinish;
+
+  /// No description provided for @tutNextLesson.
+  ///
+  /// In en, this message translates to:
+  /// **'Next lesson'**
+  String get tutNextLesson;
+
+  /// No description provided for @tutCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re ready!'**
+  String get tutCompleteTitle;
+
+  /// No description provided for @tutCompleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You know all the rules. Practice against the robot, then take on real players.'**
+  String get tutCompleteBody;
+
+  /// No description provided for @tutHubIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn ShadowHand by playing. Each short lesson puts cards in your hands and walks you through one rule.'**
+  String get tutHubIntro;
+
+  /// No description provided for @tutStartAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Start tutorial'**
+  String get tutStartAll;
+
+  /// No description provided for @tutContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue tutorial'**
+  String get tutContinue;
+
+  /// No description provided for @tutLessonsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Lessons'**
+  String get tutLessonsHeader;
+
+  /// No description provided for @tutQuickRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick rules'**
+  String get tutQuickRules;
+
+  /// No description provided for @tutQuickRulesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Every rule in 7 short cards'**
+  String get tutQuickRulesSubtitle;
+
+  /// No description provided for @tutPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New to ShadowHand?'**
+  String get tutPromptTitle;
+
+  /// No description provided for @tutPromptBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn to play in a quick hands-on tutorial. It takes about 3 minutes.'**
+  String get tutPromptBody;
+
+  /// No description provided for @tutPromptLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get tutPromptLater;
 }
 
 class _AppLocalizationsDelegate

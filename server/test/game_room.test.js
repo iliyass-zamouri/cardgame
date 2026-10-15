@@ -197,6 +197,25 @@ test('penalty miss records lastAction for both viewers', () => {
   });
 });
 
+test('repeated tap on a penalised card does not penalise twice', () => {
+  const room = startedRoom();
+  room.players.forEach((player) => {
+    player.launch = 'ended';
+  });
+  const player = room.players[room.turnIndex];
+  room.discard = ['C9'];
+  player.cards = ['A5', 'B8'];
+  player.handCard = null;
+
+  room.tapCard(player.id, 1);
+  room.tapCard(player.id, 1);
+  assert.equal(player.cards.length, 3);
+
+  // A different card still gets its own penalty.
+  room.tapCard(player.id, 0);
+  assert.equal(player.cards.length, 4);
+});
+
 test('draw records lastAction for both viewers', () => {
   const room = startedRoom();
   room.players.forEach((player) => {

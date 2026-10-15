@@ -73,6 +73,23 @@ class AppLocalizationsPt extends AppLocalizations {
   String get shop => 'Loja';
 
   @override
+  String get collection => 'Coleção';
+
+  @override
+  String get collectionCards => 'Cartas';
+
+  @override
+  String get collectionAvatars => 'Avatares';
+
+  @override
+  String ownedCount(int owned, int total) {
+    return '$owned/$total adquiridos';
+  }
+
+  @override
+  String get getMoreInShop => 'Ganhe mais na Loja';
+
+  @override
   String get deck => 'Baralho';
 
   @override
@@ -290,42 +307,42 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ruleGoalBody =>
-      'Esvazie suas quatro cartas, ou tenha a menor pontuação no fim. O menor total vence.';
+      'Termine com o menor total. A partida acaba quando um jogador fica sem cartas ou alguém toca em Encerrar partida.';
 
   @override
   String get ruleSetupTitle => 'Preparação';
 
   @override
   String get ruleSetupBody =>
-      'Dois jogadores. Cada um recebe quatro cartas viradas para baixo.';
+      'Dois jogadores. Cada um recebe quatro cartas viradas para baixo, em fila.';
 
   @override
   String get ruleOpeningPeekTitle => 'Espiada inicial';
 
   @override
   String get ruleOpeningPeekBody =>
-      'Antes de jogar, ambos espiam duas de suas cartas (fileira de baixo) por alguns segundos. Memorize — depois elas viram de novo.';
+      'Antes de jogar, toque em Revelar para ver suas duas cartas da esquerda por alguns segundos. Memorize — depois elas viram de novo.';
 
   @override
   String get ruleYourTurnTitle => 'Sua vez';
 
   @override
   String get ruleYourTurnBody =>
-      'Compre do baralho, ou se o descarte corresponder a uma carta que você conhece, toque nela para descartar (sua vez continua). Erro = carta de penalidade na sua área.';
+      'Antes de comprar, se o topo do descarte combina com uma carta que você conhece, toque nela para descartá-la (sua vez continua). Errou = carta de penalidade. Depois compre do baralho.';
 
   @override
   String get ruleAfterDrawTitle => 'Após comprar';
 
   @override
   String get ruleAfterDrawBody =>
-      'Toque em uma de suas cartas para trocar (valor diferente) ou descarte duplo (mesmo valor), ou jogue a carta comprada no descarte. Depois sua vez acaba.';
+      'Toque numa das suas cartas para trocar (valor diferente) ou fazer descarte duplo (mesmo valor), ou toque na carta comprada para jogá-la fora. Sua vez termina.';
 
   @override
   String get ruleSpecialTitle => 'Cartas especiais';
 
   @override
   String get ruleSpecialBody =>
-      'Esses valores ativam uma habilidade ao comprá-los. Após a habilidade, a carta é descartada.';
+      'Ao comprar estas cartas, você pode usar o poder delas. Depois, a carta é jogada fora.';
 
   @override
   String get ruleJackLabel => 'Valete';
@@ -346,7 +363,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get ruleScoringBody =>
-      'Quando alguém esvazia a área (ou o jogo acaba), some as cartas restantes. Menor total vence; igual = empate.';
+      'Quando um jogador fica sem cartas ou alguém toca em Encerrar partida, todas as cartas são reveladas e somadas. Ás = 1, Valete = 11, Dama = 12. Menor total vence; igual = empate.';
 
   @override
   String get ruleJokerLabel => 'Curinga';
@@ -1015,4 +1032,346 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get buyChips => 'Comprar fichas';
+
+  @override
+  String get tutLessonValuesTitle => 'Objetivo e valor das cartas';
+
+  @override
+  String get tutLessonDealTitle => 'A distribuição e primeira olhada';
+
+  @override
+  String get tutLessonSwapTitle => 'Comprar e trocar';
+
+  @override
+  String get tutLessonThrowTitle => 'Jogar uma carta fora';
+
+  @override
+  String get tutLessonDoubleTitle => 'Descarte duplo';
+
+  @override
+  String get tutLessonMatchTitle => 'Igualar o descarte';
+
+  @override
+  String get tutLessonJackTitle => 'Valete: espiar';
+
+  @override
+  String get tutLessonQueenTitle => 'Dama: trocar ou embaralhar';
+
+  @override
+  String get tutLessonEndTitle => 'Fim e pontuação';
+
+  @override
+  String get tutLessonTipsTitle => 'Dicas para vencer';
+
+  @override
+  String get tutValuesIntro =>
+      'ShadowHand é um jogo de memória para dois. Cada jogador tem cartas viradas para baixo. No fim da partida, todos somam suas cartas — o menor total vence.';
+
+  @override
+  String get tutValuesChart =>
+      'Cada carta vale pontos. Ás = 1, cartas numéricas = seu número, Valete = 11, Dama = 12, Rei vermelho = 13. As melhores: um Rei preto vale 0 e um Coringa vale −1!';
+
+  @override
+  String get tutValuesQuizLowest =>
+      'Teste rápido: toque na carta que vale menos pontos.';
+
+  @override
+  String get tutValuesQuizLowestWrong =>
+      'Quase. O Coringa vale −1 — menos até que um Ás.';
+
+  @override
+  String get tutValuesQuizKing =>
+      'Aqui há dois Reis. Toque no que vale 0 pontos.';
+
+  @override
+  String get tutValuesQuizKingWrong =>
+      'Só os Reis pretos (♠ ♣) valem 0. Os Reis vermelhos (♥ ♦) valem 13 — a pior carta do baralho!';
+
+  @override
+  String get tutValuesDone =>
+      'Perfeito! Seu objetivo: ficar com cartas baixas e se livrar das altas.';
+
+  @override
+  String get tutDealIntro =>
+      'Cada jogador recebe 4 cartas viradas para baixo, em fila. Você ainda não sabe quais são — nem seu adversário.';
+
+  @override
+  String get tutDealReveal =>
+      'Antes de começar, você pode dar uma olhada rápida. Toque em Revelar.';
+
+  @override
+  String get tutDealMemorize =>
+      'Suas duas cartas da esquerda aparecem por alguns segundos. Memorize: um 2 e um 8!';
+
+  @override
+  String get tutDealQuiz =>
+      'Elas estão viradas de novo. Onde está o seu 2? Toque nele.';
+
+  @override
+  String get tutDealQuizWrong =>
+      'O 2 era sua primeira carta, bem à esquerda. Neste jogo, memória é tudo!';
+
+  @override
+  String get tutDealDone =>
+      'Isso! Suas outras duas cartas continuam um mistério — você vai descobrir mais jogando.';
+
+  @override
+  String get tutDrawPrompt =>
+      'É a sua vez. Toque no baralho para comprar uma carta.';
+
+  @override
+  String get tutSwapIntro =>
+      'Você lembra das suas duas primeiras cartas: um 2 e um 9. Um 9 custa muitos pontos — vamos trocá-lo.';
+
+  @override
+  String get tutSwapPick =>
+      'Você comprou um 3. Melhor que o seu 9! Toque no seu 9 (segunda carta) para trocar.';
+
+  @override
+  String get tutSwapPickWrong =>
+      'Toque no seu 9 — a segunda carta a partir da esquerda. Trocar uma carta desconhecida é uma aposta.';
+
+  @override
+  String get tutSwapDone =>
+      'O 3 fica virado no lugar do 9, e o 9 vai para o descarte. Sua vez acaba — e você economizou 6 pontos.';
+
+  @override
+  String get tutThrowPick =>
+      'Ai — um Rei vermelho, vale 13. Você não quer! Toque na carta comprada para jogá-la no descarte.';
+
+  @override
+  String get tutThrowWrong =>
+      'Não fique com uma carta ruim. Toque na carta comprada (embaixo à esquerda) para jogá-la fora.';
+
+  @override
+  String get tutThrowDone =>
+      'Jogada fora! Suas cartas não mudaram e sua vez acabou. Jogue fora qualquer carta que não melhore sua mão.';
+
+  @override
+  String get tutDoubleIntro => 'Você lembra que sua primeira carta é um 5.';
+
+  @override
+  String get tutDoublePick =>
+      'Outro 5! Quando a carta comprada tem o mesmo valor de uma das suas, toque na sua carta: as duas são descartadas.';
+
+  @override
+  String get tutDoubleWrong => 'Toque no seu 5 — a primeira carta à esquerda.';
+
+  @override
+  String get tutDoubleDone =>
+      'Os dois 5 saíram e você tem uma carta a menos. Menos cartas, menos pontos — e se suas cartas acabarem, a partida termina.';
+
+  @override
+  String get tutMatchIntro =>
+      'Você lembra que sua primeira carta é um 7. Agora é a vez do adversário…';
+
+  @override
+  String get tutMatchPick =>
+      'Seu adversário jogou um 7! Na sua vez, antes de comprar, você pode tocar numa carta do mesmo valor que o topo do descarte para se livrar dela. Toque no seu 7.';
+
+  @override
+  String get tutMatchWrong => 'Toque no seu 7 — a primeira carta à esquerda.';
+
+  @override
+  String get tutMatchContinue =>
+      'Descarte grátis! Igualar não encerra sua vez: você pode igualar de novo e depois ainda compra. Toque no baralho.';
+
+  @override
+  String get tutMatchThrow =>
+      'Um 8 — nada bom. Toque nele para jogá-lo fora e encerrar sua vez.';
+
+  @override
+  String get tutMatchGuess =>
+      'Na rodada seguinte, o topo é um 4. Você acha que sua carta do meio pode ser um 4… mas não tem certeza. Vamos ver o que acontece se errar: toque nela.';
+
+  @override
+  String get tutMatchPenalty =>
+      'Errou — não era um 4. Você recebe uma carta de penalidade virada para baixo, e a carta tocada fica. Só iguale quando tiver certeza!';
+
+  @override
+  String get tutJackPeekButton =>
+      'Um Valete! Ao comprar um Valete você pode espiar uma carta — sua ou do adversário. Toque em Espiar.';
+
+  @override
+  String get tutJackPick =>
+      'Agora toque na carta que quer ver. Vamos espiar a segunda carta do adversário.';
+
+  @override
+  String get tutJackPickWrong =>
+      'Toque na segunda carta do adversário a partir da esquerda.';
+
+  @override
+  String get tutJackReveal =>
+      'É uma Dama — 12 pontos para ele. Lembre onde ela está: vai se esconder já já.';
+
+  @override
+  String get tutJackDone =>
+      'Depois de espiar, o Valete é jogado fora automaticamente e sua vez acaba. O poder é opcional: você também pode ficar ou jogar fora um Valete como qualquer carta.';
+
+  @override
+  String get tutQueenIntro =>
+      'Você lembra que sua segunda carta é um 10. Vamos dá-la ao adversário.';
+
+  @override
+  String get tutQueenButtons =>
+      'Uma Dama! Você pode escolher. Embaralhar mistura as cartas de um jogador. Trocar troca uma carta sua por uma dele. Toque em Trocar.';
+
+  @override
+  String get tutQueenButtonsWrong => 'Nesta lição, toque em Trocar.';
+
+  @override
+  String get tutQueenPickYours =>
+      'Primeiro toque na carta que quer dar: seu 10, a segunda carta.';
+
+  @override
+  String get tutQueenPickYoursWrong =>
+      'Toque no seu 10 — sua segunda carta a partir da esquerda.';
+
+  @override
+  String get tutQueenPickTheirs =>
+      'Agora toque na carta do adversário que quer pegar: a primeira dele.';
+
+  @override
+  String get tutQueenPickTheirsWrong =>
+      'Toque na primeira carta do adversário, à esquerda.';
+
+  @override
+  String get tutQueenDone =>
+      'Trocadas! Seu 10 agora é do adversário. Você não vê a carta recebida, mas a maioria vale menos que 10 — bom negócio. A Dama é jogada fora após o uso.';
+
+  @override
+  String get tutQueenShuffle =>
+      'Embaralhar é a outra opção: misture as cartas do adversário e tudo o que ele memorizou deixa de valer. Você também pode embaralhar as suas.';
+
+  @override
+  String get tutEndIntro =>
+      'A partida termina de duas formas: um jogador fica sem cartas, ou alguém toca em Encerrar partida.';
+
+  @override
+  String get tutEndPress =>
+      'Acha que seu total é menor? Qualquer jogador pode tocar em Encerrar partida a qualquer momento. Experimente.';
+
+  @override
+  String get tutEndCount =>
+      'Todas as cartas são reveladas. Some as suas: 3 + 2 + Rei preto + Coringa. Qual é o seu total?';
+
+  @override
+  String get tutEndCountWrong =>
+      'Lembre: Rei preto vale 0 e Coringa vale −1. Então 3 + 2 + 0 − 1 = 4.';
+
+  @override
+  String get tutEndWinner =>
+      'Seu adversário tem 9 + 5 + 7 + 1 = 22. Quem vence?';
+
+  @override
+  String get tutEndWinnerWrong => 'O menor total vence: 4 ganha de 22.';
+
+  @override
+  String get tutEndDone => 'Você venceu! Se os totais forem iguais, é empate.';
+
+  @override
+  String get tutTipMemory =>
+      'Dica 1 — Memorize tudo. Cada carta que você vê — no início, ao trocar, com um Valete — é informação. Guarde-a.';
+
+  @override
+  String get tutTipKeepLow =>
+      'Dica 2 — Fique com Reis pretos e Coringas. Valem 0 e −1: nunca os troque.';
+
+  @override
+  String get tutTipDiscard =>
+      'Dica 3 — Observe o descarte. Cada carta que o adversário joga é uma chance de igualar de graça.';
+
+  @override
+  String get tutTipQueen =>
+      'Dica 4 — Use bem as Damas. Dê sua carta mais alta, ou Embaralhe para destruir a memória do adversário.';
+
+  @override
+  String get tutTipEnd =>
+      'Dica 5 — Encerre na hora certa. Se acha que seu total é menor, toque em Encerrar partida antes que o adversário alcance você.';
+
+  @override
+  String get tutChoiceYou => 'Você';
+
+  @override
+  String get tutChoiceOpponent => 'Adversário';
+
+  @override
+  String get tutChoiceTie => 'Empate';
+
+  @override
+  String get tutDeckLabel => 'Baralho';
+
+  @override
+  String get tutDiscardLabel => 'Descarte';
+
+  @override
+  String get tutDrawnLabel => 'Comprada';
+
+  @override
+  String get tutAceLabel => 'Ás';
+
+  @override
+  String get tutNumberCardsLabel => '2 a 10';
+
+  @override
+  String get tutRedKingLabel => 'Rei vermelho';
+
+  @override
+  String get tutTapHighlighted => 'Toque no que está brilhando para continuar.';
+
+  @override
+  String tutLessonProgress(int current, int total) {
+    return 'Lição $current de $total';
+  }
+
+  @override
+  String get tutSkip => 'Pular';
+
+  @override
+  String get tutLessonDone => 'Lição concluída!';
+
+  @override
+  String get tutReplay => 'Repetir';
+
+  @override
+  String get tutFinish => 'Concluir';
+
+  @override
+  String get tutNextLesson => 'Próxima lição';
+
+  @override
+  String get tutCompleteTitle => 'Você está pronto!';
+
+  @override
+  String get tutCompleteBody =>
+      'Você conhece todas as regras. Treine contra o robô e depois enfrente jogadores reais.';
+
+  @override
+  String get tutHubIntro =>
+      'Aprenda ShadowHand jogando. Cada lição curta coloca cartas na sua mão e ensina uma regra.';
+
+  @override
+  String get tutStartAll => 'Começar tutorial';
+
+  @override
+  String get tutContinue => 'Continuar tutorial';
+
+  @override
+  String get tutLessonsHeader => 'Lições';
+
+  @override
+  String get tutQuickRules => 'Regras rápidas';
+
+  @override
+  String get tutQuickRulesSubtitle => 'Todas as regras em 7 cartas';
+
+  @override
+  String get tutPromptTitle => 'Novo no ShadowHand?';
+
+  @override
+  String get tutPromptBody =>
+      'Aprenda a jogar com um tutorial interativo. Leva cerca de 3 minutos.';
+
+  @override
+  String get tutPromptLater => 'Agora não';
 }

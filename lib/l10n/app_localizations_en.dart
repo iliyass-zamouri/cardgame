@@ -72,6 +72,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shop => 'Shop';
 
   @override
+  String get collection => 'Collection';
+
+  @override
+  String get collectionCards => 'Cards';
+
+  @override
+  String get collectionAvatars => 'Avatars';
+
+  @override
+  String ownedCount(int owned, int total) {
+    return '$owned/$total owned';
+  }
+
+  @override
+  String get getMoreInShop => 'Get more in the Shop';
+
+  @override
   String get deck => 'Deck';
 
   @override
@@ -290,41 +307,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ruleGoalBody =>
-      'Empty your four cards, or hold the lowest score when the game ends. Lowest total wins.';
+      'Finish with the lowest total. The game ends when a player has no cards left or someone taps End game.';
 
   @override
   String get ruleSetupTitle => 'Setup';
 
   @override
-  String get ruleSetupBody => 'Two players. Each gets four face-down cards.';
+  String get ruleSetupBody =>
+      'Two players. Each gets four face-down cards in a row.';
 
   @override
   String get ruleOpeningPeekTitle => 'Opening peek';
 
   @override
   String get ruleOpeningPeekBody =>
-      'Before play, both players peek at two of their own cards (bottom row) for a few seconds. Remember them — then they flip face-down again.';
+      'Before play, tap Reveal to see your two left cards for a few seconds. Remember them — then they flip face-down again.';
 
   @override
   String get ruleYourTurnTitle => 'Your turn';
 
   @override
   String get ruleYourTurnBody =>
-      'Draw from the deck, or if the discard top matches a card you know, tap that card to discard it (your turn continues). Wrong guess = a penalty card into your layout.';
+      'Before drawing, if the top discard matches a card you know, tap it to discard it (your turn continues). Wrong guess = a penalty card. Then draw from the deck.';
 
   @override
   String get ruleAfterDrawTitle => 'After you draw';
 
   @override
   String get ruleAfterDrawBody =>
-      'Tap one of your cards to swap (different rank) or double-discard (same rank), or throw the drawn card to the discard pile. Then your turn ends.';
+      'Tap one of your cards to swap (different rank) or double-discard (same rank), or tap the drawn card to throw it. Then your turn ends.';
 
   @override
   String get ruleSpecialTitle => 'Special cards';
 
   @override
   String get ruleSpecialBody =>
-      'These ranks trigger an ability when you draw them. After the ability, the card is thrown.';
+      'When you draw these, you may use their power. Afterwards the card is thrown.';
 
   @override
   String get ruleJackLabel => 'Jack';
@@ -345,7 +363,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ruleScoringBody =>
-      'When someone empties their layout (or the game ends), sum remaining cards. Lower total wins; equal = tie.';
+      'When a player has no cards left or someone taps End game, all cards are revealed and added up. Ace = 1, Jack = 11, Queen = 12. Lowest total wins; equal = tie.';
 
   @override
   String get ruleJokerLabel => 'Joker';
@@ -1015,4 +1033,343 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get buyChips => 'Buy chips';
+
+  @override
+  String get tutLessonValuesTitle => 'Goal & card values';
+
+  @override
+  String get tutLessonDealTitle => 'The deal & first look';
+
+  @override
+  String get tutLessonSwapTitle => 'Draw & swap';
+
+  @override
+  String get tutLessonThrowTitle => 'Throw a card away';
+
+  @override
+  String get tutLessonDoubleTitle => 'Double discard';
+
+  @override
+  String get tutLessonMatchTitle => 'Match the discard';
+
+  @override
+  String get tutLessonJackTitle => 'Jack: peek';
+
+  @override
+  String get tutLessonQueenTitle => 'Queen: swap or shuffle';
+
+  @override
+  String get tutLessonEndTitle => 'Ending & scoring';
+
+  @override
+  String get tutLessonTipsTitle => 'Winning tips';
+
+  @override
+  String get tutValuesIntro =>
+      'ShadowHand is a memory game for two. Each player has cards face down. When the game ends, everyone adds up their cards — the lowest total wins.';
+
+  @override
+  String get tutValuesChart =>
+      'Each card is worth points. Ace = 1, number cards = their number, Jack = 11, Queen = 12, red King = 13. The best cards: a black King is worth 0 and a Joker is worth −1!';
+
+  @override
+  String get tutValuesQuizLowest =>
+      'Quick quiz: tap the card worth the fewest points.';
+
+  @override
+  String get tutValuesQuizLowestWrong =>
+      'Not quite. The Joker is worth −1 — even lower than an Ace.';
+
+  @override
+  String get tutValuesQuizKing => 'Two Kings here. Tap the one worth 0 points.';
+
+  @override
+  String get tutValuesQuizKingWrong =>
+      'Only black Kings (♠ ♣) are worth 0. Red Kings (♥ ♦) are worth 13 — the worst card in the deck!';
+
+  @override
+  String get tutValuesDone =>
+      'Perfect! Your goal: keep low cards and get rid of high ones.';
+
+  @override
+  String get tutDealIntro =>
+      'Each player gets 4 cards face down in a row. You don\'t know what they are yet — and neither does your opponent.';
+
+  @override
+  String get tutDealReveal =>
+      'Before play starts, you get one quick look. Tap Reveal.';
+
+  @override
+  String get tutDealMemorize =>
+      'Your two cards on the left are shown for a few seconds. Remember them: a 2 and an 8!';
+
+  @override
+  String get tutDealQuiz =>
+      'They\'re face down again. Where is your 2? Tap it.';
+
+  @override
+  String get tutDealQuizWrong =>
+      'The 2 was your first card, on the far left. Memory is everything in this game!';
+
+  @override
+  String get tutDealDone =>
+      'Right! Your other two cards are still a mystery — you\'ll learn more as you play.';
+
+  @override
+  String get tutDrawPrompt => 'It\'s your turn. Tap the deck to draw a card.';
+
+  @override
+  String get tutSwapIntro =>
+      'You remember your first two cards: a 2 and a 9. A 9 costs a lot of points — let\'s replace it.';
+
+  @override
+  String get tutSwapPick =>
+      'You drew a 3. That\'s better than your 9! Tap your 9 (second card) to swap them.';
+
+  @override
+  String get tutSwapPickWrong =>
+      'Tap your 9 — the second card from the left. Swapping a card you don\'t know is a gamble.';
+
+  @override
+  String get tutSwapDone =>
+      'The 3 goes face down where the 9 was, and the 9 goes to the discard pile. That ends your turn — and you just saved 6 points.';
+
+  @override
+  String get tutThrowPick =>
+      'Ouch — a red King, worth 13. You don\'t want it! Tap the drawn card to throw it on the discard pile.';
+
+  @override
+  String get tutThrowWrong =>
+      'Don\'t keep a bad card. Tap the drawn card (bottom left) to throw it away.';
+
+  @override
+  String get tutThrowDone =>
+      'Thrown away! Your cards didn\'t change and your turn is over. Throw any card that wouldn\'t make your hand better.';
+
+  @override
+  String get tutDoubleIntro => 'You remember your first card is a 5.';
+
+  @override
+  String get tutDoublePick =>
+      'Another 5! When the card you draw has the same rank as one of yours, tap your card: both get discarded.';
+
+  @override
+  String get tutDoubleWrong => 'Tap your 5 — the first card on the left.';
+
+  @override
+  String get tutDoubleDone =>
+      'Both 5s are gone and you have one card fewer. Fewer cards means fewer points — and if you run out of cards, the game ends.';
+
+  @override
+  String get tutMatchIntro =>
+      'You remember your first card is a 7. Now it\'s your opponent\'s turn…';
+
+  @override
+  String get tutMatchPick =>
+      'Your opponent threw a 7! On your turn, before you draw, you can tap a card with the same rank as the top of the discard pile to get rid of it. Tap your 7.';
+
+  @override
+  String get tutMatchWrong => 'Tap your 7 — the first card on the left.';
+
+  @override
+  String get tutMatchContinue =>
+      'A free discard! Matching doesn\'t end your turn: you can match again, and then you still draw. Tap the deck.';
+
+  @override
+  String get tutMatchThrow =>
+      'An 8 — not great. Tap it to throw it and end your turn.';
+
+  @override
+  String get tutMatchGuess =>
+      'Next turn, the top card is a 4. You think your middle card might be a 4… but you\'re not sure. Let\'s see what a wrong guess does: tap it.';
+
+  @override
+  String get tutMatchPenalty =>
+      'Wrong — it wasn\'t a 4. You get a penalty card from the deck, face down, and the card you tapped stays. Only match when you\'re sure!';
+
+  @override
+  String get tutJackPeekButton =>
+      'A Jack! When you draw a Jack you can peek at any one card — yours or your opponent\'s. Tap Peek.';
+
+  @override
+  String get tutJackPick =>
+      'Now tap the card you want to see. Let\'s spy on your opponent\'s second card.';
+
+  @override
+  String get tutJackPickWrong =>
+      'Tap your opponent\'s second card from the left.';
+
+  @override
+  String get tutJackReveal =>
+      'It\'s a Queen — 12 points for them. Remember where it is: it hides again in a moment.';
+
+  @override
+  String get tutJackDone =>
+      'After the peek, the Jack is thrown automatically and your turn ends. The power is optional: you can also keep or throw a Jack like any other card.';
+
+  @override
+  String get tutQueenIntro =>
+      'You remember your second card is a 10. Let\'s give it to your opponent.';
+
+  @override
+  String get tutQueenButtons =>
+      'A Queen! You get a choice. Shuffle mixes up one player\'s cards. Replace swaps one of your cards with one of theirs. Tap Replace.';
+
+  @override
+  String get tutQueenButtonsWrong => 'For this lesson, tap Replace.';
+
+  @override
+  String get tutQueenPickYours =>
+      'First tap the card you want to give away: your 10, the second card.';
+
+  @override
+  String get tutQueenPickYoursWrong =>
+      'Tap your 10 — your second card from the left.';
+
+  @override
+  String get tutQueenPickTheirs =>
+      'Now tap the opponent\'s card you want to take: their first card.';
+
+  @override
+  String get tutQueenPickTheirsWrong =>
+      'Tap your opponent\'s first card, on the left.';
+
+  @override
+  String get tutQueenDone =>
+      'Swapped! Your 10 now belongs to your opponent. You don\'t see the card you got, but most cards are worth less than 10 — a good deal. The Queen is thrown after use.';
+
+  @override
+  String get tutQueenShuffle =>
+      'Shuffle is the other option: mix up your opponent\'s cards and everything they remembered becomes useless. You can also shuffle your own cards.';
+
+  @override
+  String get tutEndIntro =>
+      'The game ends in one of two ways: a player has no cards left, or someone taps End game.';
+
+  @override
+  String get tutEndPress =>
+      'Think your total is lower? Either player can tap End game at any time. Try it.';
+
+  @override
+  String get tutEndCount =>
+      'All cards are revealed. Add up yours: 3 + 2 + black King + Joker. What\'s your total?';
+
+  @override
+  String get tutEndCountWrong =>
+      'Remember: a black King is 0 and a Joker is −1. So 3 + 2 + 0 − 1 = 4.';
+
+  @override
+  String get tutEndWinner => 'Your opponent has 9 + 5 + 7 + 1 = 22. Who wins?';
+
+  @override
+  String get tutEndWinnerWrong => 'The lowest total wins: 4 beats 22.';
+
+  @override
+  String get tutEndDone => 'You win! If both totals are equal, it\'s a tie.';
+
+  @override
+  String get tutTipMemory =>
+      'Tip 1 — Remember everything. Every card you see — at the start, when you swap, with a Jack — tells you something. Keep track of it.';
+
+  @override
+  String get tutTipKeepLow =>
+      'Tip 2 — Keep black Kings and Jokers. They\'re worth 0 and −1: never swap them away.';
+
+  @override
+  String get tutTipDiscard =>
+      'Tip 3 — Watch the discard pile. Every card your opponent throws is a chance to match one of yours for free.';
+
+  @override
+  String get tutTipQueen =>
+      'Tip 4 — Use Queens well. Give away your highest card, or Shuffle to wreck your opponent\'s memory.';
+
+  @override
+  String get tutTipEnd =>
+      'Tip 5 — End at the right time. When you think your total is lower, tap End game before your opponent catches up.';
+
+  @override
+  String get tutChoiceYou => 'You';
+
+  @override
+  String get tutChoiceOpponent => 'Opponent';
+
+  @override
+  String get tutChoiceTie => 'Tie';
+
+  @override
+  String get tutDeckLabel => 'Deck';
+
+  @override
+  String get tutDiscardLabel => 'Discard';
+
+  @override
+  String get tutDrawnLabel => 'Drawn';
+
+  @override
+  String get tutAceLabel => 'Ace';
+
+  @override
+  String get tutNumberCardsLabel => '2 to 10';
+
+  @override
+  String get tutRedKingLabel => 'Red King';
+
+  @override
+  String get tutTapHighlighted => 'Tap the glowing spot to continue.';
+
+  @override
+  String tutLessonProgress(int current, int total) {
+    return 'Lesson $current of $total';
+  }
+
+  @override
+  String get tutSkip => 'Skip';
+
+  @override
+  String get tutLessonDone => 'Lesson complete!';
+
+  @override
+  String get tutReplay => 'Replay';
+
+  @override
+  String get tutFinish => 'Finish';
+
+  @override
+  String get tutNextLesson => 'Next lesson';
+
+  @override
+  String get tutCompleteTitle => 'You\'re ready!';
+
+  @override
+  String get tutCompleteBody =>
+      'You know all the rules. Practice against the robot, then take on real players.';
+
+  @override
+  String get tutHubIntro =>
+      'Learn ShadowHand by playing. Each short lesson puts cards in your hands and walks you through one rule.';
+
+  @override
+  String get tutStartAll => 'Start tutorial';
+
+  @override
+  String get tutContinue => 'Continue tutorial';
+
+  @override
+  String get tutLessonsHeader => 'Lessons';
+
+  @override
+  String get tutQuickRules => 'Quick rules';
+
+  @override
+  String get tutQuickRulesSubtitle => 'Every rule in 7 short cards';
+
+  @override
+  String get tutPromptTitle => 'New to ShadowHand?';
+
+  @override
+  String get tutPromptBody =>
+      'Learn to play in a quick hands-on tutorial. It takes about 3 minutes.';
+
+  @override
+  String get tutPromptLater => 'Not now';
 }

@@ -171,6 +171,23 @@ void main() {
     expect((snapshot['lastAction'] as Map)['type'], 'penaltyDraw');
   });
 
+  test('repeated tap on a penalised card does not penalise twice', () {
+    final room = startedRoom();
+    endLaunches(room);
+    final player = room.players[room.turnIndex!];
+    room.discard = ['C9'];
+    player.cards = ['A5', 'B8'];
+    player.handCard = null;
+
+    room.tapCard(player.id, 1);
+    room.tapCard(player.id, 1);
+    expect(player.cards, hasLength(3));
+
+    // A different card still gets its own penalty.
+    room.tapCard(player.id, 0);
+    expect(player.cards, hasLength(4));
+  });
+
   test('throw records lastAction', () {
     final room = startedRoom();
     endLaunches(room);

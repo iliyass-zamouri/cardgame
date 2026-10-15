@@ -10,6 +10,7 @@ class ServerIdentity {
     this.money = 500,
     this.chips = 1,
     this.accessToken,
+    this.tutorialDone = false,
   });
 
   final String playerId;
@@ -21,6 +22,7 @@ class ServerIdentity {
   final int money;
   final int chips;
   final String? accessToken;
+  final bool tutorialDone;
 
   factory ServerIdentity.fromJson(Map<String, dynamic> json) {
     return ServerIdentity(
@@ -33,6 +35,7 @@ class ServerIdentity {
       money: (json['money'] as num?)?.toInt() ?? 500,
       chips: (json['chips'] as num?)?.toInt() ?? 1,
       accessToken: json['accessToken'] as String?,
+      tutorialDone: json['tutorialDone'] == true,
     );
   }
 }
