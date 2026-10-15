@@ -58,7 +58,6 @@ flutter:
   generate: true
   uses-material-design: true
   assets:
-    - assets/table.jpg
     - assets/crown.svg
     - assets/hailsom.png
     - assets/avatars/

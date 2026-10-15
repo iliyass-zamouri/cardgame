@@ -47,6 +47,7 @@ abstract final class AppIcons {
   static const shoppingBag = HugeIcons.strokeRoundedShoppingBag01;
   static const shuffle = HugeIcons.strokeRoundedShuffle;
   static const game = HugeIcons.strokeRoundedGameController01;
+  static const home = HugeIcons.strokeRoundedHome01;
   static const star = HugeIcons.strokeRoundedStar;
   static const stars = HugeIcons.strokeRoundedSparkles;
   static const style = HugeIcons.strokeRoundedCards01;

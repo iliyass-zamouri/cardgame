@@ -349,49 +349,57 @@ class _FeltPainter extends CustomPainter {
   const _FeltPainter();
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(0, -0.25),
-          radius: 1.1,
-          colors: [Color(0xFF237A4F), CasinoColors.feltDeep, Color(0xFF0A2618)],
-          stops: [0, 0.55, 1],
-        ).createShader(rect),
-    );
-
-    // Faint staggered weave of suits, like an embossed felt pattern.
-    const cell = 46.0;
-    const glyph = 14.0;
-    final paint = Paint()..color = Colors.black.withValues(alpha: 0.10);
-    var row = 0;
-    for (var y = -cell; y < size.height + cell; y += cell, row++) {
-      final shift = row.isOdd ? cell / 2 : 0.0;
-      var col = 0;
-      for (var x = -cell + shift; x < size.width + cell; x += cell, col++) {
-        canvas.save();
-        canvas.translate(x, y);
-        canvas.scale(glyph);
-        canvas.drawPath(suitPath(SuitShape.values[(row + col) % 4]), paint);
-        canvas.restore();
-      }
-    }
-
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = RadialGradient(
-          radius: 0.95,
-          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)],
-          stops: const [0.55, 1],
-        ).createShader(rect),
-    );
-  }
+  void paint(Canvas canvas, Size size) =>
+      paintFeltTexture(canvas, Offset.zero & size);
 
   @override
   bool shouldRepaint(covariant _FeltPainter oldDelegate) => false;
+}
+
+/// The home screen's green felt: radial gradient, embossed suit weave and a
+/// dark vignette of strength [vignette], filling [rect].
+void paintFeltTexture(Canvas canvas, Rect rect, {double vignette = 0.55}) {
+  canvas.drawRect(
+    rect,
+    Paint()
+      ..shader = const RadialGradient(
+        center: Alignment(0, -0.25),
+        radius: 1.1,
+        colors: [Color(0xFF237A4F), CasinoColors.feltDeep, Color(0xFF0A2618)],
+        stops: [0, 0.55, 1],
+      ).createShader(rect),
+  );
+
+  // Faint staggered weave of suits, like an embossed felt pattern.
+  const cell = 46.0;
+  const glyph = 14.0;
+  final paint = Paint()..color = Colors.black.withValues(alpha: 0.10);
+  var row = 0;
+  for (var y = rect.top - cell; y < rect.bottom + cell; y += cell, row++) {
+    final shift = row.isOdd ? cell / 2 : 0.0;
+    var col = 0;
+    for (
+      var x = rect.left - cell + shift;
+      x < rect.right + cell;
+      x += cell, col++
+    ) {
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.scale(glyph);
+      canvas.drawPath(suitPath(SuitShape.values[(row + col) % 4]), paint);
+      canvas.restore();
+    }
+  }
+
+  canvas.drawRect(
+    rect,
+    Paint()
+      ..shader = RadialGradient(
+        radius: 0.95,
+        colors: [Colors.transparent, Colors.black.withValues(alpha: vignette)],
+        stops: const [0.55, 1],
+      ).createShader(rect),
+  );
 }
 
 /// Scale-down press feedback with a haptic tick.

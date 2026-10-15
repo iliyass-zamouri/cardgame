@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/city_theme.dart';
+import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/theme/pot_card_style.dart';
 import 'package:flutter/material.dart';
 
@@ -1357,4 +1358,145 @@ Path _skyline(String city) {
       block(0.775, 0.62, 0.845);
   }
   return p..fillType = PathFillType.nonZero;
+}
+
+/// Table for private and robot games (no pot city): the classic mahogany
+/// rail around the home screen's patterned green felt, with two seat rings
+/// and a centre ring.
+class ClassicTable extends StatelessWidget {
+  const ClassicTable({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const RepaintBoundary(
+      child: CustomPaint(painter: ClassicTablePainter(), size: Size.infinite),
+    );
+  }
+}
+
+class ClassicTablePainter extends CustomPainter {
+  const ClassicTablePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final inset = w * 0.035;
+    final outer = Rect.fromLTRB(
+      inset,
+      size.height * 0.012 + inset * 0.5,
+      w - inset,
+      size.height * 0.988 - inset * 0.5,
+    );
+    RRect stadium(Rect r) =>
+        RRect.fromRectAndRadius(r, Radius.circular(r.width / 2));
+    final rail = stadium(outer);
+    final lipRect = outer.deflate(w * 0.072);
+    final lip = stadium(lipRect);
+    final feltRect = lipRect.deflate(w * 0.026);
+    final felt = stadium(feltRect);
+
+    // Dark room around the table.
+    final room = Offset.zero & size;
+    canvas.drawRect(
+      room,
+      Paint()
+        ..shader = const RadialGradient(
+          radius: 1.0,
+          colors: [Color(0xFF12293A), Color(0xFF07131D)],
+        ).createShader(room),
+    );
+
+    // Table shadow.
+    canvas.drawRRect(
+      rail.shift(const Offset(0, 10)),
+      Paint()
+        ..color = const Color(0xB3000000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16),
+    );
+
+    // Mahogany rail.
+    canvas.drawRRect(
+      rail,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF7A3022), Color(0xFF62261C), Color(0xFF431810)],
+        ).createShader(outer),
+    );
+    canvas.drawRRect(
+      rail.deflate(1.5),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = Colors.white.withValues(alpha: 0.10),
+    );
+
+    // Dark lip between rail and felt.
+    canvas.drawRRect(lip, Paint()..color = const Color(0xFF1E140F));
+    canvas.drawRRect(
+      lip,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = Colors.black.withValues(alpha: 0.6),
+    );
+
+    // Home-screen felt with a soft shadow where it meets the lip.
+    canvas.save();
+    canvas.clipRRect(felt);
+    // Lighter vignette: the felt is tall and its ends hold the hands.
+    paintFeltTexture(canvas, feltRect, vignette: 0.3);
+    canvas.drawRRect(
+      felt,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.05
+        ..color = Colors.black.withValues(alpha: 0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+    );
+    canvas.restore();
+
+    // Seat rings for each player and the ring around the deck.
+    final seat =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w * 0.012
+          ..color = const Color(0xFF3FA36F).withValues(alpha: 0.45);
+    final seatRadius = feltRect.width * 0.29;
+    final cx = feltRect.center.dx;
+    canvas.drawCircle(
+      Offset(cx, feltRect.top + feltRect.height * 0.24),
+      seatRadius,
+      seat,
+    );
+    canvas.drawCircle(
+      Offset(cx, feltRect.top + feltRect.height * 0.78),
+      seatRadius,
+      seat,
+    );
+
+    final centre = feltRect.center;
+    final ringRadius = w * 0.11;
+    canvas.drawCircle(
+      centre.translate(0, 2),
+      ringRadius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.016
+        ..color = Colors.black.withValues(alpha: 0.35)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+    );
+    canvas.drawCircle(
+      centre,
+      ringRadius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.014
+        ..color = const Color(0xFFD8C8AE),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant ClassicTablePainter oldDelegate) => false;
 }

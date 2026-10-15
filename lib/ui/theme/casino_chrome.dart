@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:cardgame/gen/assets.gen.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/city_table.dart';
@@ -710,8 +709,8 @@ class CasinoMenuPlayersPill extends StatelessWidget {
 }
 
 /// Table behind the Flame board. With a [city] a custom painted table (richer
-/// for bigger pots) fills the stage; without one (private / free
-/// games) it falls back to the classic [Assets.table] art.
+/// for bigger pots) fills the stage; without one (private / robot games) it
+/// shows the [ClassicTable].
 class CasinoTableFrame extends StatelessWidget {
   const CasinoTableFrame({super.key, required this.child, this.city});
 
@@ -725,21 +724,7 @@ class CasinoTableFrame extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         RepaintBoundary(
-          child:
-              city == null
-                  ? ClipRect(
-                    child: ColoredBox(
-                      color: const Color(0xFF0B1E2D),
-                      child: Assets.table.image(
-                        fit: BoxFit.fitHeight,
-                        width: double.infinity,
-                        height: double.infinity,
-                        alignment: Alignment.center,
-                        filterQuality: FilterQuality.high,
-                      ),
-                    ),
-                  )
-                  : CityTable(city: city),
+          child: city == null ? const ClassicTable() : CityTable(city: city),
         ),
         child,
       ],

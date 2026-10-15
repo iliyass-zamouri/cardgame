@@ -65,6 +65,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get howToPlay => 'طريقة اللعب';
 
   @override
+  String get home => 'الرئيسية';
+
+  @override
+  String get shop => 'المتجر';
+
+  @override
   String get deck => 'الورق';
 
   @override

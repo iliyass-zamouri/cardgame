@@ -67,6 +67,12 @@ class AppLocalizationsPt extends AppLocalizations {
   String get howToPlay => 'Como jogar';
 
   @override
+  String get home => 'Início';
+
+  @override
+  String get shop => 'Loja';
+
+  @override
   String get deck => 'Baralho';
 
   @override

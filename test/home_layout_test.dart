@@ -104,7 +104,7 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(PrimaryPlayCard), findsOneWidget);
       expect(find.byType(ModePlayingCard), findsNWidgets(3));
-      expect(find.byType(TableRailDock), findsOneWidget);
+      expect(find.byType(HomeNavBar), findsOneWidget);
     });
   }
 }

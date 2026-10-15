@@ -212,6 +212,18 @@ abstract class AppLocalizations {
   /// **'How to play'**
   String get howToPlay;
 
+  /// No description provided for @home.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get home;
+
+  /// No description provided for @shop.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop'**
+  String get shop;
+
   /// No description provided for @deck.
   ///
   /// In en, this message translates to:

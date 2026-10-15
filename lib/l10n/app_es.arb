@@ -18,6 +18,8 @@
   "robotName": "Robot",
   "retryConnection": "Reintentar conexión",
   "howToPlay": "Cómo jugar",
+  "home": "Inicio",
+  "shop": "Tienda",
   "deck": "Baraja",
   "settings": "Ajustes",
   "language": "Idioma",

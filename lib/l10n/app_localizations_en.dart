@@ -66,6 +66,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get howToPlay => 'How to play';
 
   @override
+  String get home => 'Home';
+
+  @override
+  String get shop => 'Shop';
+
+  @override
   String get deck => 'Deck';
 
   @override

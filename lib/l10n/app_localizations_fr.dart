@@ -67,6 +67,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get howToPlay => 'Comment jouer';
 
   @override
+  String get home => 'Accueil';
+
+  @override
+  String get shop => 'Boutique';
+
+  @override
   String get deck => 'Jeu';
 
   @override

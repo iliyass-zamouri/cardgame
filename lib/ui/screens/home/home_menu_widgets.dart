@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cardgame/ui/flame/suit_shapes.dart';
+import 'package:cardgame/ui/screens/home/nav_art.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
@@ -597,89 +598,299 @@ class _WordFitText extends StatelessWidget {
 
 class RailDockItem {
   const RailDockItem({
-    required this.icon,
+    required this.art,
     required this.label,
     required this.onTap,
     this.badge = 0,
+    this.selected = false,
   });
 
-  final List<List<dynamic>> icon;
+  final NavArt art;
   final String label;
   final VoidCallback onTap;
   final int badge;
+  final bool selected;
 }
 
-/// Padded leather rail along the table edge holding secondary navigation.
-class TableRailDock extends StatelessWidget {
-  const TableRailDock({super.key, required this.items});
+/// Small rounded-square count bubble pinned to a corner of an icon.
+class CountBadge extends StatelessWidget {
+  const CountBadge({
+    super.key,
+    required this.count,
+    this.color = const Color(0xFF3DB83A),
+    this.borderColor = Colors.white,
+  });
 
-  final List<RailDockItem> items;
+  final int count;
+  final Color color;
+  final Color borderColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(6),
+      constraints: const BoxConstraints(minWidth: 18),
+      height: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF2B1A12), Color(0xFF170D08)],
-        ),
-        border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.35)),
+        color: color,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: borderColor, width: 1.2),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x99000000),
-            blurRadius: 16,
-            offset: Offset(0, 6),
+            color: Color(0x66000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          for (final item in items)
-            Expanded(
-              child: Pressable(
-                onTap: item.onTap,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Badge.count(
-                        count: item.badge,
-                        isLabelVisible: item.badge > 0,
-                        backgroundColor: CasinoColors.gold,
-                        textColor: CasinoColors.bg,
-                        textStyle: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        child: HugeIcon(
-                          icon: item.icon,
-                          size: 24,
-                          color: CasinoColors.goldSoft,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          item.label,
-                          maxLines: 1,
-                          style: const TextStyle(
-                            color: CasinoColors.text,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+      alignment: Alignment.center,
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-width bottom navigation whose top edge arcs gently from edge to
+/// edge; a gold pointer sits on the arc above the highlighted tab.
+class HomeNavBar extends StatelessWidget {
+  const HomeNavBar({super.key, required this.items});
+
+  final List<RailDockItem> items;
+
+  static const barHeight = 76.0;
+
+  /// How far the arc's ends sit below its crest.
+  static const arcDrop = 16.0;
+
+  /// Room above the crest for the selected-tab pointer.
+  static const pointerHeight = 14.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final selected = items.indexWhere((item) => item.selected);
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    return SizedBox(
+      height: pointerHeight + arcDrop + barHeight + bottom,
+      child: CustomPaint(
+        painter: _NavBarPainter(
+          count: items.length,
+          // The painter works in physical left-to-right order.
+          selected:
+              selected < 0 || !rtl ? selected : items.length - 1 - selected,
+          bottomInset: bottom,
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottom),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (final item in items) Expanded(child: _NavTile(item: item)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavBarPainter extends CustomPainter {
+  _NavBarPainter({
+    required this.count,
+    required this.selected,
+    required this.bottomInset,
+  });
+
+  final int count;
+  final int selected;
+  final double bottomInset;
+
+  static const _crest = HomeNavBar.pointerHeight;
+  static const _ends = HomeNavBar.pointerHeight + HomeNavBar.arcDrop;
+
+  /// Height of the arc at [x]: a quadratic through both ends and the crest.
+  double _arcY(double x, double width) {
+    final t = (x / width).clamp(0.0, 1.0);
+    return _ends - 4 * (_ends - _crest) * t * (1 - t);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final slot = w / count;
+    final edge =
+        Path()
+          ..moveTo(0, _ends)
+          ..quadraticBezierTo(w / 2, 2 * _crest - _ends, w, _ends);
+    final body =
+        Path.from(edge)
+          ..lineTo(w, size.height)
+          ..lineTo(0, size.height)
+          ..close();
+
+    canvas.drawShadow(body, Colors.black, 8, false);
+    canvas.drawPath(
+      body,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF4A2C1B), Color(0xFF2B1A12), Color(0xFF170D08)],
+        ).createShader(Offset.zero & size),
+    );
+
+    canvas.save();
+    canvas.clipPath(body);
+    // Lighter panel behind the selected tab.
+    if (selected >= 0) {
+      canvas.drawRect(
+        Rect.fromLTWH(selected * slot, 0, slot, size.height),
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              CasinoColors.gold.withValues(alpha: 0.24),
+              CasinoColors.gold.withValues(alpha: 0.06),
+            ],
+          ).createShader(Offset.zero & size),
+      );
+    }
+    // Dividers between tabs.
+    final divider =
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.35)
+          ..strokeWidth = 1.5;
+    for (var i = 1; i < count; i++) {
+      final x = i * slot;
+      canvas.drawLine(
+        Offset(x, _arcY(x, w)),
+        Offset(x, size.height - bottomInset),
+        divider,
+      );
+    }
+    canvas.restore();
+
+    canvas.drawPath(
+      edge,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = CasinoColors.gold.withValues(alpha: 0.8),
+    );
+
+    if (selected >= 0) _paintPointer(canvas, size, slot);
+  }
+
+  /// Gold band riding the arc over the selected tab, peaked in the middle.
+  void _paintPointer(Canvas canvas, Size size, double slot) {
+    final w = size.width;
+    final cx = (selected + 0.5) * slot;
+    final half = slot * 0.42;
+    const band = 7.0;
+    const peak = 7.0;
+    const peakHalf = 16.0;
+    double y(double x) => _arcY(x, w);
+    final left = cx - half;
+    final right = cx + half;
+
+    final path =
+        Path()
+          ..moveTo(left, y(left) + 1)
+          ..lineTo(left, y(left) - band)
+          ..lineTo(cx - peakHalf, y(cx - peakHalf) - band)
+          ..lineTo(cx, y(cx) - band - peak)
+          ..lineTo(cx + peakHalf, y(cx + peakHalf) - band)
+          ..lineTo(right, y(right) - band)
+          ..lineTo(right, y(right) + 1);
+    for (var x = right; x >= left; x -= 4) {
+      path.lineTo(x, y(x) + 1);
+    }
+    path.close();
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFE08A), CasinoColors.gold, Color(0xFFC8961E)],
+        ).createShader(
+          Rect.fromLTRB(left, y(cx) - band - peak, right, y(left) + 1),
+        ),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = const Color(0xFF7A5A0E),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _NavBarPainter old) =>
+      old.count != count ||
+      old.selected != selected ||
+      old.bottomInset != bottomInset;
+}
+
+class _NavTile extends StatelessWidget {
+  const _NavTile({required this.item});
+
+  final RailDockItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = item.selected;
+    return Pressable(
+      onTap: item.onTap,
+      child: SizedBox(
+        height: HomeNavBar.barHeight,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  NavArtIcon(item.art, size: selected ? 46 : 42),
+                  if (item.badge > 0)
+                    PositionedDirectional(
+                      top: -4,
+                      end: -10,
+                      child: CountBadge(count: item.badge),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: selected ? CasinoColors.gold : CasinoColors.text,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                    shadows: const [
+                      Shadow(color: Color(0x99000000), blurRadius: 3),
                     ],
                   ),
                 ),
               ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -68,6 +68,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get howToPlay => 'Cómo jugar';
 
   @override
+  String get home => 'Inicio';
+
+  @override
+  String get shop => 'Tienda';
+
+  @override
   String get deck => 'Baraja';
 
   @override

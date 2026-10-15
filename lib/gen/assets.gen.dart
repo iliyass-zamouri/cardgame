@@ -12,10 +12,8 @@ import 'package:flutter/widgets.dart';
 class Assets {
   Assets._();
 
-  static const AssetGenImage table = AssetGenImage('assets/table.jpg');
-
   /// List of all assets
-  List<AssetGenImage> get values => [table];
+  List<AssetGenImage> get values => [];
 }
 
 class AssetGenImage {
