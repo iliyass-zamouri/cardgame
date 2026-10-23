@@ -8,14 +8,24 @@ import 'package:flutter/material.dart';
 
 /// Full-stage custom table for a pot city, painted once and cached.
 class CityTable extends StatelessWidget {
-  const CityTable({super.key, required this.city});
+  const CityTable({
+    super.key,
+    required this.city,
+    this.inset = EdgeInsets.zero,
+  });
 
   final CityTheme city;
+
+  /// Keeps the table clear of HUD bands; the backdrop still fills them.
+  final EdgeInsets inset;
 
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
-      child: CustomPaint(painter: CityTablePainter(city), size: Size.infinite),
+      child: CustomPaint(
+        painter: CityTablePainter(city, inset: inset),
+        size: Size.infinite,
+      ),
     );
   }
 }
@@ -63,9 +73,10 @@ class _Table {
 /// a border band, a centrepiece, its skyline at both ends, and rail
 /// ornaments. Colours come from [CityTheme]; emblems match the pot cards.
 class CityTablePainter extends CustomPainter {
-  const CityTablePainter(this.city);
+  const CityTablePainter(this.city, {this.inset = EdgeInsets.zero});
 
   final CityTheme city;
+  final EdgeInsets inset;
 
   PotCardStyle get _card => PotCardStyle.forCity(city.id);
 
@@ -79,8 +90,11 @@ class CityTablePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final t = _Table(canvas, size, city);
-    _backdrop(t);
+    _backdrop(_Table(canvas, size, city));
+    final area = inset.deflateRect(Offset.zero & size);
+    canvas.save();
+    canvas.translate(area.left, area.top);
+    final t = _Table(canvas, area.size, city);
     _rail(t);
     _felt(t);
 
@@ -93,6 +107,7 @@ class CityTablePainter extends CustomPainter {
     _band(t);
     _centrepiece(t);
     _railOrnaments(t);
+    canvas.restore();
   }
 
   // ---- base layers -------------------------------------------------------
@@ -1192,7 +1207,7 @@ class CityTablePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CityTablePainter oldDelegate) =>
-      oldDelegate.city != city;
+      oldDelegate.city != city || oldDelegate.inset != inset;
 }
 
 /// City skyline in a unit box (x 0..1, y 0..1 with the ground at y = 1).
@@ -1364,39 +1379,31 @@ Path _skyline(String city) {
 /// rail around the home screen's patterned green felt, with two seat rings
 /// and a centre ring.
 class ClassicTable extends StatelessWidget {
-  const ClassicTable({super.key});
+  const ClassicTable({super.key, this.inset = EdgeInsets.zero});
+
+  /// Keeps the table clear of HUD bands; the room still fills them.
+  final EdgeInsets inset;
 
   @override
   Widget build(BuildContext context) {
-    return const RepaintBoundary(
-      child: CustomPaint(painter: ClassicTablePainter(), size: Size.infinite),
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: ClassicTablePainter(inset: inset),
+        size: Size.infinite,
+      ),
     );
   }
 }
 
 class ClassicTablePainter extends CustomPainter {
-  const ClassicTablePainter();
+  const ClassicTablePainter({this.inset = EdgeInsets.zero});
+
+  final EdgeInsets inset;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final inset = w * 0.035;
-    final outer = Rect.fromLTRB(
-      inset,
-      size.height * 0.012 + inset * 0.5,
-      w - inset,
-      size.height * 0.988 - inset * 0.5,
-    );
-    RRect stadium(Rect r) =>
-        RRect.fromRectAndRadius(r, Radius.circular(r.width / 2));
-    final rail = stadium(outer);
-    final lipRect = outer.deflate(w * 0.072);
-    final lip = stadium(lipRect);
-    final feltRect = lipRect.deflate(w * 0.026);
-    final felt = stadium(feltRect);
-
-    // Dark room around the table.
-    final room = Offset.zero & size;
+  void paint(Canvas canvas, Size canvasSize) {
+    // Dark room around the table, filling the HUD bands too.
+    final room = Offset.zero & canvasSize;
     canvas.drawRect(
       room,
       Paint()
@@ -1405,6 +1412,26 @@ class ClassicTablePainter extends CustomPainter {
           colors: [Color(0xFF12293A), Color(0xFF07131D)],
         ).createShader(room),
     );
+
+    final area = inset.deflateRect(room);
+    canvas.save();
+    canvas.translate(area.left, area.top);
+    final size = area.size;
+    final w = size.width;
+    final margin = w * 0.035;
+    final outer = Rect.fromLTRB(
+      margin,
+      size.height * 0.012 + margin * 0.5,
+      w - margin,
+      size.height * 0.988 - margin * 0.5,
+    );
+    RRect stadium(Rect r) =>
+        RRect.fromRectAndRadius(r, Radius.circular(r.width / 2));
+    final rail = stadium(outer);
+    final lipRect = outer.deflate(w * 0.072);
+    final lip = stadium(lipRect);
+    final feltRect = lipRect.deflate(w * 0.026);
+    final felt = stadium(feltRect);
 
     // Table shadow.
     canvas.drawRRect(
@@ -1495,8 +1522,10 @@ class ClassicTablePainter extends CustomPainter {
         ..strokeWidth = w * 0.014
         ..color = const Color(0xFFD8C8AE),
     );
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant ClassicTablePainter oldDelegate) => false;
+  bool shouldRepaint(covariant ClassicTablePainter oldDelegate) =>
+      oldDelegate.inset != inset;
 }

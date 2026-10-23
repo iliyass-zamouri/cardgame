@@ -57,6 +57,9 @@ async function initDb() {
   const { ensureBotSchema } = require('./bots');
   await ensureBotSchema();
 
+  const { ensureBotOutreachSchema } = require('./bot_outreach');
+  await ensureBotOutreachSchema();
+
   const { ensureMarketplaceSchema } = require('./marketplace');
   await ensureMarketplaceSchema();
 

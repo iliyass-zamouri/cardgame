@@ -50,6 +50,7 @@ class ServerRobotPlayer {
     this.turnScheduled = false;
     this.launchScheduled = false;
     this.rematchScheduled = false;
+    this.readyScheduled = false;
     this.turnsTaken = 0;
     this.timers = new Set();
   }
@@ -78,6 +79,28 @@ class ServerRobotPlayer {
     if (this.disposed) return;
     const player = this.self;
     if (!player) return;
+
+    // Private lobby: get ready once a guest sits down, like a person would.
+    if (this.room.status === 'waiting') {
+      const index = this.room.players.findIndex((p) => p.id === this.clientId);
+      if (
+        this.room.players.length === 2 &&
+        !this.room.lobbyReady[index] &&
+        !this.readyScheduled
+      ) {
+        this.readyScheduled = true;
+        this.schedule(this.rematchDelayMs + 1000, () => {
+          this.readyScheduled = false;
+          if (this.disposed) return;
+          try {
+            this.room.ready(this.clientId);
+          } catch (error) {
+            if (!(error instanceof GameRuleError)) throw error;
+          }
+        });
+      }
+      return;
+    }
 
     if (this.room.status === 'playing' && player.launch === 'notLaunched') {
       this.turnsTaken = 0;

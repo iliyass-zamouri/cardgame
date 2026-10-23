@@ -143,33 +143,6 @@ function buildChatMessage(fromPlayerId, payload) {
   };
 }
 
-const BOT_REPLY_CHANCE = 0.35;
-const BOT_REPLY_PHRASES = [
-  'wellPlayed',
-  'gg',
-  'thanks',
-  'hehe',
-  'goodLuck',
-  'niceSwap',
-  'sharpMemory',
-  'foundJoker',
-];
-
-/**
- * Picks a bot reply to a human chat message, or null to stay quiet.
- * @param {() => number} [random]
- */
-function pickBotReply(random = Math.random) {
-  if (random() >= BOT_REPLY_CHANCE) return null;
-  if (random() < 0.6) {
-    return { kind: 'emoji', emojiId: EMOJI_IDS[Math.floor(random() * EMOJI_IDS.length)] };
-  }
-  return {
-    kind: 'phrase',
-    phraseId: BOT_REPLY_PHRASES[Math.floor(random() * BOT_REPLY_PHRASES.length)],
-  };
-}
-
 const VOICE_SIGNAL_KINDS = ['offer', 'answer', 'ice', 'hangup'];
 const MAX_SDP_LENGTH = 12 * 1024;
 
@@ -211,6 +184,5 @@ module.exports = {
   validateChatCommand,
   ChatLimiter,
   buildChatMessage,
-  pickBotReply,
   validateVoiceSignal,
 };

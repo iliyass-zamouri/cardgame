@@ -76,8 +76,8 @@ class _SeatChatOverlayState extends ConsumerState<SeatChatOverlay> {
           Positioned(
             left: widget.mine ? 0 : null,
             right: widget.mine ? null : 0,
-            top: widget.bubbleBelow ? 50 : null,
-            bottom: widget.bubbleBelow ? null : 50,
+            top: widget.bubbleBelow ? 66 : null,
+            bottom: widget.bubbleBelow ? null : 66,
             child: _SpeechBubble(
               key: ValueKey(bubble.id),
               text:

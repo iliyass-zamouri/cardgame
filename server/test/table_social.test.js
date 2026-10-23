@@ -9,7 +9,6 @@ const {
   validateChatCommand,
   validateVoiceSignal,
   ChatLimiter,
-  pickBotReply,
   MAX_TEXT_LENGTH,
 } = require('../chat/room_chat');
 const { turnCredential, buildIceServers } = require('../voice/turn_credentials');
@@ -57,12 +56,6 @@ test('ChatLimiter allows a burst then refills over time', () => {
   now += 1500;
   assert.equal(limiter.tryConsume(), true);
   assert.equal(limiter.tryConsume(), false);
-});
-
-test('pickBotReply stays quiet most of the time', () => {
-  assert.equal(pickBotReply(() => 0.9), null);
-  const reply = pickBotReply(() => 0.1);
-  assert.equal(reply.kind, 'emoji');
 });
 
 test('validateVoiceSignal keeps only known fields', () => {

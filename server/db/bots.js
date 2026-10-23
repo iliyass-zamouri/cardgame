@@ -82,26 +82,83 @@ async function ensureBotSchema() {
   }
 }
 
+/** A bot keeps one face: stored avatar, or a new random one saved for next time. */
+async function stableBotAvatar(pool, row) {
+  if (row.avatar_id && row.avatar_id !== 'default') return row.avatar_id;
+  const avatarId = getRandomBotAvatarId();
+  await pool.execute(
+    `UPDATE players SET avatar_id = :avatarId WHERE id = :id`,
+    { avatarId, id: row.id },
+  );
+  return avatarId;
+}
+
+function botUserFromRow(row, avatarId) {
+  return {
+    playerId: row.id,
+    displayName: row.display_name || 'Bot',
+    username: row.username || 'bot',
+    avatarId,
+    elo: row.elo ?? 1000,
+    countryCode: row.country_code || null,
+  };
+}
+
+function poolOrNull() {
+  try {
+    return getPool();
+  } catch {
+    return null;
+  }
+}
+
+const botIdCache = new Map();
+
+/** True when the player row is a bot (cached; bot ids never change kind). */
+async function isBotPlayer(playerId) {
+  if (!playerId) return false;
+  if (botIdCache.has(playerId)) return botIdCache.get(playerId);
+  const pool = poolOrNull();
+  if (!pool) return playerId.startsWith('bot-');
+  const [rows] = await pool.execute(
+    `SELECT is_bot FROM players WHERE id = :playerId LIMIT 1`,
+    { playerId },
+  );
+  const isBot = rows.length > 0 && Number(rows[0].is_bot) === 1;
+  botIdCache.set(playerId, isBot);
+  return isBot;
+}
+
+/** All bot users (id, name, elo, avatar, country). */
+async function listBotUsers() {
+  const pool = poolOrNull();
+  if (!pool) return [];
+  const [rows] = await pool.execute(
+    `SELECT id, display_name, username, elo, avatar_id, country_code
+     FROM players
+     WHERE is_bot = 1`,
+  );
+  for (const row of rows) botIdCache.set(row.id, true);
+  return rows.map((row) => botUserFromRow(row, row.avatar_id || 'default'));
+}
+
 /**
  * Acquire an idle bot user or create a new bot record in MySQL.
+ * With [playerId], acquire that specific bot (e.g. a bot friend).
  * @param {Set<string>|Array<string>} activeBotPlayerIds
- * @returns {Promise<{ playerId: string, displayName: string, username: string, elo: number }>}
+ * @param {{ playerId?: string }} [options]
+ * @returns {Promise<{ playerId: string, displayName: string, username: string, avatarId: string, elo: number } | null>}
  */
-async function acquireBotUser(activeBotPlayerIds = new Set()) {
+async function acquireBotUser(activeBotPlayerIds = new Set(), { playerId = null } = {}) {
   const activeSet = activeBotPlayerIds instanceof Set
     ? activeBotPlayerIds
     : new Set(activeBotPlayerIds || []);
 
-  let pool;
-  try {
-    pool = getPool();
-  } catch {
-    pool = null;
-  }
-
+  const pool = poolOrNull();
   if (!pool) {
+    if (playerId && activeSet.has(playerId)) return null;
     // In-memory fallback for tests without DB connection
-    const id = `bot-${randomUUID()}`;
+    const id = playerId || `bot-${randomUUID()}`;
     const identity = generateGuestIdentity();
     return {
       playerId: id,
@@ -113,11 +170,21 @@ async function acquireBotUser(activeBotPlayerIds = new Set()) {
   }
 
   const [rows] = await pool.execute(
-    `SELECT id, display_name, username, elo
+    `SELECT id, display_name, username, elo, avatar_id, country_code
      FROM players
      WHERE is_bot = 1
      ORDER BY last_seen_at ASC`,
   );
+
+  if (playerId) {
+    const wanted = rows.find((row) => row.id === playerId);
+    if (!wanted || activeSet.has(playerId)) return null;
+    await pool.execute(
+      `UPDATE players SET last_seen_at = CURRENT_TIMESTAMP WHERE id = :id`,
+      { id: wanted.id },
+    );
+    return botUserFromRow(wanted, await stableBotAvatar(pool, wanted));
+  }
 
   const idleBots = rows.filter((row) => !activeSet.has(row.id));
   if (idleBots.length > 0) {
@@ -126,13 +193,7 @@ async function acquireBotUser(activeBotPlayerIds = new Set()) {
       `UPDATE players SET last_seen_at = CURRENT_TIMESTAMP WHERE id = :id`,
       { id: selected.id },
     );
-    return {
-      playerId: selected.id,
-      displayName: selected.display_name || 'Bot',
-      username: selected.username || 'bot',
-      avatarId: getRandomBotAvatarId(),
-      elo: selected.elo ?? 1000,
-    };
+    return botUserFromRow(selected, await stableBotAvatar(pool, selected));
   }
 
   // Create new bot player
@@ -143,17 +204,20 @@ async function acquireBotUser(activeBotPlayerIds = new Set()) {
     try {
       await pool.execute(
         `INSERT INTO players (
-           id, display_name, username, auth_type, is_bot, elo, total_points, wins, losses, draws, country_code
+           id, display_name, username, auth_type, is_bot, elo, total_points, wins, losses, draws,
+           country_code, avatar_id
          ) VALUES (
-           :id, :displayName, :username, 'guest', 1, 1000, 0, 0, 0, 0, :countryCode
+           :id, :displayName, :username, 'guest', 1, 1000, 0, 0, 0, 0, :countryCode, :avatarId
          )`,
         {
           id,
           displayName: identity.name,
           username: identity.username,
           countryCode: getRandomBotCountry(),
+          avatarId,
         },
       );
+      botIdCache.set(id, true);
       return {
         playerId: id,
         displayName: identity.name,
@@ -175,4 +239,6 @@ async function acquireBotUser(activeBotPlayerIds = new Set()) {
 module.exports = {
   ensureBotSchema,
   acquireBotUser,
+  isBotPlayer,
+  listBotUsers,
 };

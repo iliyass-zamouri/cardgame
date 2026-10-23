@@ -151,22 +151,62 @@ class OfflineGameSocket implements GameSocket {
     }
     _emitChat(humanPlayerId ?? kOfflineHumanId, payload);
 
-    // The robot answers now and then, like bots do online.
-    if (_random.nextDouble() >= 0.35) return;
-    final reply =
-        _random.nextDouble() < 0.6
-            ? {
-              'kind': 'emoji',
-              'emojiId': _robotEmojis[_random.nextInt(_robotEmojis.length)],
-            }
-            : {
-              'kind': 'phrase',
-              'phraseId': _robotPhrases[_random.nextInt(_robotPhrases.length)],
-            };
-    Timer(Duration(milliseconds: 1000 + _random.nextInt(2000)), () {
-      _emitChat(kOfflineRobotId, reply);
-    });
+    // The robot always answers, like the online bots (server/bots/bot_brain.js).
+    if (_replyTimer != null) return;
+    _replyTimer = Timer(
+      Duration(milliseconds: 1200 + _random.nextInt(2400)),
+      () {
+        _replyTimer = null;
+        _emitChat(kOfflineRobotId, _robotReply(payload));
+      },
+    );
   }
+
+  Timer? _replyTimer;
+
+  Map<String, dynamic> _robotReply(Map<String, dynamic> message) {
+    final key = switch (message['kind']) {
+      'phrase' => message['phraseId'] as String?,
+      'emoji' => 'emoji:${message['emojiId']}',
+      _ => null,
+    };
+    final options =
+        _robotReplies[key] ?? const ['emoji:laugh', 'hehe', 'emoji:cool'];
+    final pick = options[_random.nextInt(options.length)];
+    return pick.startsWith('emoji:')
+        ? {'kind': 'emoji', 'emojiId': pick.substring(6)}
+        : {'kind': 'phrase', 'phraseId': pick};
+  }
+
+  /// Message (phrase id or `emoji:<id>`) -> fitting answers.
+  static const _robotReplies = <String, List<String>>{
+    'hello': ['hello', 'goodLuck', 'emoji:fist'],
+    'goodLuck': ['goodLuck', 'thanks'],
+    'wellPlayed': ['thanks', 'emoji:love', 'hehe'],
+    'niceSwap': ['thanks', 'emoji:cool', 'hehe'],
+    'sharpMemory': ['thanks', 'knowMyCards', 'emoji:cool'],
+    'playFast': ['oops', 'hehe'],
+    'stopPeeking': ['hehe', 'emoji:laugh'],
+    'giveCardBack': ['hehe', 'emoji:laugh', 'oops'],
+    'blackKingPlease': ['hehe', 'goodLuck', 'foundJoker'],
+    'foundJoker': ['hehe', 'emoji:laugh', 'blackKingPlease', 'lowTotal'],
+    'knowMyCards': ['hehe', 'emoji:cool', 'foundJoker'],
+    'lowTotal': ['hehe', 'emoji:laugh', 'foundJoker'],
+    'endingNextTurn': ['emoji:shock', 'hehe', 'knowMyCards'],
+    'unlucky': ['thanks', 'emoji:cry', 'oops'],
+    'oops': ['hehe', 'emoji:laugh', 'unlucky'],
+    'thanks': ['emoji:love', 'emoji:clap'],
+    'hehe': ['hehe', 'emoji:laugh'],
+    'gg': ['gg', 'wellPlayed', 'emoji:clap'],
+    'emoji:laugh': ['hehe', 'emoji:laugh'],
+    'emoji:love': ['thanks', 'emoji:love'],
+    'emoji:cry': ['unlucky', 'emoji:cry'],
+    'emoji:angry': ['emoji:cool', 'hehe', 'oops'],
+    'emoji:cool': ['emoji:cool', 'hehe', 'foundJoker'],
+    'emoji:shock': ['hehe', 'emoji:laugh'],
+    'emoji:fist': ['emoji:fist', 'emoji:cool'],
+    'emoji:clap': ['thanks', 'emoji:clap'],
+  };
 
   void _emitChat(String fromPlayerId, Map<String, dynamic> payload) {
     _emit({
@@ -178,32 +218,13 @@ class OfflineGameSocket implements GameSocket {
     });
   }
 
-  static const _robotEmojis = [
-    'laugh',
-    'love',
-    'cry',
-    'angry',
-    'cool',
-    'shock',
-    'fist',
-    'clap',
-  ];
-  static const _robotPhrases = [
-    'wellPlayed',
-    'gg',
-    'thanks',
-    'hehe',
-    'goodLuck',
-    'niceSwap',
-    'sharpMemory',
-    'foundJoker',
-  ];
   final _random = Random();
 
   @override
   void close() {
     if (_closed) return;
     _closed = true;
+    _replyTimer?.cancel();
     _robot.dispose();
     _room.dispose();
     unawaited(_controller.close());

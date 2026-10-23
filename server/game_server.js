@@ -32,8 +32,16 @@ const {
   validateVoiceSignal,
   ChatLimiter,
   buildChatMessage,
-  pickBotReply,
 } = require('./chat/room_chat');
+const { BotTableTalker } = require('./bots/bot_table_talker');
+const { BotSocialDirector } = require('./bots/bot_social');
+const {
+  recordOutreach,
+  outreachSummary,
+  pendingBotRequestCount,
+  listOfflineTargets,
+  loadHumanProfiles,
+} = require('./db/bot_outreach');
 const { buildIceServers } = require('./voice/turn_credentials');
 const {
   getPlayerTokenVersion,
@@ -69,6 +77,9 @@ const {
   cancelFriendRequest,
   removeFriend,
   blockFriend,
+  relationStatus,
+  listBotFriendIds,
+  listPendingRequestsToBots,
 } = require('./db/friends');
 const {
   getPlayerInventory,
@@ -78,7 +89,7 @@ const {
   redeemIapPurchase,
   updatePlayerCosmetics,
 } = require('./db/marketplace');
-const { acquireBotUser } = require('./db/bots');
+const { acquireBotUser, isBotPlayer, listBotUsers } = require('./db/bots');
 const { ServerRobotPlayer } = require('./bot_player');
 const { iqForPot } = require('./bot_difficulty');
 const {
@@ -154,8 +165,15 @@ class GameServer {
     this.roomBots = new Map();
     /** @type {Set<string>} Active bot player IDs */
     this.activeBotPlayerIds = new Set();
-    /** @type {Map<string, Set<NodeJS.Timeout>>} pending bot chat replies per room */
-    this.botChatTimers = new Map();
+    /** @type {Map<string, NodeJS.Timeout>} bot-hosted invite rooms waiting for their guest */
+    this.botHostTimers = new Map();
+    /** @type {BotSocialDirector | null} */
+    this.botSocial = null;
+    this.botSocialTimer = null;
+    /** @type {Map<string, number>} playerId -> first tick seen idle in the lobby */
+    this.idleSeenAt = new Map();
+    /** Bots that look online this hour (refreshed every social tick). */
+    this.onlineBotIds = new Set();
     this.httpServer = null;
     this.webSocketServer = null;
     /** @type {{ t: number, connections: number, uniquePlayers: number, rooms: number, queue: number }[]} */
@@ -190,6 +208,11 @@ class GameServer {
     if (this.presenceTimer.unref) this.presenceTimer.unref();
     this.#samplePresence();
 
+    this.botSocial = this.#createBotSocial();
+    const tickMs = Number(process.env.BOT_SOCIAL_TICK_MS) || this.botSocial.options.tickMs;
+    this.botSocialTimer = setInterval(() => void this.#botSocialTick(), tickMs);
+    if (this.botSocialTimer.unref) this.botSocialTimer.unref();
+
     await new Promise((resolve, reject) => {
       this.httpServer.once('error', reject);
       this.httpServer.listen(this.port, this.host, resolve);
@@ -218,10 +241,18 @@ class GameServer {
     this.matchTimers.clear();
     for (const timer of this.disconnectGraceTimers.values()) clearTimeout(timer);
     this.disconnectGraceTimers.clear();
-    for (const roomBot of this.roomBots.values()) roomBot.bot.dispose();
+    for (const roomBot of this.roomBots.values()) {
+      roomBot.bot.dispose();
+      roomBot.talker?.dispose();
+    }
     this.roomBots.clear();
     this.activeBotPlayerIds.clear();
-    for (const roomId of [...this.botChatTimers.keys()]) this.#clearBotChatTimers(roomId);
+    if (this.botSocialTimer) clearInterval(this.botSocialTimer);
+    this.botSocialTimer = null;
+    this.botSocial?.dispose();
+    this.botSocial = null;
+    for (const timer of this.botHostTimers.values()) clearTimeout(timer);
+    this.botHostTimers.clear();
     for (const room of this.rooms.values()) room.dispose();
     for (const context of this.clients.values()) context.socket.terminate();
     this.rooms.clear();
@@ -699,7 +730,15 @@ class GameServer {
     }
   }
 
+  /** Humans with an open socket, plus bots that look online. */
   #getOnlinePlayerIds() {
+    const ids = this.#onlineHumanIds();
+    for (const id of this.activeBotPlayerIds) ids.add(id);
+    for (const id of this.onlineBotIds) ids.add(id);
+    return ids;
+  }
+
+  #onlineHumanIds() {
     const ids = new Set();
     for (const ctx of this.clients.values()) {
       if (ctx.playerId && ctx.socket?.readyState === WebSocket.OPEN) {
@@ -855,44 +894,7 @@ class GameServer {
     try {
       const result = await sendFriendRequest({ playerId, targetPlayerId, targetUsername });
       sendJson(response, 200, result);
-
-      if (result.status === 'pending' && !result.alreadyPending && result.targetPlayerId) {
-        this.#notifyPlayer(result.targetPlayerId, {
-          type: 'friendRequestReceived',
-          requestId: result.requestId || null,
-          fromPlayerId: result.fromPlayerId || playerId,
-          fromName: result.fromName || 'Player',
-          fromUsername: result.fromUsername || '',
-        });
-        void sendToPlayers([result.targetPlayerId], {
-          category: 'social',
-          title: 'Friend request',
-          body: `${result.fromName || 'Player'} sent a friend request`,
-          data: {
-            type: 'friend_request',
-            route: '/friends',
-            fromPlayerId: result.fromPlayerId || playerId,
-          },
-        }).catch((error) => console.error('[fcm] friend request', error));
-      } else if (result.autoAccepted && result.notifyPlayerId) {
-        this.#notifyPlayer(result.notifyPlayerId, {
-          type: 'friendRequestAccepted',
-          friendshipId: result.friendshipId || null,
-          byPlayerId: result.fromPlayerId || playerId,
-          byName: result.fromName || 'Player',
-          byUsername: result.fromUsername || '',
-        });
-        void sendToPlayers([result.notifyPlayerId], {
-          category: 'social',
-          title: 'Friend accepted',
-          body: `${result.fromName || 'Player'} accepted your friend request`,
-          data: {
-            type: 'friend_accepted',
-            route: '/friends',
-            byPlayerId: result.fromPlayerId || playerId,
-          },
-        }).catch((error) => console.error('[fcm] friend auto-accept', error));
-      }
+      await this.#afterFriendRequest(result, playerId);
     } catch (error) {
       if (
         error.code === 'player_not_found' ||
@@ -905,6 +907,68 @@ class GameServer {
       console.error('[friends/request]', error);
       sendJson(response, 500, { error: 'server_error', message: 'Failed to send friend request' });
     }
+  }
+
+  /** Notify the target of a new/auto-accepted request (shared by players and bots). */
+  async #afterFriendRequest(result, fromPlayerId) {
+    if (result.status === 'pending' && !result.alreadyPending && result.targetPlayerId) {
+      if (await isBotPlayer(result.targetPlayerId)) {
+        this.botSocial?.onFriendRequestToBot({
+          botId: result.targetPlayerId,
+          requesterId: result.fromPlayerId || fromPlayerId,
+        });
+        return;
+      }
+      this.#notifyPlayer(result.targetPlayerId, {
+        type: 'friendRequestReceived',
+        requestId: result.requestId || null,
+        fromPlayerId: result.fromPlayerId || fromPlayerId,
+        fromName: result.fromName || 'Player',
+        fromUsername: result.fromUsername || '',
+      });
+      void sendToPlayers([result.targetPlayerId], {
+        category: 'social',
+        title: 'Friend request',
+        body: `${result.fromName || 'Player'} sent a friend request`,
+        data: {
+          type: 'friend_request',
+          route: '/friends',
+          fromPlayerId: result.fromPlayerId || fromPlayerId,
+        },
+      }).catch((error) => console.error('[fcm] friend request', error));
+    } else if (result.autoAccepted && result.notifyPlayerId) {
+      this.#notifyFriendAccepted(
+        {
+          requesterId: result.notifyPlayerId,
+          friendshipId: result.friendshipId,
+          byPlayerId: result.fromPlayerId || fromPlayerId,
+          byName: result.fromName,
+          byUsername: result.fromUsername,
+        },
+        fromPlayerId,
+      );
+    }
+  }
+
+  #notifyFriendAccepted(result, byPlayerId) {
+    if (!result.requesterId) return;
+    this.#notifyPlayer(result.requesterId, {
+      type: 'friendRequestAccepted',
+      friendshipId: result.friendshipId || null,
+      byPlayerId: result.byPlayerId || byPlayerId,
+      byName: result.byName || 'Player',
+      byUsername: result.byUsername || '',
+    });
+    void sendToPlayers([result.requesterId], {
+      category: 'social',
+      title: 'Friend accepted',
+      body: `${result.byName || 'Player'} accepted your friend request`,
+      data: {
+        type: 'friend_accepted',
+        route: '/friends',
+        byPlayerId: result.byPlayerId || byPlayerId,
+      },
+    }).catch((error) => console.error('[fcm] friend accept', error));
   }
 
   async #handleAcceptFriendRequest(request, response) {
@@ -929,26 +993,7 @@ class GameServer {
     try {
       const result = await acceptFriendRequest({ playerId, requesterId, requestId });
       sendJson(response, 200, result);
-
-      if (result.requesterId) {
-        this.#notifyPlayer(result.requesterId, {
-          type: 'friendRequestAccepted',
-          friendshipId: result.friendshipId || null,
-          byPlayerId: result.byPlayerId || playerId,
-          byName: result.byName || 'Player',
-          byUsername: result.byUsername || '',
-        });
-        void sendToPlayers([result.requesterId], {
-          category: 'social',
-          title: 'Friend accepted',
-          body: `${result.byName || 'Player'} accepted your friend request`,
-          data: {
-            type: 'friend_accepted',
-            route: '/friends',
-            byPlayerId: result.byPlayerId || playerId,
-          },
-        }).catch((error) => console.error('[fcm] friend accept', error));
-      }
+      this.#notifyFriendAccepted(result, playerId);
     } catch (error) {
       if (error.code === 'request_not_found') {
         sendJson(response, 404, { error: error.code, message: error.message });
@@ -1789,6 +1834,7 @@ class GameServer {
         }).catch((err) => console.error('[joinRoom cosmetics]', err));
       }
       context.roomId = roomId;
+      this.#clearBotHostTimer(roomId);
       room.addPlayer(context.id, {
         playerId: context.playerId,
         displayName: context.displayName,
@@ -1832,6 +1878,21 @@ class GameServer {
       const roomId = String(command.roomId || context.roomId || '').trim().toUpperCase();
       if (!targetPlayerId || !roomId) {
         throw new GameRuleError('invalid_invite', 'Target player and room required');
+      }
+
+      if (await isBotPlayer(targetPlayerId)) {
+        this.botSocial?.onHumanInvitedBot({
+          botId: targetPlayerId,
+          humanId: context.playerId || '',
+          roomId,
+        });
+        this.#send(context.socket, {
+          type: 'tableInviteSent',
+          targetPlayerId,
+          roomId,
+          delivered: this.#getOnlinePlayerIds().has(targetPlayerId),
+        });
+        return;
       }
 
       let delivered = false;
@@ -1942,35 +2003,217 @@ class GameServer {
       throw new GameRuleError('chat_rate_limited', 'Slow down');
     }
     this.#sendToRoom(room, buildChatMessage(context.playerId || '', payload));
-    this.#scheduleBotChatReply(room);
+    this.roomBots.get(room.id)?.talker?.onHumanMessage(payload);
   }
 
-  /** Bots occasionally answer chat so bot tables feel like real ones. */
-  #scheduleBotChatReply(room) {
-    const roomBot = this.roomBots.get(room.id);
-    if (!roomBot) return;
-    const reply = pickBotReply();
-    if (!reply) return;
-    let timers = this.botChatTimers.get(room.id);
-    if (!timers) {
-      timers = new Set();
-      this.botChatTimers.set(room.id, timers);
-    }
-    if (timers.size > 0) return;
+  /** Seat a bot (player + table talk) in [room]. Seat it last: a seat change wakes it. */
+  #seatBot(room, botUser, iq) {
+    const botClientId = `bot-client-${crypto.randomUUID()}`;
+    const bot = new ServerRobotPlayer({ room, clientId: botClientId, iq });
+    const talker = new BotTableTalker({
+      room,
+      botClientId,
+      botPlayerId: botUser.playerId,
+      send: (reply) => {
+        if (this.rooms.get(room.id) !== room) return;
+        this.#sendToRoom(room, buildChatMessage(botUser.playerId, reply));
+      },
+    });
+    const entry = {
+      bot,
+      talker,
+      iq,
+      botPlayerId: botUser.playerId,
+      botClientId,
+      lastStatus: room.status,
+    };
+    this.activeBotPlayerIds.add(botUser.playerId);
+    this.roomBots.set(room.id, entry);
+    room.addPlayer(botClientId, {
+      playerId: botUser.playerId,
+      displayName: botUser.displayName,
+      avatarId: botUser.avatarId || 'default',
+      deckId: 'default',
+    });
+    return entry;
+  }
+
+  /** Report finished bot games to the social director (friend requests). */
+  #noteBotMatchEnd(room, roomBot) {
+    const status = room.status;
+    if (status === roomBot.lastStatus) return;
+    roomBot.lastStatus = status;
+    if (status !== 'ended' || !room.result || room.result.quitterIndex != null) return;
+    const botIndex = room.players.findIndex((p) => p.id === roomBot.botClientId);
+    const human = room.players[1 - botIndex];
+    if (botIndex < 0 || !human?.playerId) return;
+    const scores = room.result.scores || [];
+    this.botSocial?.onBotMatchEnded({
+      botId: roomBot.botPlayerId,
+      humanId: human.playerId,
+      scoreGap: scores.length === 2 ? scores[0] - scores[1] : null,
+      gamesPlayed: (room.seriesWins?.[0] || 0) + (room.seriesWins?.[1] || 0),
+    });
+  }
+
+  /** IQ for a private game against [elo]: stronger players meet sharper bots. */
+  #iqForElo(elo) {
+    return Math.max(30, Math.min(85, Math.round(50 + ((elo ?? 1000) - 1000) / 10)));
+  }
+
+  /** A bot opens a private room for [humanId] and invites them (socket + push). */
+  async #hostBotInvite({ botId, humanId, ttlMs }) {
+    if (this.activeBotPlayerIds.has(botId)) return false;
+    const botUser = await acquireBotUser(this.activeBotPlayerIds, { playerId: botId });
+    if (!botUser || this.activeBotPlayerIds.has(botId)) return false;
+    const profile = await this.#humanProfile(humanId);
+
+    let roomId;
+    do roomId = createRoomCode(); while (this.rooms.has(roomId));
+    const room = this.#createRoom(roomId, 'private');
+    this.#seatBot(room, botUser, this.#iqForElo(profile?.elo));
+    console.log(`[bot social] ${botId} hosts ${roomId} for ${humanId}`);
+
     const timer = setTimeout(() => {
-      timers.delete(timer);
-      if (this.rooms.get(room.id) !== room) return;
-      this.#sendToRoom(room, buildChatMessage(roomBot.botPlayerId, reply));
-    }, 1000 + Math.floor(Math.random() * 2000));
+      this.botHostTimers.delete(roomId);
+      // Nobody came: close the table quietly.
+      if (this.rooms.get(roomId) === room && room.players.length < 2) {
+        const roomBot = this.roomBots.get(roomId);
+        roomBot?.bot.dispose();
+        roomBot?.talker?.dispose();
+        this.activeBotPlayerIds.delete(botId);
+        this.roomBots.delete(roomId);
+        room.dispose();
+        this.rooms.delete(roomId);
+      }
+    }, ttlMs);
     timer.unref?.();
-    timers.add(timer);
+    this.botHostTimers.set(roomId, timer);
+
+    this.#notifyPlayer(humanId, {
+      type: 'tableInviteReceived',
+      roomId,
+      inviterName: botUser.displayName,
+      inviterPlayerId: botUser.playerId,
+    });
+    void sendToPlayers([humanId], {
+      category: 'invites',
+      title: 'Table invite',
+      body: `${botUser.displayName} invited you to a table`,
+      data: {
+        type: 'table_invite',
+        route: `/join?roomId=${encodeURIComponent(roomId)}`,
+        roomId,
+        inviterPlayerId: botUser.playerId,
+      },
+    }).catch((error) => console.error('[fcm] bot invite', error));
+    return true;
   }
 
-  #clearBotChatTimers(roomId) {
-    const timers = this.botChatTimers.get(roomId);
-    if (!timers) return;
-    for (const timer of timers) clearTimeout(timer);
-    this.botChatTimers.delete(roomId);
+  #clearBotHostTimer(roomId) {
+    const timer = this.botHostTimers.get(roomId);
+    if (!timer) return;
+    clearTimeout(timer);
+    this.botHostTimers.delete(roomId);
+  }
+
+  /** A bot friend accepts a human's table invite and sits down. */
+  async #botJoinHumanRoom({ botId, humanId, roomId }) {
+    const room = this.rooms.get(roomId);
+    if (!room || room.status !== 'waiting' || room.players.length !== 1) return;
+    if (room.players[0].playerId !== humanId || this.roomBots.has(roomId)) return;
+    const botUser = await acquireBotUser(this.activeBotPlayerIds, { playerId: botId });
+    if (!botUser || this.rooms.get(roomId) !== room || room.players.length !== 1) return;
+    const profile = await this.#humanProfile(humanId);
+    this.#seatBot(room, botUser, this.#iqForElo(profile?.elo));
+  }
+
+  /** Elo etc. for bot difficulty; missing without a DB (tests, local). */
+  async #humanProfile(humanId) {
+    try {
+      return (await loadHumanProfiles([humanId])).get(humanId) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  #createBotSocial() {
+    const disabled = ['0', 'false', 'off'].includes(String(process.env.BOT_SOCIAL || '').toLowerCase());
+    return new BotSocialDirector(
+      {
+        busyBotIds: () => this.activeBotPlayerIds,
+        listBotUsers,
+        listBotFriendIds,
+        relationStatus,
+        listPendingRequestsToBots,
+        outreachSummary,
+        pendingBotRequestCount,
+        recordOutreach,
+        listOfflineTargets,
+        loadHumanProfiles,
+        onlineHumanIds: () => this.#onlineHumanIds(),
+        idleHumans: () => this.#idleHumans(),
+        isHumanBusy: (playerId) => this.#isHumanBusy(playerId),
+        hostInvite: (args) => this.#hostBotInvite(args),
+        joinHumanRoom: (args) => this.#botJoinHumanRoom(args),
+        sendBotFriendRequest: async ({ botId, humanId }) => {
+          const result = await sendFriendRequest({ playerId: botId, targetPlayerId: humanId });
+          await this.#afterFriendRequest(result, botId);
+        },
+        acceptBotFriendRequest: async ({ botId, requesterId }) => {
+          try {
+            const result = await acceptFriendRequest({ playerId: botId, requesterId });
+            this.#notifyFriendAccepted(result, botId);
+          } catch (error) {
+            if (error.code !== 'request_not_found') throw error;
+          }
+        },
+      },
+      { enabled: !disabled },
+    );
+  }
+
+  async #botSocialTick() {
+    if (!this.botSocial || !isDbReady()) return;
+    this.#refreshIdle();
+    try {
+      this.onlineBotIds = await this.botSocial.onlineBotIds();
+    } catch (error) {
+      console.error('[bot social] presence', error);
+    }
+    await this.botSocial.tick();
+  }
+
+  /** In the lobby: connected, not in a room or the queue, on every device. */
+  #isHumanBusy(playerId) {
+    const queued = new Set(this.matchQueue.map((ctx) => ctx.id));
+    for (const ctx of this.clients.values()) {
+      if (ctx.playerId !== playerId) continue;
+      if (ctx.roomId || queued.has(ctx.id)) return true;
+    }
+    return false;
+  }
+
+  #refreshIdle() {
+    const now = Date.now();
+    const idle = new Set();
+    for (const playerId of this.#onlineHumanIds()) {
+      if (!this.#isHumanBusy(playerId)) idle.add(playerId);
+    }
+    for (const playerId of this.idleSeenAt.keys()) {
+      if (!idle.has(playerId)) this.idleSeenAt.delete(playerId);
+    }
+    for (const playerId of idle) {
+      if (!this.idleSeenAt.has(playerId)) this.idleSeenAt.set(playerId, now);
+    }
+  }
+
+  #idleHumans() {
+    const now = Date.now();
+    return [...this.idleSeenAt].map(([playerId, since]) => ({
+      playerId,
+      idleForMs: now - since,
+    }));
   }
 
   #dequeue(context) {
@@ -2046,33 +2289,15 @@ class GameServer {
     room.escrowed = escrowed;
     context.roomId = roomId;
 
-    const botClientId = `bot-client-${crypto.randomUUID()}`;
     room.addPlayer(context.id, {
       playerId: context.playerId,
       displayName: context.displayName,
       avatarId: context.avatarId || 'default',
       deckId: context.deckId || 'default',
     });
-    room.addPlayer(botClientId, {
-      playerId: botUser.playerId,
-      displayName: botUser.displayName,
-      avatarId: botUser.avatarId || 'default',
-      deckId: 'default',
-    });
-
     const iq = iqForPot(stakePool, stakeCurrency);
-    const bot = new ServerRobotPlayer({
-      room,
-      clientId: botClientId,
-      iq,
-    });
     console.log(`[bot] room=${roomId} pot=${stakePool} ${stakeCurrency} iq=${iq}`);
-    this.roomBots.set(roomId, {
-      bot,
-      iq,
-      botPlayerId: botUser.playerId,
-      botClientId,
-    });
+    this.#seatBot(room, botUser, iq);
 
     room.start(context.id);
   }
@@ -2165,6 +2390,8 @@ class GameServer {
         const roomBot = this.roomBots.get(changedRoom.id);
         if (roomBot) {
           roomBot.bot.onRoomChanged();
+          roomBot.talker?.onRoomChanged();
+          this.#noteBotMatchEnd(changedRoom, roomBot);
         }
       },
       onRankedEnd: (payload) => recordRankedMatch(payload),
@@ -2560,6 +2787,16 @@ class GameServer {
     }
   }
 
+  /** @internal Test-only alias for #hostBotInvite. */
+  hostBotInviteForTest(args) {
+    return this.#hostBotInvite(args);
+  }
+
+  /** @internal Test-only alias for #botJoinHumanRoom. */
+  botJoinHumanRoomForTest(args) {
+    return this.#botJoinHumanRoom(args);
+  }
+
   /** @internal Test-only alias for #notifyPlayer. */
   notifyPlayerForTest(playerId, payload) {
     this.#notifyPlayer(playerId, payload);
@@ -2603,10 +2840,11 @@ class GameServer {
       const roomBot = this.roomBots.get(room.id);
       if (roomBot) {
         roomBot.bot.dispose();
+        roomBot.talker?.dispose();
         this.activeBotPlayerIds.delete(roomBot.botPlayerId);
         this.roomBots.delete(room.id);
       }
-      this.#clearBotChatTimers(room.id);
+      this.#clearBotHostTimer(room.id);
       room.dispose();
       this.rooms.delete(room.id);
     }

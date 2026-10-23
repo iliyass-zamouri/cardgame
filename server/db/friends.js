@@ -406,6 +406,19 @@ async function sendFriendRequest({ playerId, targetPlayerId, targetUsername }) {
 
   const fromMeta = await loadPlayerMeta(pool, playerId);
 
+  // Blocked by the target: look pending to the sender, never notify the target.
+  if (recip.length > 0 && recip[0].status === 'blocked') {
+    return {
+      status: 'pending',
+      requestId: null,
+      alreadyPending: true,
+      targetPlayerId: resolvedTargetId,
+      fromPlayerId: playerId,
+      fromName: fromMeta.name,
+      fromUsername: fromMeta.username,
+    };
+  }
+
   if (recip.length > 0) {
     if (recip[0].status === 'accepted') {
       return {
@@ -642,7 +655,56 @@ async function blockFriend({ playerId, targetPlayerId }) {
   return { success: true, blockedPlayerId: targetPlayerId };
 }
 
+/**
+ * Relationship between two players, from either side:
+ * 'none' | 'friends' | 'pendingFromA' | 'pendingFromB' | 'blocked'.
+ */
+async function relationStatus(playerA, playerB) {
+  const pool = getPool();
+  const [rows] = await pool.execute(
+    `SELECT player_id, status FROM friendships
+     WHERE (player_id = :a AND friend_id = :b) OR (player_id = :b AND friend_id = :a)`,
+    { a: playerA, b: playerB },
+  );
+  if (rows.some((row) => row.status === 'blocked')) return 'blocked';
+  if (rows.some((row) => row.status === 'accepted')) return 'friends';
+  const pending = rows.find((row) => row.status === 'pending');
+  if (pending) return pending.player_id === playerA ? 'pendingFromA' : 'pendingFromB';
+  return 'none';
+}
+
+/** Accepted friends of [playerId] that are bots. */
+async function listBotFriendIds(playerId) {
+  const pool = getPool();
+  const [rows] = await pool.execute(
+    `SELECT p.id FROM friendships f
+     JOIN players p ON p.id = IF(f.player_id = :playerId, f.friend_id, f.player_id)
+     WHERE (f.player_id = :playerId OR f.friend_id = :playerId)
+       AND f.status = 'accepted' AND p.is_bot = 1`,
+    { playerId },
+  );
+  return rows.map((row) => row.id);
+}
+
+/** Pending requests humans sent to bots, older than [minAgeMs] (bots accept late ones). */
+async function listPendingRequestsToBots(minAgeMs = 0) {
+  const pool = getPool();
+  const [rows] = await pool.execute(
+    `SELECT f.id, f.player_id AS requester_id, f.friend_id AS bot_id
+     FROM friendships f
+     JOIN players p ON p.id = f.friend_id
+     WHERE f.status = 'pending' AND p.is_bot = 1
+       AND f.created_at <= (NOW() - INTERVAL :seconds SECOND)
+     LIMIT 50`,
+    { seconds: Math.floor(minAgeMs / 1000) },
+  );
+  return rows.map((row) => ({ requestId: row.id, requesterId: row.requester_id, botId: row.bot_id }));
+}
+
 module.exports = {
+  relationStatus,
+  listBotFriendIds,
+  listPendingRequestsToBots,
   isValidUsernameFormat,
   normalizeUsername,
   ensureFriendsSchema,

@@ -116,9 +116,9 @@ void main() {
       // Verify pot is rendered
       expect(find.textContaining('100'), findsWidgets);
 
-      // Verify both player pills are rendered
-      final playerPills = find.byType(CasinoPlayerPill);
-      expect(playerPills, findsNWidgets(2));
+      // Verify both player seats are rendered
+      final seats = find.byType(CasinoTableSeat);
+      expect(seats, findsNWidgets(2));
 
       expect(find.text('Alice'), findsOneWidget);
       expect(find.text('Bob'), findsOneWidget);

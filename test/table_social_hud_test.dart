@@ -146,7 +146,7 @@ void main() {
   testWidgets('chat button opens phrases and emoji reactions', (tester) async {
     await _pumpHud(tester);
 
-    await tester.tap(find.text('CHAT'));
+    await tester.tap(find.byTooltip('Chat'));
     await tester.pumpAndSettle();
 
     expect(find.text('Well played'), findsOneWidget);

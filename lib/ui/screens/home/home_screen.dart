@@ -13,6 +13,7 @@ import 'package:cardgame/data/friends/friends_api.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/sfx_service.dart';
+import 'package:cardgame/ui/flame/board_layout.dart';
 import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:cardgame/ui/flame/card_game_view.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
@@ -952,12 +953,20 @@ class _GameBoardState extends ConsumerState<GameBoard> {
     final city = ref.watch(
       gameSessionProvider.select((state) => CityTheme.forGame(state.game)),
     );
+    final safe = MediaQuery.paddingOf(context);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          CasinoTableFrame(city: city, child: const CardGameView()),
+          CasinoTableFrame(
+            city: city,
+            inset: EdgeInsets.only(
+              top: safe.top + BoardLayout.hudTop,
+              bottom: safe.bottom + BoardLayout.hudBottom,
+            ),
+            child: const CardGameView(),
+          ),
           // No live blur over the board: it repaints every frame.
           const CasinoGlassScope(blur: false, child: GameHud()),
           if (ended)
@@ -1025,254 +1034,304 @@ class GameHud extends ConsumerWidget {
     });
 
     return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final height = constraints.maxHeight;
-          return Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (game.potAmount > 0)
-                      CasinoGlass(
-                        shape: const StadiumBorder(),
-                        rimColor: accent,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+      // Fill the screen even under loose constraints, so bottom-anchored
+      // seats and buttons measure from the real bottom edge.
+      child: SizedBox.expand(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Same board rect the table frame insets, so seats track hands.
+            final board = BoardLayout(
+              Size(
+                constraints.maxWidth,
+                constraints.maxHeight -
+                    BoardLayout.hudTop -
+                    BoardLayout.hudBottom,
+              ),
+            );
+            return Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (game.potAmount > 0)
+                        _PrizePlaque(
+                          label: l10n.prize,
+                          amount: game.potAmount,
+                          chips: game.stakedInChips,
+                          accent: accent,
                         ),
-                        child: Material(
-                          color: Colors.transparent,
-                          shape: const CircleBorder(),
-                          elevation: 0,
-                          child: Row(
-                            children: [
-                              Text(
-                                '${l10n.prize}:',
-                                style: const TextStyle(
-                                  color: CasinoColors.text,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                ),
+                      const Spacer(),
+                      if (playing)
+                        CasinoHudButton(
+                          accent: accent,
+                          icon: AppIcons.flag,
+                          label: l10n.endGame,
+                          tone: CasinoHudTone.danger,
+                          onPressed:
+                              () => confirmCasinoAction(
+                                context,
+                                title: l10n.endGameTitle,
+                                message: l10n.endGameMessage,
+                                confirmLabel: l10n.endGame,
+                                tone: CasinoActionTone.fold,
+                                onConfirm: notifier.endGame,
                               ),
-                              const SizedBox(width: 5),
-                              Text(
-                                '${game.potAmount}',
-                                style: const TextStyle(
-                                  color: CasinoColors.gold,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(width: 2),
-                              if (game.stakedInChips)
-                                const ChipIcon(size: 22)
-                              else
-                                const CashIcon(size: 22),
+                        ),
+                      if (playing) const SizedBox(width: 10),
+                      CasinoHudButton(
+                        accent: accent,
+                        icon: AppIcons.menu,
+                        tooltip: l10n.menu,
+                        onPressed:
+                            () => _showGameMenu(
+                              context,
+                              roomId: game.roomId,
+                              playing: playing,
+                              ranked: game.matchType == 'random',
+                              isYourTurn: game.isYourTurn,
+                              onEndGame: notifier.endGame,
+                              onLeaveRoom: notifier.leaveRoom,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  right: 12,
+                  top: BoardLayout.hudTop + board.opponentSeatTop,
+                  child: SeatChatOverlay(
+                    mine: false,
+                    bubbleBelow: true,
+                    child: CasinoTableSeat(
+                      accent: accent,
+                      mirrored: true,
+                      name: opponent?.displayName ?? l10n.waitingEllipsisShort,
+                      connected: opponent?.connected ?? false,
+                      active: playing && !game.isYourTurn,
+                      points: opponentElo,
+                      avatarId: opponent?.avatarId ?? 'default',
+                      onTap:
+                          opponent == null || opponentId.isEmpty || offline
+                              ? null
+                              : () =>
+                                  showOpponentProfileSheet(context, opponent),
+                      trailing:
+                          opponentMuted
+                              ? const VoiceSeatIndicator(muted: true)
+                              : voiceAvailable && voice.peerMicOn
+                              ? const VoiceSeatIndicator(muted: false)
+                              : null,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 12,
+                  bottom: BoardLayout.hudBottom + board.localSeatBottom,
+                  child: SeatChatOverlay(
+                    mine: true,
+                    bubbleBelow: false,
+                    child: CasinoTableSeat(
+                      accent: accent,
+                      name: game.you.displayName,
+                      connected: game.you.connected,
+                      active: playing && game.isYourTurn,
+                      points: youElo,
+                      avatarId: youAvatarId,
+                    ),
+                  ),
+                ),
+                if (opponent != null)
+                  Positioned(
+                    left: 12,
+                    bottom: 16,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ChatUnreadBadge(
+                          count: unreadChat,
+                          child: CasinoHudButton(
+                            accent: accent,
+                            icon: AppIcons.chat,
+                            tooltip: l10n.chat,
+                            onPressed: () => showTableChatPanel(context, ref),
+                          ),
+                        ),
+                        if (voiceAvailable) ...[
+                          const SizedBox(width: 10),
+                          CasinoHudButton(
+                            accent:
+                                voice.micOn ? const Color(0xFF7ED50E) : accent,
+                            icon: voice.micOn ? AppIcons.mic : AppIcons.micOff,
+                            tooltip: voice.micOn ? l10n.micOn : l10n.micOff,
+                            onPressed:
+                                ref.read(voiceChatProvider.notifier).toggleMic,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                if (playing && canReveal)
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: CasinoActionButton(
+                      label: l10n.reveal,
+                      icon: AppIcons.visibility,
+                      tone: CasinoActionTone.raise,
+                      expanded: false,
+                      raised: true,
+                      height: 54,
+                      onPressed: notifier.launch,
+                    ),
+                  )
+                else if (playing && canPeek)
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: CasinoActionButton(
+                      label: peekSelecting ? l10n.cancel : l10n.peek,
+                      icon: peekSelecting ? AppIcons.close : AppIcons.zoomIn,
+                      tone: CasinoActionTone.raise,
+                      expanded: false,
+                      raised: true,
+                      height: 54,
+                      onPressed: notifier.togglePeekSelecting,
+                    ),
+                  )
+                else if (playing && canQueen)
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (queenPicking)
+                          CasinoActionButton(
+                            label: l10n.cancel,
+                            icon: AppIcons.close,
+                            tone: CasinoActionTone.fold,
+                            expanded: false,
+                            raised: true,
+                            height: 54,
+                            onPressed: notifier.cancelQueenMode,
+                          )
+                        else ...[
+                          CasinoActionButton(
+                            label: l10n.shuffle,
+                            icon: AppIcons.shuffle,
+                            tone: CasinoActionTone.raise,
+                            expanded: false,
+                            raised: true,
+                            height: 54,
+                            onPressed: notifier.enterQueenShufflePick,
+                          ),
+                          const SizedBox(height: 10),
+                          CasinoActionButton(
+                            label: l10n.replace,
+                            icon: AppIcons.swapHoriz,
+                            tone: CasinoActionTone.raise,
+                            expanded: false,
+                            raised: true,
+                            height: 54,
+                            onPressed: notifier.enterQueenReplacePick,
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                else if (playing &&
+                    !game.bothRevealed &&
+                    game.you.launch != LaunchStatus.notLaunched)
+                  // Sits in the bottom band beside chat / mic, off the cards.
+                  Positioned(
+                    left: 120,
+                    right: 16,
+                    bottom: 12,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SuitCardLoader(height: 22),
+                        const SizedBox(height: 8),
+                        Text(
+                          l10n.waitingOpponentReveal,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: CasinoColors.textMuted,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            shadows: [
+                              Shadow(color: Color(0xCC000000), blurRadius: 6),
                             ],
                           ),
                         ),
-                      ),
-                    const Spacer(),
-                    if (playing)
-                      CasinoHudButton(
-                        accent: accent,
-                        icon: AppIcons.flag,
-                        label: l10n.endGame,
-                        tone: CasinoHudTone.danger,
-                        onPressed:
-                            () => confirmCasinoAction(
-                              context,
-                              title: l10n.endGameTitle,
-                              message: l10n.endGameMessage,
-                              confirmLabel: l10n.endGame,
-                              tone: CasinoActionTone.fold,
-                              onConfirm: notifier.endGame,
-                            ),
-                      ),
-                    if (playing) const SizedBox(width: 8),
-                    CasinoHudButton(
-                      accent: accent,
-                      icon: AppIcons.menu,
-                      tooltip: l10n.menu,
-                      onPressed:
-                          () => _showGameMenu(
-                            context,
-                            roomId: game.roomId,
-                            playing: playing,
-                            ranked: game.matchType == 'random',
-                            isYourTurn: game.isYourTurn,
-                            onEndGame: notifier.endGame,
-                            onLeaveRoom: notifier.leaveRoom,
-                          ),
+                      ],
                     ),
-                  ],
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Pot readout: a small caption over the amount on a squared glass plaque,
+/// so it reads as information rather than another tappable pill.
+class _PrizePlaque extends StatelessWidget {
+  const _PrizePlaque({
+    required this.label,
+    required this.amount,
+    required this.chips,
+    this.accent,
+  });
+
+  final String label;
+  final int amount;
+  final bool chips;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    return CasinoGlass(
+      borderRadius: BorderRadius.circular(12),
+      rimColor: accent,
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 5, 14, 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (chips) const ChipIcon(size: 26) else const CashIcon(size: 26),
+          const SizedBox(width: 8),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: TextStyle(
+                  color: CasinoColors.textMuted,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: locale.languageCode == 'ar' ? 0 : 1.4,
+                  height: 1.1,
                 ),
               ),
-              Positioned(
-                right: 12,
-                top: height * 0.25 + 54,
-                child: SeatChatOverlay(
-                  mine: false,
-                  bubbleBelow: true,
-                  child: CasinoPlayerPill(
-                    accent: accent,
-                    name: opponent?.displayName ?? l10n.waitingEllipsisShort,
-                    connected: opponent?.connected ?? false,
-                    active: playing && !game.isYourTurn,
-                    points: opponentElo,
-                    avatarId: opponent?.avatarId ?? 'default',
-                    onTap:
-                        opponent == null || opponentId.isEmpty || offline
-                            ? null
-                            : () => showOpponentProfileSheet(context, opponent),
-                    trailing:
-                        opponentMuted
-                            ? const VoiceSeatIndicator(muted: true)
-                            : voiceAvailable && voice.peerMicOn
-                            ? const VoiceSeatIndicator(muted: false)
-                            : null,
-                  ),
+              Text(
+                '$amount',
+                style: const TextStyle(
+                  color: CasinoColors.gold,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  height: 1.15,
                 ),
               ),
-              Positioned(
-                left: 12,
-                bottom: height * 0.25 + 80,
-                child: SeatChatOverlay(
-                  mine: true,
-                  bubbleBelow: false,
-                  child: CasinoPlayerPill(
-                    accent: accent,
-                    name: game.you.displayName,
-                    connected: game.you.connected,
-                    active: playing && game.isYourTurn,
-                    points: youElo,
-                    avatarId: youAvatarId,
-                  ),
-                ),
-              ),
-              if (opponent != null)
-                Positioned(
-                  left: 12,
-                  bottom: 16,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ChatUnreadBadge(
-                        count: unreadChat,
-                        child: CasinoHudButton(
-                          accent: accent,
-                          icon: AppIcons.chat,
-                          label: l10n.chat,
-                          onPressed: () => showTableChatPanel(context, ref),
-                        ),
-                      ),
-                      if (voiceAvailable) ...[
-                        const SizedBox(width: 8),
-                        CasinoHudButton(
-                          accent:
-                              voice.micOn ? const Color(0xFF7ED50E) : accent,
-                          icon: voice.micOn ? AppIcons.mic : AppIcons.micOff,
-                          tooltip: voice.micOn ? l10n.micOn : l10n.micOff,
-                          onPressed:
-                              ref.read(voiceChatProvider.notifier).toggleMic,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              if (playing && canReveal)
-                Positioned(
-                  right: 16,
-                  bottom: 16,
-                  child: CasinoActionButton(
-                    label: l10n.reveal,
-                    icon: AppIcons.visibility,
-                    tone: CasinoActionTone.raise,
-                    expanded: false,
-                    onPressed: notifier.launch,
-                  ),
-                )
-              else if (playing && canPeek)
-                Positioned(
-                  right: 16,
-                  bottom: 16,
-                  child: CasinoActionButton(
-                    label: peekSelecting ? l10n.cancel : l10n.peek,
-                    icon: peekSelecting ? AppIcons.close : AppIcons.zoomIn,
-                    tone: CasinoActionTone.raise,
-                    expanded: false,
-                    onPressed: notifier.togglePeekSelecting,
-                  ),
-                )
-              else if (playing && canQueen)
-                Positioned(
-                  right: 16,
-                  bottom: 16,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (queenPicking)
-                        CasinoActionButton(
-                          label: l10n.cancel,
-                          icon: AppIcons.close,
-                          tone: CasinoActionTone.fold,
-                          expanded: false,
-                          onPressed: notifier.cancelQueenMode,
-                        )
-                      else ...[
-                        CasinoActionButton(
-                          label: l10n.shuffle,
-                          icon: AppIcons.shuffle,
-                          tone: CasinoActionTone.raise,
-                          expanded: false,
-                          onPressed: notifier.enterQueenShufflePick,
-                        ),
-                        const SizedBox(height: 8),
-                        CasinoActionButton(
-                          label: l10n.replace,
-                          icon: AppIcons.swapHoriz,
-                          tone: CasinoActionTone.raise,
-                          expanded: false,
-                          onPressed: notifier.enterQueenReplacePick,
-                        ),
-                      ],
-                    ],
-                  ),
-                )
-              else if (playing &&
-                  !game.bothRevealed &&
-                  game.you.launch != LaunchStatus.notLaunched)
-                Positioned(
-                  left: 24,
-                  right: 24,
-                  bottom: 60,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SuitCardLoader(height: 22),
-                      const SizedBox(height: 8),
-                      Text(
-                        l10n.waitingOpponentReveal,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: CasinoColors.textMuted,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          shadows: [
-                            Shadow(color: Color(0xCC000000), blurRadius: 6),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
             ],
-          );
-        },
+          ),
+        ],
       ),
     );
   }

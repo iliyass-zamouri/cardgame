@@ -27,6 +27,11 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
     _game = CardGame();
     // Offline / invite games skip matchmaking, where this normally happens.
     SfxService.instance.preload().ignore();
+    // Initial sync; later versions arrive through the listener in build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _forwardSnapshot(ref.read(gameSessionProvider).game);
+    });
   }
 
   @override
@@ -61,15 +66,12 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
     final l10n = context.l10n;
     final locale = Localizations.localeOf(context);
 
-    // Deliver every version (not only last-per-frame from watch+build).
+    // Deliver every version without rebuilding this widget for each one.
     ref.listen<GameSnapshot?>(
       gameSessionProvider.select((state) => state.game),
       (previous, next) => _forwardSnapshot(next),
     );
 
-    final snapshot = ref.watch(
-      gameSessionProvider.select((state) => state.game),
-    );
     final peekSelecting = ref.watch(
       gameSessionProvider.select((state) => state.peekSelecting),
     );
@@ -96,14 +98,6 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
     _game.peekSelecting = peekSelecting;
     _game.queenMode = queenMode;
     _game.setReplaceSelection(side: replaceSide, index: replaceIndex);
-
-    // Initial / rebuild sync when listen did not fire (first frame).
-    if (snapshot != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _forwardSnapshot(snapshot);
-      });
-    }
 
     // Raw pointer events stay out of the gesture arena, so card taps still
     // work; a tap that moves past slop is rejected by Flame and becomes a scroll.

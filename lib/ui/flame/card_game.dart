@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/services/sfx_service.dart';
+import 'package:cardgame/ui/flame/board_layout.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/flame/court_svg_art.dart';
 import 'package:cardgame/ui/flame/joker_svg_art.dart';
@@ -58,6 +59,16 @@ class CardGame extends FlameGame {
     required TextDirection textDirection,
     String? fontFamily,
   }) {
+    // Called on every host rebuild; only touch the board when copy changed.
+    if (this.hintPeek == hintPeek &&
+        this.hintShufflePick == hintShufflePick &&
+        this.hintReplaceFirst == hintReplaceFirst &&
+        this.hintReplaceSecond == hintReplaceSecond &&
+        this.shuffleLabel == shuffleLabel &&
+        uiTextDirection == textDirection &&
+        uiFontFamily == fontFamily) {
+      return;
+    }
     this.hintPeek = hintPeek;
     this.hintShufflePick = hintShufflePick;
     this.hintReplaceFirst = hintReplaceFirst;
@@ -175,30 +186,27 @@ class CardGame extends FlameGame {
     await super.onLoad();
     camera.viewfinder.anchor = Anchor.topLeft;
 
-    _opponentHand = HandArea(isSelf: false)
-      ..position = Vector2(size.x * 0.5, size.y * 0.25);
-    _localHand = HandArea(isSelf: true)
-      ..position = Vector2(size.x * 0.5, size.y * 0.75);
-    _table = TableArea(onDraw: () => onDraw?.call())
-      ..position = Vector2(size.x * 0.5, size.y * 0.5);
+    _opponentHand = HandArea(isSelf: false);
+    _localHand = HandArea(isSelf: true);
+    _table = TableArea(onDraw: () => onDraw?.call());
     _localDrawn = DrawnCardSlot(
       isSelf: true,
       onThrow: () => onThrowHand?.call(),
-    )..position = Vector2(size.x * 0.5, size.y - 92);
-    _remoteDrawn = DrawnCardSlot(isSelf: false)
-      ..position = Vector2(size.x * 0.5, 52);
+    );
+    _remoteDrawn = DrawnCardSlot(isSelf: false);
     _localShuffleLabel = _ShufflePickLabel(
       onPressed: () => onQueenShuffle?.call('you'),
       label: shuffleLabel,
       textDirection: uiTextDirection,
       fontFamily: uiFontFamily,
-    )..position = Vector2(size.x * 0.5, size.y * 0.75 - 90);
+    );
     _opponentShuffleLabel = _ShufflePickLabel(
       onPressed: () => onQueenShuffle?.call('opponent'),
       label: shuffleLabel,
       textDirection: uiTextDirection,
       fontFamily: uiFontFamily,
-    )..position = Vector2(size.x * 0.5, size.y * 0.25 + 90);
+    );
+    _applyLayout(size);
 
     world.addAll([
       _opponentHand,
@@ -230,14 +238,23 @@ class CardGame extends FlameGame {
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
     if (!_ready) return;
-    _opponentHand.position = Vector2(size.x * 0.5, size.y * 0.25);
-    _localHand.position = Vector2(size.x * 0.5, size.y * 0.75);
-    _table.position = Vector2(size.x * 0.5, size.y * 0.5);
-    _localDrawn.position = Vector2(56, size.y - 92);
-    _remoteDrawn.position = Vector2(size.x * 0.5, 52);
-    _localShuffleLabel.position = Vector2(size.x * 0.5, size.y * 0.75 - 90);
-    _opponentShuffleLabel.position = Vector2(size.x * 0.5, size.y * 0.25 + 90);
+    _applyLayout(size);
     _layoutHands();
+  }
+
+  /// Places every board piece from [BoardLayout], zooming the world out on
+  /// short screens so the board keeps clear of the HUD bands.
+  void _applyLayout(Vector2 size) {
+    final layout = BoardLayout(Size(size.x, size.y));
+    camera.viewfinder.zoom = layout.zoom;
+    Vector2 at(Offset o) => Vector2(o.dx, o.dy);
+    _opponentHand.position = at(layout.opponentHand);
+    _localHand.position = at(layout.localHand);
+    _table.position = at(layout.table);
+    _localDrawn.position = at(layout.localDrawn);
+    _remoteDrawn.position = at(layout.remoteDrawn);
+    _localShuffleLabel.position = _localHand.position + Vector2(0, -90);
+    _opponentShuffleLabel.position = _opponentHand.position + Vector2(0, 90);
   }
 
   void applySnapshot(GameSnapshot snapshot) {
@@ -1553,10 +1570,12 @@ class CardGame extends FlameGame {
 
   HandArea? _scrollingHand;
 
-  /// Starts a hand scroll if [worldPoint] is over a scrollable hand.
-  void beginHandScroll(Vector2 worldPoint) {
+  /// Starts a hand scroll if [screenPoint] (widget pixels) is over a
+  /// scrollable hand.
+  void beginHandScroll(Vector2 screenPoint) {
     _scrollingHand = null;
     if (!_ready) return;
+    final worldPoint = camera.globalToLocal(screenPoint);
     for (final hand in [_localHand, _opponentHand]) {
       if (hand.windowContainsWorld(worldPoint)) {
         _scrollingHand = hand;
@@ -1568,7 +1587,7 @@ class CardGame extends FlameGame {
   void scrollHandBy(double dy) {
     // Action animations aim at slot positions captured up front.
     if (_animatingAction) return;
-    _scrollingHand?.scrollBy(dy);
+    _scrollingHand?.scrollBy(dy / camera.viewfinder.zoom);
   }
 
   void endHandScroll() {
@@ -1672,7 +1691,11 @@ class HandArea extends PositionComponent {
     final rows = (count + cardsPerRow - 1) ~/ cardsPerRow;
     final widest = math.min(cardsPerRow, count);
     final rowWidth = widest * cardWidth + (widest - 1) * gapX;
-    final screenHalf = (findGame()?.size.x ?? double.infinity) / 2;
+    final game = findGame();
+    final screenHalf =
+        game == null
+            ? double.infinity
+            : game.size.x / game.camera.viewfinder.zoom / 2;
     final x = math.min(rowWidth / 2 + 8, screenHalf - 5);
     final top =
         isSelf
@@ -1694,7 +1717,7 @@ class HandArea extends PositionComponent {
           top + trackHeight,
           const Radius.circular(2),
         ),
-        Paint()..color = const Color(0x33FFFFFF),
+        _trackPaint,
       )
       ..drawRRect(
         RRect.fromLTRBR(
@@ -1704,9 +1727,12 @@ class HandArea extends PositionComponent {
           thumbTop + thumbHeight,
           const Radius.circular(2),
         ),
-        Paint()..color = const Color(0xCCFFFFFF),
+        _thumbPaint,
       );
   }
+
+  static final Paint _trackPaint = Paint()..color = const Color(0x33FFFFFF);
+  static final Paint _thumbPaint = Paint()..color = const Color(0xCCFFFFFF);
 
   @override
   Iterable<Component> componentsAtLocation<T>(
@@ -2540,10 +2566,12 @@ class _CardArt {
   static final Paint _borderPaint = Paint()..style = PaintingStyle.stroke;
 
   /// Device pixels per logical pixel, with headroom for the 1.35x peek lift.
+  /// Capped at 3x: past that the extra texels are invisible at card size but
+  /// each cached face costs ~45% more GPU memory.
   static double get _rasterScale {
     final dpr =
         PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 2.0;
-    return (dpr.clamp(1.0, 3.0)) * 1.2;
+    return math.min(dpr.clamp(1.0, 3.0) * 1.2, 3.0);
   }
 
   static void paint(

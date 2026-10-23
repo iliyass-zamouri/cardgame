@@ -132,7 +132,7 @@ class CasinoHudButton extends StatelessWidget {
     this.accent,
   });
 
-  static const height = 40.0;
+  static const height = 44.0;
 
   final List<List<dynamic>> icon;
   final VoidCallback onPressed;
@@ -221,7 +221,7 @@ class CasinoHudButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            HugeIcon(icon: icon, size: 19, color: foreground),
+            HugeIcon(icon: icon, size: 20, color: foreground),
             if (label != null) ...[
               const SizedBox(width: 7),
               Text(
@@ -307,6 +307,7 @@ class CasinoActionButton extends StatelessWidget {
     this.icon,
     this.expanded = true,
     this.height = 52,
+    this.raised = false,
   });
 
   final String label;
@@ -315,6 +316,9 @@ class CasinoActionButton extends StatelessWidget {
   final List<List<dynamic>>? icon;
   final bool expanded;
   final double height;
+
+  /// Bevelled, glossy finish with a tone glow for the in-game primary CTA.
+  final bool raised;
 
   (Color, Color) get _colors => switch (tone) {
     CasinoActionTone.fold => (CasinoColors.fold, CasinoColors.foldHi),
@@ -336,8 +340,18 @@ class CasinoActionButton extends StatelessWidget {
         fontFamily: CasinoFonts.uiFor(locale),
         color: onTone,
         fontWeight: FontWeight.w800,
-        fontSize: 15,
-        letterSpacing: locale.languageCode == 'ar' ? 0 : 1.1,
+        fontSize: raised ? 16 : 15,
+        letterSpacing: locale.languageCode == 'ar' ? 0 : (raised ? 1.6 : 1.1),
+        shadows:
+            raised
+                ? const [
+                  Shadow(
+                    color: Color(0x66000000),
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
+                  ),
+                ]
+                : null,
       ),
     );
     final child = AnimatedOpacity(
@@ -345,7 +359,9 @@ class CasinoActionButton extends StatelessWidget {
       opacity: enabled ? 1 : 0.45,
       child: Container(
         height: height,
-        padding: EdgeInsets.symmetric(horizontal: expanded ? 0 : 16),
+        padding: EdgeInsets.symmetric(
+          horizontal: expanded ? 0 : (raised ? 26 : 16),
+        ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           gradient: LinearGradient(
@@ -353,7 +369,37 @@ class CasinoActionButton extends StatelessWidget {
             end: Alignment.bottomCenter,
             colors: [hi, lo],
           ),
+          border:
+              raised
+                  ? Border.all(color: hi.withValues(alpha: 0.9), width: 1.2)
+                  : null,
+          boxShadow:
+              raised
+                  ? [
+                    const BoxShadow(
+                      color: Color(0x99000000),
+                      blurRadius: 12,
+                      offset: Offset(0, 5),
+                    ),
+                    BoxShadow(color: hi.withValues(alpha: 0.4), blurRadius: 20),
+                  ]
+                  : null,
         ),
+        foregroundDecoration:
+            raised
+                // Glossy top bevel.
+                ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.center,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.22),
+                      Colors.white.withValues(alpha: 0),
+                    ],
+                  ),
+                )
+                : null,
         child: Center(
           widthFactor: expanded ? null : 1,
           child:
@@ -366,9 +412,9 @@ class CasinoActionButton extends StatelessWidget {
                       HugeIcon(
                         icon: icon!,
                         color: onTone,
-                        size: expanded ? 22 : 18,
+                        size: expanded || raised ? 22 : 18,
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: raised ? 10 : 8),
                       labelText,
                     ],
                   ),
@@ -665,17 +711,21 @@ class CasinoPlayerSeat extends StatelessWidget {
   }
 }
 
-/// Single player frosted glass HUD pill.
-class CasinoPlayerPill extends StatelessWidget {
-  const CasinoPlayerPill({
+/// In-game seat: a ringed avatar with the name and rating set straight on
+/// the felt, no container. The ring lights up on that player's turn.
+/// [mirrored] puts the avatar on the trailing side (opponent seat on the
+/// right rail).
+class CasinoTableSeat extends StatelessWidget {
+  const CasinoTableSeat({
     super.key,
     required this.name,
     required this.connected,
     required this.active,
     this.avatarId,
     this.points,
-    this.height = 38,
+    this.avatarSize = 52,
     this.accent,
+    this.mirrored = false,
     this.onTap,
     this.trailing,
   });
@@ -685,8 +735,9 @@ class CasinoPlayerPill extends StatelessWidget {
   final bool active;
   final String? avatarId;
   final int? points;
-  final double height;
+  final double avatarSize;
   final Color? accent;
+  final bool mirrored;
 
   /// Opens the player's profile card.
   final VoidCallback? onTap;
@@ -694,56 +745,121 @@ class CasinoPlayerPill extends StatelessWidget {
   /// Small status widget after the name (e.g. voice indicator).
   final Widget? trailing;
 
+  static const _textShadows = [
+    Shadow(color: Color(0xE6000000), blurRadius: 6, offset: Offset(0, 1)),
+    Shadow(color: Color(0x99000000), blurRadius: 14),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final pill = DecoratedBox(
-      decoration: ShapeDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [CasinoColors.leather, CasinoColors.leatherDeep],
+    final l10n = context.l10n;
+    final ring = accent ?? CasinoColors.gold;
+    final align = mirrored ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+
+    final avatar = AnimatedContainer(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.all(active ? 3 : 2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors:
+              active
+                  ? [CasinoColors.goldSoft, ring, ring.withValues(alpha: 0.8)]
+                  : [
+                    ring.withValues(alpha: 0.55),
+                    ring.withValues(alpha: 0.25),
+                    ring.withValues(alpha: 0.45),
+                  ],
         ),
-        shape: StadiumBorder(
-          side: BorderSide(
-            color: (accent ?? CasinoColors.gold).withValues(
-              alpha: active ? 0.95 : 0.35,
-            ),
-            width: active ? 1.6 : 1,
-          ),
-        ),
-        shadows: [
+        boxShadow: [
           const BoxShadow(
-            color: Color(0x80000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
+            color: Color(0x99000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
           ),
           if (active)
             BoxShadow(
-              color: (accent ?? CasinoColors.gold).withValues(alpha: 0.35),
-              blurRadius: 14,
+              color: ring.withValues(alpha: 0.55),
+              blurRadius: 18,
+              spreadRadius: 1,
             ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(5, 4, 14, 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CasinoPlayerSeat(
-              name: name,
-              avatarId: avatarId,
-              connected: connected,
-              active: active,
-              points: points,
-              avatarSize: 34,
+      child: PlayerAvatar(
+        avatarId: avatarId ?? 'default',
+        size: avatarSize,
+        statusDotColor:
+            connected ? const Color(0xFF7ED50E) : CasinoColors.foldHi,
+      ),
+    );
+
+    final nameRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (mirrored && trailing != null) ...[
+          trailing!,
+          const SizedBox(width: 5),
+        ],
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: active ? CasinoColors.goldSoft : CasinoColors.text,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+              height: 1.15,
+              shadows: _textShadows,
             ),
-            if (trailing != null) ...[const SizedBox(width: 6), trailing!],
-          ],
+          ),
         ),
+        if (!mirrored && trailing != null) ...[
+          const SizedBox(width: 5),
+          trailing!,
+        ],
+      ],
+    );
+
+    final info = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: align,
+      children: [
+        nameRow,
+        if (points != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            '${l10n.elo} $points',
+            style: TextStyle(
+              color: CasinoColors.gold.withValues(alpha: 0.95),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+              height: 1.1,
+              shadows: _textShadows,
+            ),
+          ),
+        ],
+      ],
+    );
+
+    final seat = Opacity(
+      opacity: connected ? 1 : 0.55,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children:
+            mirrored
+                ? [info, const SizedBox(width: 10), avatar]
+                : [avatar, const SizedBox(width: 10), info],
       ),
     );
     final onTap = this.onTap;
-    return onTap == null ? pill : Pressable(onTap: onTap, child: pill);
+    return onTap == null ? seat : Pressable(onTap: onTap, child: seat);
   }
 }
 
@@ -821,10 +937,18 @@ class CasinoMenuPlayersPill extends StatelessWidget {
 /// for bigger pots) fills the stage; without one (private / robot games) it
 /// shows the [ClassicTable].
 class CasinoTableFrame extends StatelessWidget {
-  const CasinoTableFrame({super.key, required this.child, this.city});
+  const CasinoTableFrame({
+    super.key,
+    required this.child,
+    this.city,
+    this.inset = EdgeInsets.zero,
+  });
 
   final Widget child;
   final CityTheme? city;
+
+  /// Space kept clear above and below the table and board for HUD chrome.
+  final EdgeInsets inset;
 
   @override
   Widget build(BuildContext context) {
@@ -832,10 +956,10 @@ class CasinoTableFrame extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        RepaintBoundary(
-          child: city == null ? const ClassicTable() : CityTable(city: city),
-        ),
-        child,
+        city == null
+            ? ClassicTable(inset: inset)
+            : CityTable(city: city, inset: inset),
+        Padding(padding: inset, child: child),
       ],
     );
   }
