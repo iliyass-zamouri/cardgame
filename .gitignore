@@ -53,3 +53,7 @@ secrets/
 .fvm/versions/
 .fvm/release
 .fvm/version
+
+# Marketing video renders and raw takes (large files; keep local only)
+marketing/**/*.mp4
+marketing/**/*.mov
