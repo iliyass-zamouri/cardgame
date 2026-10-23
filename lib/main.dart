@@ -4,6 +4,7 @@ import 'package:cardgame/ads/ad_ids.dart';
 import 'package:cardgame/ads/interstitial_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
+import 'package:cardgame/app/home_menu_providers.dart';
 import 'package:cardgame/app/locale_provider.dart';
 import 'package:cardgame/app/locale_repository.dart';
 import 'package:cardgame/app/navigation_providers.dart';
@@ -137,6 +138,7 @@ Future<void> main() async {
       final guestLinkPrefsRepo = await GuestLinkPrefsRepository.open();
       final tutorialProgressRepo = await TutorialProgressRepository.open();
       final tableSocialPrefsRepo = await TableSocialPrefsRepository.open();
+      final homeMenuRepo = await HomeMenuRepository.open();
 
       runApp(
         ProviderScope(
@@ -154,6 +156,7 @@ Future<void> main() async {
             tableSocialPrefsRepositoryProvider.overrideWithValue(
               tableSocialPrefsRepo,
             ),
+            homeMenuRepositoryProvider.overrideWithValue(homeMenuRepo),
           ],
           child: const MyApp(),
         ),

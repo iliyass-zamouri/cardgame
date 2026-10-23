@@ -658,8 +658,8 @@ class CountBadge extends StatelessWidget {
 }
 
 /// Full-width bottom navigation whose top edge arcs gently from edge to
-/// edge; a gold pointer sits on the arc above the highlighted tab.
-class HomeNavBar extends StatelessWidget {
+/// edge; a gold pointer on the arc slides to the highlighted tab.
+class HomeNavBar extends StatefulWidget {
   const HomeNavBar({super.key, required this.items});
 
   final List<RailDockItem> items;
@@ -673,67 +673,140 @@ class HomeNavBar extends StatelessWidget {
   static const pointerHeight = 14.0;
 
   @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.paddingOf(context).bottom;
+  State<HomeNavBar> createState() => _HomeNavBarState();
+}
+
+class _HomeNavBarState extends State<HomeNavBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _slide = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 320),
+    value: 1,
+  );
+  final _tween = Tween<double>(begin: -1, end: -1);
+
+  /// Selected slot in physical left-to-right order; fractional mid-slide and
+  /// negative when no tab is highlighted.
+  late final Animation<double> _slot = _tween.animate(
+    CurvedAnimation(parent: _slide, curve: Curves.easeOutCubic),
+  );
+  int? _target;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncSelection();
+  }
+
+  @override
+  void didUpdateWidget(HomeNavBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncSelection();
+  }
+
+  void _syncSelection() {
+    final items = widget.items;
     final selected = items.indexWhere((item) => item.selected);
     final rtl = Directionality.of(context) == TextDirection.rtl;
+    // The painters work in physical left-to-right order.
+    final target =
+        selected < 0 || !rtl ? selected : items.length - 1 - selected;
+    if (target == _target) return;
+    final from = _slot.value;
+    final animate =
+        _target != null &&
+        from >= 0 &&
+        target >= 0 &&
+        !MediaQuery.disableAnimationsOf(context);
+    _target = target;
+    _tween
+      ..begin = animate ? from : target.toDouble()
+      ..end = target.toDouble();
+    if (animate) {
+      _slide.forward(from: 0);
+    } else {
+      _slide.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _slide.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final count = widget.items.length;
     return SizedBox(
-      height: pointerHeight + arcDrop + barHeight + bottom,
-      child: CustomPaint(
-        painter: _NavBarPainter(
-          count: items.length,
-          // The painter works in physical left-to-right order.
-          selected:
-              selected < 0 || !rtl ? selected : items.length - 1 - selected,
-          bottomInset: bottom,
-        ),
-        child: Padding(
-          padding: EdgeInsets.only(bottom: bottom),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              for (final item in items) Expanded(child: _NavTile(item: item)),
-            ],
+      height:
+          HomeNavBar.pointerHeight +
+          HomeNavBar.arcDrop +
+          HomeNavBar.barHeight +
+          bottom,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // The leather only repaints when the tab count or inset changes;
+          // a slide repaints just the selection layer above it.
+          RepaintBoundary(
+            child: CustomPaint(
+              painter: _NavBarBodyPainter(count: count, bottomInset: bottom),
+            ),
           ),
-        ),
+          RepaintBoundary(
+            child: CustomPaint(
+              painter: _NavSelectionPainter(count: count, slot: _slot),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(bottom: bottom),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final item in widget.items)
+                  Expanded(child: _NavTile(item: item)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _NavBarPainter extends CustomPainter {
-  _NavBarPainter({
-    required this.count,
-    required this.selected,
-    required this.bottomInset,
-  });
+const _navCrest = HomeNavBar.pointerHeight;
+const _navEnds = HomeNavBar.pointerHeight + HomeNavBar.arcDrop;
+
+/// Height of the nav arc at [x]: a quadratic through both ends and the crest.
+double _navArcY(double x, double width) {
+  final t = (x / width).clamp(0.0, 1.0);
+  return _navEnds - 4 * (_navEnds - _navCrest) * t * (1 - t);
+}
+
+Path _navArcEdge(double width) =>
+    Path()
+      ..moveTo(0, _navEnds)
+      ..quadraticBezierTo(width / 2, 2 * _navCrest - _navEnds, width, _navEnds);
+
+Path _navBody(Size size) =>
+    _navArcEdge(size.width)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+class _NavBarBodyPainter extends CustomPainter {
+  _NavBarBodyPainter({required this.count, required this.bottomInset});
 
   final int count;
-  final int selected;
   final double bottomInset;
-
-  static const _crest = HomeNavBar.pointerHeight;
-  static const _ends = HomeNavBar.pointerHeight + HomeNavBar.arcDrop;
-
-  /// Height of the arc at [x]: a quadratic through both ends and the crest.
-  double _arcY(double x, double width) {
-    final t = (x / width).clamp(0.0, 1.0);
-    return _ends - 4 * (_ends - _crest) * t * (1 - t);
-  }
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final slot = w / count;
-    final edge =
-        Path()
-          ..moveTo(0, _ends)
-          ..quadraticBezierTo(w / 2, 2 * _crest - _ends, w, _ends);
-    final body =
-        Path.from(edge)
-          ..lineTo(w, size.height)
-          ..lineTo(0, size.height)
-          ..close();
+    final body = _navBody(size);
 
     canvas.drawShadow(body, Colors.black, 8, false);
     canvas.drawPath(
@@ -746,23 +819,6 @@ class _NavBarPainter extends CustomPainter {
         ).createShader(Offset.zero & size),
     );
 
-    canvas.save();
-    canvas.clipPath(body);
-    // Lighter panel behind the selected tab.
-    if (selected >= 0) {
-      canvas.drawRect(
-        Rect.fromLTWH(selected * slot, 0, slot, size.height),
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              CasinoColors.gold.withValues(alpha: 0.24),
-              CasinoColors.gold.withValues(alpha: 0.06),
-            ],
-          ).createShader(Offset.zero & size),
-      );
-    }
     // Dividers between tabs.
     final divider =
         Paint()
@@ -771,33 +827,68 @@ class _NavBarPainter extends CustomPainter {
     for (var i = 1; i < count; i++) {
       final x = i * slot;
       canvas.drawLine(
-        Offset(x, _arcY(x, w)),
+        Offset(x, _navArcY(x, w)),
         Offset(x, size.height - bottomInset),
         divider,
       );
     }
-    canvas.restore();
 
     canvas.drawPath(
-      edge,
+      _navArcEdge(w),
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
         ..color = CasinoColors.gold.withValues(alpha: 0.8),
     );
-
-    if (selected >= 0) _paintPointer(canvas, size, slot);
   }
 
-  /// Gold band riding the arc over the selected tab, peaked in the middle.
-  void _paintPointer(Canvas canvas, Size size, double slot) {
+  @override
+  bool shouldRepaint(covariant _NavBarBodyPainter old) =>
+      old.count != count || old.bottomInset != bottomInset;
+}
+
+/// Lit panel behind the selected tab plus the gold pointer riding the arc
+/// above it. Repaints straight from [slot], so a slide never rebuilds.
+class _NavSelectionPainter extends CustomPainter {
+  _NavSelectionPainter({required this.count, required this.slot})
+    : super(repaint: slot);
+
+  final int count;
+  final Animation<double> slot;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final position = slot.value;
+    if (position < 0) return;
+    final slotWidth = size.width / count;
+
+    canvas.save();
+    canvas.clipPath(_navBody(size));
+    canvas.drawRect(
+      Rect.fromLTWH(position * slotWidth, 0, slotWidth, size.height),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            CasinoColors.gold.withValues(alpha: 0.24),
+            CasinoColors.gold.withValues(alpha: 0.06),
+          ],
+        ).createShader(Offset.zero & size),
+    );
+    canvas.restore();
+
+    _paintPointer(canvas, size, (position + 0.5) * slotWidth, slotWidth);
+  }
+
+  /// Gold band riding the arc centred on [cx], peaked in the middle.
+  void _paintPointer(Canvas canvas, Size size, double cx, double slotWidth) {
     final w = size.width;
-    final cx = (selected + 0.5) * slot;
-    final half = slot * 0.42;
+    final half = slotWidth * 0.42;
     const band = 7.0;
     const peak = 7.0;
     const peakHalf = 16.0;
-    double y(double x) => _arcY(x, w);
+    double y(double x) => _navArcY(x, w);
     final left = cx - half;
     final right = cx + half;
 
@@ -836,10 +927,8 @@ class _NavBarPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _NavBarPainter old) =>
-      old.count != count ||
-      old.selected != selected ||
-      old.bottomInset != bottomInset;
+  bool shouldRepaint(covariant _NavSelectionPainter old) =>
+      old.count != count || old.slot != slot;
 }
 
 class _NavTile extends StatelessWidget {
@@ -847,48 +936,61 @@ class _NavTile extends StatelessWidget {
 
   final RailDockItem item;
 
+  static const _iconSize = 46.0;
+
   @override
   Widget build(BuildContext context) {
     final selected = item.selected;
-    return Pressable(
-      onTap: item.onTap,
-      child: SizedBox(
-        height: HomeNavBar.barHeight,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  NavArtIcon(item.art, size: selected ? 46 : 42),
-                  if (item.badge > 0)
-                    PositionedDirectional(
-                      top: -4,
-                      end: -10,
-                      child: CountBadge(count: item.badge),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  item.label,
-                  maxLines: 1,
-                  style: TextStyle(
-                    color: selected ? CasinoColors.gold : CasinoColors.text,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    height: 1.2,
-                    shadows: const [
-                      Shadow(color: Color(0x99000000), blurRadius: 3),
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Pressable(
+        onTap: item.onTap,
+        child: SizedBox(
+          height: HomeNavBar.barHeight,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Scaling keeps layout fixed, so selection is compositor-only.
+                AnimatedScale(
+                  scale: selected ? 1 : 42 / _iconSize,
+                  alignment: Alignment.bottomCenter,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutBack,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      NavArtIcon(item.art, size: _iconSize),
+                      if (item.badge > 0)
+                        PositionedDirectional(
+                          top: -4,
+                          end: -10,
+                          child: CountBadge(count: item.badge),
+                        ),
                     ],
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    style: TextStyle(
+                      color: selected ? CasinoColors.gold : CasinoColors.text,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                      shadows: const [
+                        Shadow(color: Color(0x99000000), blurRadius: 3),
+                      ],
+                    ),
+                    child: Text(item.label, maxLines: 1),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -4,11 +4,13 @@ import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
+import 'package:cardgame/app/home_menu_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/push_providers.dart';
 import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/data/auth/apple_sign_in_service.dart';
+import 'package:cardgame/data/app/home_menu_config.dart';
 import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/analytics_service.dart';
@@ -47,6 +49,7 @@ class StartGameWidget extends ConsumerStatefulWidget {
 
 class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
   bool _softPromptChecked = false;
+  HomeNavTab _tab = HomeNavTab.home;
 
   @override
   void initState() {
@@ -197,7 +200,8 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
         if (!mounted) return;
         final isApple = action == _GuestLinkPromptAction.linkApple;
         final result = await linkOrSignInWithProvider(
-          provider: isApple ? OAuthLinkProvider.apple : OAuthLinkProvider.google,
+          provider:
+              isApple ? OAuthLinkProvider.apple : OAuthLinkProvider.google,
           context: context,
           ref: ref,
         );
@@ -219,15 +223,214 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
     }
   }
 
-  void _push(Widget screen) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (context) => screen));
+  void _select(HomeNavTab tab) {
+    if (tab != _tab) setState(() => _tab = tab);
+  }
+
+  RailDockItem _navItem(HomeNavTab tab, int friendsBadge, bool selected) {
+    final l10n = context.l10n;
+    final (art, label) = switch (tab) {
+      HomeNavTab.shop => (NavArt.shop, l10n.shop),
+      HomeNavTab.friends => (NavArt.friends, l10n.friends),
+      HomeNavTab.home => (NavArt.home, l10n.home),
+      HomeNavTab.collection => (NavArt.collection, l10n.collection),
+      HomeNavTab.rules => (NavArt.rules, l10n.howToPlay),
+    };
+    return RailDockItem(
+      art: art,
+      label: label,
+      badge: tab == HomeNavTab.friends ? friendsBadge : 0,
+      selected: selected,
+      onTap: () => _select(tab),
+    );
+  }
+
+  static Widget _page(HomeNavTab tab) => switch (tab) {
+    HomeNavTab.home => const _HomeTab(),
+    HomeNavTab.shop => const MarketplaceScreen(),
+    HomeNavTab.friends => const FriendsScreen(),
+    HomeNavTab.collection => const CollectionScreen(),
+    HomeNavTab.rules => const HowToPlayScreen(),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final menu = ref.watch(homeMenuProvider);
+    final friendsBadge = ref.watch(connectedFriendsCountProvider);
+    // The server may drop the open tab; fall back to home.
+    final current = menu.nav.contains(_tab) ? _tab : HomeNavTab.home;
+
+    return PopScope(
+      canPop: current == HomeNavTab.home,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _select(HomeNavTab.home);
+      },
+      child: Scaffold(
+        backgroundColor: CasinoColors.feltDeep,
+        body: FeltTableBackground(
+          child: Column(
+            children: [
+              Expanded(
+                // The nav bar below already covers the bottom inset.
+                child: MediaQuery.removePadding(
+                  context: context,
+                  removeBottom: true,
+                  child: _TabStack(current: current, builder: _page),
+                ),
+              ),
+              HomeNavBar(
+                items: [
+                  for (final tab in menu.nav)
+                    _navItem(tab, friendsBadge, tab == current),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void _pushScreen(BuildContext context, Widget screen) {
+  Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (context) => screen));
+}
+
+/// Keeps every visited tab page mounted (state, scroll and loaded data
+/// survive switches) but only builds a page on its first visit. Hidden pages
+/// are offstage with tickers paused; the incoming page fades in on top.
+class _TabStack extends StatefulWidget {
+  const _TabStack({required this.current, required this.builder});
+
+  final HomeNavTab current;
+  final Widget Function(HomeNavTab tab) builder;
+
+  @override
+  State<_TabStack> createState() => _TabStackState();
+}
+
+class _TabStackState extends State<_TabStack>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _fade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 180),
+    value: 1,
+  )..addStatusListener((status) {
+    if (status == AnimationStatus.completed && _outgoing != null) {
+      setState(() => _outgoing = null);
+    }
+  });
+  late final Animation<double> _opacity = CurvedAnimation(
+    parent: _fade,
+    curve: Curves.easeOut,
+  );
+
+  /// Built pages, cached so switching tabs never rebuilds them.
+  late final Map<HomeNavTab, Widget> _pages = {
+    widget.current: widget.builder(widget.current),
+  };
+
+  /// Page still shown under the incoming one while it fades in.
+  HomeNavTab? _outgoing;
+
+  @override
+  void didUpdateWidget(_TabStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final current = widget.current;
+    if (current == oldWidget.current) return;
+    _pages.putIfAbsent(current, () => widget.builder(current));
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _outgoing = null;
+      _fade.value = 1;
+    } else {
+      _outgoing = oldWidget.current;
+      _fade.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    super.dispose();
+  }
+
+  Widget _layer(HomeNavTab tab) {
+    final active = tab == widget.current;
+    return Offstage(
+      key: ValueKey(tab),
+      offstage: !active && tab != _outgoing,
+      child: TickerMode(
+        enabled: active,
+        child: IgnorePointer(
+          ignoring: !active,
+          // Always wrapped the same way so pages keep their state.
+          child: FadeTransition(
+            opacity: active ? _opacity : kAlwaysCompleteAnimation,
+            child: RepaintBoundary(child: _pages[tab]),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // The current page paints last so it fades in over the outgoing one.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        for (final tab in _pages.keys)
+          if (tab != widget.current) _layer(tab),
+        _layer(widget.current),
+      ],
+    );
+  }
+}
+
+/// The home tab: profile bar, logo, hero fan and the play actions.
+class _HomeTab extends ConsumerWidget {
+  const _HomeTab();
+
+  Widget _modeCard(
+    BuildContext context,
+    WidgetRef ref,
+    HomeMode mode,
+    double height,
+    bool connected,
+  ) {
     final l10n = context.l10n;
+    final notifier = ref.read(gameSessionProvider.notifier);
+    return switch (mode) {
+      HomeMode.createRoom => ModePlayingCard(
+        label: l10n.createRoom,
+        suit: SuitShape.hearts,
+        icon: AppIcons.addHome,
+        height: height,
+        onTap: connected ? notifier.createRoom : null,
+      ),
+      HomeMode.joinRoom => ModePlayingCard(
+        label: l10n.joinRoom,
+        suit: SuitShape.diamonds,
+        icon: AppIcons.login,
+        height: height,
+        onTap: connected ? () => _showJoinRoomDialog(context) : null,
+      ),
+      HomeMode.playVsRobot => ModePlayingCard(
+        label: l10n.playVsRobot,
+        suit: SuitShape.clubs,
+        icon: AppIcons.game,
+        height: height,
+        onTap: () => notifier.playVsRobot(robotName: l10n.robotName),
+      ),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final modes = ref.watch(homeMenuProvider.select((menu) => menu.modes));
     final connection = ref.watch(
       gameSessionProvider.select((state) => state.connection),
     );
@@ -235,223 +438,165 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
     final profile =
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
     final displayName = profile.isEmpty ? l10n.player : profile.name;
-    final connectedFriendsCount = ref.watch(connectedFriendsCountProvider);
     final unread = ref.watch(notificationsUnreadCountProvider);
-    final notifier = ref.read(gameSessionProvider.notifier);
 
-    return Scaffold(
-      backgroundColor: CasinoColors.feltDeep,
-      body: FeltTableBackground(
-        child: Column(
-          children: [
-            _TopBar(
-              name: displayName,
-              username: profile.username,
-              avatarId: profile.avatarId,
-              money: profile.money,
-              chips: profile.chips,
-              connection: connection,
-              unreadNotifications: unread,
-              onProfile: () => _push(const PlayerProfileScreen()),
-              onLeague: () => _push(const GlobalRankingScreen()),
-              onMarketplace: () => _push(const MarketplaceScreen()),
-              onNotifications: () => showNotificationsPanel(context, ref),
-              onSettings: () => _push(const SettingsScreen()),
-            ),
-            Expanded(
-              child: SafeArea(
-                top: false,
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOut,
-                        child:
-                            connected
-                                ? const SizedBox(width: double.infinity)
-                                : _ConnectionBanner(connection: connection),
-                      ),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final height = constraints.maxHeight;
-                            final compact = height < 560;
-                            final logoWidth = compact ? 220.0 : 280.0;
-                            final modeHeight = compact ? 116.0 : 132.0;
-                            // Hero fan takes whatever the fixed content leaves.
-                            final fixedHeight =
-                                logoWidth / 3 + 18 + 92 + 14 + modeHeight + 18;
-                            final heroHeight = (height - fixedHeight).clamp(
-                              0.0,
-                              220.0,
-                            );
-                            return SingleChildScrollView(
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(minHeight: height),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    DealIn(
-                                      from: const Offset(0, -0.3),
-                                      child: Image.asset(
-                                        'assets/logo/text.png',
-                                        width: logoWidth,
-                                        fit: BoxFit.contain,
-                                      ),
+    // Opaque so it can fade in over another tab.
+    return FeltTableBackground(
+      child: Column(
+        children: [
+          _TopBar(
+            name: displayName,
+            username: profile.username,
+            avatarId: profile.avatarId,
+            money: profile.money,
+            chips: profile.chips,
+            connection: connection,
+            unreadNotifications: unread,
+            onProfile: () => _pushScreen(context, const PlayerProfileScreen()),
+            onLeague: () => _pushScreen(context, const GlobalRankingScreen()),
+            onMarketplace:
+                () => _pushScreen(context, const MarketplaceScreen()),
+            onNotifications: () => showNotificationsPanel(context, ref),
+            onSettings: () => _pushScreen(context, const SettingsScreen()),
+          ),
+          Expanded(
+            child: SafeArea(
+              top: false,
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOut,
+                      child:
+                          connected
+                              ? const SizedBox(width: double.infinity)
+                              : _ConnectionBanner(connection: connection),
+                    ),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final height = constraints.maxHeight;
+                          final compact = height < 560;
+                          final logoWidth = compact ? 220.0 : 280.0;
+                          final modeHeight = compact ? 116.0 : 132.0;
+                          // Hero fan takes whatever the fixed content leaves.
+                          final fixedHeight =
+                              logoWidth / 3 +
+                              18 +
+                              92 +
+                              (modes.isEmpty ? 0 : 14 + modeHeight) +
+                              18;
+                          final heroHeight = (height - fixedHeight).clamp(
+                            0.0,
+                            220.0,
+                          );
+                          return SingleChildScrollView(
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(minHeight: height),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  DealIn(
+                                    from: const Offset(0, -0.3),
+                                    child: Image.asset(
+                                      'assets/logo/text.png',
+                                      width: logoWidth,
+                                      fit: BoxFit.contain,
                                     ),
-                                    Text(
-                                      l10n.tagline,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: CasinoColors.goldSoft,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.6,
-                                      ),
+                                  ),
+                                  Text(
+                                    l10n.tagline,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: CasinoColors.goldSoft,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.6,
                                     ),
-                                    if (heroHeight >= 100)
-                                      HeroCardFan(
-                                        deckSkinId: profile.deckId,
-                                        height: heroHeight,
-                                      )
-                                    else
-                                      const SizedBox(height: 20),
-                                    DealIn(
-                                      delay: const Duration(milliseconds: 150),
-                                      child: PrimaryPlayCard(
-                                        title: l10n.findMatch,
-                                        subtitle: l10n.winnerTakesAll,
-                                        icon: AppIcons.bolt,
-                                        onTap:
-                                            connected
-                                                ? () => showStakeSelectorModal(
-                                                  context,
-                                                )
-                                                : null,
-                                      ),
+                                  ),
+                                  if (heroHeight >= 100)
+                                    HeroCardFan(
+                                      deckSkinId: profile.deckId,
+                                      height: heroHeight,
+                                    )
+                                  else
+                                    const SizedBox(height: 20),
+                                  DealIn(
+                                    delay: const Duration(milliseconds: 150),
+                                    child: PrimaryPlayCard(
+                                      title: l10n.findMatch,
+                                      subtitle: l10n.winnerTakesAll,
+                                      icon: AppIcons.bolt,
+                                      onTap:
+                                          connected
+                                              ? () => showStakeSelectorModal(
+                                                context,
+                                              )
+                                              : null,
                                     ),
+                                  ),
+                                  if (modes.isNotEmpty) ...[
                                     const SizedBox(height: 14),
                                     Row(
                                       children: [
-                                        Expanded(
-                                          child: DealIn(
-                                            delay: const Duration(
-                                              milliseconds: 260,
-                                            ),
-                                            from: const Offset(0.4, 0.6),
-                                            rotation: -0.25,
-                                            child: ModePlayingCard(
-                                              label: l10n.createRoom,
-                                              suit: SuitShape.hearts,
-                                              icon: AppIcons.addHome,
-                                              height: modeHeight,
-                                              onTap:
-                                                  connected
-                                                      ? notifier.createRoom
-                                                      : null,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: DealIn(
-                                            delay: const Duration(
-                                              milliseconds: 340,
-                                            ),
-                                            from: const Offset(0, 0.6),
-                                            child: ModePlayingCard(
-                                              label: l10n.joinRoom,
-                                              suit: SuitShape.diamonds,
-                                              icon: AppIcons.login,
-                                              height: modeHeight,
-                                              onTap:
-                                                  connected
-                                                      ? () =>
-                                                          _showJoinRoomDialog(
-                                                            context,
-                                                          )
-                                                      : null,
+                                        for (final (i, mode)
+                                            in modes.indexed) ...[
+                                          if (i > 0) const SizedBox(width: 10),
+                                          Expanded(
+                                            key: ValueKey(mode),
+                                            child: _dealtMode(
+                                              i,
+                                              modes.length,
+                                              _modeCard(
+                                                context,
+                                                ref,
+                                                mode,
+                                                modeHeight,
+                                                connected,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: DealIn(
-                                            delay: const Duration(
-                                              milliseconds: 420,
-                                            ),
-                                            from: const Offset(-0.4, 0.6),
-                                            rotation: 0.25,
-                                            child: ModePlayingCard(
-                                              label: l10n.playVsRobot,
-                                              suit: SuitShape.clubs,
-                                              icon: AppIcons.game,
-                                              height: modeHeight,
-                                              onTap:
-                                                  () => notifier.playVsRobot(
-                                                    robotName: l10n.robotName,
-                                                  ),
-                                            ),
-                                          ),
-                                        ),
+                                        ],
                                       ],
                                     ),
-                                    const SizedBox(height: 8),
                                   ],
-                                ),
+                                  const SizedBox(height: 8),
+                                ],
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            HomeNavBar(
-              items: [
-                RailDockItem(
-                  art: NavArt.shop,
-                  label: l10n.shop,
-                  onTap: () => _push(const MarketplaceScreen()),
-                ),
-                RailDockItem(
-                  art: NavArt.friends,
-                  label: l10n.friends,
-                  badge: connectedFriendsCount,
-                  onTap: () => _push(const FriendsScreen()),
-                ),
-                RailDockItem(
-                  art: NavArt.home,
-                  label: l10n.home,
-                  selected: true,
-                  onTap: () {},
-                ),
-                RailDockItem(
-                  art: NavArt.collection,
-                  label: l10n.collection,
-                  onTap: () => _push(const CollectionScreen()),
-                ),
-                RailDockItem(
-                  art: NavArt.rules,
-                  label: l10n.howToPlay,
-                  onTap: () => _push(const HowToPlayScreen()),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
 enum _GuestLinkPromptAction { later, dontAsk, link, linkApple }
+
+/// Deals mode card [index] of [count] in from below, fanning the outer cards
+/// in from opposite sides like a dealt hand.
+Widget _dealtMode(int index, int count, Widget card) {
+  // -1 for the leftmost card, 1 for the rightmost.
+  final spread = count < 2 ? 0.0 : index * 2 / (count - 1) - 1;
+  return DealIn(
+    delay: Duration(milliseconds: 260 + 80 * index),
+    from: Offset(-0.4 * spread, 0.6),
+    rotation: 0.25 * spread,
+    child: card,
+  );
+}
 
 Future<void> _showJoinRoomDialog(BuildContext context) {
   return showDialog<void>(

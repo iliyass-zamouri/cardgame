@@ -92,6 +92,7 @@ const {
 const { acquireBotUser, isBotPlayer, listBotUsers } = require('./db/bots');
 const { ServerRobotPlayer } = require('./bot_player');
 const { iqForPot } = require('./bot_difficulty');
+const { homeMenuFromEnv } = require('./home_menu');
 const {
   playerExists,
   upsertDeviceToken,
@@ -493,6 +494,7 @@ class GameServer {
       sendJson(response, 200, {
         minAndroidVersionCode: Number.parseInt(process.env.MIN_ANDROID_VERSION_CODE || '1', 10) || 1,
         softMinVersion: process.env.SOFT_MIN_VERSION || null,
+        homeMenu: homeMenuFromEnv(),
       });
       return;
     }

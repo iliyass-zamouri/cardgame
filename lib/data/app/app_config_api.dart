@@ -1,21 +1,30 @@
 import 'dart:convert';
 
+import 'package:cardgame/data/app/home_menu_config.dart';
 import 'package:http/http.dart' as http;
 
 class AppConfig {
   const AppConfig({
     this.minAndroidVersionCode = 0,
     this.minIosBuildNumber = 0,
+    this.homeMenu,
   });
 
   final int minAndroidVersionCode;
   final int minIosBuildNumber;
+
+  /// Null when the server predates the dynamic home menu.
+  final HomeMenuConfig? homeMenu;
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
     return AppConfig(
       minAndroidVersionCode:
           (json['minAndroidVersionCode'] as num?)?.toInt() ?? 0,
       minIosBuildNumber: (json['minIosBuildNumber'] as num?)?.toInt() ?? 0,
+      homeMenu: switch (json['homeMenu']) {
+        final Map<String, dynamic> menu => HomeMenuConfig.fromJson(menu),
+        _ => null,
+      },
     );
   }
 }
