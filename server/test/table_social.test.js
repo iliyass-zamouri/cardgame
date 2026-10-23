@@ -93,7 +93,7 @@ test('buildIceServers falls back to STUN when TURN is not configured', () => {
     playerId: 'p1',
     env: { TURN_URLS: 'turn:1.2.3.4:3478?transport=udp,turn:1.2.3.4:3478?transport=tcp', TURN_SHARED_SECRET: 's' },
   });
-  assert.deepEqual(withTurn.iceServers[0].urls, ['stun:1.2.3.4:3478']);
+  assert.deepEqual(withTurn.iceServers[0].urls, ['stun:1.2.3.4:3478', 'stun:stun.l.google.com:19302']);
   assert.equal(withTurn.iceServers[1].urls.length, 2);
   assert.ok(withTurn.iceServers[1].username.endsWith(':p1'));
 });

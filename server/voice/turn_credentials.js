@@ -35,11 +35,14 @@ function buildIceServers({ playerId, env = process.env, nowMs = Date.now() } = {
   if (turnUrls.length > 0 && secret) {
     const ttlSeconds = Number(env.TURN_TTL_SECONDS) > 0 ? Number(env.TURN_TTL_SECONDS) : DEFAULT_TTL_SECONDS;
     const { username, credential, ttl } = turnCredential({ secret, playerId, ttlSeconds, nowMs });
-    // Our own coturn also answers STUN on the same port.
+    // Our own coturn also answers STUN on the same port; keep a public STUN
+    // too so direct connections still work if the relay port is unreachable.
     const ownStun = turnUrls
       .map((url) => url.replace(/^turns?:/, 'stun:').replace(/\?.*$/, ''))
       .filter((url, index, all) => all.indexOf(url) === index);
-    iceServers.push({ urls: stunUrls.length > 0 ? stunUrls : ownStun });
+    iceServers.push({
+      urls: stunUrls.length > 0 ? stunUrls : [...ownStun, ...DEFAULT_STUN_URLS],
+    });
     iceServers.push({ urls: turnUrls, username, credential });
     return { iceServers, ttl };
   }
