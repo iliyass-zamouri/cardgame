@@ -266,7 +266,7 @@ class _QuickRulesScreenState extends State<QuickRulesScreen> {
               Text(
                 l10n.stepOf(_index + 1, steps.length),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.goldSoft,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,

@@ -1015,6 +1015,21 @@ class AppLocalizationsPt extends AppLocalizations {
   String get opponentQuit => 'O adversário desistiu';
 
   @override
+  String get turnTimedOut =>
+      'Tempo esgotado. Sua jogada foi feita automaticamente.';
+
+  @override
+  String turnTimedOutWarning(int remaining) {
+    return 'Tempo esgotado. Sua jogada foi feita automaticamente. Jogadas restantes antes da desistência: $remaining.';
+  }
+
+  @override
+  String get youTimedOut => 'Você ficou sem tempo';
+
+  @override
+  String get opponentTimedOut => 'O adversário ficou sem tempo';
+
+  @override
   String get matchResultQuit => 'DESISTÊNCIA';
 
   @override

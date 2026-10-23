@@ -60,13 +60,13 @@ class InsufficientFundsSheet extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [CasinoColors.leather, CasinoColors.leatherDeep],
         ),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(top: BorderSide(color: CasinoColors.gold, width: 1.5)),
       ),
       child: SafeArea(
@@ -106,7 +106,7 @@ class InsufficientFundsSheet extends ConsumerWidget {
                   : inChips
                   ? l10n.notEnoughChipsMessage(required, chips)
                   : l10n.notEnoughMoneyMessage(required, money),
-              style: const TextStyle(color: CasinoColors.text, fontSize: 14),
+              style: TextStyle(color: CasinoColors.text, fontSize: 14),
             ),
             const SizedBox(height: 14),
             Container(
@@ -188,7 +188,7 @@ class _Balance extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           '$value',
-          style: const TextStyle(
+          style: TextStyle(
             color: CasinoColors.text,
             fontWeight: FontWeight.w800,
             fontSize: 15,

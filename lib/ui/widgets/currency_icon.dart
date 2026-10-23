@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
-import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:flutter/material.dart';
 
@@ -58,10 +57,11 @@ class CurrencyIcon extends StatelessWidget {
   }
 }
 
+/// Coins keep the casino gold in every theme, so money still reads as money.
 const _goldGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
-  colors: [Color(0xFFFFE9A3), CasinoColors.gold, Color(0xFFB8860B)],
+  colors: [Color(0xFFFFE9A3), Color(0xFFF5C542), Color(0xFFB8860B)],
 );
 
 class _CashPainter extends CustomPainter {

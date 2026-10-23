@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cardgame/ui/screens/friends_screen.dart';
 import 'package:cardgame/ui/screens/ranking/global_ranking_screen.dart';
+import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
 
 /// Logical notification destinations (not GoRouter paths).
@@ -125,13 +126,13 @@ class NotificationNavigator {
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: const Color(0xFF1E1E24),
-          title: const Text(
+          title: Text(
             'Table invite',
-            style: TextStyle(color: Color(0xFFF5C542)),
+            style: TextStyle(color: CasinoColors.gold),
           ),
           content: Text(
             'Join room $roomId?',
-            style: const TextStyle(color: Color(0xFFF2F2F5)),
+            style: TextStyle(color: CasinoColors.text),
           ),
           actions: [
             TextButton(

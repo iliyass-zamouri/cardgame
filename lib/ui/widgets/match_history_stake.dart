@@ -54,7 +54,7 @@ class MatchHistoryStakeLine extends StatelessWidget {
                 city,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.textMuted,
                   fontSize: 12,
                 ),

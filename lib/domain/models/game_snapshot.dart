@@ -55,6 +55,9 @@ class PlayerSnapshot {
   final bool jackPeekAvailable;
   final bool queenAbilityAvailable;
 
+  /// Turns this seat has timed out in a row. A real move resets it.
+  final int missedTurns;
+
   /// Balance after a rematch stake was taken (own seat only), in the
   /// room's stake currency.
   final int? money;
@@ -76,6 +79,7 @@ class PlayerSnapshot {
     required this.hasHandCard,
     this.jackPeekAvailable = false,
     this.queenAbilityAvailable = false,
+    this.missedTurns = 0,
     this.money,
     this.chips,
   });
@@ -103,6 +107,7 @@ class PlayerSnapshot {
       hasHandCard: json['hasHandCard'] as bool? ?? false,
       jackPeekAvailable: json['jackPeekAvailable'] as bool? ?? false,
       queenAbilityAvailable: json['queenAbilityAvailable'] as bool? ?? false,
+      missedTurns: (json['missedTurns'] as num?)?.toInt() ?? 0,
       money: (json['money'] as num?)?.toInt(),
       chips: (json['chips'] as num?)?.toInt(),
     );
@@ -166,7 +171,7 @@ class GameResult {
   final int? winnerIndex;
   final List<PlayerResultRating>? ratings;
 
-  /// Why the match ended early: `call`, `forfeit` or `quit`.
+  /// Why the match ended early: `call`, `forfeit`, `quit` or `timeout`.
   final String? reason;
 
   /// Who quit, from this viewer's perspective: `you` or `opponent`.
@@ -328,6 +333,34 @@ class RematchBlocked {
   }
 }
 
+/// Server clock for the seat on turn. Times are relative to when the server
+/// sent the snapshot, so the client never has to match the server's clock.
+class TurnTimer {
+  final int limitMs;
+  final int remainingMs;
+
+  /// Consecutive timeouts that forfeit the match. 0 means never.
+  final int maxMissedTurns;
+
+  const TurnTimer({
+    required this.limitMs,
+    required this.remainingMs,
+    required this.maxMissedTurns,
+  });
+
+  static TurnTimer? tryParse(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    final limit = (json['limitMs'] as num?)?.toInt();
+    final remaining = (json['remainingMs'] as num?)?.toInt();
+    if (limit == null || limit <= 0 || remaining == null) return null;
+    return TurnTimer(
+      limitMs: limit,
+      remainingMs: remaining < 0 ? 0 : (remaining > limit ? limit : remaining),
+      maxMissedTurns: (json['maxMissedTurns'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 class GameSnapshot {
   final String roomId;
   final int version;
@@ -359,6 +392,9 @@ class GameSnapshot {
   final bool rematchPending;
   final RematchBlocked? rematchBlocked;
 
+  /// Clock for the seat on turn. Null outside a running turn or when timers are off.
+  final TurnTimer? turnTimer;
+
   const GameSnapshot({
     required this.roomId,
     required this.version,
@@ -381,6 +417,7 @@ class GameSnapshot {
     this.discardSource,
     this.rematchPending = false,
     this.rematchBlocked,
+    this.turnTimer,
   });
 
   factory GameSnapshot.fromJson(Map<String, dynamic> json) {
@@ -417,6 +454,7 @@ class GameSnapshot {
       rematchBlocked: RematchBlocked.tryParse(
         json['rematchBlocked'] as Map<String, dynamic>?,
       ),
+      turnTimer: TurnTimer.tryParse(json['turnTimer'] as Map<String, dynamic>?),
     );
   }
 

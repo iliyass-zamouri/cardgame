@@ -153,7 +153,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
           return Center(
             child: Text(
               l10n.rankingEmpty,
-              style: const TextStyle(color: CasinoColors.textMuted),
+              style: TextStyle(color: CasinoColors.textMuted),
             ),
           );
         }
@@ -302,7 +302,7 @@ class _HistoryTab extends ConsumerWidget {
           return Center(
             child: Text(
               l10n.matchHistoryEmpty,
-              style: const TextStyle(color: CasinoColors.textMuted),
+              style: TextStyle(color: CasinoColors.textMuted),
             ),
           );
         }
@@ -341,7 +341,7 @@ class _LeaderboardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    const style = TextStyle(
+    final style = TextStyle(
       color: CasinoColors.goldSoft,
       fontSize: 11,
       fontWeight: FontWeight.w800,
@@ -400,11 +400,11 @@ class _RankRow extends StatelessWidget {
     _ => CasinoColors.textMuted,
   };
 
-  static const _statStyle = TextStyle(
+  static TextStyle get _statStyle => TextStyle(
     color: CasinoColors.text,
     fontWeight: FontWeight.w600,
     fontSize: 13,
-    fontFeatures: [FontFeature.tabularFigures()],
+    fontFeatures: const [FontFeature.tabularFigures()],
   );
 
   @override
@@ -649,7 +649,7 @@ class _ErrorPane extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: CasinoColors.textMuted),
+              style: TextStyle(color: CasinoColors.textMuted),
             ),
             const SizedBox(height: 12),
             GoldButton(

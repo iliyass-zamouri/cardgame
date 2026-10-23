@@ -1982,6 +1982,30 @@ abstract class AppLocalizations {
   /// **'Opponent quit'**
   String get opponentQuit;
 
+  /// No description provided for @turnTimedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Time\'s up. Your turn was played for you.'**
+  String get turnTimedOut;
+
+  /// No description provided for @turnTimedOutWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Time\'s up. Your turn was played for you. Turns left before you forfeit: {remaining}.'**
+  String turnTimedOutWarning(int remaining);
+
+  /// No description provided for @youTimedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'You ran out of time'**
+  String get youTimedOut;
+
+  /// No description provided for @opponentTimedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Opponent ran out of time'**
+  String get opponentTimedOut;
+
   /// No description provided for @matchResultQuit.
   ///
   /// In en, this message translates to:

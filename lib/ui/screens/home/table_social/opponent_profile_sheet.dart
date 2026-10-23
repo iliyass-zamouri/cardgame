@@ -27,7 +27,13 @@ Future<void> showOpponentProfileSheet(
     context: context,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
-    builder: (_) => _OpponentProfileSheet(opponent: opponent),
+    // The board under the sheet repaints every frame, so a live blur would
+    // re-run every frame too; the denser tint reads the same at 55% dim.
+    builder:
+        (_) => CasinoGlassScope(
+          blur: false,
+          child: _OpponentProfileSheet(opponent: opponent),
+        ),
   );
 }
 
@@ -188,16 +194,17 @@ class _SheetAction extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.color = CasinoColors.gold,
+    this.color,
   });
 
   final List<List<dynamic>> icon;
   final String label;
   final VoidCallback? onTap;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final color = this.color ?? CasinoColors.gold;
     return Expanded(
       child: Opacity(
         opacity: onTap == null ? 0.45 : 1,
@@ -207,7 +214,7 @@ class _SheetAction extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 3),
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [CasinoColors.leather, CasinoColors.leatherDeep],
@@ -224,7 +231,7 @@ class _SheetAction extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.text,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -293,7 +300,7 @@ class _Header extends StatelessWidget {
                   '@$username',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.goldSoft,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -304,7 +311,7 @@ class _Header extends StatelessWidget {
                 Text(
                   '${l10n.levelNumber(level)} · '
                   '${PlayerProfileScreen.getRankTitle(level, l10n)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.textMuted,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -365,7 +372,7 @@ class _Stat extends StatelessWidget {
             FittedBox(
               child: Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.gold,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
@@ -377,7 +384,7 @@ class _Stat extends StatelessWidget {
               label.toUpperCase(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: CasinoColors.textMuted,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
@@ -407,7 +414,7 @@ class _RecentForm extends ConsumerWidget {
       children: [
         Text(
           l10n.recentForm,
-          style: const TextStyle(
+          style: TextStyle(
             color: CasinoColors.textMuted,
             fontSize: 12,
             fontWeight: FontWeight.w700,
@@ -417,7 +424,7 @@ class _RecentForm extends ConsumerWidget {
         if (recent.isEmpty)
           Text(
             l10n.noRecentMatches,
-            style: const TextStyle(color: CasinoColors.textMuted, fontSize: 12),
+            style: TextStyle(color: CasinoColors.textMuted, fontSize: 12),
           )
         else
           for (final match in recent)

@@ -16,6 +16,7 @@ import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/deck_showcase_card.dart';
+import 'package:cardgame/ui/widgets/greyed_out.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
@@ -51,6 +52,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
       vsync: this,
       initialIndex: widget.initialTab.index,
     );
+    // Retries a failed rewarded ad load each time the marketplace opens.
+    ref.read(rewardedAdProvider).preload();
     // Refresh inventory when entering marketplace
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(playerProfileProvider.notifier).refreshInventory();
@@ -109,8 +112,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
           Column(
             children: [
               _BalancesHeader(money: profile.money, chips: profile.chips),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Text(
                   'Virtual currency only. No real-money cash-out.',
                   textAlign: TextAlign.center,
@@ -217,7 +220,7 @@ class _BalanceTile extends StatelessWidget {
               children: [
                 Text(
                   casinoButtonLabel(label, locale),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.textMuted,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
@@ -350,12 +353,12 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 96),
           children: [
             // Rate banner
-            const FeltPanel(
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            FeltPanel(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  ChipIcon(size: 22),
+                  const ChipIcon(size: 22),
                   Text(
                     '  1  =  ',
                     style: TextStyle(
@@ -365,7 +368,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  CashIcon(size: 22),
+                  const CashIcon(size: 22),
                   Text(
                     '  1,000',
                     style: TextStyle(
@@ -447,10 +450,17 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  GoldButton(
-                    label: l10n.claim,
-                    compact: true,
-                    onPressed: _watchAdForMoney,
+                  ValueListenableBuilder<bool>(
+                    valueListenable: ref.watch(rewardedAdProvider).ready,
+                    builder:
+                        (context, ready, _) => GreyedOut(
+                          enabled: ready,
+                          child: GoldButton(
+                            label: l10n.claim,
+                            compact: true,
+                            onPressed: ready ? _watchAdForMoney : null,
+                          ),
+                        ),
                   ),
                 ],
               ),
@@ -755,13 +765,13 @@ class _CurrencyConversionModalState
         right: 16,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [CasinoColors.leather, CasinoColors.leatherDeep],
         ),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(top: BorderSide(color: CasinoColors.gold, width: 1.5)),
       ),
       child: SafeArea(
@@ -784,7 +794,7 @@ class _CurrencyConversionModalState
               ),
               Row(
                 children: [
-                  const HugeIcon(
+                  HugeIcon(
                     icon: AppIcons.swapHoriz,
                     color: CasinoColors.gold,
                     size: 22,
@@ -829,7 +839,7 @@ class _CurrencyConversionModalState
                         const SizedBox(width: 6),
                         Text(
                           '${profile.money}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: CasinoColors.text,
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
@@ -848,7 +858,7 @@ class _CurrencyConversionModalState
                         const SizedBox(width: 6),
                         Text(
                           '${profile.chips}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: CasinoColors.goldSoft,
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
@@ -937,7 +947,7 @@ class _ExchangeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    const arrow = HugeIcon(
+    final arrow = HugeIcon(
       icon: AppIcons.arrowForward,
       color: CasinoColors.gold,
       size: 20,
@@ -970,7 +980,7 @@ class _ExchangeCard extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 '$amount',
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.text,
                   fontWeight: FontWeight.w900,
                   fontSize: 16,
@@ -989,7 +999,7 @@ class _ExchangeCard extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 '$targetAmount',
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.gold,
                   fontWeight: FontWeight.w900,
                   fontSize: 16,
@@ -1229,7 +1239,7 @@ class _InkButton extends StatelessWidget {
         child: Center(
           child: Text(
             casinoButtonLabel(label, Localizations.localeOf(context)),
-            style: const TextStyle(
+            style: TextStyle(
               color: CasinoColors.gold,
               fontWeight: FontWeight.w900,
               fontSize: 13,

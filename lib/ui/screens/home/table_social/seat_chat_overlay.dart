@@ -161,8 +161,8 @@ class _SpeechBubbleState extends State<_SpeechBubble>
       ),
       child: Text(
         widget.text,
-        style: const TextStyle(
-          color: Color(0xFF2B1A12),
+        style: TextStyle(
+          color: CasinoColors.leather,
           fontSize: 13,
           fontWeight: FontWeight.w700,
           height: 1.2,

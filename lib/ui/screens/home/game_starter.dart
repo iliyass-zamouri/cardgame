@@ -80,11 +80,11 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: CasinoColors.surface,
-          title: const Text(
+          title: Text(
             'Stay in the loop',
             style: TextStyle(color: CasinoColors.gold),
           ),
-          content: const Text(
+          content: Text(
             'Get notified for friend requests and table invites even when you are away.',
             style: TextStyle(color: CasinoColors.text),
           ),
@@ -140,11 +140,11 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
           backgroundColor: CasinoColors.surface,
           title: Text(
             l10n.saveProgressTitle,
-            style: const TextStyle(color: CasinoColors.gold),
+            style: TextStyle(color: CasinoColors.gold),
           ),
           content: Text(
             offerApple ? l10n.saveProgressBodyIos : l10n.saveProgressBody,
-            style: const TextStyle(color: CasinoColors.text),
+            style: TextStyle(color: CasinoColors.text),
           ),
           actions: [
             TextButton(
@@ -169,7 +169,7 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
                     ).pop(_GuestLinkPromptAction.linkApple),
                 child: Text(
                   l10n.linkAppleAccount,
-                  style: const TextStyle(color: CasinoColors.gold),
+                  style: TextStyle(color: CasinoColors.gold),
                 ),
               ),
             TextButton(
@@ -179,7 +179,7 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
                   ).pop(_GuestLinkPromptAction.link),
               child: Text(
                 l10n.linkGoogleAccount,
-                style: const TextStyle(color: CasinoColors.gold),
+                style: TextStyle(color: CasinoColors.gold),
               ),
             ),
           ],
@@ -267,25 +267,29 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
       },
       child: Scaffold(
         backgroundColor: CasinoColors.feltDeep,
-        body: FeltTableBackground(
-          child: Column(
-            children: [
-              Expanded(
-                // The nav bar below already covers the bottom inset.
-                child: MediaQuery.removePadding(
-                  context: context,
-                  removeBottom: true,
-                  child: _TabStack(current: current, builder: _page),
-                ),
+        body: Stack(
+          children: [
+            // Pages run down to the arc's ends so the arc curves over them
+            // instead of over a straight cut.
+            Positioned.fill(
+              bottom:
+                  HomeNavBar.barHeight + MediaQuery.paddingOf(context).bottom,
+              child: MediaQuery.removePadding(
+                context: context,
+                removeBottom: true,
+                child: _TabStack(current: current, builder: _page),
               ),
-              HomeNavBar(
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: HomeNavBar(
                 items: [
                   for (final tab in menu.nav)
                     _navItem(tab, friendsBadge, tab == current),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -489,7 +493,8 @@ class _HomeTab extends ConsumerWidget {
                               18 +
                               92 +
                               (modes.isEmpty ? 0 : 14 + modeHeight) +
-                              18;
+                              18 +
+                              HomeNavBar.arcDrop;
                           final heroHeight = (height - fixedHeight).clamp(
                             0.0,
                             220.0,
@@ -511,7 +516,7 @@ class _HomeTab extends ConsumerWidget {
                                   Text(
                                     l10n.tagline,
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: CasinoColors.goldSoft,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
@@ -564,7 +569,10 @@ class _HomeTab extends ConsumerWidget {
                                       ],
                                     ),
                                   ],
-                                  const SizedBox(height: 8),
+                                  // Clears the nav arc rising over the bottom.
+                                  const SizedBox(
+                                    height: 8 + HomeNavBar.arcDrop,
+                                  ),
                                 ],
                               ),
                             ),
@@ -646,7 +654,7 @@ class _JoinRoomDialogState extends ConsumerState<_JoinRoomDialog> {
       shape: feltDialogShape,
       title: Text(
         l10n.joinRoomTitle,
-        style: const TextStyle(
+        style: TextStyle(
           color: CasinoColors.text,
           fontWeight: FontWeight.w800,
         ),
@@ -656,7 +664,7 @@ class _JoinRoomDialogState extends ConsumerState<_JoinRoomDialog> {
         children: [
           Text(
             l10n.joinRoomHint,
-            style: const TextStyle(color: CasinoColors.textMuted, fontSize: 14),
+            style: TextStyle(color: CasinoColors.textMuted, fontSize: 14),
           ),
           const SizedBox(height: 18),
           ValueListenableBuilder<TextEditingValue>(
@@ -669,7 +677,7 @@ class _JoinRoomDialogState extends ConsumerState<_JoinRoomDialog> {
                 textCapitalization: TextCapitalization.characters,
                 maxLength: 6,
                 autofocus: true,
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.text,
                   letterSpacing: 8,
                   fontWeight: FontWeight.w700,
@@ -687,7 +695,7 @@ class _JoinRoomDialogState extends ConsumerState<_JoinRoomDialog> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
+                    borderSide: BorderSide(
                       color: CasinoColors.borderGlow,
                       width: 1.4,
                     ),
@@ -915,10 +923,10 @@ String _compactAmount(int value) {
   return '$value';
 }
 
-const _goldGradient = LinearGradient(
+LinearGradient get _goldGradient => LinearGradient(
   begin: Alignment.topCenter,
   end: Alignment.bottomCenter,
-  colors: [Color(0xFFFFE08A), CasinoColors.gold, Color(0xFFC8961E)],
+  colors: [CasinoColors.goldHi, CasinoColors.gold, CasinoColors.goldLo],
 );
 
 /// Currency counter: coin overlapping a recessed track, gold "+" at the end.
@@ -1034,10 +1042,10 @@ class _RailIconButton extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color(0xFF4A2C1B), CasinoColors.leatherDeep],
+                    colors: [const Color(0xFF4A2C1B), CasinoColors.leatherDeep],
                   ),
                   border: Border.all(
                     color: CasinoColors.gold.withValues(alpha: 0.6),
@@ -1160,8 +1168,8 @@ class _ProfileCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(7),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFE08A), CasinoColors.gold],
+                    gradient: LinearGradient(
+                      colors: [CasinoColors.goldHi, CasinoColors.gold],
                     ),
                   ),
                   child: Text(
@@ -1255,7 +1263,7 @@ class _LeagueCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const HugeIcon(
+                    child: HugeIcon(
                       icon: AppIcons.trophy,
                       size: 21,
                       color: CasinoColors.gold,
@@ -1337,7 +1345,7 @@ class _ConnectionBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 offline ? l10n.offlineReconnecting : l10n.connecting,
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.text,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,

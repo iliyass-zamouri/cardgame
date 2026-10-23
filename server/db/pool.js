@@ -66,6 +66,9 @@ async function initDb() {
   const { ensurePushSchema } = require('./push');
   await ensurePushSchema();
 
+  const { ensureAppSettingsSchema } = require('./app_settings');
+  await ensureAppSettingsSchema();
+
   return pool;
 }
 

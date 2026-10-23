@@ -29,21 +29,21 @@ Future<void> checkForceUpdate(BuildContext context) async {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
               ),
-              title: const Text(
+              title: Text(
                 'Update required',
                 style: TextStyle(
                   color: CasinoColors.text,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              content: const Text(
+              content: Text(
                 'A newer version of the app is required to continue.',
                 style: TextStyle(color: CasinoColors.textMuted),
               ),
               actions: [
                 TextButton(
                   onPressed: () => SystemNavigator.pop(),
-                  child: const Text(
+                  child: Text(
                     'Exit',
                     style: TextStyle(color: CasinoColors.foldHi),
                   ),

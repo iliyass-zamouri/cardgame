@@ -141,13 +141,13 @@ Future<GuestGoogleLinkResult> linkOrSignInWithProvider({
               isApple
                   ? l10n.appleAccountInUseTitle
                   : l10n.googleAccountInUseTitle,
-              style: const TextStyle(color: CasinoColors.gold),
+              style: TextStyle(color: CasinoColors.gold),
             ),
             content: Text(
               isApple
                   ? l10n.appleAccountInUseBody(conflict.existingUsername)
                   : l10n.googleAccountInUseBody(conflict.existingUsername),
-              style: const TextStyle(color: CasinoColors.text),
+              style: TextStyle(color: CasinoColors.text),
             ),
             actions: [
               TextButton(
@@ -158,7 +158,7 @@ Future<GuestGoogleLinkResult> linkOrSignInWithProvider({
                 onPressed: () => Navigator.of(dialogContext).pop(true),
                 child: Text(
                   l10n.switchToGoogleAccount,
-                  style: const TextStyle(color: CasinoColors.gold),
+                  style: TextStyle(color: CasinoColors.gold),
                 ),
               ),
             ],

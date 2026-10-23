@@ -1,5 +1,8 @@
 const crypto = require('crypto');
 
+/** Retry gap when a turn's clock runs out during a Jack/Queen lock. */
+const LOCK_RETRY_MS = 1500;
+
 class GameRuleError extends Error {
   constructor(code, message) {
     super(message);
@@ -10,6 +13,8 @@ class GameRuleError extends Error {
 class GameRoom {
   /** Last penalty draw: lets a repeated tap on the same card be ignored. */
   #lastPenalty = null;
+  /** True while a timed-out turn is played for its seat (keeps the miss streak). */
+  #autoPlaying = false;
 
   constructor(id, {
     random = Math.random,
@@ -19,6 +24,10 @@ class GameRoom {
     peekDurationMs = 3500,
     queenShuffleDurationMs = 1200,
     queenReplaceDurationMs = 1400,
+    turnTimerConfig = null,
+    launchRevealMs = 5000,
+    turnGraceMs = 1000,
+    now = () => performance.now(),
   } = {}) {
     this.id = id;
     this.random = random;
@@ -33,6 +42,11 @@ class GameRoom {
     this.peekDurationMs = peekDurationMs;
     this.queenShuffleDurationMs = queenShuffleDurationMs;
     this.queenReplaceDurationMs = queenReplaceDurationMs;
+    /** Returns the live turn-limit settings, or null when timers are off. */
+    this.turnTimerConfig = turnTimerConfig;
+    this.launchRevealMs = launchRevealMs;
+    this.turnGraceMs = turnGraceMs;
+    this.now = now;
     this.version = 0;
     this.status = 'waiting';
     this.matchType = 'private';
@@ -56,9 +70,14 @@ class GameRoom {
     this.launchTimers = new Map();
     this.activePeek = null;
     this.activeQueenAbility = null;
+    /** Consecutive turns each seat has timed out. A real move resets its count. */
+    this.missedTurns = [0, 0];
+    /** @type {{ seat: number, limitMs: number, maxMissedTurns: number, deadline: number, timer: NodeJS.Timeout | null } | null} */
+    this.turnClock = null;
+    this.revealTimer = null;
   }
 
-  addPlayer(clientId, { playerId = null, displayName = null, avatarId = 'default', deckId = 'default' } = {}) {
+  addPlayer(clientId, { playerId = null, displayName = null, avatarId = 'default', deckId = 'default', isBot = false } = {}) {
     const existing = this.players.find((player) => player.id === clientId);
     if (existing) {
       existing.connected = true;
@@ -79,6 +98,7 @@ class GameRoom {
       avatarId: avatarId || 'default',
       deckId: deckId || 'default',
       connected: true,
+      isBot: Boolean(isBot),
       cards: [],
       handCard: null,
       launch: 'notLaunched',
@@ -94,10 +114,7 @@ class GameRoom {
   removePlayer(clientId) {
     const index = this.players.findIndex((player) => player.id === clientId);
     if (index < 0) return;
-    clearTimeout(this.launchTimers.get(clientId));
-    this.launchTimers.delete(clientId);
-    this.#clearActivePeek();
-    this.#clearActiveQueenAbility();
+    this.#clearTimers();
     this.players.splice(index, 1);
     this.status = 'waiting';
     this.matchType = 'private';
@@ -107,6 +124,7 @@ class GameRoom {
     this.stakeCurrency = 'money';
     this.escrowed = false;
     this.seriesWins = [0, 0];
+    this.missedTurns = [0, 0];
     this.lobbyReady = [false, false];
     this.rematchReady = [false, false];
     this.rankedSaved = false;
@@ -159,6 +177,7 @@ class GameRoom {
     }
 
     this.#clearTimers();
+    this.missedTurns = [0, 0];
     this.deck = shuffle(createDeck(), this.random);
     this.discard = [];
     this.discardDeckId = null;
@@ -183,6 +202,7 @@ class GameRoom {
       this.players.forEach((player) => player.cards.push(this.deck.pop()));
     }
     this.turnIndex = Math.floor(this.random() * 2);
+    this.#armRevealTimer();
     this.#changed();
   }
 
@@ -285,11 +305,13 @@ class GameRoom {
     this.#changed();
 
     const timer = setTimeout(() => {
+      this.launchTimers.delete(player.id);
+      if (this.status !== 'playing') return;
       player.launch = 'ended';
-      this.launchTimers.delete(clientId);
+      this.#armTurnClock();
       this.#changed();
-    }, 5000);
-    this.launchTimers.set(clientId, timer);
+    }, this.launchRevealMs);
+    this.launchTimers.set(player.id, timer);
   }
 
   draw(clientId) {
@@ -523,6 +545,7 @@ class GameRoom {
 
   end(clientId) {
     this.#requirePlayer(clientId);
+    this.#requirePlaying();
     this.lastAction = null;
     this.discardSource = null;
     this.#endGame();
@@ -609,6 +632,11 @@ class GameRoom {
       this.launchTimers.delete(oldClientId);
       this.launchTimers.set(newClientId, timer);
     }
+    // Ability locks name the seat by client id, so keep them on this seat.
+    if (this.activePeek?.viewerId === oldClientId) this.activePeek.viewerId = newClientId;
+    if (this.activeQueenAbility?.viewerId === oldClientId) {
+      this.activeQueenAbility.viewerId = newClientId;
+    }
     player.id = newClientId;
     player.connected = true;
     if (meta.displayName) player.displayName = meta.displayName;
@@ -647,6 +675,7 @@ class GameRoom {
       turn: this.turnIndex === null
         ? null
         : this.turnIndex === viewerIndex ? 'you' : 'opponent',
+      turnTimer: this.#turnTimerView(),
       you: viewer
         ? this.#playerView(viewer, true, showAll, clientId, viewerIndex)
         : null,
@@ -708,6 +737,7 @@ class GameRoom {
         ? { [this.stakeCurrency]: this.stakeBalances[player.playerId] }
         : {}),
       seriesWins: this.seriesWins[seatIndex] ?? 0,
+      missedTurns: this.missedTurns[seatIndex] ?? 0,
       lobbyReady: Boolean(this.lobbyReady[seatIndex]),
       rematchReady: Boolean(this.rematchReady[seatIndex]),
       launch: player.launch,
@@ -732,8 +762,11 @@ class GameRoom {
       this.#changed();
       return;
     }
+    // A real move clears the mover's miss streak. A timed-out turn does not.
+    if (!this.#autoPlaying) this.missedTurns[this.turnIndex] = 0;
     this.turnIndex = 1 - this.turnIndex;
     this.#restock();
+    this.#armTurnClock();
     this.#changed();
   }
 
@@ -948,6 +981,138 @@ class GameRoom {
     this.launchTimers.clear();
     this.#clearActivePeek();
     this.#clearActiveQueenAbility();
+    this.#clearTurnClock();
+    this.#clearRevealTimer();
+  }
+
+  /** Live turn-limit settings for this room, or null when timers are off. */
+  #timerConfig() {
+    return this.turnTimerConfig?.() ?? null;
+  }
+
+  /**
+   * Starts the clock for the seat on turn. Bot seats get one too, for display
+   * only, so a bot's seat looks like any other. It is never enforced.
+   */
+  #armTurnClock() {
+    this.#clearTurnClock();
+    const config = this.#timerConfig();
+    if (!config || this.status !== 'playing' || this.players.length !== 2) return;
+    if (!this.players.every((player) => player.launch === 'ended')) return;
+    const clock = {
+      seat: this.turnIndex,
+      limitMs: config.turnMs,
+      maxMissedTurns: config.maxMissedTurns,
+      deadline: this.now() + config.turnMs,
+      timer: null,
+    };
+    // The grace keeps a tap sent at 0:00 from landing after the timeout.
+    clock.timer = setTimeout(
+      () => this.#guardTimer(() => this.#onTurnClockExpired(clock)),
+      config.turnMs + this.turnGraceMs,
+    );
+    clock.timer.unref?.();
+    this.turnClock = clock;
+  }
+
+  #clearTurnClock() {
+    if (this.turnClock?.timer) clearTimeout(this.turnClock.timer);
+    this.turnClock = null;
+  }
+
+  #armRevealTimer() {
+    this.#clearRevealTimer();
+    const config = this.#timerConfig();
+    if (!config) return;
+    this.revealTimer = setTimeout(
+      () => this.#guardTimer(() => this.#onRevealExpired()),
+      config.revealMs,
+    );
+    this.revealTimer.unref?.();
+  }
+
+  #clearRevealTimer() {
+    if (this.revealTimer) clearTimeout(this.revealTimer);
+    this.revealTimer = null;
+  }
+
+  /** A seat that never reveals is revealed for it, so the room cannot stall. */
+  #onRevealExpired() {
+    this.revealTimer = null;
+    if (this.status !== 'playing' || !this.#timerConfig()) return;
+    for (const player of this.players) {
+      if (player.launch === 'notLaunched') this.launch(player.id);
+    }
+  }
+
+  /** The turn clock ran out. Each step re-checks the room, so a stale clock does nothing. */
+  #onTurnClockExpired(clock) {
+    if (this.turnClock !== clock || this.status !== 'playing') return;
+    if (clock.seat !== this.turnIndex) return;
+    if (!this.#timerConfig()) {
+      // Turned off since the turn began: show no clock and enforce nothing.
+      this.#clearTurnClock();
+      this.#changed();
+      return;
+    }
+    const player = this.players[clock.seat];
+    if (player.isBot) return;
+    if (
+      this.activePeek?.viewerId === player.id ||
+      this.activeQueenAbility?.viewerId === player.id
+    ) {
+      // The ability lock ends the turn itself. Check again if it did not.
+      clock.timer = setTimeout(
+        () => this.#guardTimer(() => this.#onTurnClockExpired(clock)),
+        LOCK_RETRY_MS,
+      );
+      clock.timer.unref?.();
+      return;
+    }
+    if (player.connected) {
+      this.missedTurns[clock.seat] += 1;
+      if (clock.maxMissedTurns > 0 && this.missedTurns[clock.seat] >= clock.maxMissedTurns) {
+        this.forfeit(player.id, { reason: 'timeout' });
+        return;
+      }
+    }
+    // A disconnected seat is played for but not counted: the 60 s grace owns its exit.
+    this.#autoPlay(player.id);
+  }
+
+  /** Plays a timed-out turn with the normal moves: draw if needed, then throw the card. */
+  #autoPlay(clientId) {
+    this.#autoPlaying = true;
+    try {
+      if (!this.#player(clientId).handCard) this.draw(clientId);
+      this.throwHand(clientId);
+    } catch (error) {
+      if (!(error instanceof GameRuleError)) throw error;
+      // Nothing can be drawn (deck empty), so the turn simply passes.
+      this.#advanceTurn();
+    } finally {
+      this.#autoPlaying = false;
+    }
+  }
+
+  /** Runs a timer callback. A rule error is expected here. Anything else is logged. */
+  #guardTimer(callback) {
+    try {
+      callback();
+    } catch (error) {
+      if (!(error instanceof GameRuleError)) console.error('[game-room timer]', error);
+    }
+  }
+
+  /** Remaining time for clients. It is relative, so no clock sync is needed. */
+  #turnTimerView() {
+    const clock = this.turnClock;
+    if (!clock || this.status !== 'playing') return null;
+    return {
+      limitMs: clock.limitMs,
+      remainingMs: Math.min(clock.limitMs, Math.max(0, Math.ceil(clock.deadline - this.now()))),
+      maxMissedTurns: clock.maxMissedTurns,
+    };
   }
 }
 

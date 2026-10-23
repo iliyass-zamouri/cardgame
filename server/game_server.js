@@ -93,6 +93,14 @@ const { acquireBotUser, isBotPlayer, listBotUsers } = require('./db/bots');
 const { ServerRobotPlayer } = require('./bot_player');
 const { iqForPot } = require('./bot_difficulty');
 const { homeMenuFromEnv } = require('./home_menu');
+const { THEMES, createThemeStore, parseThemePatch } = require('./app_theme');
+const {
+  DEFAULTS: TURN_TIMER_DEFAULTS,
+  BOUNDS: TURN_TIMER_BOUNDS,
+  createTurnTimerStore,
+  parseTurnTimerPatch,
+} = require('./turn_timer');
+const { getSetting, setSetting } = require('./db/app_settings');
 const {
   playerExists,
   upsertDeviceToken,
@@ -145,17 +153,74 @@ function assertAdminPushSecret(request, response) {
   return true;
 }
 
+const THEME_SETTING_KEY = 'app_theme';
+
+/** Admin theme switch, stored in app_settings. See server/app_theme.js. */
+function dbThemeStore() {
+  return createThemeStore({
+    read: async () => JSON.parse((await getSetting(THEME_SETTING_KEY)) ?? 'null'),
+    write: (record) => setSetting(THEME_SETTING_KEY, JSON.stringify(record)),
+  });
+}
+
+function adminThemeBody(state) {
+  return {
+    theme: state.id,
+    animated: state.animated,
+    source: state.source,
+    envDefault: state.envDefault,
+    available: THEMES,
+  };
+}
+
+const TURN_TIMER_SETTING_KEY = 'turn_timer';
+
+/** Admin turn limit, stored in app_settings. See server/turn_timer.js. */
+function dbTurnTimerStore() {
+  return createTurnTimerStore({
+    read: async () => {
+      // Without a database (tests, local runs) the code defaults apply.
+      if (!isDbReady()) return null;
+      const raw = await getSetting(TURN_TIMER_SETTING_KEY);
+      if (raw === null) return null;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        console.error('[turn-timer] stored settings are not JSON, using defaults');
+        return null;
+      }
+    },
+    write: (config) => setSetting(TURN_TIMER_SETTING_KEY, JSON.stringify(config)),
+  });
+}
+
+function adminTurnTimerBody(state) {
+  return {
+    enabled: state.enabled,
+    turnSeconds: state.turnSeconds,
+    maxMissedTurns: state.maxMissedTurns,
+    revealSeconds: state.revealSeconds,
+    source: state.source,
+    defaults: TURN_TIMER_DEFAULTS,
+    bounds: TURN_TIMER_BOUNDS,
+  };
+}
+
 class GameServer {
   constructor({
     port = 8080,
     host = '127.0.0.1',
     botMatchMinDelayMs = 2000,
     botMatchMaxDelayMs = 6000,
+    themeStore = dbThemeStore(),
+    turnTimerStore = dbTurnTimerStore(),
   } = {}) {
     this.port = port;
     this.host = host;
     this.botMatchMinDelayMs = botMatchMinDelayMs;
     this.botMatchMaxDelayMs = botMatchMaxDelayMs;
+    this.themeStore = themeStore;
+    this.turnTimerStore = turnTimerStore;
     this.rooms = new Map();
     this.clients = new Map();
     /** @type {Array<object>} FIFO matchmaking queue of client contexts */
@@ -186,6 +251,8 @@ class GameServer {
 
   async start() {
     if (this.httpServer) return this.address;
+    // Load the saved turn limit before the first match can be seated.
+    await this.turnTimerStore.refresh();
 
     this.httpServer = http.createServer((request, response) => {
       this.#handleHttp(request, response).catch((error) => {
@@ -491,10 +558,12 @@ class GameServer {
     }
 
     if (request.method === 'GET' && url.pathname === '/app/config') {
+      const theme = await this.themeStore.current();
       sendJson(response, 200, {
         minAndroidVersionCode: Number.parseInt(process.env.MIN_ANDROID_VERSION_CODE || '1', 10) || 1,
         softMinVersion: process.env.SOFT_MIN_VERSION || null,
         homeMenu: homeMenuFromEnv(),
+        theme: { id: theme.id, animated: theme.animated },
       });
       return;
     }
@@ -654,6 +723,26 @@ class GameServer {
 
     if (request.method === 'POST' && url.pathname === '/admin/push') {
       await this.#handleAdminPush(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/theme') {
+      await this.#handleAdminThemeGet(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/admin/theme') {
+      await this.#handleAdminThemeSet(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/turn-timer') {
+      await this.#handleAdminTurnTimerGet(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/admin/turn-timer') {
+      await this.#handleAdminTurnTimerSet(request, response);
       return;
     }
 
@@ -2036,6 +2125,7 @@ class GameServer {
       displayName: botUser.displayName,
       avatarId: botUser.avatarId || 'default',
       deckId: 'default',
+      isBot: true,
     });
     return entry;
   }
@@ -2385,6 +2475,17 @@ class GameServer {
     }
   }
 
+  /** Turn-limit settings a room reads at each turn. Null when timers are off. */
+  #turnTimerConfig() {
+    const config = this.turnTimerStore.current();
+    if (!config.enabled) return null;
+    return {
+      turnMs: config.turnSeconds * 1000,
+      revealMs: config.revealSeconds * 1000,
+      maxMissedTurns: config.maxMissedTurns,
+    };
+  }
+
   #createRoom(roomId, matchType = 'private', stakePool = 0, stakeCurrency = 'money') {
     const room = new GameRoom(roomId, {
       onChange: (changedRoom) => {
@@ -2405,6 +2506,7 @@ class GameServer {
           }
           throw error;
         }),
+      turnTimerConfig: () => this.#turnTimerConfig(),
     });
     room.matchType = matchType;
     room.stakePool = Number(stakePool) || 0;
@@ -2621,6 +2723,68 @@ class GameServer {
     } catch (error) {
       console.error('[notifications] mark read failed', error);
       sendJson(response, 500, { error: 'server_error', message: 'Mark read failed' });
+    }
+  }
+
+  async #handleAdminThemeGet(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    sendJson(response, 200, adminThemeBody(await this.themeStore.current()));
+  }
+
+  async #handleAdminThemeSet(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const { patch, error, message } = parseThemePatch(body);
+    if (error) {
+      sendJson(response, 400, { error, message });
+      return;
+    }
+    try {
+      sendJson(response, 200, adminThemeBody(await this.themeStore.set(patch)));
+    } catch (error) {
+      console.error('[admin/theme] save failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Theme save failed' });
+    }
+  }
+
+  async #handleAdminTurnTimerGet(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    await this.turnTimerStore.refresh();
+    sendJson(response, 200, adminTurnTimerBody(this.turnTimerStore.current()));
+  }
+
+  async #handleAdminTurnTimerSet(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const { patch, error, message } = parseTurnTimerPatch(body);
+    if (error) {
+      sendJson(response, 400, { error, message });
+      return;
+    }
+    try {
+      const saved = await this.turnTimerStore.set(patch);
+      console.log('[admin/turn-timer] saved', {
+        enabled: saved.enabled,
+        turnSeconds: saved.turnSeconds,
+        maxMissedTurns: saved.maxMissedTurns,
+        revealSeconds: saved.revealSeconds,
+      });
+      sendJson(response, 200, adminTurnTimerBody(saved));
+    } catch (error) {
+      console.error('[admin/turn-timer] save failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Turn timer save failed' });
     }
   }
 

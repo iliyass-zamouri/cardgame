@@ -77,7 +77,7 @@ class MatchHistoryCard extends StatelessWidget {
                   '${l10n.vs} ${item.opponentName}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.text,
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
@@ -86,7 +86,7 @@ class MatchHistoryCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   l10n.matchScoreLine(item.cardTotal, item.opponentCardTotal),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.textMuted,
                     fontSize: 12,
                   ),
@@ -109,7 +109,7 @@ class MatchHistoryCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 '${item.pointsEarned >= 0 ? '+' : ''}${item.pointsEarned} ${l10n.xp}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.goldSoft,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,

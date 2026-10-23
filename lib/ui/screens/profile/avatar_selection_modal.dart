@@ -98,7 +98,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
             shape: feltDialogShape,
             title: Text(
               avatarName,
-              style: const TextStyle(
+              style: TextStyle(
                 color: CasinoColors.gold,
                 fontWeight: FontWeight.w800,
                 fontFamily: CasinoFonts.display,
@@ -114,7 +114,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
                   children: [
                     Text(
                       '${l10n.price}: ',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: CasinoColors.text,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -124,7 +124,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
                     const SizedBox(width: 4),
                     Text(
                       '${avatar.price}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: CasinoColors.text,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -139,7 +139,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
                 onPressed: () => Navigator.of(dialogCtx).pop(false),
                 child: Text(
                   l10n.cancel,
-                  style: const TextStyle(color: CasinoColors.textMuted),
+                  style: TextStyle(color: CasinoColors.textMuted),
                 ),
               ),
               if (canAfford)
@@ -207,13 +207,13 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
     final avatars = AvatarCatalog.all;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [CasinoColors.leather, CasinoColors.leatherDeep],
         ),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(top: BorderSide(color: CasinoColors.gold, width: 1.5)),
       ),
       padding: EdgeInsets.only(
@@ -361,11 +361,11 @@ class _AvatarGridTile extends StatelessWidget {
                       right: 0,
                       child: Container(
                         padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: CasinoColors.gold,
                         ),
-                        child: const HugeIcon(
+                        child: HugeIcon(
                           icon: AppIcons.check,
                           size: 12,
                           color: CasinoColors.bg,
@@ -398,7 +398,7 @@ class _AvatarGridTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.goldSoft,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -410,7 +410,7 @@ class _AvatarGridTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.gold,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
@@ -427,7 +427,7 @@ class _AvatarGridTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: CasinoColors.goldSoft,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,

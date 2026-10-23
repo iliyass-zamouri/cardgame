@@ -162,49 +162,63 @@ class _HeroCardFanState extends State<HeroCardFan>
         ),
     ];
 
-    return SizedBox(
-      height: widget.height,
-      width: double.infinity,
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_spread, _float]),
-        builder: (context, _) {
-          final s = Curves.easeOutCubic.transform(_spread.value);
-          final phase = _float.value * 2 * math.pi;
-          final bob = math.sin(phase) * 4;
-          return Stack(
-            alignment: Alignment.bottomCenter,
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: [
-                        CasinoColors.gold.withValues(alpha: 0.22),
-                        Colors.transparent,
-                      ],
-                      stops: const [0, 0.7],
-                    ),
+    // The idle bob repaints every frame; its own layer keeps that from
+    // repainting the rest of the home page with it.
+    return RepaintBoundary(
+      child: SizedBox(
+        height: widget.height,
+        width: double.infinity,
+        child: Stack(
+          alignment: Alignment.bottomCenter,
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [
+                      CasinoColors.gold.withValues(alpha: 0.22),
+                      Colors.transparent,
+                    ],
+                    stops: const [0, 0.7],
                   ),
                 ),
               ),
-              for (final i in _paintOrder)
-                Transform.translate(
-                  offset: Offset(
-                    (i - 2) * cardW * 0.42 * s,
-                    -widget.height * 0.06 +
-                        (i - 2).abs() * cardH * 0.04 * s +
-                        bob * (i.isEven ? 1 : 0.7),
-                  ),
-                  child: Transform.rotate(
+            ),
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: Listenable.merge([_spread, _float]),
+                builder: (context, _) {
+                  final s = Curves.easeOutCubic.transform(_spread.value);
+                  final phase = _float.value * 2 * math.pi;
+                  final bob = math.sin(phase) * 4;
+                  return Stack(
                     alignment: Alignment.bottomCenter,
-                    angle: (i - 2) * 0.16 * s + math.sin(phase + i) * 0.012,
-                    child: cards[i],
-                  ),
-                ),
-            ],
-          );
-        },
+                    clipBehavior: Clip.none,
+                    children: [
+                      for (final i in _paintOrder)
+                        Transform.translate(
+                          offset: Offset(
+                            (i - 2) * cardW * 0.42 * s,
+                            -widget.height * 0.06 +
+                                (i - 2).abs() * cardH * 0.04 * s +
+                                bob * (i.isEven ? 1 : 0.7),
+                          ),
+                          child: Transform.rotate(
+                            alignment: Alignment.bottomCenter,
+                            angle:
+                                (i - 2) * 0.16 * s +
+                                math.sin(phase + i) * 0.012,
+                            child: cards[i],
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -333,10 +347,10 @@ class PrimaryPlayCard extends StatelessWidget {
         height: 92,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFFFE08A), CasinoColors.gold, Color(0xFFC8961E)],
+            colors: [CasinoColors.goldHi, CasinoColors.gold, CasinoColors.goldLo],
           ),
           boxShadow: [
             BoxShadow(
@@ -750,15 +764,25 @@ class _HomeNavBarState extends State<HomeNavBar>
         children: [
           // The leather only repaints when the tab count or inset changes;
           // a slide repaints just the selection layer above it.
-          RepaintBoundary(
-            child: CustomPaint(
-              painter: _NavBarBodyPainter(count: count, bottomInset: bottom),
+          IgnorePointer(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: _NavBarBodyPainter(count: count, bottomInset: bottom),
+              ),
             ),
           ),
-          RepaintBoundary(
-            child: CustomPaint(
-              painter: _NavSelectionPainter(count: count, slot: _slot),
+          IgnorePointer(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: _NavSelectionPainter(count: count, slot: _slot),
+              ),
             ),
+          ),
+          // Only the leather swallows taps; the see-through strip above the
+          // arc lets them reach the page underneath.
+          const ClipPath(
+            clipper: _NavBodyClipper(),
+            child: ColoredBox(color: Colors.transparent),
           ),
           Padding(
             padding: EdgeInsets.only(bottom: bottom),
@@ -796,6 +820,16 @@ Path _navBody(Size size) =>
       ..lineTo(0, size.height)
       ..close();
 
+class _NavBodyClipper extends CustomClipper<Path> {
+  const _NavBodyClipper();
+
+  @override
+  Path getClip(Size size) => _navBody(size);
+
+  @override
+  bool shouldReclip(covariant _NavBodyClipper oldClipper) => false;
+}
+
 class _NavBarBodyPainter extends CustomPainter {
   _NavBarBodyPainter({required this.count, required this.bottomInset});
 
@@ -812,10 +846,10 @@ class _NavBarBodyPainter extends CustomPainter {
     canvas.drawPath(
       body,
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF4A2C1B), Color(0xFF2B1A12), Color(0xFF170D08)],
+          colors: [const Color(0xFF4A2C1B), CasinoColors.leather, CasinoColors.leatherDeep],
         ).createShader(Offset.zero & size),
     );
 
@@ -909,10 +943,10 @@ class _NavSelectionPainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFE08A), CasinoColors.gold, Color(0xFFC8961E)],
+          colors: [CasinoColors.goldHi, CasinoColors.gold, CasinoColors.goldLo],
         ).createShader(
           Rect.fromLTRB(left, y(cx) - band - peak, right, y(left) + 1),
         ),

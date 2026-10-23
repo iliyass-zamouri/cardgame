@@ -172,7 +172,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16),
                       child: Text(
                         err.toString(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: CasinoColors.foldHi,
                           fontSize: 13,
                         ),
@@ -186,7 +186,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                     child: Center(
                       child: Text(
                         l10n.matchHistoryEmpty,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: CasinoColors.textMuted,
                           fontSize: 13,
                         ),
@@ -476,8 +476,8 @@ class _GoldBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFE08A), CasinoColors.gold],
+        gradient: LinearGradient(
+          colors: [CasinoColors.goldHi, CasinoColors.gold],
         ),
       ),
       child: Text(

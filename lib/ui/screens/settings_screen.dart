@@ -61,28 +61,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           (ctx) => AlertDialog(
             backgroundColor: CasinoColors.surface,
             shape: feltDialogShape,
-            title: const Text(
+            title: Text(
               'Delete Account',
               style: TextStyle(
                 color: CasinoColors.text,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            content: const Text(
+            content: Text(
               'This permanently deletes your account and progress. This cannot be undone.',
               style: TextStyle(color: CasinoColors.textMuted),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text(
+                child: Text(
                   'Cancel',
                   style: TextStyle(color: CasinoColors.textMuted),
                 ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text(
+                child: Text(
                   'Delete',
                   style: TextStyle(color: CasinoColors.foldHi),
                 ),
@@ -360,7 +360,7 @@ class _ProfileCard extends StatelessWidget {
                         '@${profile.username}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: CasinoColors.goldSoft,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -381,7 +381,7 @@ class _ProfileCard extends StatelessWidget {
                       ),
                       child: Text(
                         authLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: CasinoColors.goldSoft,
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
@@ -517,7 +517,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
       shape: feltDialogShape,
       title: Text(
         l10n.editProfile,
-        style: const TextStyle(
+        style: TextStyle(
           color: CasinoColors.text,
           fontWeight: FontWeight.w800,
         ),
@@ -529,7 +529,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
           children: [
             Text(
               l10n.displayName,
-              style: const TextStyle(
+              style: TextStyle(
                 color: CasinoColors.goldSoft,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -538,7 +538,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
             const SizedBox(height: 6),
             TextField(
               controller: _nameController,
-              style: const TextStyle(color: CasinoColors.text),
+              style: TextStyle(color: CasinoColors.text),
               decoration: InputDecoration(
                 fillColor: CasinoColors.bgElevated,
                 filled: true,
@@ -551,7 +551,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
             const SizedBox(height: 16),
             Text(
               l10n.changeUsername,
-              style: const TextStyle(
+              style: TextStyle(
                 color: CasinoColors.goldSoft,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -560,14 +560,14 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
             const SizedBox(height: 6),
             TextField(
               controller: _usernameController,
-              style: const TextStyle(color: CasinoColors.text),
+              style: TextStyle(color: CasinoColors.text),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
                 _LowerCaseFormatter(),
               ],
               decoration: InputDecoration(
                 prefixText: '@ ',
-                prefixStyle: const TextStyle(color: CasinoColors.goldSoft),
+                prefixStyle: TextStyle(color: CasinoColors.goldSoft),
                 fillColor: CasinoColors.bgElevated,
                 filled: true,
                 border: OutlineInputBorder(
@@ -580,7 +580,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
               const SizedBox(height: 10),
               Text(
                 _error!,
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.foldHi,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -595,7 +595,7 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(
             l10n.cancel,
-            style: const TextStyle(color: CasinoColors.textMuted),
+            style: TextStyle(color: CasinoColors.textMuted),
           ),
         ),
         GoldButton(
@@ -665,12 +665,12 @@ class _ProCardState extends ConsumerState<_ProCard> {
   @override
   Widget build(BuildContext context) {
     if (widget.isPro) {
-      return const FeltPanel(
+      return FeltPanel(
         highlighted: true,
         child: Row(
           children: [
             FeltMedallion(icon: AppIcons.premium, color: CasinoColors.gold),
-            SizedBox(width: 14),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -684,7 +684,7 @@ class _ProCardState extends ConsumerState<_ProCard> {
                       fontSize: 16,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
                     'Active • Ad-free experience enabled',
                     style: TextStyle(

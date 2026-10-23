@@ -1016,6 +1016,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get opponentQuit => 'Opponent quit';
 
   @override
+  String get turnTimedOut => 'Time\'s up. Your turn was played for you.';
+
+  @override
+  String turnTimedOutWarning(int remaining) {
+    return 'Time\'s up. Your turn was played for you. Turns left before you forfeit: $remaining.';
+  }
+
+  @override
+  String get youTimedOut => 'You ran out of time';
+
+  @override
+  String get opponentTimedOut => 'Opponent ran out of time';
+
+  @override
   String get matchResultQuit => 'QUIT';
 
   @override

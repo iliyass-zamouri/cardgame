@@ -60,7 +60,7 @@ class LanguageSwitcher extends ConsumerWidget {
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: () => openPicker(context),
-          child: const SizedBox(
+          child: SizedBox(
             width: 40,
             height: 40,
             child: HugeIcon(icon: AppIcons.public, color: CasinoColors.goldSoft,
@@ -83,13 +83,13 @@ class LanguageSwitcher extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const HugeIcon(icon: AppIcons.public, color: CasinoColors.goldSoft,
+              HugeIcon(icon: AppIcons.public, color: CasinoColors.goldSoft,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Text(
                 l10n.changeLanguage,
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.goldSoft,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -125,14 +125,14 @@ class _LanguagePickerDialog extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
-                  const HugeIcon(icon: AppIcons.public, color: CasinoColors.goldSoft,
+                  HugeIcon(icon: AppIcons.public, color: CasinoColors.goldSoft,
                     size: 22,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       l10n.language,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: CasinoColors.text,
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -142,7 +142,7 @@ class _LanguagePickerDialog extends ConsumerWidget {
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const HugeIcon(icon: AppIcons.close, color: CasinoColors.textMuted,
+                    icon: HugeIcon(icon: AppIcons.close, color: CasinoColors.textMuted,
                       size: 22,
                     ),
                   ),
@@ -211,7 +211,7 @@ class _LanguageTile extends StatelessWidget {
                   ),
                 ),
                 if (selected)
-                  const HugeIcon(icon: AppIcons.check, color: CasinoColors.gold,
+                  HugeIcon(icon: AppIcons.check, color: CasinoColors.gold,
                     size: 20,
                   ),
               ],

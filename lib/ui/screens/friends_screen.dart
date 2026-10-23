@@ -66,7 +66,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
                     ),
                     child: Text(
                       '$incomingCount',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: CasinoColors.text,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
@@ -114,7 +114,7 @@ class _FriendsListTab extends ConsumerWidget {
                   Text(
                     err.toString(),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: CasinoColors.foldHi),
+                    style: TextStyle(color: CasinoColors.foldHi),
                   ),
                   const SizedBox(height: 12),
                   GoldButton(
@@ -144,7 +144,7 @@ class _FriendsListTab extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(
                     l10n.noFriendsYet,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: CasinoColors.text,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -154,7 +154,7 @@ class _FriendsListTab extends ConsumerWidget {
                   Text(
                     l10n.noFriendsHint,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: CasinoColors.textMuted,
                       fontSize: 13,
                     ),
@@ -232,7 +232,7 @@ class _FriendCard extends ConsumerWidget {
                             friend.displayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: CasinoColors.text,
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
@@ -253,7 +253,7 @@ class _FriendCard extends ConsumerWidget {
                           ),
                           child: Text(
                             '${friend.elo} ${l10n.elo}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: CasinoColors.goldSoft,
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
@@ -267,7 +267,7 @@ class _FriendCard extends ConsumerWidget {
                       children: [
                         Text(
                           '@${friend.username}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: CasinoColors.gold,
                             fontSize: 12,
                           ),
@@ -279,7 +279,7 @@ class _FriendCard extends ConsumerWidget {
                             friend.losses,
                             friend.draws,
                           ),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: CasinoColors.textMuted,
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
@@ -291,7 +291,7 @@ class _FriendCard extends ConsumerWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: const HugeIcon(
+                icon: HugeIcon(
                   icon: AppIcons.moreVert,
                   color: CasinoColors.textMuted,
                 ),
@@ -307,14 +307,14 @@ class _FriendCard extends ConsumerWidget {
                             shape: feltDialogShape,
                             title: Text(
                               l10n.removeFriend,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: CasinoColors.text,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                             content: Text(
                               l10n.removeFriendConfirm(friend.displayName),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: CasinoColors.textMuted,
                               ),
                             ),
@@ -323,7 +323,7 @@ class _FriendCard extends ConsumerWidget {
                                 onPressed: () => Navigator.of(ctx).pop(false),
                                 child: Text(
                                   l10n.cancel,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: CasinoColors.textMuted,
                                   ),
                                 ),
@@ -332,7 +332,7 @@ class _FriendCard extends ConsumerWidget {
                                 onPressed: () => Navigator.of(ctx).pop(true),
                                 child: Text(
                                   l10n.removeFriend,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: CasinoColors.foldHi,
                                   ),
                                 ),
@@ -355,7 +355,7 @@ class _FriendCard extends ConsumerWidget {
                           (ctx) => AlertDialog(
                             backgroundColor: CasinoColors.surface,
                             shape: feltDialogShape,
-                            title: const Text(
+                            title: Text(
                               'Block Player',
                               style: TextStyle(
                                 color: CasinoColors.text,
@@ -364,7 +364,7 @@ class _FriendCard extends ConsumerWidget {
                             ),
                             content: Text(
                               'Block ${friend.displayName}? They will no longer be able to interact with you.',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: CasinoColors.textMuted,
                               ),
                             ),
@@ -373,14 +373,14 @@ class _FriendCard extends ConsumerWidget {
                                 onPressed: () => Navigator.of(ctx).pop(false),
                                 child: Text(
                                   l10n.cancel,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: CasinoColors.textMuted,
                                   ),
                                 ),
                               ),
                               TextButton(
                                 onPressed: () => Navigator.of(ctx).pop(true),
-                                child: const Text(
+                                child: Text(
                                   'Block',
                                   style: TextStyle(color: CasinoColors.foldHi),
                                 ),
@@ -431,7 +431,7 @@ class _FriendCard extends ConsumerWidget {
                         value: 'remove',
                         child: Row(
                           children: [
-                            const HugeIcon(
+                            HugeIcon(
                               icon: AppIcons.personRemove,
                               color: CasinoColors.foldHi,
                               size: 18,
@@ -439,7 +439,7 @@ class _FriendCard extends ConsumerWidget {
                             const SizedBox(width: 8),
                             Text(
                               l10n.removeFriend,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: CasinoColors.foldHi,
                                 fontSize: 13,
                               ),
@@ -447,7 +447,7 @@ class _FriendCard extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'block',
                         child: Row(
                           children: [
@@ -456,7 +456,7 @@ class _FriendCard extends ConsumerWidget {
                               color: CasinoColors.foldHi,
                               size: 18,
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Text(
                               'Block',
                               style: TextStyle(
@@ -467,7 +467,7 @@ class _FriendCard extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'report',
                         child: Row(
                           children: [
@@ -476,7 +476,7 @@ class _FriendCard extends ConsumerWidget {
                               color: CasinoColors.gold,
                               size: 18,
                             ),
-                            SizedBox(width: 8),
+                            const SizedBox(width: 8),
                             Text(
                               'Report',
                               style: TextStyle(
@@ -511,7 +511,7 @@ class _FriendRequestsTab extends ConsumerWidget {
           (err, _) => Center(
             child: Text(
               err.toString(),
-              style: const TextStyle(color: CasinoColors.foldHi),
+              style: TextStyle(color: CasinoColors.foldHi),
             ),
           ),
       data: (data) {
@@ -533,7 +533,7 @@ class _FriendRequestsTab extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(
                     l10n.noRequests,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: CasinoColors.textMuted,
                       fontSize: 15,
                     ),
@@ -599,7 +599,7 @@ class _IncomingRequestCard extends ConsumerWidget {
                   request.displayName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.text,
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
@@ -607,7 +607,7 @@ class _IncomingRequestCard extends ConsumerWidget {
                 ),
                 Text(
                   '@${request.username}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.textMuted,
                     fontSize: 12,
                   ),
@@ -673,7 +673,7 @@ class _OutgoingRequestCard extends ConsumerWidget {
                   request.displayName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.text,
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
@@ -681,7 +681,7 @@ class _OutgoingRequestCard extends ConsumerWidget {
                 ),
                 Text(
                   '@${request.username}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.textMuted,
                     fontSize: 12,
                   ),
@@ -735,18 +735,18 @@ class _SearchPlayersTabState extends ConsumerState<_SearchPlayersTab> {
         children: [
           TextField(
             controller: _searchController,
-            style: const TextStyle(color: CasinoColors.text),
+            style: TextStyle(color: CasinoColors.text),
             decoration: InputDecoration(
               hintText: l10n.searchByUsername,
-              hintStyle: const TextStyle(color: CasinoColors.textMuted),
-              prefixIcon: const HugeIcon(
+              hintStyle: TextStyle(color: CasinoColors.textMuted),
+              prefixIcon: HugeIcon(
                 icon: AppIcons.search,
                 color: CasinoColors.goldSoft,
               ),
               suffixIcon:
                   _searchController.text.isNotEmpty
                       ? IconButton(
-                        icon: const HugeIcon(
+                        icon: HugeIcon(
                           icon: AppIcons.clear,
                           color: CasinoColors.textMuted,
                         ),
@@ -766,7 +766,7 @@ class _SearchPlayersTabState extends ConsumerState<_SearchPlayersTab> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(
+                borderSide: BorderSide(
                   color: CasinoColors.gold,
                   width: 1.5,
                 ),
@@ -787,7 +787,7 @@ class _SearchPlayersTabState extends ConsumerState<_SearchPlayersTab> {
                   return Center(
                     child: Text(
                       searchState.error!,
-                      style: const TextStyle(color: CasinoColors.foldHi),
+                      style: TextStyle(color: CasinoColors.foldHi),
                     ),
                   );
                 }
@@ -796,7 +796,7 @@ class _SearchPlayersTabState extends ConsumerState<_SearchPlayersTab> {
                   return Center(
                     child: Text(
                       l10n.noPlayersFound,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: CasinoColors.textMuted,
                         fontSize: 14,
                       ),
@@ -807,7 +807,7 @@ class _SearchPlayersTabState extends ConsumerState<_SearchPlayersTab> {
                   return Center(
                     child: Text(
                       l10n.searchByUsername,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: CasinoColors.textMuted,
                         fontSize: 14,
                       ),
@@ -852,7 +852,7 @@ class _SearchResultCard extends ConsumerWidget {
           ),
           child: Text(
             l10n.youTag,
-            style: const TextStyle(
+            style: TextStyle(
               color: CasinoColors.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.w700,
@@ -873,7 +873,7 @@ class _SearchResultCard extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const HugeIcon(
+              HugeIcon(
                 icon: AppIcons.check,
                 color: CasinoColors.raiseHi,
                 size: 14,
@@ -881,7 +881,7 @@ class _SearchResultCard extends ConsumerWidget {
               const SizedBox(width: 4),
               Text(
                 l10n.alreadyFriends,
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.raiseHi,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -900,7 +900,7 @@ class _SearchResultCard extends ConsumerWidget {
           ),
           child: Text(
             l10n.requestSent,
-            style: const TextStyle(
+            style: TextStyle(
               color: CasinoColors.goldSoft,
               fontSize: 12,
               fontWeight: FontWeight.w700,
@@ -948,7 +948,7 @@ class _SearchResultCard extends ConsumerWidget {
                         player.displayName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: CasinoColors.text,
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
@@ -969,7 +969,7 @@ class _SearchResultCard extends ConsumerWidget {
                       ),
                       child: Text(
                         '${player.elo} ${l10n.elo}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: CasinoColors.goldSoft,
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
@@ -980,7 +980,7 @@ class _SearchResultCard extends ConsumerWidget {
                 ),
                 Text(
                   '@${player.username}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.textMuted,
                     fontSize: 12,
                   ),

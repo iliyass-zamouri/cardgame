@@ -35,13 +35,9 @@ final notifyPrefsProvider =
 class NotifyPrefsNotifier extends AsyncNotifier<NotifyPrefs> {
   @override
   Future<NotifyPrefs> build() async {
-    final profile = ref.watch(playerProfileProvider).value;
-    final playerId = profile?.playerId;
-    final accessToken = profile?.accessToken;
-    if (playerId == null ||
-        playerId.isEmpty ||
-        accessToken == null ||
-        accessToken.isEmpty) {
+    // Only identity matters; balance or cosmetic changes must not refetch.
+    final (:playerId, :accessToken) = ref.watch(playerAuthProvider);
+    if (playerId.isEmpty || accessToken == null || accessToken.isEmpty) {
       return const NotifyPrefs.allOn();
     }
     try {
@@ -107,13 +103,9 @@ final notificationsUnreadCountProvider = Provider<int>((ref) {
 class NotificationsInboxNotifier extends AsyncNotifier<NotificationsInbox> {
   @override
   Future<NotificationsInbox> build() async {
-    final profile = ref.watch(playerProfileProvider).value;
-    final playerId = profile?.playerId;
-    final accessToken = profile?.accessToken;
-    if (playerId == null ||
-        playerId.isEmpty ||
-        accessToken == null ||
-        accessToken.isEmpty) {
+    // Only identity matters; balance or cosmetic changes must not refetch.
+    final (:playerId, :accessToken) = ref.watch(playerAuthProvider);
+    if (playerId.isEmpty || accessToken == null || accessToken.isEmpty) {
       return const NotificationsInbox.empty();
     }
     try {

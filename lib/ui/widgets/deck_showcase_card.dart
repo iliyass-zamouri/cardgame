@@ -71,11 +71,11 @@ class DeckShowcaseCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
         child: DecoratedBox(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF3A2416), CasinoColors.leatherDeep],
+              colors: [const Color(0xFF3A2416), CasinoColors.leatherDeep],
             ),
           ),
           child: Column(
@@ -96,7 +96,7 @@ class DeckShowcaseCard extends StatelessWidget {
                             colors: [
                               Color.lerp(const Color(0xFF2A8A59), frame, 0.25)!,
                               CasinoColors.feltDeep,
-                              const Color(0xFF0A2618),
+                              CasinoColors.feltEdge,
                             ],
                             stops: const [0, 0.6, 1],
                           ),
@@ -131,7 +131,7 @@ class DeckShowcaseCard extends StatelessWidget {
                         end: 8,
                         child:
                             equipped
-                                ? const _StatusDot(
+                                ? _StatusDot(
                                   icon: AppIcons.check,
                                   color: CasinoColors.gold,
                                 )
@@ -192,7 +192,7 @@ class DeckShowcaseCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: CasinoColors.textMuted,
                           fontWeight: FontWeight.w600,
                           fontSize: 10.5,

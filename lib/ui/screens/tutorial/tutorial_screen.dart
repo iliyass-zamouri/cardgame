@@ -160,7 +160,7 @@ class _LessonHeader extends StatelessWidget {
       children: [
         Text(
           context.l10n.tutLessonProgress(index + 1, total),
-          style: const TextStyle(
+          style: TextStyle(
             color: CasinoColors.goldSoft,
             fontSize: 12.5,
             fontWeight: FontWeight.w700,
@@ -311,7 +311,7 @@ class _LessonDoneOverlay extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.check_circle_rounded,
                   color: CasinoColors.success,
                   size: 44,
@@ -372,7 +372,7 @@ class _FinishedCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.emoji_events_rounded,
               color: CasinoColors.gold,
               size: 56,

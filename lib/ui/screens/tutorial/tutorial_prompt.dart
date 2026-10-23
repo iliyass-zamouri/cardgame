@@ -80,13 +80,13 @@ class TutorialPromptSheet extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [CasinoColors.leather, CasinoColors.leatherDeep],
         ),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border(top: BorderSide(color: CasinoColors.gold, width: 1.5)),
       ),
       child: SafeArea(
@@ -123,7 +123,7 @@ class TutorialPromptSheet extends ConsumerWidget {
             Text(
               l10n.tutPromptBody,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: CasinoColors.text,
                 fontSize: 14.5,
                 height: 1.4,

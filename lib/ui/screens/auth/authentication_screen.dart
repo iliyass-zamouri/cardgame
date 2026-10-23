@@ -140,7 +140,7 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
             Text(
               l10n.tagline,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: CasinoColors.goldSoft,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -160,7 +160,7 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
             Text(
               l10n.signInToPlay,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: CasinoColors.text, fontSize: 14),
+              style: TextStyle(color: CasinoColors.text, fontSize: 14),
             ),
             const SizedBox(height: 18),
             if (_error != null) ...[
@@ -198,12 +198,12 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                _LegalLink(label: 'Terms of Service', url: TOS_URL),
-                const Text(
+                const _LegalLink(label: 'Terms of Service', url: TOS_URL),
+                Text(
                   '·',
                   style: TextStyle(color: CasinoColors.goldSoft),
                 ),
-                _LegalLink(label: 'Privacy Policy', url: PRIVACY_URL),
+                const _LegalLink(label: 'Privacy Policy', url: PRIVACY_URL),
               ],
             ),
             const Spacer(flex: 1),

@@ -139,6 +139,8 @@
       <button type="button" data-tab="players" role="tab">Players</button>
       <button type="button" data-tab="data" role="tab">Data <span class="badge" id="badge-data">0</span></button>
       <button type="button" data-tab="push" role="tab">Push</button>
+      <button type="button" data-tab="theme" role="tab">Theme</button>
+      <button type="button" data-tab="gameplay" role="tab">Gameplay</button>
     </nav>
 
     <div id="panel-overview" class="panel on" role="tabpanel">
@@ -320,13 +322,76 @@
         </div>
       </section>
     </div>
+
+    <div id="panel-theme" class="panel" role="tabpanel">
+      <section class="card">
+        <h2>App theme</h2>
+        <p class="cap" style="margin-top:-6px;margin-bottom:12px">
+          Players pick this up on their next config refresh: cold start, or returning to the app.
+          Halloween adds a motion backdrop. Turn it off here if it stutters on some phones.
+        </p>
+        <div class="field-grid">
+          <div class="field">
+            <label for="th-theme">Theme</label>
+            <select id="th-theme"></select>
+          </div>
+          <div class="field">
+            <label for="th-animated">Animated backdrop</label>
+            <input id="th-animated" type="checkbox" checked style="width:auto" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-muted" type="button" id="th-reset">Use env default</button>
+          <button class="btn-primary" type="button" id="th-apply">Apply</button>
+          <span class="msg" id="th-msg"></span>
+        </div>
+        <p class="cap" id="th-current">—</p>
+        <p class="cap" id="th-env"></p>
+      </section>
+    </div>
+
+    <div id="panel-gameplay" class="panel" role="tabpanel">
+      <section class="card">
+        <h2>Turn timer</h2>
+        <p class="cap" style="margin-top:-6px;margin-bottom:12px">
+          How long a player has to act in an online match. Changes apply from each player's next turn.
+          On timeout the server plays the turn for them. Bots are never timed out.
+          A timeout forfeit counts as a quit: the stake is lost and 15 ranking points are taken.
+        </p>
+        <div class="field-grid">
+          <div class="field">
+            <label for="tt-enabled">Enabled</label>
+            <input id="tt-enabled" type="checkbox" checked style="width:auto" />
+          </div>
+          <div class="field">
+            <label for="tt-turn">Turn time (seconds)</label>
+            <input id="tt-turn" type="number" min="10" max="120" step="1" />
+          </div>
+          <div class="field">
+            <label for="tt-missed">Forfeit after missed turns in a row (0 = never)</label>
+            <input id="tt-missed" type="number" min="0" max="10" step="1" />
+          </div>
+          <div class="field">
+            <label for="tt-reveal">Reveal time (seconds)</label>
+            <input id="tt-reveal" type="number" min="5" max="60" step="1" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-muted" type="button" id="tt-defaults">Restore defaults</button>
+          <button class="btn-primary" type="button" id="tt-apply">Apply</button>
+          <span class="msg" id="tt-msg"></span>
+        </div>
+        <p class="cap" id="tt-current">—</p>
+        <p class="cap" id="tt-total"></p>
+      </section>
+    </div>
   </div>
 
   <script>
   (function () {
     const STORAGE_KEY = 'shadowhand.adminSecret';
     const TAB_KEY = 'shadowhand.adminTab';
-    const TABS = ['overview', 'live', 'matches', 'players', 'data', 'push'];
+    const TABS = ['overview', 'live', 'matches', 'players', 'data', 'push', 'theme', 'gameplay'];
     const COLORS = {
       ink: '#111827', up: '#16a34a', down: '#e11d48', warn: '#d97706',
       info: '#2563eb', muted: '#9ca3af', tick: '#6b7280',
@@ -457,6 +522,78 @@
       });
       requestAnimationFrame(() => charts.forEach((c) => c.resize()));
       if (tab === 'data' && secret) void loadDataPlayers();
+      if (tab === 'theme' && secret) void loadTheme();
+      if (tab === 'gameplay' && secret) void loadTurnTimer();
+    }
+
+    function renderTheme(state) {
+      const select = $('th-theme');
+      if (!select.options.length) {
+        for (const id of state.available || []) {
+          select.add(new Option(id.charAt(0).toUpperCase() + id.slice(1), id));
+        }
+      }
+      select.value = state.theme;
+      $('th-animated').checked = state.animated !== false;
+      const source = state.source === 'admin' ? 'set in admin' : 'env default';
+      $('th-current').textContent = `Live: ${state.theme} · ${source}`;
+      $('th-env').textContent = `APP_THEME fallback: ${state.envDefault}`;
+    }
+
+    async function loadTheme() {
+      try {
+        renderTheme(await api('/admin/theme'));
+      } catch (error) {
+        setMsg('th-msg', error.message || 'Could not load theme', false);
+      }
+    }
+
+    async function saveTheme(payload) {
+      setMsg('th-msg', 'Saving…', true);
+      try {
+        renderTheme(await apiPost('/admin/theme', payload));
+        setMsg('th-msg', 'Saved · running apps pick it up on resume', true);
+      } catch (error) {
+        setMsg('th-msg', error.message || 'Save failed', false);
+      }
+    }
+
+    let turnTimerDefaults = null;
+
+    function fillTurnTimerForm(values) {
+      $('tt-enabled').checked = values.enabled !== false;
+      $('tt-turn').value = values.turnSeconds;
+      $('tt-missed').value = values.maxMissedTurns;
+      $('tt-reveal').value = values.revealSeconds;
+    }
+
+    function renderTurnTimer(state) {
+      turnTimerDefaults = state.defaults || turnTimerDefaults;
+      fillTurnTimerForm(state);
+      const source = state.source === 'admin' ? 'set in admin' : 'code default';
+      $('tt-current').textContent =
+        `Live: ${state.enabled ? 'on' : 'off'} · ${state.turnSeconds}s per turn · ${source}`;
+      $('tt-total').textContent = state.maxMissedTurns > 0
+        ? `Forfeit after ${state.maxMissedTurns} missed turns in a row: about ${state.maxMissedTurns * (state.turnSeconds + 1)} s of their own turns.`
+        : 'Timeouts never forfeit: the turn is only played for the player.';
+    }
+
+    async function loadTurnTimer() {
+      try {
+        renderTurnTimer(await api('/admin/turn-timer'));
+      } catch (error) {
+        setMsg('tt-msg', error.message || 'Could not load turn timer', false);
+      }
+    }
+
+    async function saveTurnTimer(payload) {
+      setMsg('tt-msg', 'Saving…', true);
+      try {
+        renderTurnTimer(await apiPost('/admin/turn-timer', payload));
+        setMsg('tt-msg', 'Saved · applies from each player’s next turn', true);
+      } catch (error) {
+        setMsg('tt-msg', error.message || 'Save failed', false);
+      }
     }
 
     function renderOverviewKpis(live, s) {
@@ -970,6 +1107,24 @@
       } finally {
         $('pu-send').disabled = false;
       }
+    });
+
+    $('th-apply').addEventListener('click', () => void saveTheme({
+      theme: $('th-theme').value,
+      animated: $('th-animated').checked,
+    }));
+    $('th-reset').addEventListener('click', () => void saveTheme({ theme: null }));
+
+    $('tt-apply').addEventListener('click', () => void saveTurnTimer({
+      enabled: $('tt-enabled').checked,
+      turnSeconds: Number($('tt-turn').value),
+      maxMissedTurns: Number($('tt-missed').value),
+      revealSeconds: Number($('tt-reveal').value),
+    }));
+    $('tt-defaults').addEventListener('click', () => {
+      if (!turnTimerDefaults) return;
+      fillTurnTimerForm(turnTimerDefaults);
+      setMsg('tt-msg', 'Defaults filled in · press Apply to save', true);
     });
 
     if (secret) {

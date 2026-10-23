@@ -434,6 +434,15 @@
   "later": "Later",
   "youQuit": "You quit",
   "opponentQuit": "Opponent quit",
+  "turnTimedOut": "Time's up. Your turn was played for you.",
+  "turnTimedOutWarning": "Time's up. Your turn was played for you. Turns left before you forfeit: {remaining}.",
+  "@turnTimedOutWarning": {
+    "placeholders": {
+      "remaining": {"type": "int"}
+    }
+  },
+  "youTimedOut": "You ran out of time",
+  "opponentTimedOut": "Opponent ran out of time",
   "matchResultQuit": "QUIT",
   "leaveMatchPenaltyMessage": "Leaving now counts as a loss: you'll lose your stake and 15 points.",
   "notEnoughMoneyTitle": "Not enough money",

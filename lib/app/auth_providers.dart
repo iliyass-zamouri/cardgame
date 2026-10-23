@@ -464,3 +464,23 @@ final playerProfileProvider =
     AsyncNotifierProvider<PlayerProfileNotifier, PlayerProfile>(
       PlayerProfileNotifier.new,
     );
+
+/// Who authenticated API calls run as.
+typedef PlayerAuth = ({String playerId, String? accessToken});
+
+/// [playerProfileProvider] narrowed to the fields server-backed lists key on.
+///
+/// The profile also changes whenever balances move (a stake at match start,
+/// the payout at the end, a purchase) or a cosmetic is equipped. Watching the
+/// whole profile refetched ranks, history, friends and the inbox on each of
+/// those, and flashed their loaders on screens kept mounted.
+final playerAuthProvider = Provider<PlayerAuth>(
+  (ref) => ref.watch(
+    playerProfileProvider.select(
+      (profile) => (
+        playerId: profile.value?.playerId ?? '',
+        accessToken: profile.value?.accessToken,
+      ),
+    ),
+  ),
+);

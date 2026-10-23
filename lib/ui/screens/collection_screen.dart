@@ -276,7 +276,7 @@ class _ShowcaseLine extends StatelessWidget {
             text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: CasinoColors.text,
               fontSize: 13,
               fontWeight: FontWeight.w700,
@@ -597,7 +597,7 @@ class _LockBadge extends StatelessWidget {
         color: CardInk.black.withValues(alpha: 0.75),
         border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.7)),
       ),
-      child: const HugeIcon(
+      child: HugeIcon(
         icon: AppIcons.lock,
         size: 16,
         color: CasinoColors.goldSoft,

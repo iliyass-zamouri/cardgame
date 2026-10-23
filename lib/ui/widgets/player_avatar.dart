@@ -4,6 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 
+/// Decode widths for avatar art. A few fixed steps, rather than the exact
+/// pixel size, so one avatar shown at several sizes shares cached images.
+const _decodeSteps = [128, 256];
+
+int? _decodeWidth(double size, double devicePixelRatio) {
+  final pixels = size * devicePixelRatio;
+  for (final step in _decodeSteps) {
+    if (pixels <= step) return step;
+  }
+  // Large avatars decode at the source size.
+  return null;
+}
+
 class PlayerAvatar extends StatelessWidget {
   const PlayerAvatar({
     super.key,
@@ -53,10 +66,18 @@ class PlayerAvatar extends StatelessWidget {
           assetPath,
           width: size,
           height: size,
+          // Sources are 512px; most avatars show at 30-60pt, so decoding
+          // full size cost up to 16x the time and memory per avatar.
+          cacheWidth: _decodeWidth(
+            size,
+            MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0,
+          ),
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return Center(
-              child: HugeIcon(icon: AppIcons.person, size: size * 0.55,
+              child: HugeIcon(
+                icon: AppIcons.person,
+                size: size * 0.55,
                 color: CasinoColors.goldSoft,
               ),
             );
@@ -98,7 +119,9 @@ class PlayerAvatar extends StatelessWidget {
                   color: CasinoColors.gold,
                   border: Border.all(color: CasinoColors.surface, width: 1.5),
                 ),
-                child: const HugeIcon(icon: AppIcons.edit, size: 11,
+                child: HugeIcon(
+                  icon: AppIcons.edit,
+                  size: 11,
                   color: CasinoColors.bg,
                 ),
               ),

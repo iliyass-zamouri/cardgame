@@ -1,6 +1,12 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:cardgame/data/app/app_theme_config.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
+import 'package:cardgame/ui/theme/app_theme.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/theme/halloween_ambient.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -80,10 +86,10 @@ class FeltAppBar extends StatelessWidget implements PreferredSizeWidget {
       value: SystemUiOverlayStyle.light,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF2B1A12), Color(0xFF170D08)],
+            colors: [CasinoColors.leather, CasinoColors.leatherDeep],
           ),
           border: Border(
             bottom: BorderSide(color: CasinoColors.gold.withValues(alpha: 0.4)),
@@ -326,19 +332,31 @@ Color suitColor(SuitShape suit) =>
         : CardInk.black;
 
 /// Green felt table with a soft spotlight, vignette and faint suit weave.
+///
+/// Under the Halloween theme the scene (moon, cobwebs, bats, fog) is painted on
+/// the felt, behind [child]. [animated] false keeps it still: the root stage is
+/// covered by the home tab's own felt, so animating it would be wasted work.
 class FeltTableBackground extends StatelessWidget {
-  const FeltTableBackground({super.key, required this.child});
+  const FeltTableBackground({
+    super.key,
+    required this.child,
+    this.animated = true,
+  });
 
   final Widget child;
+  final bool animated;
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppTheme.active;
     return Stack(
       fit: StackFit.expand,
       children: [
         const RepaintBoundary(
           child: CustomPaint(painter: _FeltPainter(), size: Size.infinite),
         ),
+        if (theme.id == AppThemeId.halloween)
+          HalloweenAmbient(animated: animated && theme.animated),
         child,
       ],
     );
@@ -362,34 +380,20 @@ void paintFeltTexture(Canvas canvas, Rect rect, {double vignette = 0.55}) {
   canvas.drawRect(
     rect,
     Paint()
-      ..shader = const RadialGradient(
-        center: Alignment(0, -0.25),
+      ..shader = RadialGradient(
+        center: const Alignment(0, -0.25),
         radius: 1.1,
-        colors: [Color(0xFF237A4F), CasinoColors.feltDeep, Color(0xFF0A2618)],
-        stops: [0, 0.55, 1],
+        colors: [
+          CasinoColors.feltHi,
+          CasinoColors.feltDeep,
+          CasinoColors.feltEdge,
+        ],
+        stops: const [0, 0.55, 1],
       ).createShader(rect),
   );
 
   // Faint staggered weave of suits, like an embossed felt pattern.
-  const cell = 46.0;
-  const glyph = 14.0;
-  final paint = Paint()..color = Colors.black.withValues(alpha: 0.10);
-  var row = 0;
-  for (var y = rect.top - cell; y < rect.bottom + cell; y += cell, row++) {
-    final shift = row.isOdd ? cell / 2 : 0.0;
-    var col = 0;
-    for (
-      var x = rect.left - cell + shift;
-      x < rect.right + cell;
-      x += cell, col++
-    ) {
-      canvas.save();
-      canvas.translate(x, y);
-      canvas.scale(glyph);
-      canvas.drawPath(suitPath(SuitShape.values[(row + col) % 4]), paint);
-      canvas.restore();
-    }
-  }
+  _FeltWeave.paint(canvas, rect);
 
   canvas.drawRect(
     rect,
@@ -400,6 +404,84 @@ void paintFeltTexture(Canvas canvas, Rect rect, {double vignette = 0.55}) {
         stops: const [0.55, 1],
       ).createShader(rect),
   );
+}
+
+/// The felt's suit weave, filled from a cached tile.
+///
+/// Drawing it glyph by glyph cost ~250 path fills per screen-sized felt, and
+/// every pushed route stacks its own felt. Impeller has no raster cache, so
+/// that work repeated on every frame of a transition or idle animation. The
+/// weave repeats every 4x4 cells, so one tile is rasterized at device
+/// resolution and filled as an image shader in a single draw.
+abstract final class _FeltWeave {
+  static const _cell = 46.0;
+  static const _glyph = 14.0;
+
+  /// Row parity sets the stagger and `(row + col) % 4` the suit, so the
+  /// pattern repeats every four cells in both directions.
+  static const _span = _cell * 4;
+
+  static Paint? _paint;
+  static int _tilePixels = 0;
+
+  static void paint(Canvas canvas, Rect rect) {
+    final paint = _paintFor(_pixelsForDevice());
+    // The weave starts one cell before the felt's top-left corner.
+    final origin = rect.topLeft - const Offset(_cell, _cell);
+    canvas.save();
+    canvas.translate(origin.dx, origin.dy);
+    canvas.drawRect(rect.shift(-origin), paint);
+    canvas.restore();
+  }
+
+  /// Tile side in device pixels, rounded so it repeats without seams.
+  static int _pixelsForDevice() {
+    final dpr =
+        ui.PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 2.0;
+    return (_span * dpr.clamp(1.0, 3.0)).round();
+  }
+
+  static Paint _paintFor(int pixels) {
+    final cached = _paint;
+    if (cached != null && _tilePixels == pixels) return cached;
+    final scale = pixels / _span;
+    final tile = _rasterizeTile(pixels, scale);
+    _tilePixels = pixels;
+    return _paint =
+        Paint()
+          ..shader = ui.ImageShader(
+            tile,
+            TileMode.repeated,
+            TileMode.repeated,
+            Float64List.fromList([
+              1 / scale, 0, 0, 0, //
+              0, 1 / scale, 0, 0, //
+              0, 0, 1, 0, //
+              0, 0, 0, 1, //
+            ]),
+            filterQuality: FilterQuality.low,
+          );
+  }
+
+  static ui.Image _rasterizeTile(int pixels, double scale) {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)..scale(scale);
+    final paint = Paint()..color = Colors.black.withValues(alpha: 0.10);
+    for (var row = 0; row < 4; row++) {
+      final shift = row.isOdd ? _cell / 2 : 0.0;
+      for (var col = 0; col < 4; col++) {
+        canvas.save();
+        canvas.translate(col * _cell + shift, row * _cell);
+        canvas.scale(_glyph);
+        canvas.drawPath(suitPath(SuitShape.values[(row + col) % 4]), paint);
+        canvas.restore();
+      }
+    }
+    final picture = recorder.endRecording();
+    final image = picture.toImageSync(pixels, pixels);
+    picture.dispose();
+    return image;
+  }
 }
 
 /// Scale-down press feedback with a haptic tick.
@@ -489,9 +571,9 @@ class _SuitPainter extends CustomPainter {
 }
 
 /// Gold-rimmed outline shared by dialogs and floating panels.
-const feltDialogShape = RoundedRectangleBorder(
-  borderRadius: BorderRadius.all(Radius.circular(20)),
-  side: BorderSide(color: Color(0x66F5C542)),
+RoundedRectangleBorder get feltDialogShape => RoundedRectangleBorder(
+  borderRadius: const BorderRadius.all(Radius.circular(20)),
+  side: BorderSide(color: CasinoColors.gold.withValues(alpha: 0.4)),
 );
 
 /// Leather gradient with a gold hairline: the shared look of [FeltPanel],
@@ -688,10 +770,14 @@ class GoldButton extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(compact ? 11 : 14),
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFFFE08A), CasinoColors.gold, Color(0xFFC8961E)],
+            colors: [
+              CasinoColors.goldHi,
+              CasinoColors.gold,
+              CasinoColors.goldLo,
+            ],
           ),
           border: Border.all(
             color: const Color(0xFF7A5A0E).withValues(alpha: 0.5),
@@ -749,7 +835,7 @@ class LeatherButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.leading,
-    this.color = CasinoColors.gold,
+    this.color,
     this.height = 48,
     this.compact = false,
   });
@@ -757,12 +843,13 @@ class LeatherButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final Widget? leading;
-  final Color color;
+  final Color? color;
   final double height;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final color = this.color ?? CasinoColors.gold;
     final locale = Localizations.localeOf(context);
     final h = compact ? 36.0 : height;
     return Pressable(
@@ -811,16 +898,17 @@ class FeltMedallion extends StatelessWidget {
   const FeltMedallion({
     super.key,
     required this.icon,
-    this.color = CasinoColors.goldSoft,
+    this.color,
     this.size = 38,
   });
 
   final List<List<dynamic>> icon;
-  final Color color;
+  final Color? color;
   final double size;
 
   @override
   Widget build(BuildContext context) {
+    final color = this.color ?? CasinoColors.goldSoft;
     return Container(
       width: size,
       height: size,
@@ -900,7 +988,7 @@ class FeltTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: CasinoColors.textMuted,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -998,8 +1086,12 @@ class GoldProgressBar extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(height),
-            gradient: const LinearGradient(
-              colors: [Color(0xFFC8961E), CasinoColors.gold, Color(0xFFFFE08A)],
+            gradient: LinearGradient(
+              colors: [
+                CasinoColors.goldLo,
+                CasinoColors.gold,
+                CasinoColors.goldHi,
+              ],
             ),
           ),
         ),

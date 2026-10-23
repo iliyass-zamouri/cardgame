@@ -170,7 +170,7 @@ class CasinoHudButton extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      const Color(0xFFD32F2F).withValues(alpha: 0.85),
+                      CasinoColors.foldHi.withValues(alpha: 0.85),
                       const Color(0xFF7A1010).withValues(alpha: 0.85),
                     ],
                   ),
@@ -184,11 +184,11 @@ class CasinoHudButton extends StatelessWidget {
                 )
                 : BoxDecoration(
                   borderRadius: BorderRadius.circular(height / 2),
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xFF5A3826),
+                      const Color(0xFF5A3826),
                       CasinoColors.leather,
                       CasinoColors.leatherDeep,
                     ],
@@ -566,7 +566,7 @@ class CasinoToast extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
+              style: TextStyle(
                 color: CasinoColors.text,
                 fontSize: 13,
                 height: 1.35,
@@ -728,6 +728,7 @@ class CasinoTableSeat extends StatelessWidget {
     this.mirrored = false,
     this.onTap,
     this.trailing,
+    this.avatarOverlay,
   });
 
   final String name;
@@ -744,6 +745,9 @@ class CasinoTableSeat extends StatelessWidget {
 
   /// Small status widget after the name (e.g. voice indicator).
   final Widget? trailing;
+
+  /// Painted over the avatar, e.g. a turn countdown. Ignores touches.
+  final Widget? avatarOverlay;
 
   static const _textShadows = [
     Shadow(color: Color(0xE6000000), blurRadius: 6, offset: Offset(0, 1)),
@@ -848,14 +852,26 @@ class CasinoTableSeat extends StatelessWidget {
       ],
     );
 
+    // The overlay may spill past the avatar's edge, so it is not clipped.
+    final avatarSlot =
+        avatarOverlay == null
+            ? avatar
+            : Stack(
+              clipBehavior: Clip.none,
+              children: [
+                avatar,
+                Positioned.fill(child: IgnorePointer(child: avatarOverlay)),
+              ],
+            );
+
     final seat = Opacity(
       opacity: connected ? 1 : 0.55,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children:
             mirrored
-                ? [info, const SizedBox(width: 10), avatar]
-                : [avatar, const SizedBox(width: 10), info],
+                ? [info, const SizedBox(width: 10), avatarSlot]
+                : [avatarSlot, const SizedBox(width: 10), info],
       ),
     );
     final onTap = this.onTap;
@@ -910,7 +926,7 @@ class CasinoMenuPlayersPill extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Text(
                   context.l10n.vs,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.goldSoft,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,

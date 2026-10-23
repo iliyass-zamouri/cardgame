@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cardgame/ads/ad_ids.dart';
 import 'package:cardgame/ads/interstitial_ad_service.dart';
+import 'package:cardgame/ads/rewarded_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/home_menu_providers.dart';
@@ -12,6 +13,7 @@ import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/push_providers.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/app/table_social_prefs.dart';
+import 'package:cardgame/app/theme_providers.dart';
 import 'package:cardgame/core/monetization/purchases_service.dart';
 import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/firebase_options.dart';
@@ -29,7 +31,9 @@ import 'package:cardgame/ui/flame/card_fonts.dart';
 import 'package:cardgame/ui/screens/auth/authentication_screen.dart';
 import 'package:cardgame/ui/screens/home/home_screen.dart';
 import 'package:cardgame/ui/screens/tutorial/tutorial_progress_repository.dart';
+import 'package:cardgame/ui/theme/app_theme.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/theme/theme_refresh.dart';
 import 'package:cardgame/ui/widgets/force_update_gate.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -139,6 +143,8 @@ Future<void> main() async {
       final tutorialProgressRepo = await TutorialProgressRepository.open();
       final tableSocialPrefsRepo = await TableSocialPrefsRepository.open();
       final homeMenuRepo = await HomeMenuRepository.open();
+      final themeRepo = await ThemeRepository.open();
+      AppTheme.activate(initialTheme(themeRepo));
 
       runApp(
         ProviderScope(
@@ -157,6 +163,7 @@ Future<void> main() async {
               tableSocialPrefsRepo,
             ),
             homeMenuRepositoryProvider.overrideWithValue(homeMenuRepo),
+            themeRepositoryProvider.overrideWithValue(themeRepo),
           ],
           child: const MyApp(),
         ),
@@ -220,10 +227,15 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   Widget build(BuildContext context) {
     ref.read(interstitialAdProvider).preload();
+    ref.read(rewardedAdProvider).preload();
     final sessionAsync = ref.watch(sessionAuthProvider);
     final locale = ref.watch(localeProvider);
     final analyticsObserver = ref.watch(analyticsServiceProvider).observer;
     final rootKey = ref.watch(rootNavigatorKeyProvider);
+    // Repaint everything on a theme switch, const widgets included.
+    ref.listen<AppTheme>(themeProvider, (previous, next) {
+      if (previous != next) refreshEntireUi(context);
+    });
 
     // Keep FCM token bound to current player.
     ref.listen(playerProfileProvider, (previous, next) {
@@ -257,6 +269,8 @@ class _MyAppState extends ConsumerState<MyApp> {
     return MaterialApp(
       navigatorKey: rootKey,
       debugShowCheckedModeBanner: false,
+      // A theme switch lands in one frame instead of cross-fading.
+      themeAnimationDuration: Duration.zero,
       locale: locale,
       navigatorObservers: [if (analyticsObserver != null) analyticsObserver],
       supportedLocales: AppLocalizations.supportedLocales,
@@ -298,7 +312,7 @@ class _MyAppState extends ConsumerState<MyApp> {
                   builder: (context) {
                     return Text(
                       context.l10n.authError('$error'),
-                      style: const TextStyle(color: CasinoColors.foldHi),
+                      style: TextStyle(color: CasinoColors.foldHi),
                     );
                   },
                 ),

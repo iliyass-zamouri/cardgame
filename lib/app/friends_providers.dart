@@ -19,8 +19,17 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
 
   @override
   Future<FriendsData> build() async {
-    final profile = await ref.watch(playerProfileProvider.future);
-    if (profile.isEmpty) {
+    // Only identity matters; balance or cosmetic changes must not refetch
+    // the list (and flash its loader on the mounted friends tab).
+    final (:playerId, :accessToken) = await ref.watch(
+      playerProfileProvider.selectAsync(
+        (profile) => (
+          playerId: profile.playerId,
+          accessToken: profile.accessToken,
+        ),
+      ),
+    );
+    if (playerId.isEmpty) {
       return const FriendsData(
         friends: [],
         incomingRequests: [],
@@ -28,8 +37,8 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
       );
     }
     final data = await _api.getFriends(
-      playerId: profile.playerId,
-      accessToken: profile.accessToken,
+      playerId: playerId,
+      accessToken: accessToken,
     );
     // Sync online friend count
     ref.read(connectedFriendsCountProvider.notifier).setCount(data.onlineCount);
@@ -40,7 +49,7 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
     if (!silent) {
       state = const AsyncLoading();
     }
-    state = await AsyncValue.guard(() async {
+    final next = await AsyncValue.guard(() async {
       final profile = await ref.read(playerProfileProvider.future);
       if (profile.isEmpty) {
         return const FriendsData(
@@ -58,6 +67,10 @@ class FriendsDataNotifier extends AsyncNotifier<FriendsData> {
           .setCount(data.onlineCount);
       return data;
     });
+    // Silent refreshes run unawaited (socket events, match end); the
+    // provider may have rebuilt or been disposed while the call was out.
+    if (!ref.mounted) return;
+    state = next;
   }
 
   Future<void> sendRequest({

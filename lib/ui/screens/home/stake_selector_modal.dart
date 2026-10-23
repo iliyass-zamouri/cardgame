@@ -455,7 +455,7 @@ class _BalanceStrip extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 '$playerMoney',
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.text,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
@@ -466,7 +466,7 @@ class _BalanceStrip extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 '$playerChips',
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.goldSoft,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
@@ -493,7 +493,7 @@ class _BalanceStrip extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const HugeIcon(
+                        HugeIcon(
                           icon: AppIcons.shoppingBag,
                           size: 15,
                           color: CasinoColors.gold,
@@ -501,7 +501,7 @@ class _BalanceStrip extends StatelessWidget {
                         const SizedBox(width: 6),
                         Text(
                           marketplaceLabel,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: CasinoColors.gold,
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
@@ -516,7 +516,7 @@ class _BalanceStrip extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Virtual currency only. No real-money cash-out.',
           textAlign: TextAlign.center,
           style: TextStyle(
@@ -918,7 +918,7 @@ class _LockedVeil extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [CasinoColors.leather, CasinoColors.leatherDeep],
@@ -929,7 +929,7 @@ class _LockedVeil extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const HugeIcon(
+              HugeIcon(
                 icon: AppIcons.lock,
                 size: 18,
                 color: CasinoColors.gold,
@@ -1205,7 +1205,7 @@ class _ActionPanel extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [CasinoColors.leather, CasinoColors.leatherDeep],
@@ -1225,7 +1225,7 @@ class _ActionPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              const HugeIcon(
+              HugeIcon(
                 icon: AppIcons.trophy,
                 size: 16,
                 color: CasinoColors.goldSoft,
@@ -1236,7 +1236,7 @@ class _ActionPanel extends StatelessWidget {
                   casinoButtonLabel(l10n.winnerTakesAll, locale),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.text,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -1246,7 +1246,7 @@ class _ActionPanel extends StatelessWidget {
               ),
               Text(
                 '${option.pool}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.gold,
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
@@ -1265,13 +1265,13 @@ class _ActionPanel extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 gradient:
                     canAfford
-                        ? const LinearGradient(
+                        ? LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Color(0xFFFFE08A),
+                            CasinoColors.goldHi,
                             CasinoColors.gold,
-                            Color(0xFFC8961E),
+                            CasinoColors.goldLo,
                           ],
                         )
                         : null,

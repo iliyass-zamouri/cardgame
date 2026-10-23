@@ -19,7 +19,10 @@ Future<void> showTableChatPanel(BuildContext context, WidgetRef ref) {
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.35),
-    builder: (_) => const _TableChatPanel(),
+    // The board under the panel repaints every frame, so a live blur would
+    // re-run every frame (and with each keyboard step); use the dense tint.
+    builder:
+        (_) => const CasinoGlassScope(blur: false, child: _TableChatPanel()),
   ).whenComplete(() => chat.setPanelOpen(false));
 }
 
@@ -130,14 +133,14 @@ class _TableChatPanelState extends ConsumerState<_TableChatPanel> {
                             maxLengthEnforcement: MaxLengthEnforcement.enforced,
                             textInputAction: TextInputAction.send,
                             onSubmitted: (_) => _sendText(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: CasinoColors.text,
                               fontSize: 14,
                             ),
                             cursorColor: CasinoColors.gold,
                             decoration: InputDecoration(
                               hintText: l10n.chatHint,
-                              hintStyle: const TextStyle(
+                              hintStyle: TextStyle(
                                 color: CasinoColors.textMuted,
                               ),
                               counterText: '',
@@ -183,7 +186,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         color: CasinoColors.goldSoft,
         fontSize: 11,
         fontWeight: FontWeight.w800,
@@ -205,7 +208,7 @@ class _PhraseChip extends StatelessWidget {
       onTap: onTap,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [CasinoColors.leather, CasinoColors.leatherDeep],
@@ -221,7 +224,7 @@ class _PhraseChip extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: CasinoColors.text,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,

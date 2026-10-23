@@ -1,30 +1,45 @@
+import 'package:cardgame/ui/theme/app_theme.dart';
+import 'package:cardgame/ui/theme/casino_palette.dart';
 import 'package:flutter/material.dart';
 
 /// Card-table tokens: surfaces are deep felt greens so panels sit naturally
 /// on the green table background (not Material 3).
+///
+/// Every token reads the active theme's palette (see [AppTheme.active]), so
+/// the values can change at runtime. Never cache one in a field or a static:
+/// read it where it is drawn.
 abstract final class CasinoColors {
-  static const bg = Color(0xFF07150F);
-  static const bgElevated = Color(0xFF0D2118);
-  static const surface = Color(0xFF12291F);
-  static const surfaceHi = Color(0xFF1C3B2D);
-  static const rim = Color(0xFF0A1711);
-  static const leather = Color(0xFF2B1A12);
-  static const leatherDeep = Color(0xFF170D08);
-  static const felt = Color(0xFF1F6B45);
-  static const feltDeep = Color(0xFF155234);
-  static const gold = Color(0xFFF5C542);
-  static const goldSoft = Color(0xFFFFE082);
-  static const text = Color(0xFFF2F2F5);
-  static const textMuted = Color(0xFFA9BDB1);
-  static const fold = Color(0xFFB71C1C);
-  static const foldHi = Color(0xFFD32F2F);
-  static const check = Color(0xFFE65100);
-  static const checkHi = Color(0xFFFF6D00);
-  static const raise = Color(0xFF00897B);
-  static const raiseHi = Color(0xFF26A69A);
-  static const success = Color(0xFF2E7D32);
-  static const borderGlow = Color(0xFF3D8B5F);
-  static const silver = Color(0xFFD9D9D9);
+  static CasinoPalette get _p => AppTheme.active.palette;
+
+  static Color get bg => _p.bg;
+  static Color get bgElevated => _p.bgElevated;
+  static Color get surface => _p.surface;
+  static Color get surfaceHi => _p.surfaceHi;
+  static Color get rim => _p.rim;
+  static Color get leather => _p.leather;
+  static Color get leatherDeep => _p.leatherDeep;
+  static Color get felt => _p.felt;
+  static Color get feltHi => _p.feltHi;
+  static Color get feltDeep => _p.feltDeep;
+  static Color get feltEdge => _p.feltEdge;
+  static Color get room => _p.room;
+  static Color get roomDeep => _p.roomDeep;
+  static Color get seatRing => _p.seatRing;
+  static Color get gold => _p.gold;
+  static Color get goldSoft => _p.goldSoft;
+  static Color get goldHi => _p.goldHi;
+  static Color get goldLo => _p.goldLo;
+  static Color get text => _p.text;
+  static Color get textMuted => _p.textMuted;
+  static Color get fold => _p.fold;
+  static Color get foldHi => _p.foldHi;
+  static Color get check => _p.check;
+  static Color get checkHi => _p.checkHi;
+  static Color get raise => _p.raise;
+  static Color get raiseHi => _p.raiseHi;
+  static Color get success => _p.success;
+  static Color get borderGlow => _p.borderGlow;
+  static Color get silver => _p.silver;
 }
 
 /// [display] = Cinzel (Latin brand). [ui] = DM Sans. [arabicUi] = Cairo.
@@ -50,7 +65,7 @@ ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {
   final uiFamily = CasinoFonts.uiFor(locale);
   final displayFamily = CasinoFonts.displayFor(locale);
 
-  const scheme = ColorScheme.dark(
+  final scheme = ColorScheme.dark(
     surface: CasinoColors.bg,
     primary: CasinoColors.raise,
     onPrimary: CasinoColors.text,
@@ -113,7 +128,7 @@ ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {
     tabBarTheme: TabBarThemeData(
       indicator: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [CasinoColors.goldSoft, CasinoColors.gold],
@@ -136,12 +151,12 @@ ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {
       overlayColor: WidgetStateProperty.all(Colors.transparent),
       splashFactory: NoSplash.splashFactory,
     ),
-    bottomSheetTheme: const BottomSheetThemeData(
+    bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: CasinoColors.surface,
       modalBackgroundColor: CasinoColors.surface,
       // No border here: every sheet draws its own framed panel (CasinoGlass
       // etc.) on a transparent background, so a themed rim showed twice.
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
     ),
@@ -149,7 +164,7 @@ ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {
       color: CasinoColors.gold.withValues(alpha: 0.12),
       thickness: 1,
     ),
-    progressIndicatorTheme: const ProgressIndicatorThemeData(
+    progressIndicatorTheme: ProgressIndicatorThemeData(
       color: CasinoColors.gold,
     ),
     switchTheme: SwitchThemeData(
@@ -197,14 +212,11 @@ ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(28),
-        borderSide: const BorderSide(color: CasinoColors.surfaceHi),
+        borderSide: BorderSide(color: CasinoColors.surfaceHi),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(28),
-        borderSide: const BorderSide(
-          color: CasinoColors.borderGlow,
-          width: 1.4,
-        ),
+        borderSide: BorderSide(color: CasinoColors.borderGlow, width: 1.4),
       ),
       labelStyle: TextStyle(
         fontFamily: uiFamily,

@@ -1019,6 +1019,21 @@ class AppLocalizationsFr extends AppLocalizations {
   String get opponentQuit => 'L\'adversaire a abandonné';
 
   @override
+  String get turnTimedOut =>
+      'Temps écoulé : votre tour a été joué automatiquement.';
+
+  @override
+  String turnTimedOutWarning(int remaining) {
+    return 'Temps écoulé : votre tour a été joué automatiquement. Tours restants avant forfait : $remaining.';
+  }
+
+  @override
+  String get youTimedOut => 'Temps écoulé pour vous';
+
+  @override
+  String get opponentTimedOut => 'Temps écoulé pour l\'adversaire';
+
+  @override
   String get matchResultQuit => 'ABANDON';
 
   @override

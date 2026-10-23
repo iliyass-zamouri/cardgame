@@ -363,7 +363,7 @@ class _SeatLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         color: CasinoColors.goldSoft,
         fontSize: 11,
         fontWeight: FontWeight.w800,

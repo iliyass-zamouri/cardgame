@@ -1407,9 +1407,9 @@ class ClassicTablePainter extends CustomPainter {
     canvas.drawRect(
       room,
       Paint()
-        ..shader = const RadialGradient(
+        ..shader = RadialGradient(
           radius: 1.0,
-          colors: [Color(0xFF12293A), Color(0xFF07131D)],
+          colors: [CasinoColors.room, CasinoColors.roomDeep],
         ).createShader(room),
     );
 
@@ -1489,7 +1489,7 @@ class ClassicTablePainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = w * 0.012
-          ..color = const Color(0xFF3FA36F).withValues(alpha: 0.45);
+          ..color = CasinoColors.seatRing.withValues(alpha: 0.45);
     final seatRadius = feltRect.width * 0.29;
     final cx = feltRect.center.dx;
     canvas.drawCircle(

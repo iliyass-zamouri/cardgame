@@ -43,13 +43,13 @@ class NotificationsPanel extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const SuitGlyph(
+                      SuitGlyph(
                         suit: SuitShape.hearts,
                         size: 12,
                         color: CasinoColors.gold,
                       ),
                       const SizedBox(width: 8),
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'NOTIFICATIONS',
                           style: TextStyle(
@@ -66,7 +66,7 @@ class NotificationsPanel extends ConsumerWidget {
                           onPressed: () => ref
                               .read(notificationsInboxProvider.notifier)
                               .markAllRead(),
-                          child: const Text(
+                          child: Text(
                             'Mark all read',
                             style: TextStyle(color: CasinoColors.gold),
                           ),
@@ -81,12 +81,12 @@ class NotificationsPanel extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Expanded(
                     child: asyncInbox.when(
-                      loading: () => const Center(
+                      loading: () => Center(
                         child: CircularProgressIndicator(
                           color: CasinoColors.gold,
                         ),
                       ),
-                      error: (_, __) => const Center(
+                      error: (_, __) => Center(
                         child: Text(
                           'No notifications yet',
                           style: TextStyle(color: CasinoColors.textMuted),
@@ -94,7 +94,7 @@ class NotificationsPanel extends ConsumerWidget {
                       ),
                       data: (inbox) {
                         if (inbox.notifications.isEmpty) {
-                          return const Center(
+                          return Center(
                             child: Text(
                               'No notifications yet',
                               style: TextStyle(color: CasinoColors.textMuted),
@@ -192,7 +192,7 @@ class _NotificationTile extends StatelessWidget {
                       width: 8,
                       height: 8,
                       margin: const EdgeInsets.only(right: 8),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: CasinoColors.gold,
                         shape: BoxShape.circle,
                       ),

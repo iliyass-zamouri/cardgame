@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
 
 /// Illustrated two-tone icons for the home navigation bar: pale silver
@@ -85,7 +86,7 @@ class _NavArtPainter extends CustomPainter {
       ],
       _Tone.shade => const [Color(0xFFAEBCCB), Color(0xFF8B9BAD)],
       _Tone.ink => const [Color(0xFF5A3A26), Color(0xFF5A3A26)],
-      _Tone.hub => const [Color(0xFF2B1A12), Color(0xFF2B1A12)],
+      _Tone.hub => [CasinoColors.leather, CasinoColors.leather],
     };
     return paint
       ..shader = LinearGradient(

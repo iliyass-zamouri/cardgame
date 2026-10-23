@@ -55,6 +55,7 @@ class GameOverPanel extends ConsumerWidget {
     final result = game.result;
     final youQuit = result?.youQuit ?? false;
     final opponentQuit = result?.opponentQuit ?? false;
+    final timedOut = result?.reason == 'timeout';
     // Lowest total wins, unless someone quit: the quitter always loses.
     final youWin =
         opponentQuit ||
@@ -99,8 +100,8 @@ class GameOverPanel extends ConsumerWidget {
       outcome: outcome,
       headline: headline,
       series: [
-        if (youQuit) l10n.youQuit,
-        if (opponentQuit) l10n.opponentQuit,
+        if (youQuit) timedOut ? l10n.youTimedOut : l10n.youQuit,
+        if (opponentQuit) timedOut ? l10n.opponentTimedOut : l10n.opponentQuit,
         l10n.seriesScore(game.you.seriesWins, game.opponent?.seriesWins ?? 0),
       ].join(' · '),
       you: _SeatData(
@@ -611,7 +612,7 @@ class _Header extends StatelessWidget {
                                   'assets/crown.svg',
                                   width: 88,
                                   height: 88,
-                                  colorFilter: const ColorFilter.mode(
+                                  colorFilter: ColorFilter.mode(
                                     CasinoColors.gold,
                                     BlendMode.srcIn,
                                   ),
@@ -686,7 +687,7 @@ class _Header extends StatelessWidget {
                 child: Text(
                   series,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.goldSoft,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -1012,7 +1013,7 @@ class _Particle {
     this.spin,
     this.size,
     this.shape,
-    this.color,
+    this.role,
   );
 
   final double x;
@@ -1023,8 +1024,23 @@ class _Particle {
   final int spin;
   final double size;
   final int shape;
-  final Color color;
+
+  /// Index into [_confettiColor]. Resolved at paint time, so the particles
+  /// created once and cached in [_ParticlePainter] follow the active theme.
+  final int role;
+
+  Color get color => _confettiColor(role);
 }
+
+/// Confetti colour for a [_Particle.role]; the loss ember is -1.
+Color _confettiColor(int role) => switch (role) {
+  0 => CasinoColors.gold,
+  1 => CasinoColors.goldSoft,
+  2 => Colors.white,
+  3 => const Color(0xFFE53935),
+  4 => const Color(0xFF26A69A),
+  _ => const Color(0xFF7A1A1A).withValues(alpha: 0.5),
+};
 
 /// Full-screen falling confetti (gold suits and ribbons) for a win, or slow
 /// dim spades for a loss. Every motion is an integer number of cycles per
@@ -1040,13 +1056,6 @@ class _ParticlePainter extends CustomPainter {
 
   static List<_Particle> _make({required bool win}) {
     final rnd = math.Random(win ? 11 : 5);
-    const winColors = [
-      CasinoColors.gold,
-      CasinoColors.goldSoft,
-      Colors.white,
-      Color(0xFFE53935),
-      Color(0xFF26A69A),
-    ];
     final count = win ? 44 : 14;
     return List.generate(count, (i) {
       return _Particle(
@@ -1058,9 +1067,7 @@ class _ParticlePainter extends CustomPainter {
         1 + rnd.nextInt(4),
         win ? 7 + rnd.nextDouble() * 8 : 14 + rnd.nextDouble() * 12,
         win ? rnd.nextInt(5) : 0,
-        win
-            ? winColors[rnd.nextInt(winColors.length)]
-            : const Color(0xFF7A1A1A).withValues(alpha: 0.5),
+        win ? rnd.nextInt(5) : -1,
       );
     });
   }

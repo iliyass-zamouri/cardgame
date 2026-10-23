@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_state.dart';
+import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/game_socket.dart';
 import 'package:cardgame/data/offline/offline_game_socket.dart';
@@ -538,6 +539,11 @@ class GameSessionController extends Notifier<GameSessionState> {
                   .matchStart(online: !_offlineMode, mode: snapshot.matchType),
             );
           }
+          if (snapshot.status == GameStatus.ended &&
+              previousStatus != GameStatus.ended &&
+              !_offlineMode) {
+            _refreshAfterMatch();
+          }
           if (snapshot.status == GameStatus.ended) {
             _syncBalancesFromSnapshot(snapshot);
             final won = snapshot.result?.winnerIndex == 0;
@@ -643,6 +649,18 @@ class GameSessionController extends Notifier<GameSessionState> {
           message: (code != null && code.isNotEmpty) ? code : 'command_failed',
         );
         break;
+    }
+  }
+
+  /// Ranks, history and friend presence move when a match ends. Those
+  /// providers key on identity only, so balance changes no longer refetch
+  /// them as a side effect; refresh them here, once per match.
+  void _refreshAfterMatch() {
+    ref.invalidate(playerRankByIdProvider);
+    ref.invalidate(matchHistoryProvider);
+    ref.invalidate(leaderboardProvider);
+    if (ref.exists(friendsDataProvider)) {
+      unawaited(ref.read(friendsDataProvider.notifier).refresh(silent: true));
     }
   }
 

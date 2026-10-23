@@ -1006,6 +1006,20 @@ class AppLocalizationsAr extends AppLocalizations {
   String get opponentQuit => 'انسحب الخصم';
 
   @override
+  String get turnTimedOut => 'انتهى الوقت وتم لعب دورك تلقائيًا.';
+
+  @override
+  String turnTimedOutWarning(int remaining) {
+    return 'انتهى الوقت وتم لعب دورك تلقائيًا. الأدوار المتبقية قبل الانسحاب: $remaining.';
+  }
+
+  @override
+  String get youTimedOut => 'انتهى وقتك';
+
+  @override
+  String get opponentTimedOut => 'انتهى وقت الخصم';
+
+  @override
   String get matchResultQuit => 'انسحاب';
 
   @override

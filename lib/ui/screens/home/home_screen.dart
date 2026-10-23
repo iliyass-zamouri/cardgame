@@ -34,6 +34,7 @@ import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
+import 'package:cardgame/ui/widgets/turn_countdown_ring.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -204,7 +205,7 @@ class _MatchmakingWaitingState extends ConsumerState<MatchmakingWaiting> {
                 Text(
                   l10n.matchmakingHint,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CasinoColors.textMuted,
                     fontSize: 14,
                   ),
@@ -360,7 +361,7 @@ class WaitingRoom extends ConsumerWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const HugeIcon(
+                          HugeIcon(
                             icon: AppIcons.copy,
                             size: 13,
                             color: CasinoColors.goldSoft,
@@ -368,7 +369,7 @@ class WaitingRoom extends ConsumerWidget {
                           const SizedBox(width: 6),
                           Text(
                             l10n.tapToCopy,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: CasinoColors.goldSoft,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -424,10 +425,10 @@ class _LobbyTable extends StatelessWidget {
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(110),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF4A2C1B), CasinoColors.leatherDeep],
+          colors: [const Color(0xFF4A2C1B), CasinoColors.leatherDeep],
         ),
         border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.55)),
         boxShadow: const [
@@ -442,9 +443,9 @@ class _LobbyTable extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 18, 14, 16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(104),
-          gradient: const RadialGradient(
+          gradient: RadialGradient(
             radius: 0.95,
-            colors: [Color(0xFF2A8A59), CasinoColors.feltDeep],
+            colors: [const Color(0xFF2A8A59), CasinoColors.feltDeep],
           ),
           border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.35)),
         ),
@@ -484,7 +485,7 @@ class _VsChip extends StatelessWidget {
       child: Center(
         child: Text(
           context.l10n.vs,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: CasinoFonts.display,
             color: CasinoColors.gold,
             fontSize: 14,
@@ -563,7 +564,7 @@ class _InviteFriendsSection extends ConsumerWidget {
                 (_, __) => Center(
                   child: Text(
                     l10n.rankingLoadError,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: CasinoColors.textMuted,
                       fontSize: 12,
                     ),
@@ -578,7 +579,7 @@ class _InviteFriendsSection extends ConsumerWidget {
                       children: [
                         Text(
                           l10n.noFriendsToInvite,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: CasinoColors.textMuted,
                             fontSize: 13,
                           ),
@@ -645,7 +646,7 @@ class _InviteFriendsSection extends ConsumerWidget {
                                 friend.displayName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: CasinoColors.text,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
@@ -656,7 +657,7 @@ class _InviteFriendsSection extends ConsumerWidget {
                                   '@${friend.username}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: CasinoColors.goldSoft,
                                     fontSize: 11,
                                   ),
@@ -679,7 +680,7 @@ class _InviteFriendsSection extends ConsumerWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const HugeIcon(
+                                HugeIcon(
                                   icon: AppIcons.check,
                                   size: 14,
                                   color: CasinoColors.gold,
@@ -687,7 +688,7 @@ class _InviteFriendsSection extends ConsumerWidget {
                                 const SizedBox(width: 4),
                                 Text(
                                   l10n.invited,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: CasinoColors.gold,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w800,
@@ -818,8 +819,8 @@ class _LobbySeat extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             gradient:
                 ready
-                    ? const LinearGradient(
-                      colors: [Color(0xFFFFE08A), CasinoColors.gold],
+                    ? LinearGradient(
+                      colors: [CasinoColors.goldHi, CasinoColors.gold],
                     )
                     : null,
             color: ready ? null : Colors.black.withValues(alpha: 0.3),
@@ -879,7 +880,7 @@ class _EmptySeat extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           l10n.waitingEllipsisShort,
-          style: const TextStyle(
+          style: TextStyle(
             color: CasinoColors.goldSoft,
             fontSize: 12,
             fontWeight: FontWeight.w700,
@@ -1013,6 +1014,7 @@ class GameHud extends ConsumerWidget {
             : ref.watch(playerRankByIdProvider(opponentId)).asData?.value?.elo;
     final opponent = game.opponent;
     final offline = game.matchType == 'offline';
+    final turnTimer = game.turnTimer;
     final voiceEnabled = ref.watch(
       tableSocialPrefsProvider.select((prefs) => prefs.voiceEnabled),
     );
@@ -1032,6 +1034,20 @@ class GameHud extends ConsumerWidget {
         CasinoToast.show(context, l10n.micPermissionDenied, success: false);
       }
     });
+    ref.listen<int>(
+      gameSessionProvider.select((state) => state.game?.you.missedTurns ?? 0),
+      (previous, missed) {
+        if (previous == null || missed <= previous) return;
+        final current = ref.read(gameSessionProvider).game;
+        if (current == null || current.status != GameStatus.playing) return;
+        final left = (current.turnTimer?.maxMissedTurns ?? 0) - missed;
+        CasinoToast.show(
+          context,
+          left > 0 ? l10n.turnTimedOutWarning(left) : l10n.turnTimedOut,
+          success: false,
+        );
+      },
+    );
 
     return SafeArea(
       // Fill the screen even under loose constraints, so bottom-anchored
@@ -1110,6 +1126,13 @@ class GameHud extends ConsumerWidget {
                       name: opponent?.displayName ?? l10n.waitingEllipsisShort,
                       connected: opponent?.connected ?? false,
                       active: playing && !game.isYourTurn,
+                      avatarOverlay:
+                          turnTimer != null && playing && !game.isYourTurn
+                              ? TurnCountdownRing(
+                                timer: turnTimer,
+                                accent: accent,
+                              )
+                              : null,
                       points: opponentElo,
                       avatarId: opponent?.avatarId ?? 'default',
                       onTap:
@@ -1137,6 +1160,13 @@ class GameHud extends ConsumerWidget {
                       name: game.you.displayName,
                       connected: game.you.connected,
                       active: playing && game.isYourTurn,
+                      avatarOverlay:
+                          turnTimer != null && playing && game.isYourTurn
+                              ? TurnCountdownRing(
+                                timer: turnTimer,
+                                accent: accent,
+                              )
+                              : null,
                       points: youElo,
                       avatarId: youAvatarId,
                     ),
@@ -1258,11 +1288,11 @@ class GameHud extends ConsumerWidget {
                         Text(
                           l10n.waitingOpponentReveal,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: CasinoColors.textMuted,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            shadows: [
+                            shadows: const [
                               Shadow(color: Color(0xCC000000), blurRadius: 6),
                             ],
                           ),
@@ -1322,7 +1352,7 @@ class _PrizePlaque extends StatelessWidget {
               ),
               Text(
                 '$amount',
-                style: const TextStyle(
+                style: TextStyle(
                   color: CasinoColors.gold,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -1353,91 +1383,96 @@ Future<void> _showGameMenu(
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
     builder: (sheetContext) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: CasinoGlass(
-            borderRadius: BorderRadius.circular(22),
-            padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(2),
+      return CasinoGlassScope(
+        // Opened over the board, which repaints every frame: a live blur
+        // would re-run every frame, so the menu uses the dense tint.
+        blur: false,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: CasinoGlass(
+              borderRadius: BorderRadius.circular(22),
+              padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-                _GameMenuTile(
-                  icon: AppIcons.menuBook,
-                  label: l10n.howToPlay,
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const HowToPlayScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _GameMenuTile(
-                  icon: AppIcons.info,
-                  label: l10n.roomInfo,
-                  subtitle:
-                      playing
-                          ? l10n.roomCodePlaying(roomId, turn)
-                          : l10n.codeRoomId(roomId),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    CasinoToast.show(
-                      context,
-                      playing
-                          ? l10n.roomToastPlaying(roomId, turn)
-                          : l10n.roomToast(roomId),
-                    );
-                  },
-                ),
-                if (playing)
                   _GameMenuTile(
-                    icon: AppIcons.flag,
-                    label: l10n.endGame,
+                    icon: AppIcons.menuBook,
+                    label: l10n.howToPlay,
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const HowToPlayScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _GameMenuTile(
+                    icon: AppIcons.info,
+                    label: l10n.roomInfo,
+                    subtitle:
+                        playing
+                            ? l10n.roomCodePlaying(roomId, turn)
+                            : l10n.codeRoomId(roomId),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      CasinoToast.show(
+                        context,
+                        playing
+                            ? l10n.roomToastPlaying(roomId, turn)
+                            : l10n.roomToast(roomId),
+                      );
+                    },
+                  ),
+                  if (playing)
+                    _GameMenuTile(
+                      icon: AppIcons.flag,
+                      label: l10n.endGame,
+                      destructive: true,
+                      onTap: () async {
+                        Navigator.of(sheetContext).pop();
+                        await confirmCasinoAction(
+                          context,
+                          title: l10n.endGameTitle,
+                          message: l10n.endGameMessage,
+                          confirmLabel: l10n.endGame,
+                          tone: CasinoActionTone.fold,
+                          onConfirm: onEndGame,
+                        );
+                      },
+                    ),
+                  _GameMenuTile(
+                    icon: AppIcons.logout,
+                    label: l10n.leaveRoom,
                     destructive: true,
                     onTap: () async {
                       Navigator.of(sheetContext).pop();
                       await confirmCasinoAction(
                         context,
-                        title: l10n.endGameTitle,
-                        message: l10n.endGameMessage,
-                        confirmLabel: l10n.endGame,
+                        title: l10n.leaveRoomTitle,
+                        // Quitting a live ranked match counts as a loss.
+                        message:
+                            playing && ranked
+                                ? l10n.leaveMatchPenaltyMessage
+                                : l10n.leaveRoomMessage,
+                        confirmLabel: l10n.leave,
                         tone: CasinoActionTone.fold,
-                        onConfirm: onEndGame,
+                        onConfirm: onLeaveRoom,
                       );
                     },
                   ),
-                _GameMenuTile(
-                  icon: AppIcons.logout,
-                  label: l10n.leaveRoom,
-                  destructive: true,
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    await confirmCasinoAction(
-                      context,
-                      title: l10n.leaveRoomTitle,
-                      // Quitting a live ranked match counts as a loss.
-                      message:
-                          playing && ranked
-                              ? l10n.leaveMatchPenaltyMessage
-                              : l10n.leaveRoomMessage,
-                      confirmLabel: l10n.leave,
-                      tone: CasinoActionTone.fold,
-                      onConfirm: onLeaveRoom,
-                    );
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -1491,7 +1526,7 @@ class _GameMenuTile extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         subtitle!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: CasinoColors.textMuted,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -1532,14 +1567,14 @@ Future<void> confirmCasinoAction(
           shape: feltDialogShape,
           title: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: CasinoColors.text,
               fontWeight: FontWeight.w800,
             ),
           ),
           content: Text(
             message,
-            style: const TextStyle(color: CasinoColors.textMuted),
+            style: TextStyle(color: CasinoColors.textMuted),
           ),
           actionsAlignment: MainAxisAlignment.center,
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

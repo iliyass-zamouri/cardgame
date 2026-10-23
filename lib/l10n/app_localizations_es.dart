@@ -1022,6 +1022,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get opponentQuit => 'El rival abandonó';
 
   @override
+  String get turnTimedOut =>
+      'Se acabó el tiempo. Tu turno se jugó automáticamente.';
+
+  @override
+  String turnTimedOutWarning(int remaining) {
+    return 'Se acabó el tiempo. Tu turno se jugó automáticamente. Turnos restantes antes de abandonar: $remaining.';
+  }
+
+  @override
+  String get youTimedOut => 'Se te acabó el tiempo';
+
+  @override
+  String get opponentTimedOut => 'Al rival se le acabó el tiempo';
+
+  @override
   String get matchResultQuit => 'ABANDONO';
 
   @override

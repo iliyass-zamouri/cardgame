@@ -4,11 +4,15 @@ import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
+import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/data/ranking/ranking_api.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'fake_game_socket.dart';
 
@@ -316,6 +320,73 @@ void main() {
       expect(acceptedAlert?.playerName, 'QueenBee');
     },
   );
+
+  test('balance updates do not refetch ranks', () async {
+    final ranking = _CountingRankingApi();
+    final container = ProviderContainer(
+      overrides: [
+        ..._authOverrides(),
+        rankingApiProvider.overrideWithValue(ranking.api),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(myRankProvider, (_, _) {});
+    await container.read(playerProfileProvider.future);
+    await container.read(myRankProvider.future);
+    expect(ranking.rankFetches, 1);
+
+    // A stake or payout changes the profile but not who is asking.
+    await container
+        .read(playerProfileProvider.notifier)
+        .updateBalances(money: 999, chips: 7);
+    await container.read(myRankProvider.future);
+    expect(ranking.rankFetches, 1);
+  });
+
+  test('a finished online match refreshes ranks once', () async {
+    final socket = FakeGameSocket();
+    final ranking = _CountingRankingApi();
+    final container = ProviderContainer(
+      overrides: [
+        gameSocketFactoryProvider.overrideWithValue(() => socket),
+        ..._authOverrides(),
+        rankingApiProvider.overrideWithValue(ranking.api),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.listen(myRankProvider, (_, _) {});
+    container.read(gameSessionProvider);
+    await container.read(playerProfileProvider.future);
+    await container.read(myRankProvider.future);
+    expect(ranking.rankFetches, 1);
+
+    socket.emit({
+      'type': 'connected',
+      'protocolVersion': 1,
+      'clientId': 'client-1',
+    });
+    socket.emit(_snapshot());
+    const result = {
+      'scores': [5, 8],
+      'winnerIndex': 0,
+    };
+    // Later snapshots of the same finished match must not refetch again.
+    socket.emit({
+      ..._snapshot(),
+      'version': 3,
+      'status': 'ended',
+      'result': result,
+    });
+    socket.emit({
+      ..._snapshot(),
+      'version': 4,
+      'status': 'ended',
+      'result': result,
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await container.read(myRankProvider.future);
+    expect(ranking.rankFetches, 2);
+  });
 }
 
 Map<String, dynamic> _snapshot() {
@@ -355,4 +426,20 @@ Map<String, dynamic> _snapshot() {
     'result': null,
     'lastAction': null,
   };
+}
+
+/// Ranking API that answers every call and counts player-rank fetches.
+class _CountingRankingApi {
+  int rankFetches = 0;
+
+  late final RankingApi api = RankingApi(
+    baseUrl: 'http://localhost',
+    client: MockClient((request) async {
+      if (request.url.path == '/ranking/player') rankFetches++;
+      return http.Response(
+        jsonEncode({'playerId': 'guest-test', 'rank': 3, 'elo': 1200}),
+        200,
+      );
+    }),
+  );
 }
