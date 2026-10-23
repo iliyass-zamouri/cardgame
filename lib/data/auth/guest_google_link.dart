@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/data/auth/apple_sign_in_service.dart';
 import 'package:cardgame/data/auth/google_sign_in_service.dart';
 import 'package:cardgame/data/auth/oauth_auth_service.dart';
 import 'package:cardgame/data/auth/server_identity.dart';
@@ -42,21 +43,79 @@ final guestLinkPrefsRepositoryProvider = Provider<GuestLinkPrefsRepository>((
   );
 });
 
+enum OAuthLinkProvider { google, apple }
+
 /// Shared guest→Google (or cold Google) sign-in with conflict confirm.
 Future<GuestGoogleLinkResult> linkOrSignInWithGoogle({
   required BuildContext context,
   required WidgetRef ref,
   bool confirmSwitch = false,
+}) {
+  return linkOrSignInWithProvider(
+    provider: OAuthLinkProvider.google,
+    context: context,
+    ref: ref,
+    confirmSwitch: confirmSwitch,
+  );
+}
+
+/// Shared guest→Apple (or cold Apple) sign-in with conflict confirm.
+Future<GuestGoogleLinkResult> linkOrSignInWithApple({
+  required BuildContext context,
+  required WidgetRef ref,
+  bool confirmSwitch = false,
+}) {
+  return linkOrSignInWithProvider(
+    provider: OAuthLinkProvider.apple,
+    context: context,
+    ref: ref,
+    confirmSwitch: confirmSwitch,
+  );
+}
+
+Future<GuestGoogleLinkResult> linkOrSignInWithProvider({
+  required OAuthLinkProvider provider,
+  required BuildContext context,
+  required WidgetRef ref,
+  bool confirmSwitch = false,
 }) async {
   final l10n = context.l10n;
+  final isApple = provider == OAuthLinkProvider.apple;
+  final method = provider.name;
+  final genericFailure =
+      isApple ? l10n.appleSignInFailed : l10n.googleSignInFailed;
+
+  void logFailure(String reason) {
+    unawaited(
+      ref
+          .read(analyticsServiceProvider)
+          .logLoginFailed(method: method, reason: reason),
+    );
+  }
+
   try {
-    final idToken =
-        await ref.read(googleSignInServiceProvider).signInIdToken();
     final fingerprint =
         await ref.read(deviceIdentityServiceProvider).fingerprint();
+    final oauth = ref.read(oauthAuthServiceProvider);
 
-    Future<ServerIdentity> exchange({required bool switchConfirmed}) {
-      return ref.read(oauthAuthServiceProvider).authenticateGoogle(
+    final Future<ServerIdentity> Function({required bool switchConfirmed})
+    exchange;
+    if (isApple) {
+      final credential = await ref.read(appleSignInServiceProvider).signIn();
+      exchange =
+          ({required bool switchConfirmed}) => oauth.authenticateApple(
+            identityToken: credential.identityToken,
+            rawNonce: credential.rawNonce,
+            authorizationCode: credential.authorizationCode,
+            fullName: credential.fullName,
+            deviceId: fingerprint.deviceId,
+            confirmSwitch: switchConfirmed,
+          );
+    } else {
+      final idToken =
+          await ref.read(googleSignInServiceProvider).signInIdToken();
+      exchange =
+          ({required bool switchConfirmed}) => oauth.authenticateGoogle(
             idToken: idToken,
             deviceId: fingerprint.deviceId,
             confirmSwitch: switchConfirmed,
@@ -79,11 +138,15 @@ Future<GuestGoogleLinkResult> linkOrSignInWithGoogle({
           return AlertDialog(
             backgroundColor: CasinoColors.surface,
             title: Text(
-              l10n.googleAccountInUseTitle,
+              isApple
+                  ? l10n.appleAccountInUseTitle
+                  : l10n.googleAccountInUseTitle,
               style: const TextStyle(color: CasinoColors.gold),
             ),
             content: Text(
-              l10n.googleAccountInUseBody(conflict.existingUsername),
+              isApple
+                  ? l10n.appleAccountInUseBody(conflict.existingUsername)
+                  : l10n.googleAccountInUseBody(conflict.existingUsername),
               style: const TextStyle(color: CasinoColors.text),
             ),
             actions: [
@@ -112,7 +175,12 @@ Future<GuestGoogleLinkResult> linkOrSignInWithGoogle({
     }
 
     await ref.read(playerProfileProvider.notifier).applyIdentity(identity);
-    await ref.read(sessionAuthProvider.notifier).enterWithGoogle();
+    final session = ref.read(sessionAuthProvider.notifier);
+    if (isApple) {
+      await session.enterWithApple();
+    } else {
+      await session.enterWithGoogle();
+    }
     try {
       await ref.read(guestLinkPrefsRepositoryProvider).clearAfterLinked();
     } on Object {
@@ -127,44 +195,39 @@ Future<GuestGoogleLinkResult> linkOrSignInWithGoogle({
       linkedFromGuest: identity.linkedFromGuest,
     );
   } on GoogleSignInCancelledException {
-    unawaited(
-      ref
-          .read(analyticsServiceProvider)
-          .logLoginFailed(method: 'google', reason: 'cancelled'),
+    logFailure('cancelled');
+    return const GuestGoogleLinkResult(
+      outcome: GuestGoogleLinkOutcome.cancelled,
     );
+  } on AppleSignInCancelledException {
+    logFailure('cancelled');
     return const GuestGoogleLinkResult(
       outcome: GuestGoogleLinkOutcome.cancelled,
     );
   } on GoogleSignInFailedException catch (error) {
-    unawaited(
-      ref
-          .read(analyticsServiceProvider)
-          .logLoginFailed(method: 'google', reason: error.message),
-    );
+    logFailure(error.message);
     return GuestGoogleLinkResult(
       outcome: GuestGoogleLinkOutcome.failed,
       errorMessage: error.message,
     );
-  } on OAuthAuthException catch (error) {
-    unawaited(
-      ref
-          .read(analyticsServiceProvider)
-          .logLoginFailed(method: 'google', reason: error.toString()),
-    );
+  } on AppleSignInFailedException catch (error) {
+    logFailure(error.message);
     return GuestGoogleLinkResult(
       outcome: GuestGoogleLinkOutcome.failed,
-      errorMessage: l10n.googleSignInFailed,
+      errorMessage: genericFailure,
+    );
+  } on OAuthAuthException catch (error) {
+    logFailure(error.toString());
+    return GuestGoogleLinkResult(
+      outcome: GuestGoogleLinkOutcome.failed,
+      errorMessage: genericFailure,
     );
   } on Object catch (error) {
-    unawaited(
-      ref
-          .read(analyticsServiceProvider)
-          .logLoginFailed(method: 'google', reason: error.toString()),
-    );
-    debugPrint('Google link/sign-in error: $error');
+    logFailure(error.toString());
+    debugPrint('$method link/sign-in error: $error');
     return GuestGoogleLinkResult(
       outcome: GuestGoogleLinkOutcome.failed,
-      errorMessage: l10n.googleSignInFailed,
+      errorMessage: genericFailure,
     );
   }
 }

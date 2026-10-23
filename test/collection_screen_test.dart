@@ -103,6 +103,6 @@ void main() {
     final shop = tester.widget<MarketplaceScreen>(
       find.byType(MarketplaceScreen),
     );
-    expect(shop.initialTabIndex, 2);
+    expect(shop.initialTab, MarketplaceTab.decks);
   });
 }

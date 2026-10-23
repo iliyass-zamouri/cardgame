@@ -9,12 +9,14 @@
   },
   "signInToPlay": "Sign in to play online",
   "continueWithGoogle": "Continue with Google",
+  "continueWithApple": "Continue with Apple",
   "signingIn": "Signing in…",
   "playAsGuest": "Play as Guest",
   "entering": "Entering…",
   "guestSignInServerDown": "Guest sign-in failed. Is the server running?",
   "guestSignInConnection": "Guest sign-in failed. Check connection.",
   "googleSignInFailed": "Google sign-in failed. Try again.",
+  "appleSignInFailed": "Apple sign-in failed. Try again.",
   "tagline": "Two players. One table.",
   "findMatch": "Find match",
   "createRoom": "Create room",
@@ -43,6 +45,7 @@
   "signOut": "Sign out",
   "guest": "Guest",
   "google": "Google",
+  "apple": "Apple",
   "player": "Player",
   "online": "Online",
   "connecting": "Connecting",
@@ -404,13 +407,24 @@
   "entryFee": "Entry fee",
   "linkGoogleAccount": "Link Google account",
   "linkingGoogle": "Linking…",
+  "linkAppleAccount": "Link Apple account",
   "linkGoogleSuccess": "Google account linked. Progress saved.",
   "linkGoogleSwitched": "Signed in with your Google account.",
+  "linkAppleSuccess": "Apple account linked. Progress saved.",
+  "linkAppleSwitched": "Signed in with your Apple account.",
   "saveProgressTitle": "Save your progress",
   "saveProgressBody": "Link a Google account so you keep your money, chips, and ranking if you change devices.",
+  "saveProgressBodyIos": "Link an Apple or Google account so you keep your money, chips, and ranking if you change devices.",
   "googleAccountInUseTitle": "Google account in use",
+  "appleAccountInUseTitle": "Apple account in use",
   "googleAccountInUseBody": "This Google account already belongs to @{username}. Switch to that account? Your guest progress on this device will be lost.",
   "@googleAccountInUseBody": {
+    "placeholders": {
+      "username": {"type": "String"}
+    }
+  },
+  "appleAccountInUseBody": "This Apple account already belongs to @{username}. Switch to that account? Your guest progress on this device will be lost.",
+  "@appleAccountInUseBody": {
     "placeholders": {
       "username": {"type": "String"}
     }
@@ -532,5 +546,54 @@
   "tutQuickRulesSubtitle": "Every rule in 7 short cards",
   "tutPromptTitle": "New to ShadowHand?",
   "tutPromptBody": "Learn to play in a quick hands-on tutorial. It takes about 3 minutes.",
-  "tutPromptLater": "Not now"
+  "tutPromptLater": "Not now",
+  "chat": "Chat",
+  "chatHint": "Type a message…",
+  "chatEmpty": "No messages yet. Say hi!",
+  "quickPhrases": "Quick phrases",
+  "phraseHello": "Hi!",
+  "phraseGoodLuck": "Good luck",
+  "phraseWellPlayed": "Well played",
+  "phrasePlayFast": "Play fast!",
+  "phraseOops": "Oops",
+  "phraseThanks": "Thanks",
+  "phraseUnlucky": "Unlucky draw",
+  "phraseHehe": "Hehe",
+  "phraseGg": "GG",
+  "micOn": "Mic on",
+  "micOff": "Mic off",
+  "micPermissionDenied": "Microphone access is off. Allow it in your phone settings to talk.",
+  "voiceOpponentTalking": "Voice on",
+  "muteOpponent": "Mute player",
+  "unmuteOpponent": "Unmute player",
+  "opponentMutedToast": "{name} is muted",
+  "@opponentMutedToast": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "reportPlayer": "Report player",
+  "reportPlayerConfirm": "Report {name} for bad behaviour?",
+  "@reportPlayerConfirm": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "reportedToast": "Thanks, we'll review this player",
+  "recentForm": "Recent form",
+  "noRecentMatches": "No matches yet",
+  "tableChatSettings": "Table chat",
+  "showOpponentChat": "Show opponent chat",
+  "voiceChatSetting": "Voice chat",
+  "errChatRateLimited": "Slow down, you're sending messages too fast",
+  "errChatInvalid": "Message couldn't be sent",
+  "phraseNiceSwap": "Nice swap!",
+  "phraseSharpMemory": "What a memory!",
+  "phraseStopPeeking": "Stop peeking!",
+  "phraseGiveCardBack": "Give my card back!",
+  "phraseBlackKingPlease": "Black King, please!",
+  "phraseLowTotal": "My total is tiny",
+  "phraseFoundJoker": "I found a Joker!",
+  "phraseKnowMyCards": "I know all my cards",
+  "phraseEndingNextTurn": "Ending it next turn!"
 }

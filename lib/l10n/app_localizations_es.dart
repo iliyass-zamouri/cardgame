@@ -23,6 +23,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get continueWithGoogle => 'Continuar con Google';
 
   @override
+  String get continueWithApple => 'Continuar con Apple';
+
+  @override
   String get signingIn => 'Iniciando sesión…';
 
   @override
@@ -42,6 +45,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get googleSignInFailed =>
       'Falló el inicio con Google. Inténtalo de nuevo.';
+
+  @override
+  String get appleSignInFailed =>
+      'Falló el inicio con Apple. Inténtalo de nuevo.';
 
   @override
   String get tagline => 'Dos jugadores. Una mesa.';
@@ -110,6 +117,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get google => 'Google';
+
+  @override
+  String get apple => 'Apple';
 
   @override
   String get player => 'Jugador';
@@ -953,11 +963,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get linkingGoogle => 'Vinculando…';
 
   @override
+  String get linkAppleAccount => 'Vincular cuenta de Apple';
+
+  @override
   String get linkGoogleSuccess =>
       'Cuenta de Google vinculada. Progreso guardado.';
 
   @override
   String get linkGoogleSwitched => 'Sesión iniciada con tu cuenta de Google.';
+
+  @override
+  String get linkAppleSuccess =>
+      'Cuenta de Apple vinculada. Progreso guardado.';
+
+  @override
+  String get linkAppleSwitched => 'Sesión iniciada con tu cuenta de Apple.';
 
   @override
   String get saveProgressTitle => 'Guarda tu progreso';
@@ -967,11 +987,23 @@ class AppLocalizationsEs extends AppLocalizations {
       'Vincula una cuenta de Google para conservar dinero, fichas y ranking si cambias de dispositivo.';
 
   @override
+  String get saveProgressBodyIos =>
+      'Vincula una cuenta de Apple o Google para conservar dinero, fichas y ranking si cambias de dispositivo.';
+
+  @override
   String get googleAccountInUseTitle => 'Cuenta de Google en uso';
+
+  @override
+  String get appleAccountInUseTitle => 'Cuenta de Apple en uso';
 
   @override
   String googleAccountInUseBody(String username) {
     return 'Esta cuenta de Google ya pertenece a @$username. ¿Cambiar a esa cuenta? Se perderá el progreso de invitado en este dispositivo.';
+  }
+
+  @override
+  String appleAccountInUseBody(String username) {
+    return 'Esta cuenta de Apple ya pertenece a @$username. ¿Cambiar a esa cuenta? Se perderá el progreso de invitado en este dispositivo.';
   }
 
   @override
@@ -1377,4 +1409,127 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get tutPromptLater => 'Ahora no';
+
+  @override
+  String get chat => 'Chat';
+
+  @override
+  String get chatHint => 'Escribe un mensaje…';
+
+  @override
+  String get chatEmpty => 'Aún no hay mensajes. ¡Saluda!';
+
+  @override
+  String get quickPhrases => 'Frases rápidas';
+
+  @override
+  String get phraseHello => '¡Hola!';
+
+  @override
+  String get phraseGoodLuck => 'Buena suerte';
+
+  @override
+  String get phraseWellPlayed => 'Bien jugado';
+
+  @override
+  String get phrasePlayFast => '¡Juega rápido!';
+
+  @override
+  String get phraseOops => 'Ups';
+
+  @override
+  String get phraseThanks => 'Gracias';
+
+  @override
+  String get phraseUnlucky => 'Mala carta';
+
+  @override
+  String get phraseHehe => 'Jeje';
+
+  @override
+  String get phraseGg => 'GG';
+
+  @override
+  String get micOn => 'Micro activado';
+
+  @override
+  String get micOff => 'Micro apagado';
+
+  @override
+  String get micPermissionDenied =>
+      'El acceso al micrófono está desactivado. Actívalo en los ajustes del teléfono para hablar.';
+
+  @override
+  String get voiceOpponentTalking => 'Voz activa';
+
+  @override
+  String get muteOpponent => 'Silenciar jugador';
+
+  @override
+  String get unmuteOpponent => 'Quitar silencio';
+
+  @override
+  String opponentMutedToast(String name) {
+    return '$name está silenciado';
+  }
+
+  @override
+  String get reportPlayer => 'Denunciar jugador';
+
+  @override
+  String reportPlayerConfirm(String name) {
+    return '¿Denunciar a $name por mal comportamiento?';
+  }
+
+  @override
+  String get reportedToast => 'Gracias, revisaremos a este jugador';
+
+  @override
+  String get recentForm => 'Forma reciente';
+
+  @override
+  String get noRecentMatches => 'Aún no hay partidas';
+
+  @override
+  String get tableChatSettings => 'Chat de mesa';
+
+  @override
+  String get showOpponentChat => 'Mostrar chat del rival';
+
+  @override
+  String get voiceChatSetting => 'Chat de voz';
+
+  @override
+  String get errChatRateLimited =>
+      'Más despacio, envías mensajes demasiado rápido';
+
+  @override
+  String get errChatInvalid => 'No se pudo enviar el mensaje';
+
+  @override
+  String get phraseNiceSwap => '¡Buen cambio!';
+
+  @override
+  String get phraseSharpMemory => '¡Qué memoria!';
+
+  @override
+  String get phraseStopPeeking => '¡Deja de espiar!';
+
+  @override
+  String get phraseGiveCardBack => '¡Devuélveme mi carta!';
+
+  @override
+  String get phraseBlackKingPlease => '¡Un Rey negro, por favor!';
+
+  @override
+  String get phraseLowTotal => 'Mi total es mínimo';
+
+  @override
+  String get phraseFoundJoker => '¡Encontré un Joker!';
+
+  @override
+  String get phraseKnowMyCards => 'Conozco todas mis cartas';
+
+  @override
+  String get phraseEndingNextTurn => '¡Termino en el próximo turno!';
 }

@@ -133,7 +133,10 @@ class InsufficientFundsSheet extends ConsumerWidget {
                 onPressed:
                     () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => const MarketplaceScreen(),
+                        builder:
+                            (_) => const MarketplaceScreen(
+                              initialTab: MarketplaceTab.exchange,
+                            ),
                       ),
                     ),
               )
@@ -156,7 +159,10 @@ class InsufficientFundsSheet extends ConsumerWidget {
                 onPressed:
                     () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => const MarketplaceScreen(),
+                        builder:
+                            (_) => const MarketplaceScreen(
+                              initialTab: MarketplaceTab.exchange,
+                            ),
                       ),
                     ),
               ),

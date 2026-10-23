@@ -1,0 +1,36 @@
+{
+ "hero": 19.205,
+ "cues": [
+  {
+   "t": 0.4049999999999999,
+   "cap": "PEEK AT TWO",
+   "sub": "Four cards face down. Memorize two."
+  },
+  {
+   "t": 5.672000000000001,
+   "cap": "DRAW & SWAP",
+   "sub": "Keep the cards worth the least."
+  },
+  {
+   "t": 8.673000000000002,
+   "cap": "THROW IT AWAY",
+   "sub": "Bad draw? Send it to the discard."
+  },
+  {
+   "t": 11.686999999999998,
+   "cap": "QUEEN: SHUFFLE",
+   "sub": "Scramble their memory."
+  },
+  {
+   "t": 17.687000000000005,
+   "cap": "JACK: PEEK",
+   "sub": "Spy on your rival\u2019s hand."
+  }
+ ],
+ "sides": [
+  20.0,
+  20.0,
+  20.0,
+  20.0
+ ]
+}

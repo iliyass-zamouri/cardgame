@@ -4,9 +4,11 @@ import 'package:cardgame/app/locale_provider.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/push_providers.dart';
 import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/app/table_social_prefs.dart';
 import 'package:cardgame/core/monetization/purchases_config.dart';
 import 'package:cardgame/core/monetization/purchases_providers.dart';
 import 'package:cardgame/core/monetization/purchases_service.dart';
+import 'package:cardgame/data/auth/apple_sign_in_service.dart';
 import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/data/auth/legal_urls.dart';
 import 'package:cardgame/data/profile/profile_api.dart';
@@ -39,7 +41,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  bool _linkingGoogle = false;
+  /// Provider currently being linked, or null.
+  OAuthLinkProvider? _linking;
   bool _deletingAccount = false;
 
   Future<void> _launchLegalUrl(String url) async {
@@ -112,23 +115,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _linkGoogle() async {
-    if (_linkingGoogle) return;
-    setState(() => _linkingGoogle = true);
+  Future<void> _linkAccount(OAuthLinkProvider provider) async {
+    if (_linking != null) return;
+    setState(() => _linking = provider);
     final l10n = context.l10n;
     try {
-      final result = await linkOrSignInWithGoogle(context: context, ref: ref);
+      final result = await linkOrSignInWithProvider(
+        provider: provider,
+        context: context,
+        ref: ref,
+      );
       if (!mounted) return;
+      final isApple = provider == OAuthLinkProvider.apple;
       if (result.outcome == GuestGoogleLinkOutcome.linked) {
-        CasinoToast.show(context, l10n.linkGoogleSuccess);
+        CasinoToast.show(
+          context,
+          isApple ? l10n.linkAppleSuccess : l10n.linkGoogleSuccess,
+        );
       } else if (result.outcome == GuestGoogleLinkOutcome.switched) {
-        CasinoToast.show(context, l10n.linkGoogleSwitched);
+        CasinoToast.show(
+          context,
+          isApple ? l10n.linkAppleSwitched : l10n.linkGoogleSwitched,
+        );
       } else if (result.outcome == GuestGoogleLinkOutcome.failed &&
           result.errorMessage != null) {
         CasinoToast.show(context, result.errorMessage!, success: false);
       }
     } finally {
-      if (mounted) setState(() => _linkingGoogle = false);
+      if (mounted) setState(() => _linking = null);
     }
   }
 
@@ -154,10 +168,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           if (isGuest) ...[
             const SizedBox(height: 12),
+            if (AppleSignInService.isSupported) ...[
+              AuthProviderButton.apple(
+                label:
+                    _linking == OAuthLinkProvider.apple
+                        ? l10n.linkingGoogle
+                        : l10n.linkAppleAccount,
+                onPressed:
+                    _linking != null
+                        ? null
+                        : () => _linkAccount(OAuthLinkProvider.apple),
+              ),
+              const SizedBox(height: 12),
+            ],
             AuthProviderButton.google(
               label:
-                  _linkingGoogle ? l10n.linkingGoogle : l10n.linkGoogleAccount,
-              onPressed: _linkingGoogle ? null : _linkGoogle,
+                  _linking == OAuthLinkProvider.google
+                      ? l10n.linkingGoogle
+                      : l10n.linkGoogleAccount,
+              onPressed:
+                  _linking != null
+                      ? null
+                      : () => _linkAccount(OAuthLinkProvider.google),
             ),
           ],
           if (PurchasesConfig.enableProUpgrade) ...[
@@ -195,6 +227,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
           const _NotifyPrefsGroup(),
+          const SizedBox(height: 20),
+          const _TableSocialGroup(),
           const SizedBox(height: 20),
           FeltTileGroup(
             children: [
@@ -287,6 +321,7 @@ class _ProfileCard extends StatelessWidget {
     final authLabel = switch (authStatus) {
       SessionAuthStatus.guest => l10n.guest,
       SessionAuthStatus.google => l10n.google,
+      SessionAuthStatus.apple => l10n.apple,
       _ => l10n.guest,
     };
 
@@ -792,6 +827,55 @@ class _NotifyPrefsGroup extends ConsumerWidget {
           'News & offers',
           prefs.marketing,
           notifier.setMarketing,
+        ),
+      ],
+    );
+  }
+}
+
+class _TableSocialGroup extends ConsumerWidget {
+  const _TableSocialGroup();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final prefs = ref.watch(tableSocialPrefsProvider);
+    final notifier = ref.read(tableSocialPrefsProvider.notifier);
+
+    FeltTile toggle(
+      List<List<dynamic>> icon,
+      String title,
+      bool value,
+      ValueChanged<bool> onChanged,
+    ) {
+      return FeltTile(
+        icon: icon,
+        title: title,
+        onTap: () => onChanged(!value),
+        trailing: Switch.adaptive(
+          value: value,
+          activeThumbColor: CasinoColors.gold,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          onChanged: onChanged,
+        ),
+      );
+    }
+
+    return FeltTileGroup(
+      header: l10n.tableChatSettings,
+      suit: SuitShape.spades,
+      children: [
+        toggle(
+          AppIcons.chat,
+          l10n.showOpponentChat,
+          prefs.showChat,
+          notifier.setShowChat,
+        ),
+        toggle(
+          AppIcons.mic,
+          l10n.voiceChatSetting,
+          prefs.voiceEnabled,
+          notifier.setVoiceEnabled,
         ),
       ],
     );

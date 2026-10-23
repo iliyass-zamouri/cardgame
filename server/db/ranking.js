@@ -538,7 +538,7 @@ async function getPlayerRank(playerId) {
   if (!playerId) return null;
   const pool = getPool();
   const [rows] = await pool.execute(
-    `SELECT id, display_name, username, elo, total_points, wins, losses, draws, deck_id, country_code
+    `SELECT id, display_name, username, elo, total_points, wins, losses, draws, deck_id, avatar_id, country_code
      FROM players
      WHERE id = :playerId
      LIMIT 1`,
@@ -571,6 +571,7 @@ async function getPlayerRank(playerId) {
     losses: row.losses,
     draws: row.draws,
     deckId: row.deck_id || 'default',
+    avatarId: row.avatar_id || 'default',
     countryCode: row.country_code || null,
   };
 }

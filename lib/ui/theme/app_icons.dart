@@ -7,6 +7,7 @@ abstract final class AppIcons {
   static const arrowBack = HugeIcons.strokeRoundedArrowLeft01;
   static const arrowForward = HugeIcons.strokeRoundedArrowRight01;
   static const bolt = HugeIcons.strokeRoundedFlash;
+  static const chat = HugeIcons.strokeRoundedBubbleChat;
   static const check = HugeIcons.strokeRoundedTick02;
   static const checkCircle = HugeIcons.strokeRoundedCheckmarkCircle02;
   static const chevronRight = HugeIcons.strokeRoundedArrowRight01;
@@ -26,6 +27,8 @@ abstract final class AppIcons {
   static const mail = HugeIcons.strokeRoundedMail01;
   static const menuBook = HugeIcons.strokeRoundedBook01;
   static const menu = HugeIcons.strokeRoundedMenu01;
+  static const mic = HugeIcons.strokeRoundedMic01;
+  static const micOff = HugeIcons.strokeRoundedMicOff01;
   static const medal = HugeIcons.strokeRoundedMedal01;
   static const moreVert = HugeIcons.strokeRoundedMoreVertical;
   static const notifications = HugeIcons.strokeRoundedNotification01;
@@ -42,8 +45,10 @@ abstract final class AppIcons {
   static const replay = HugeIcons.strokeRoundedReplay;
   static const restore = HugeIcons.strokeRoundedRestoreBin;
   static const search = HugeIcons.strokeRoundedSearch01;
+  static const send = HugeIcons.strokeRoundedSent;
   static const settings = HugeIcons.strokeRoundedSettings01;
   static const shield = HugeIcons.strokeRoundedShield01;
+  static const smile = HugeIcons.strokeRoundedSmile;
   static const shoppingBag = HugeIcons.strokeRoundedShoppingBag01;
   static const shuffle = HugeIcons.strokeRoundedShuffle;
   static const game = HugeIcons.strokeRoundedGameController01;
@@ -54,6 +59,8 @@ abstract final class AppIcons {
   static const swapHoriz = HugeIcons.strokeRoundedArrowDataTransferHorizontal;
   static const trendingUp = HugeIcons.strokeRoundedTradeUp;
   static const visibility = HugeIcons.strokeRoundedView;
+  static const volume = HugeIcons.strokeRoundedVolumeHigh;
+  static const volumeMute = HugeIcons.strokeRoundedVolumeMute01;
   static const premium = HugeIcons.strokeRoundedCrown;
   static const zoomIn = HugeIcons.strokeRoundedZoomIn;
 }

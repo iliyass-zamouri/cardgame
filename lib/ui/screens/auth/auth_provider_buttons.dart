@@ -32,6 +32,23 @@ class AuthProviderButton extends StatefulWidget {
     );
   }
 
+  /// Black Sign in with Apple style (Apple HIG).
+  factory AuthProviderButton.apple({
+    Key? key,
+    required String label,
+    VoidCallback? onPressed,
+  }) {
+    return AuthProviderButton(
+      key: key,
+      label: label,
+      onPressed: onPressed,
+      backgroundColor: Colors.black,
+      foregroundColor: Colors.white,
+      borderColor: Colors.white24,
+      leading: const Icon(Icons.apple, size: 24),
+    );
+  }
+
   factory AuthProviderButton.guest({
     Key? key,
     required String label,

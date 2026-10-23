@@ -17,13 +17,31 @@ const {
   verifyGoogleIdToken,
   InvalidGoogleTokenError,
 } = require('./auth/google_token');
+const {
+  verifyAppleIdentityToken,
+  InvalidAppleTokenError,
+} = require('./auth/apple_token');
+const {
+  exchangeAppleAuthorizationCode,
+  revokeAppleRefreshToken,
+} = require('./auth/apple_revoke');
 const { signSession, verifySession, InvalidSessionError } = require('./auth/session');
 const { requireAuth, isDbReady } = require('./auth/http_auth');
+const {
+  validateChatCommand,
+  validateVoiceSignal,
+  ChatLimiter,
+  buildChatMessage,
+  pickBotReply,
+} = require('./chat/room_chat');
+const { buildIceServers } = require('./voice/turn_credentials');
 const {
   getPlayerTokenVersion,
   bumpTokenVersion,
   deletePlayerAccount,
   createPlayerReport,
+  setPlayerAppleRefreshToken,
+  getPlayerAppleRefreshToken,
 } = require('./db/store');
 const {
   authenticateOAuth,
@@ -136,6 +154,8 @@ class GameServer {
     this.roomBots = new Map();
     /** @type {Set<string>} Active bot player IDs */
     this.activeBotPlayerIds = new Set();
+    /** @type {Map<string, Set<NodeJS.Timeout>>} pending bot chat replies per room */
+    this.botChatTimers = new Map();
     this.httpServer = null;
     this.webSocketServer = null;
     /** @type {{ t: number, connections: number, uniquePlayers: number, rooms: number, queue: number }[]} */
@@ -201,6 +221,7 @@ class GameServer {
     for (const roomBot of this.roomBots.values()) roomBot.bot.dispose();
     this.roomBots.clear();
     this.activeBotPlayerIds.clear();
+    for (const roomId of [...this.botChatTimers.keys()]) this.#clearBotChatTimers(roomId);
     for (const room of this.rooms.values()) room.dispose();
     for (const context of this.clients.values()) context.socket.terminate();
     this.rooms.clear();
@@ -466,7 +487,12 @@ class GameServer {
     }
 
     if (request.method === 'POST' && url.pathname === '/auth/google') {
-      await this.#handleGoogleAuth(request, response);
+      await this.#handleOAuth(request, response, 'google');
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/auth/apple') {
+      await this.#handleOAuth(request, response, 'apple');
       return;
     }
 
@@ -477,6 +503,11 @@ class GameServer {
 
     if (request.method === 'GET' && url.pathname === '/ranking/player') {
       await this.#handlePlayerRank(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/voice/ice') {
+      await this.#handleVoiceIce(request, response);
       return;
     }
 
@@ -632,6 +663,7 @@ class GameServer {
         });
         return;
       }
+      this.#enrichAvatarsFromLiveClients([entry]);
       sendJson(response, 200, entry);
     } catch (error) {
       console.error('[ranking] player', error);
@@ -640,6 +672,12 @@ class GameServer {
         message: 'Failed to load player rank',
       });
     }
+  }
+
+  async #handleVoiceIce(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    sendJson(response, 200, buildIceServers({ playerId: auth.playerId }));
   }
 
   async #handleMatchHistory(request, response, url) {
@@ -1181,6 +1219,7 @@ class GameServer {
     if (!auth) return;
     try {
       await bumpTokenVersion(auth.playerId);
+      await this.#revokeAppleToken(auth.playerId);
       const deleted = await deletePlayerAccount(auth.playerId);
       if (!deleted) {
         sendJson(response, 404, { error: 'player_not_found', message: 'Player not found' });
@@ -1190,6 +1229,29 @@ class GameServer {
     } catch (error) {
       console.error('[account/delete]', error);
       sendJson(response, 500, { error: 'server_error', message: 'Failed to delete account' });
+    }
+  }
+
+  /** Apple guideline 5.1.1(v): revoke SIWA tokens; never blocks deletion. */
+  async #revokeAppleToken(playerId) {
+    try {
+      const refreshToken = await getPlayerAppleRefreshToken(playerId);
+      if (refreshToken) await revokeAppleRefreshToken(refreshToken);
+    } catch (error) {
+      console.error('[account/delete] Apple token revoke failed', error);
+    }
+  }
+
+  /**
+   * Exchange the one-time Apple authorizationCode for a refresh token so it
+   * can be revoked on account deletion. Failure does not fail sign-in.
+   */
+  async #storeAppleRefreshToken(playerId, authorizationCode) {
+    try {
+      const refreshToken = await exchangeAppleAuthorizationCode(authorizationCode);
+      if (refreshToken) await setPlayerAppleRefreshToken(playerId, refreshToken);
+    } catch (error) {
+      console.error('[auth/apple] authorization code exchange failed', error);
     }
   }
 
@@ -1312,7 +1374,23 @@ class GameServer {
     }
   }
 
-  async #handleGoogleAuth(request, response) {
+  /**
+   * Verifies the provider token and returns `{ sub, email, name }`.
+   * Apple only reveals the user's name to the app on first sign-in and never
+   * puts it in the token, so the client forwards it in the body.
+   */
+  async #verifyOAuthToken(provider, idToken, body) {
+    if (provider === 'apple') {
+      const rawNonce = typeof body.nonce === 'string' ? body.nonce.trim() : '';
+      const claims = await verifyAppleIdentityToken(idToken, { rawNonce });
+      const fullName =
+        typeof body.fullName === 'string' ? body.fullName.trim() : '';
+      return { ...claims, name: fullName || undefined };
+    }
+    return verifyGoogleIdToken(idToken);
+  }
+
+  async #handleOAuth(request, response, provider) {
     let body;
     try {
       body = await readJsonBody(request);
@@ -1352,9 +1430,9 @@ class GameServer {
     const confirmSwitch = body.confirmSwitch === true;
 
     try {
-      const claims = await verifyGoogleIdToken(idToken);
+      const claims = await this.#verifyOAuthToken(provider, idToken, body);
       const identity = await authenticateOAuth({
-        provider: 'google',
+        provider,
         sub: claims.sub,
         displayNameHint: claims.name ?? null,
         email: claims.email ?? null,
@@ -1363,6 +1441,9 @@ class GameServer {
         confirmSwitch,
       });
       await setPlayerCountry(identity.playerId, getClientCountry(request, clientIp)).catch(() => {});
+      if (provider === 'apple' && typeof body.authorizationCode === 'string') {
+        await this.#storeAppleRefreshToken(identity.playerId, body.authorizationCode);
+      }
       const tokenVersion = identity.tokenVersion ?? (await getPlayerTokenVersion(identity.playerId)) ?? 0;
       const accessToken = await signSession({
         playerId: identity.playerId,
@@ -1374,13 +1455,17 @@ class GameServer {
         sendJson(response, 409, {
           error: error.code,
           message: error.message,
+          provider: error.provider,
           existingName: error.existingName,
           existingUsername: error.existingUsername,
           guestPlayerId: error.guestPlayerId,
         });
         return;
       }
-      if (error instanceof InvalidGoogleTokenError) {
+      if (
+        error instanceof InvalidGoogleTokenError ||
+        error instanceof InvalidAppleTokenError
+      ) {
         sendJson(response, 401, {
           error: error.code,
           message: error.message,
@@ -1401,10 +1486,10 @@ class GameServer {
         });
         return;
       }
-      console.error('[auth/google] failed', error);
+      console.error(`[auth/${provider}] failed`, error);
       sendJson(response, 500, {
         error: 'server_error',
-        message: 'Could not authenticate with Google',
+        message: `Could not authenticate with ${provider}`,
       });
     }
   }
@@ -1824,9 +1909,68 @@ class GameServer {
       case 'endGame':
         room.end(context.id);
         break;
+      case 'chatSend':
+        this.#handleChatSend(context, room, command);
+        break;
+      case 'voiceSignal': {
+        const signal = validateVoiceSignal(command.signal);
+        if (!signal) throw new GameRuleError('voice_invalid', 'Invalid voice signal');
+        this.#sendToRoom(
+          room,
+          { type: 'voiceSignal', fromPlayerId: context.playerId || '', signal },
+          { exceptClientId: context.id },
+        );
+        break;
+      }
+      case 'voiceState':
+        this.#sendToRoom(
+          room,
+          { type: 'voiceState', fromPlayerId: context.playerId || '', micOn: command.micOn === true },
+          { exceptClientId: context.id },
+        );
+        break;
       default:
         throw new GameRuleError('unknown_command', 'Unknown command');
     }
+  }
+
+  #handleChatSend(context, room, command) {
+    const payload = validateChatCommand(command);
+    if (!payload) throw new GameRuleError('chat_invalid', 'Invalid chat message');
+    context.chatLimiter ??= new ChatLimiter();
+    if (!context.chatLimiter.tryConsume()) {
+      throw new GameRuleError('chat_rate_limited', 'Slow down');
+    }
+    this.#sendToRoom(room, buildChatMessage(context.playerId || '', payload));
+    this.#scheduleBotChatReply(room);
+  }
+
+  /** Bots occasionally answer chat so bot tables feel like real ones. */
+  #scheduleBotChatReply(room) {
+    const roomBot = this.roomBots.get(room.id);
+    if (!roomBot) return;
+    const reply = pickBotReply();
+    if (!reply) return;
+    let timers = this.botChatTimers.get(room.id);
+    if (!timers) {
+      timers = new Set();
+      this.botChatTimers.set(room.id, timers);
+    }
+    if (timers.size > 0) return;
+    const timer = setTimeout(() => {
+      timers.delete(timer);
+      if (this.rooms.get(room.id) !== room) return;
+      this.#sendToRoom(room, buildChatMessage(roomBot.botPlayerId, reply));
+    }, 1000 + Math.floor(Math.random() * 2000));
+    timer.unref?.();
+    timers.add(timer);
+  }
+
+  #clearBotChatTimers(roomId) {
+    const timers = this.botChatTimers.get(roomId);
+    if (!timers) return;
+    for (const timer of timers) clearTimeout(timer);
+    this.botChatTimers.delete(roomId);
   }
 
   #dequeue(context) {
@@ -2051,6 +2195,15 @@ class GameServer {
       if (client?.socket.readyState === WebSocket.OPEN) {
         this.#send(client.socket, room.snapshotFor(player.id));
       }
+    }
+  }
+
+  /** Sends a non-snapshot event to the connected seats of a room. */
+  #sendToRoom(room, payload, { exceptClientId = null } = {}) {
+    for (const player of room.players) {
+      if (!player.connected || player.id === exceptClientId) continue;
+      const client = this.clients.get(player.id);
+      if (client?.socket) this.#send(client.socket, payload);
     }
   }
 
@@ -2415,6 +2568,13 @@ class GameServer {
   #leaveCurrentRoom(context) {
     if (!context.roomId) return;
     const room = this.rooms.get(context.roomId);
+    if (room) {
+      this.#sendToRoom(
+        room,
+        { type: 'voiceSignal', fromPlayerId: context.playerId || '', signal: { kind: 'hangup' } },
+        { exceptClientId: context.id },
+      );
+    }
     // Leaving a live match counts as quitting: settle as a loss, keep the seat
     // (disconnected) so the opponent still sees the result.
     if (room && room.status === 'playing' && room.players.length === 2) {
@@ -2446,6 +2606,7 @@ class GameServer {
         this.activeBotPlayerIds.delete(roomBot.botPlayerId);
         this.roomBots.delete(room.id);
       }
+      this.#clearBotChatTimers(room.id);
       room.dispose();
       this.rooms.delete(room.id);
     }

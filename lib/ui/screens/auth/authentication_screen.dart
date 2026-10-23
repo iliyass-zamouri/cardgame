@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/data/auth/apple_sign_in_service.dart';
 import 'package:cardgame/data/auth/guest_auth_service.dart';
 import 'package:cardgame/data/auth/legal_urls.dart';
 import 'package:cardgame/data/auth/guest_google_link.dart';
@@ -28,9 +29,10 @@ class AuthenticationScreen extends ConsumerStatefulWidget {
 class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
   bool _guestLoading = false;
   bool _googleLoading = false;
+  bool _appleLoading = false;
   String? _error;
 
-  bool get _busy => _guestLoading || _googleLoading;
+  bool get _busy => _guestLoading || _googleLoading || _appleLoading;
 
   Future<void> _applyIdentity(ServerIdentity identity) async {
     await ref.read(playerProfileProvider.notifier).applyIdentity(identity);
@@ -96,6 +98,23 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
     }
   }
 
+  Future<void> _enterApple() async {
+    if (_busy) return;
+    setState(() {
+      _appleLoading = true;
+      _error = null;
+    });
+    try {
+      final result = await linkOrSignInWithApple(context: context, ref: ref);
+      if (!mounted) return;
+      if (result.outcome == GuestGoogleLinkOutcome.failed) {
+        setState(() => _error = result.errorMessage);
+      }
+    } finally {
+      if (mounted) setState(() => _appleLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -153,6 +172,13 @@ class _AuthenticationScreenState extends ConsumerState<AuthenticationScreen> {
                 ).textTheme.bodySmall?.copyWith(color: CasinoColors.foldHi),
               ),
               const SizedBox(height: 16),
+            ],
+            if (AppleSignInService.isSupported) ...[
+              AuthProviderButton.apple(
+                label: _appleLoading ? l10n.signingIn : l10n.continueWithApple,
+                onPressed: _busy ? null : _enterApple,
+              ),
+              const SizedBox(height: 14),
             ],
             AuthProviderButton.google(
               label: _googleLoading ? l10n.signingIn : l10n.continueWithGoogle,

@@ -136,12 +136,13 @@ ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {
       overlayColor: WidgetStateProperty.all(Colors.transparent),
       splashFactory: NoSplash.splashFactory,
     ),
-    bottomSheetTheme: BottomSheetThemeData(
+    bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: CasinoColors.surface,
       modalBackgroundColor: CasinoColors.surface,
+      // No border here: every sheet draws its own framed panel (CasinoGlass
+      // etc.) on a transparent background, so a themed rim showed twice.
       shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        side: BorderSide(color: CasinoColors.gold.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
     ),
     dividerTheme: DividerThemeData(

@@ -10,6 +10,7 @@ import 'package:cardgame/app/navigation_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/push_providers.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
+import 'package:cardgame/app/table_social_prefs.dart';
 import 'package:cardgame/core/monetization/purchases_service.dart';
 import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/firebase_options.dart';
@@ -135,6 +136,7 @@ Future<void> main() async {
       final pushPrefsRepo = await PushPrefsRepository.open();
       final guestLinkPrefsRepo = await GuestLinkPrefsRepository.open();
       final tutorialProgressRepo = await TutorialProgressRepository.open();
+      final tableSocialPrefsRepo = await TableSocialPrefsRepository.open();
 
       runApp(
         ProviderScope(
@@ -148,6 +150,9 @@ Future<void> main() async {
             ),
             tutorialProgressRepositoryProvider.overrideWithValue(
               tutorialProgressRepo,
+            ),
+            tableSocialPrefsRepositoryProvider.overrideWithValue(
+              tableSocialPrefsRepo,
             ),
           ],
           child: const MyApp(),

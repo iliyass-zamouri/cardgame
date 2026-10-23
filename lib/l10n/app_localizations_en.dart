@@ -23,6 +23,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continueWithGoogle => 'Continue with Google';
 
   @override
+  String get continueWithApple => 'Continue with Apple';
+
+  @override
   String get signingIn => 'Signing in…';
 
   @override
@@ -40,6 +43,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get googleSignInFailed => 'Google sign-in failed. Try again.';
+
+  @override
+  String get appleSignInFailed => 'Apple sign-in failed. Try again.';
 
   @override
   String get tagline => 'Two players. One table.';
@@ -108,6 +114,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get google => 'Google';
+
+  @override
+  String get apple => 'Apple';
 
   @override
   String get player => 'Player';
@@ -950,10 +959,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get linkingGoogle => 'Linking…';
 
   @override
+  String get linkAppleAccount => 'Link Apple account';
+
+  @override
   String get linkGoogleSuccess => 'Google account linked. Progress saved.';
 
   @override
   String get linkGoogleSwitched => 'Signed in with your Google account.';
+
+  @override
+  String get linkAppleSuccess => 'Apple account linked. Progress saved.';
+
+  @override
+  String get linkAppleSwitched => 'Signed in with your Apple account.';
 
   @override
   String get saveProgressTitle => 'Save your progress';
@@ -963,11 +981,23 @@ class AppLocalizationsEn extends AppLocalizations {
       'Link a Google account so you keep your money, chips, and ranking if you change devices.';
 
   @override
+  String get saveProgressBodyIos =>
+      'Link an Apple or Google account so you keep your money, chips, and ranking if you change devices.';
+
+  @override
   String get googleAccountInUseTitle => 'Google account in use';
+
+  @override
+  String get appleAccountInUseTitle => 'Apple account in use';
 
   @override
   String googleAccountInUseBody(String username) {
     return 'This Google account already belongs to @$username. Switch to that account? Your guest progress on this device will be lost.';
+  }
+
+  @override
+  String appleAccountInUseBody(String username) {
+    return 'This Apple account already belongs to @$username. Switch to that account? Your guest progress on this device will be lost.';
   }
 
   @override
@@ -1372,4 +1402,127 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tutPromptLater => 'Not now';
+
+  @override
+  String get chat => 'Chat';
+
+  @override
+  String get chatHint => 'Type a message…';
+
+  @override
+  String get chatEmpty => 'No messages yet. Say hi!';
+
+  @override
+  String get quickPhrases => 'Quick phrases';
+
+  @override
+  String get phraseHello => 'Hi!';
+
+  @override
+  String get phraseGoodLuck => 'Good luck';
+
+  @override
+  String get phraseWellPlayed => 'Well played';
+
+  @override
+  String get phrasePlayFast => 'Play fast!';
+
+  @override
+  String get phraseOops => 'Oops';
+
+  @override
+  String get phraseThanks => 'Thanks';
+
+  @override
+  String get phraseUnlucky => 'Unlucky draw';
+
+  @override
+  String get phraseHehe => 'Hehe';
+
+  @override
+  String get phraseGg => 'GG';
+
+  @override
+  String get micOn => 'Mic on';
+
+  @override
+  String get micOff => 'Mic off';
+
+  @override
+  String get micPermissionDenied =>
+      'Microphone access is off. Allow it in your phone settings to talk.';
+
+  @override
+  String get voiceOpponentTalking => 'Voice on';
+
+  @override
+  String get muteOpponent => 'Mute player';
+
+  @override
+  String get unmuteOpponent => 'Unmute player';
+
+  @override
+  String opponentMutedToast(String name) {
+    return '$name is muted';
+  }
+
+  @override
+  String get reportPlayer => 'Report player';
+
+  @override
+  String reportPlayerConfirm(String name) {
+    return 'Report $name for bad behaviour?';
+  }
+
+  @override
+  String get reportedToast => 'Thanks, we\'ll review this player';
+
+  @override
+  String get recentForm => 'Recent form';
+
+  @override
+  String get noRecentMatches => 'No matches yet';
+
+  @override
+  String get tableChatSettings => 'Table chat';
+
+  @override
+  String get showOpponentChat => 'Show opponent chat';
+
+  @override
+  String get voiceChatSetting => 'Voice chat';
+
+  @override
+  String get errChatRateLimited =>
+      'Slow down, you\'re sending messages too fast';
+
+  @override
+  String get errChatInvalid => 'Message couldn\'t be sent';
+
+  @override
+  String get phraseNiceSwap => 'Nice swap!';
+
+  @override
+  String get phraseSharpMemory => 'What a memory!';
+
+  @override
+  String get phraseStopPeeking => 'Stop peeking!';
+
+  @override
+  String get phraseGiveCardBack => 'Give my card back!';
+
+  @override
+  String get phraseBlackKingPlease => 'Black King, please!';
+
+  @override
+  String get phraseLowTotal => 'My total is tiny';
+
+  @override
+  String get phraseFoundJoker => 'I found a Joker!';
+
+  @override
+  String get phraseKnowMyCards => 'I know all my cards';
+
+  @override
+  String get phraseEndingNextTurn => 'Ending it next turn!';
 }

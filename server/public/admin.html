@@ -677,7 +677,7 @@
       const e = s.engagement || {};
       $('player-kpis').innerHTML = kpiHtml([
         { l: 'Humans', v: p.humans ?? 0, s: (p.bots ?? 0) + ' bots' },
-        { l: 'Guest / Google', v: (p.guest ?? 0) + ' / ' + (p.google ?? 0) },
+        { l: 'Guest / Google / Apple', v: (p.guest ?? 0) + ' / ' + (p.google ?? 0) + ' / ' + (p.apple ?? 0) },
         { l: 'DAU', v: p.dau ?? 0, s: 'WAU ' + (p.wau ?? 0) },
         { l: 'Signups 24h', v: p.signups24h ?? 0, s: (p.signups7d ?? 0) + ' in 7d' },
       ]);

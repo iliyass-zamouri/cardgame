@@ -676,6 +676,8 @@ class CasinoPlayerPill extends StatelessWidget {
     this.points,
     this.height = 38,
     this.accent,
+    this.onTap,
+    this.trailing,
   });
 
   final String name;
@@ -686,9 +688,15 @@ class CasinoPlayerPill extends StatelessWidget {
   final double height;
   final Color? accent;
 
+  /// Opens the player's profile card.
+  final VoidCallback? onTap;
+
+  /// Small status widget after the name (e.g. voice indicator).
+  final Widget? trailing;
+
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    final pill = DecoratedBox(
       decoration: ShapeDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
@@ -718,16 +726,24 @@ class CasinoPlayerPill extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(5, 4, 14, 4),
-        child: CasinoPlayerSeat(
-          name: name,
-          avatarId: avatarId,
-          connected: connected,
-          active: active,
-          points: points,
-          avatarSize: 34,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CasinoPlayerSeat(
+              name: name,
+              avatarId: avatarId,
+              connected: connected,
+              active: active,
+              points: points,
+              avatarSize: 34,
+            ),
+            if (trailing != null) ...[const SizedBox(width: 6), trailing!],
+          ],
         ),
       ),
     );
+    final onTap = this.onTap;
+    return onTap == null ? pill : Pressable(onTap: onTap, child: pill);
   }
 }
 

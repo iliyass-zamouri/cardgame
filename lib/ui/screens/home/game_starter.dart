@@ -8,6 +8,7 @@ import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/push_providers.dart';
 import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/data/auth/apple_sign_in_service.dart';
 import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/analytics_service.dart';
@@ -128,6 +129,7 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
     }
 
     final l10n = context.l10n;
+    final offerApple = AppleSignInService.isSupported;
     final action = await showDialog<_GuestLinkPromptAction>(
       context: context,
       builder: (dialogContext) {
@@ -138,7 +140,7 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
             style: const TextStyle(color: CasinoColors.gold),
           ),
           content: Text(
-            l10n.saveProgressBody,
+            offerApple ? l10n.saveProgressBodyIos : l10n.saveProgressBody,
             style: const TextStyle(color: CasinoColors.text),
           ),
           actions: [
@@ -156,6 +158,17 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
                   ).pop(_GuestLinkPromptAction.later),
               child: Text(l10n.later),
             ),
+            if (offerApple)
+              TextButton(
+                onPressed:
+                    () => Navigator.of(
+                      dialogContext,
+                    ).pop(_GuestLinkPromptAction.linkApple),
+                child: Text(
+                  l10n.linkAppleAccount,
+                  style: const TextStyle(color: CasinoColors.gold),
+                ),
+              ),
             TextButton(
               onPressed:
                   () => Navigator.of(
@@ -179,14 +192,26 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
       case _GuestLinkPromptAction.dontAsk:
         await prefs.setDontAskAgain(true);
       case _GuestLinkPromptAction.link:
+      case _GuestLinkPromptAction.linkApple:
         await prefs.markShown();
         if (!mounted) return;
-        final result = await linkOrSignInWithGoogle(context: context, ref: ref);
+        final isApple = action == _GuestLinkPromptAction.linkApple;
+        final result = await linkOrSignInWithProvider(
+          provider: isApple ? OAuthLinkProvider.apple : OAuthLinkProvider.google,
+          context: context,
+          ref: ref,
+        );
         if (!mounted) return;
         if (result.outcome == GuestGoogleLinkOutcome.linked) {
-          CasinoToast.show(context, l10n.linkGoogleSuccess);
+          CasinoToast.show(
+            context,
+            isApple ? l10n.linkAppleSuccess : l10n.linkGoogleSuccess,
+          );
         } else if (result.outcome == GuestGoogleLinkOutcome.switched) {
-          CasinoToast.show(context, l10n.linkGoogleSwitched);
+          CasinoToast.show(
+            context,
+            isApple ? l10n.linkAppleSwitched : l10n.linkGoogleSwitched,
+          );
         } else if (result.outcome == GuestGoogleLinkOutcome.failed &&
             result.errorMessage != null) {
           CasinoToast.show(context, result.errorMessage!, success: false);
@@ -426,7 +451,7 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
   }
 }
 
-enum _GuestLinkPromptAction { later, dontAsk, link }
+enum _GuestLinkPromptAction { later, dontAsk, link, linkApple }
 
 Future<void> _showJoinRoomDialog(BuildContext context) {
   return showDialog<void>(
@@ -697,7 +722,7 @@ class _TopBar extends ConsumerWidget {
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
-                    height: 62,
+                    height: 70,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -709,7 +734,7 @@ class _TopBar extends ConsumerWidget {
                             avatarId: avatarId,
                             statusColor: statusColor,
                             countryCode: myRank?.countryCode,
-                            elo: myRank?.elo,
+                            totalPoints: ranked?.totalPoints ?? 0,
                             onTap: onProfile,
                           ),
                         ),
@@ -898,7 +923,8 @@ class _RailIconButton extends StatelessWidget {
   }
 }
 
-/// Avatar, name, country and rating on a recessed felt inlay.
+/// Ivory player card in the style of the profile screen's hero card:
+/// avatar, display-font name with flag, @username and level badge.
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
     required this.name,
@@ -906,7 +932,7 @@ class _ProfileCard extends StatelessWidget {
     required this.avatarId,
     required this.statusColor,
     required this.countryCode,
-    required this.elo,
+    required this.totalPoints,
     required this.onTap,
   });
 
@@ -915,110 +941,97 @@ class _ProfileCard extends StatelessWidget {
   final String avatarId;
   final Color statusColor;
   final String? countryCode;
-  final int? elo;
+  final int totalPoints;
   final VoidCallback onTap;
+
+  static const _deepGold = Color(0xFF8A6512);
 
   @override
   Widget build(BuildContext context) {
-    final hasFlag = flagEmoji(countryCode).isNotEmpty;
-    return Pressable(
+    final l10n = context.l10n;
+    // Same progression as the profile screen: 100 XP per level.
+    final level = (totalPoints / 100).floor() + 1;
+    final rankTitle = PlayerProfileScreen.getRankTitle(level, l10n);
+    return IvoryCard(
+      suit: SuitShape.clubs,
+      radius: 14,
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 6, 14, 6),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsetsDirectional.fromSTEB(6, 4, 8, 4),
-        decoration: feltPanelDecoration(radius: 14, highlighted: true),
-        child: Row(
-          children: [
-            PlayerAvatar(
-              avatarId: avatarId,
-              size: 48,
-              borderWidth: 2,
-              borderColor: CasinoColors.gold,
-              showGlow: true,
-              glowColor: CasinoColors.gold.withValues(alpha: 0.3),
-              statusDotColor: statusColor,
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+      child: Row(
+        children: [
+          PlayerAvatar(
+            avatarId: avatarId,
+            size: 50,
+            borderWidth: 2,
+            borderColor: CasinoColors.gold,
+            showGlow: true,
+            statusDotColor: statusColor,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: CasinoFonts.displayOf(context),
+                          color: CardInk.black,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          height: 1.15,
+                        ),
+                      ),
+                    ),
+                    if (flagEmoji(countryCode).isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      CountryFlag(code: countryCode, size: 14),
+                    ],
+                  ],
+                ),
+                if (username.isNotEmpty)
                   Text(
-                    name,
+                    '@$username',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: CasinoColors.text,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
+                      color: _deepGold,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      height: 1.25,
+                    ),
+                  ),
+                const SizedBox(height: 3),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(7),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFE08A), CasinoColors.gold],
+                    ),
+                  ),
+                  child: Text(
+                    '${l10n.levelNumber(level)} · $rankTitle',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: CardInk.black,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
                       height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (hasFlag) ...[
-                        CountryFlag(code: countryCode, size: 12),
-                        const SizedBox(width: 6),
-                      ],
-                      if (elo != null)
-                        _EloChip(elo: elo!)
-                      else if (username.isNotEmpty)
-                        Flexible(
-                          child: Text(
-                            '@$username',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: CasinoColors.goldSoft,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              height: 1.2,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EloChip extends StatelessWidget {
-  const _EloChip({required this.elo});
-
-  final int elo;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: CasinoColors.gold.withValues(alpha: 0.14),
-        border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.55)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const HugeIcon(
-            icon: AppIcons.medal,
-            size: 11,
-            color: CasinoColors.gold,
-          ),
-          const SizedBox(width: 3),
-          Text(
-            'ELO $elo',
-            style: const TextStyle(
-              color: CasinoColors.gold,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w900,
-              height: 1.3,
+                ),
+              ],
             ),
           ),
         ],

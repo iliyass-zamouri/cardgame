@@ -38,6 +38,14 @@ class GameSessionController extends Notifier<GameSessionState> {
   DateTime _lastInboundAt = DateTime.now();
   DateTime? _connectStartedAt;
 
+  /// Chat and voice events of the current table. The table chat and voice
+  /// controllers subscribe (they depend on this controller, not the reverse).
+  final _tableEvents = StreamController<Map<String, dynamic>>.broadcast(
+    sync: true,
+  );
+
+  Stream<Map<String, dynamic>> get tableEvents => _tableEvents.stream;
+
   /// Backoff between automatic reconnects; retries never stop (last value repeats).
   static const _reconnectDelaysSec = [1, 2, 4, 8, 15];
   static const _healthInterval = Duration(seconds: 10);
@@ -54,6 +62,7 @@ class GameSessionController extends Notifier<GameSessionState> {
       _lifecycle?.dispose();
       _lifecycle = null;
       _disposeSocket();
+      _tableEvents.close();
     });
     _healthTimer = Timer.periodic(_healthInterval, (_) => _checkHealth());
     _listenLifecycle();
@@ -456,6 +465,16 @@ class GameSessionController extends Notifier<GameSessionState> {
     });
   }
 
+  /// Table chat: `{kind: text|phrase|emoji, ...}`.
+  void sendChat(Map<String, dynamic> payload) => _send('chatSend', payload);
+
+  /// WebRTC signaling relayed to the opponent. Best effort: a dropped
+  /// signal just means no voice, so no error toast.
+  void sendVoiceSignal(Map<String, dynamic> signal) =>
+      _sendQuiet('voiceSignal', {'signal': signal});
+
+  void sendVoiceState(bool micOn) => _sendQuiet('voiceState', {'micOn': micOn});
+
   void clearMessage() {
     if (state.message != null) state = state.copyWith(message: null);
   }
@@ -533,6 +552,11 @@ class GameSessionController extends Notifier<GameSessionState> {
             );
           }
         }
+        break;
+      case 'chatMessage':
+      case 'voiceSignal':
+      case 'voiceState':
+        _tableEvents.add(message);
         break;
       case 'leftRoom':
         _cancelReconnect();
@@ -652,6 +676,13 @@ class GameSessionController extends Notifier<GameSessionState> {
       return;
     }
     _socket!.send(jsonEncode({'type': type, ...payload}));
+  }
+
+  void _sendQuiet(String type, Map<String, dynamic> payload) {
+    if (state.game == null || state.connection != ConnectionStatus.connected) {
+      return;
+    }
+    _socket?.send(jsonEncode({'type': type, ...payload}));
   }
 
   void _disposeSocket({bool cancelReconnect = true}) {

@@ -45,3 +45,16 @@ final matchHistoryProvider = FutureProvider.autoDispose<List<MatchHistoryItem>>(
         );
   },
 );
+
+/// Match history of any player (own or another player's profile).
+final playerMatchesProvider = FutureProvider.autoDispose
+    .family<List<MatchHistoryItem>, String>((ref, playerId) async {
+      if (playerId.isEmpty) return const [];
+      final profile = ref.watch(playerProfileProvider).value;
+      return ref
+          .watch(rankingApiProvider)
+          .fetchMatchHistory(
+            playerId: playerId,
+            accessToken: profile?.accessToken,
+          );
+    });

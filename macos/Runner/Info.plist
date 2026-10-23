@@ -26,6 +26,8 @@
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Your microphone is used only when you turn on voice chat to talk with your opponent at the table.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

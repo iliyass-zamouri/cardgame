@@ -28,6 +28,7 @@ class RankingEntry {
     required this.losses,
     required this.draws,
     this.deckId = 'default',
+    this.avatarId = 'default',
     this.countryCode,
   });
 
@@ -41,6 +42,7 @@ class RankingEntry {
   final int losses;
   final int draws;
   final String deckId;
+  final String avatarId;
   final String? countryCode;
 
   String get displayName {
@@ -63,6 +65,7 @@ class RankingEntry {
       losses: (json['losses'] as num?)?.toInt() ?? 0,
       draws: (json['draws'] as num?)?.toInt() ?? 0,
       deckId: json['deckId'] as String? ?? 'default',
+      avatarId: json['avatarId'] as String? ?? 'default',
       countryCode: json['countryCode'] as String?,
     );
   }

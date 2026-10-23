@@ -43,6 +43,10 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-cardgame}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-cardgame}
       GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
+      APPLE_CLIENT_IDS: ${APPLE_CLIENT_IDS:-com.hailsom.shadowhand}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:-}
       TRUST_PROXY: ${TRUST_PROXY:-0}
       GUEST_IP_REBIND: ${GUEST_IP_REBIND:-1}
       AD_REWARD_MONEY: ${AD_REWARD_MONEY:-50}
@@ -53,6 +57,9 @@ services:
       SKIP_IAP_VERIFY: ${SKIP_IAP_VERIFY:-0}
       MIN_ANDROID_VERSION_CODE: ${MIN_ANDROID_VERSION_CODE:-1}
       SOFT_MIN_VERSION: ${SOFT_MIN_VERSION:-}
+      TURN_URLS: ${TURN_URLS:-}
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET:-}
+      STUN_URLS: ${STUN_URLS:-}
     volumes:
       # Optional FCM service-account JSON (path inside container set via env).
       - ${FIREBASE_SA_HOST_PATH:-./secrets/firebase-adminsdk.json}:/run/secrets/firebase-adminsdk.json:ro
@@ -72,6 +79,27 @@ services:
       timeout: 3s
       start_period: 10s
       retries: 5
+
+  # Voice chat relay. Enable on the OCI host with COMPOSE_PROFILES=voice.
+  coturn:
+    image: coturn/coturn:4.6.3
+    container_name: cardgame-coturn
+    profiles: ["voice"]
+    # Host networking: the relay port range must be reachable directly.
+    network_mode: host
+    volumes:
+      - ./server/turn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --static-auth-secret=${TURN_SHARED_SECRET:-}
+      - --realm=${TURN_REALM:-cardgame}
+      # OCI is 1:1 NAT: "<public-ip>/<private-ip>".
+      - --external-ip=${TURN_EXTERNAL_IP:-}
+      # Only the VNIC address, never docker bridges (unreachable to players).
+      - --listening-ip=${TURN_PRIVATE_IP:-0.0.0.0}
+      - --relay-ip=${TURN_PRIVATE_IP:-0.0.0.0}
+    restart: unless-stopped
 
 volumes:
   cardgame_mysql_data:

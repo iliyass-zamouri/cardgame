@@ -85,6 +85,8 @@
 		<false/>
 		<key>GADApplicationIdentifier</key>
 		<string>$(GAD_APPLICATION_IDENTIFIER)</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Your microphone is used only when you turn on voice chat to talk with your opponent at the table.</string>
 		<key>NSUserTrackingUsageDescription</key>
 		<string>This identifier will be used to deliver personalized ads to you.</string>
 		<key>SKAdNetworkItems</key>

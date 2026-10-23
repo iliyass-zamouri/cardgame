@@ -160,7 +160,9 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder:
-                            (_) => const MarketplaceScreen(initialTabIndex: 0),
+                            (_) => const MarketplaceScreen(
+                              initialTab: MarketplaceTab.exchange,
+                            ),
                       ),
                     );
                   },

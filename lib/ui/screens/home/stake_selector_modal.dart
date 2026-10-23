@@ -239,15 +239,22 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
       );
     } else {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(builder: (_) => const MarketplaceScreen()),
+        MaterialPageRoute<void>(
+          builder:
+              (_) =>
+                  const MarketplaceScreen(initialTab: MarketplaceTab.exchange),
+        ),
       );
     }
   }
 
   void _openMarketplace() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const MarketplaceScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => const MarketplaceScreen(initialTab: MarketplaceTab.exchange),
+      ),
+    );
   }
 
   void _snapTo(int index) {

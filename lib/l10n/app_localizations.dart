@@ -128,6 +128,12 @@ abstract class AppLocalizations {
   /// **'Continue with Google'**
   String get continueWithGoogle;
 
+  /// No description provided for @continueWithApple.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Apple'**
+  String get continueWithApple;
+
   /// No description provided for @signingIn.
   ///
   /// In en, this message translates to:
@@ -163,6 +169,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Google sign-in failed. Try again.'**
   String get googleSignInFailed;
+
+  /// No description provided for @appleSignInFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple sign-in failed. Try again.'**
+  String get appleSignInFailed;
 
   /// No description provided for @tagline.
   ///
@@ -295,6 +307,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Google'**
   String get google;
+
+  /// No description provided for @apple.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple'**
+  String get apple;
 
   /// No description provided for @player.
   ///
@@ -1862,6 +1880,12 @@ abstract class AppLocalizations {
   /// **'Linking…'**
   String get linkingGoogle;
 
+  /// No description provided for @linkAppleAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Link Apple account'**
+  String get linkAppleAccount;
+
   /// No description provided for @linkGoogleSuccess.
   ///
   /// In en, this message translates to:
@@ -1873,6 +1897,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Signed in with your Google account.'**
   String get linkGoogleSwitched;
+
+  /// No description provided for @linkAppleSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple account linked. Progress saved.'**
+  String get linkAppleSuccess;
+
+  /// No description provided for @linkAppleSwitched.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in with your Apple account.'**
+  String get linkAppleSwitched;
 
   /// No description provided for @saveProgressTitle.
   ///
@@ -1886,17 +1922,35 @@ abstract class AppLocalizations {
   /// **'Link a Google account so you keep your money, chips, and ranking if you change devices.'**
   String get saveProgressBody;
 
+  /// No description provided for @saveProgressBodyIos.
+  ///
+  /// In en, this message translates to:
+  /// **'Link an Apple or Google account so you keep your money, chips, and ranking if you change devices.'**
+  String get saveProgressBodyIos;
+
   /// No description provided for @googleAccountInUseTitle.
   ///
   /// In en, this message translates to:
   /// **'Google account in use'**
   String get googleAccountInUseTitle;
 
+  /// No description provided for @appleAccountInUseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple account in use'**
+  String get appleAccountInUseTitle;
+
   /// No description provided for @googleAccountInUseBody.
   ///
   /// In en, this message translates to:
   /// **'This Google account already belongs to @{username}. Switch to that account? Your guest progress on this device will be lost.'**
   String googleAccountInUseBody(String username);
+
+  /// No description provided for @appleAccountInUseBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This Apple account already belongs to @{username}. Switch to that account? Your guest progress on this device will be lost.'**
+  String appleAccountInUseBody(String username);
 
   /// No description provided for @switchToGoogleAccount.
   ///
@@ -2581,6 +2635,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not now'**
   String get tutPromptLater;
+
+  /// No description provided for @chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get chat;
+
+  /// No description provided for @chatHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a message…'**
+  String get chatHint;
+
+  /// No description provided for @chatEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet. Say hi!'**
+  String get chatEmpty;
+
+  /// No description provided for @quickPhrases.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick phrases'**
+  String get quickPhrases;
+
+  /// No description provided for @phraseHello.
+  ///
+  /// In en, this message translates to:
+  /// **'Hi!'**
+  String get phraseHello;
+
+  /// No description provided for @phraseGoodLuck.
+  ///
+  /// In en, this message translates to:
+  /// **'Good luck'**
+  String get phraseGoodLuck;
+
+  /// No description provided for @phraseWellPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Well played'**
+  String get phraseWellPlayed;
+
+  /// No description provided for @phrasePlayFast.
+  ///
+  /// In en, this message translates to:
+  /// **'Play fast!'**
+  String get phrasePlayFast;
+
+  /// No description provided for @phraseOops.
+  ///
+  /// In en, this message translates to:
+  /// **'Oops'**
+  String get phraseOops;
+
+  /// No description provided for @phraseThanks.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks'**
+  String get phraseThanks;
+
+  /// No description provided for @phraseUnlucky.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlucky draw'**
+  String get phraseUnlucky;
+
+  /// No description provided for @phraseHehe.
+  ///
+  /// In en, this message translates to:
+  /// **'Hehe'**
+  String get phraseHehe;
+
+  /// No description provided for @phraseGg.
+  ///
+  /// In en, this message translates to:
+  /// **'GG'**
+  String get phraseGg;
+
+  /// No description provided for @micOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Mic on'**
+  String get micOn;
+
+  /// No description provided for @micOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Mic off'**
+  String get micOff;
+
+  /// No description provided for @micPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone access is off. Allow it in your phone settings to talk.'**
+  String get micPermissionDenied;
+
+  /// No description provided for @voiceOpponentTalking.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice on'**
+  String get voiceOpponentTalking;
+
+  /// No description provided for @muteOpponent.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute player'**
+  String get muteOpponent;
+
+  /// No description provided for @unmuteOpponent.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute player'**
+  String get unmuteOpponent;
+
+  /// No description provided for @opponentMutedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is muted'**
+  String opponentMutedToast(String name);
+
+  /// No description provided for @reportPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Report player'**
+  String get reportPlayer;
+
+  /// No description provided for @reportPlayerConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Report {name} for bad behaviour?'**
+  String reportPlayerConfirm(String name);
+
+  /// No description provided for @reportedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks, we\'ll review this player'**
+  String get reportedToast;
+
+  /// No description provided for @recentForm.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent form'**
+  String get recentForm;
+
+  /// No description provided for @noRecentMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches yet'**
+  String get noRecentMatches;
+
+  /// No description provided for @tableChatSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Table chat'**
+  String get tableChatSettings;
+
+  /// No description provided for @showOpponentChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Show opponent chat'**
+  String get showOpponentChat;
+
+  /// No description provided for @voiceChatSetting.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice chat'**
+  String get voiceChatSetting;
+
+  /// No description provided for @errChatRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Slow down, you\'re sending messages too fast'**
+  String get errChatRateLimited;
+
+  /// No description provided for @errChatInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Message couldn\'t be sent'**
+  String get errChatInvalid;
+
+  /// No description provided for @phraseNiceSwap.
+  ///
+  /// In en, this message translates to:
+  /// **'Nice swap!'**
+  String get phraseNiceSwap;
+
+  /// No description provided for @phraseSharpMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'What a memory!'**
+  String get phraseSharpMemory;
+
+  /// No description provided for @phraseStopPeeking.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop peeking!'**
+  String get phraseStopPeeking;
+
+  /// No description provided for @phraseGiveCardBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Give my card back!'**
+  String get phraseGiveCardBack;
+
+  /// No description provided for @phraseBlackKingPlease.
+  ///
+  /// In en, this message translates to:
+  /// **'Black King, please!'**
+  String get phraseBlackKingPlease;
+
+  /// No description provided for @phraseLowTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'My total is tiny'**
+  String get phraseLowTotal;
+
+  /// No description provided for @phraseFoundJoker.
+  ///
+  /// In en, this message translates to:
+  /// **'I found a Joker!'**
+  String get phraseFoundJoker;
+
+  /// No description provided for @phraseKnowMyCards.
+  ///
+  /// In en, this message translates to:
+  /// **'I know all my cards'**
+  String get phraseKnowMyCards;
+
+  /// No description provided for @phraseEndingNextTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Ending it next turn!'**
+  String get phraseEndingNextTurn;
 }
 
 class _AppLocalizationsDelegate

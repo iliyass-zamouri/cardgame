@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:cardgame/data/game_socket.dart';
 import 'package:cardgame/domain/offline/game_room.dart';
@@ -112,9 +113,14 @@ class OfflineGameSocket implements GameSocket {
           _room.rematch(kOfflineHumanId);
           _robot.rematchReady();
           break;
+        case 'chatSend':
+          _handleChat(command);
+          return;
         case 'startGame':
         case 'identity':
         case 'ping':
+        case 'voiceSignal':
+        case 'voiceState':
           break;
         default:
           _emit({
@@ -127,6 +133,72 @@ class OfflineGameSocket implements GameSocket {
       _emit({'type': 'error', 'code': error.code, 'message': error.message});
     }
   }
+
+  void _handleChat(Map<String, dynamic> command) {
+    final kind = command['kind'];
+    final payload = <String, dynamic>{'kind': kind};
+    switch (kind) {
+      case 'text':
+        final text = (command['text'] as String? ?? '').trim();
+        if (text.isEmpty) return;
+        payload['text'] = text;
+      case 'phrase':
+        payload['phraseId'] = command['phraseId'];
+      case 'emoji':
+        payload['emojiId'] = command['emojiId'];
+      default:
+        return;
+    }
+    _emitChat(humanPlayerId ?? kOfflineHumanId, payload);
+
+    // The robot answers now and then, like bots do online.
+    if (_random.nextDouble() >= 0.35) return;
+    final reply =
+        _random.nextDouble() < 0.6
+            ? {
+              'kind': 'emoji',
+              'emojiId': _robotEmojis[_random.nextInt(_robotEmojis.length)],
+            }
+            : {
+              'kind': 'phrase',
+              'phraseId': _robotPhrases[_random.nextInt(_robotPhrases.length)],
+            };
+    Timer(Duration(milliseconds: 1000 + _random.nextInt(2000)), () {
+      _emitChat(kOfflineRobotId, reply);
+    });
+  }
+
+  void _emitChat(String fromPlayerId, Map<String, dynamic> payload) {
+    _emit({
+      'type': 'chatMessage',
+      'id': '${DateTime.now().microsecondsSinceEpoch}-$fromPlayerId',
+      'fromPlayerId': fromPlayerId,
+      ...payload,
+      'at': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  static const _robotEmojis = [
+    'laugh',
+    'love',
+    'cry',
+    'angry',
+    'cool',
+    'shock',
+    'fist',
+    'clap',
+  ];
+  static const _robotPhrases = [
+    'wellPlayed',
+    'gg',
+    'thanks',
+    'hehe',
+    'goodLuck',
+    'niceSwap',
+    'sharpMemory',
+    'foundJoker',
+  ];
+  final _random = Random();
 
   @override
   void close() {

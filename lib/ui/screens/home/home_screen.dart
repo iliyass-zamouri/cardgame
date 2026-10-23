@@ -6,6 +6,9 @@ import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/ranking_providers.dart';
+import 'package:cardgame/app/table_chat_controller.dart';
+import 'package:cardgame/app/table_social_prefs.dart';
+import 'package:cardgame/app/voice_chat_controller.dart';
 import 'package:cardgame/data/friends/friends_api.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
@@ -17,6 +20,9 @@ import 'package:cardgame/ui/screens/friends_screen.dart';
 import 'package:cardgame/ui/screens/home/game_over_panel.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
 import 'package:cardgame/ui/screens/home/home_menu_widgets.dart';
+import 'package:cardgame/ui/screens/home/table_social/opponent_profile_sheet.dart';
+import 'package:cardgame/ui/screens/home/table_social/seat_chat_overlay.dart';
+import 'package:cardgame/ui/screens/home/table_social/table_chat_panel.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/screens/tutorial/tutorial_prompt.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
@@ -996,6 +1002,27 @@ class GameHud extends ConsumerWidget {
         opponentId.isEmpty
             ? null
             : ref.watch(playerRankByIdProvider(opponentId)).asData?.value?.elo;
+    final opponent = game.opponent;
+    final offline = game.matchType == 'offline';
+    final voiceEnabled = ref.watch(
+      tableSocialPrefsProvider.select((prefs) => prefs.voiceEnabled),
+    );
+    final voiceAvailable = !offline && voiceEnabled && opponent != null;
+    final voice = ref.watch(voiceChatProvider);
+    final opponentMuted = ref.watch(
+      tableChatProvider.select((state) => state.opponentMuted),
+    );
+    final unreadChat = ref.watch(
+      tableChatProvider.select((state) => state.unread),
+    );
+    ref.listen(voiceChatProvider.select((state) => state.permissionDenied), (
+      previous,
+      denied,
+    ) {
+      if (denied && previous != true) {
+        CasinoToast.show(context, l10n.micPermissionDenied, success: false);
+      }
+    });
 
     return SafeArea(
       child: LayoutBuilder(
@@ -1056,7 +1083,7 @@ class GameHud extends ConsumerWidget {
                         label: l10n.endGame,
                         tone: CasinoHudTone.danger,
                         onPressed:
-                            () => _confirm(
+                            () => confirmCasinoAction(
                               context,
                               title: l10n.endGameTitle,
                               message: l10n.endGameMessage,
@@ -1087,27 +1114,75 @@ class GameHud extends ConsumerWidget {
               Positioned(
                 right: 12,
                 top: height * 0.25 + 54,
-                child: CasinoPlayerPill(
-                  accent: accent,
-                  name: game.opponent?.displayName ?? l10n.waitingEllipsisShort,
-                  connected: game.opponent?.connected ?? false,
-                  active: playing && !game.isYourTurn,
-                  points: opponentElo,
-                  avatarId: 'default',
+                child: SeatChatOverlay(
+                  mine: false,
+                  bubbleBelow: true,
+                  child: CasinoPlayerPill(
+                    accent: accent,
+                    name: opponent?.displayName ?? l10n.waitingEllipsisShort,
+                    connected: opponent?.connected ?? false,
+                    active: playing && !game.isYourTurn,
+                    points: opponentElo,
+                    avatarId: opponent?.avatarId ?? 'default',
+                    onTap:
+                        opponent == null || opponentId.isEmpty || offline
+                            ? null
+                            : () => showOpponentProfileSheet(context, opponent),
+                    trailing:
+                        opponentMuted
+                            ? const VoiceSeatIndicator(muted: true)
+                            : voiceAvailable && voice.peerMicOn
+                            ? const VoiceSeatIndicator(muted: false)
+                            : null,
+                  ),
                 ),
               ),
               Positioned(
                 left: 12,
                 bottom: height * 0.25 + 80,
-                child: CasinoPlayerPill(
-                  accent: accent,
-                  name: game.you.displayName,
-                  connected: game.you.connected,
-                  active: playing && game.isYourTurn,
-                  points: youElo,
-                  avatarId: youAvatarId,
+                child: SeatChatOverlay(
+                  mine: true,
+                  bubbleBelow: false,
+                  child: CasinoPlayerPill(
+                    accent: accent,
+                    name: game.you.displayName,
+                    connected: game.you.connected,
+                    active: playing && game.isYourTurn,
+                    points: youElo,
+                    avatarId: youAvatarId,
+                  ),
                 ),
               ),
+              if (opponent != null)
+                Positioned(
+                  left: 12,
+                  bottom: 16,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ChatUnreadBadge(
+                        count: unreadChat,
+                        child: CasinoHudButton(
+                          accent: accent,
+                          icon: AppIcons.chat,
+                          label: l10n.chat,
+                          onPressed: () => showTableChatPanel(context, ref),
+                        ),
+                      ),
+                      if (voiceAvailable) ...[
+                        const SizedBox(width: 8),
+                        CasinoHudButton(
+                          accent:
+                              voice.micOn ? const Color(0xFF7ED50E) : accent,
+                          icon: voice.micOn ? AppIcons.mic : AppIcons.micOff,
+                          tooltip: voice.micOn ? l10n.micOn : l10n.micOff,
+                          onPressed:
+                              ref.read(voiceChatProvider.notifier).toggleMic,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               if (playing && canReveal)
                 Positioned(
                   right: 16,
@@ -1273,7 +1348,7 @@ Future<void> _showGameMenu(
                     destructive: true,
                     onTap: () async {
                       Navigator.of(sheetContext).pop();
-                      await _confirm(
+                      await confirmCasinoAction(
                         context,
                         title: l10n.endGameTitle,
                         message: l10n.endGameMessage,
@@ -1289,7 +1364,7 @@ Future<void> _showGameMenu(
                   destructive: true,
                   onTap: () async {
                     Navigator.of(sheetContext).pop();
-                    await _confirm(
+                    await confirmCasinoAction(
                       context,
                       title: l10n.leaveRoomTitle,
                       // Quitting a live ranked match counts as a loss.
@@ -1380,7 +1455,8 @@ class _GameMenuTile extends StatelessWidget {
   }
 }
 
-Future<void> _confirm(
+/// Casino-styled yes/no dialog; runs [onConfirm] only when confirmed.
+Future<void> confirmCasinoAction(
   BuildContext context, {
   required String title,
   required String message,

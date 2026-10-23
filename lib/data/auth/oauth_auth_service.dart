@@ -14,7 +14,7 @@ class OAuthAuthException implements Exception {
   String toString() => 'OAuthAuthException($statusCode, $code): $message';
 }
 
-/// Google account already linked to a different player while a local guest exists.
+/// OAuth account already linked to a different player while a local guest exists.
 class GoogleAccountInUseException implements Exception {
   GoogleAccountInUseException({
     required this.existingName,
@@ -31,7 +31,7 @@ class GoogleAccountInUseException implements Exception {
       'GoogleAccountInUseException(@$existingUsername, guest=$guestPlayerId)';
 }
 
-/// HTTP client for Google id_token exchange.
+/// HTTP client for Google / Apple id token exchange.
 class OAuthAuthService {
   OAuthAuthService({required this.baseUrl, http.Client? client})
     : _client = client ?? http.Client();
@@ -43,17 +43,41 @@ class OAuthAuthService {
     required String idToken,
     String? deviceId,
     bool confirmSwitch = false,
-  }) async {
-    final uri = Uri.parse('$baseUrl/auth/google');
+  }) {
+    return _exchange('/auth/google', {
+      'idToken': idToken,
+      if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
+      if (confirmSwitch) 'confirmSwitch': true,
+    });
+  }
+
+  /// [rawNonce] is the unhashed nonce whose sha256 Apple put in the token.
+  Future<ServerIdentity> authenticateApple({
+    required String identityToken,
+    required String rawNonce,
+    String? authorizationCode,
+    String? fullName,
+    String? deviceId,
+    bool confirmSwitch = false,
+  }) {
+    return _exchange('/auth/apple', {
+      'idToken': identityToken,
+      'nonce': rawNonce,
+      if (authorizationCode != null && authorizationCode.isNotEmpty)
+        'authorizationCode': authorizationCode,
+      if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
+      if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
+      if (confirmSwitch) 'confirmSwitch': true,
+    });
+  }
+
+  Future<ServerIdentity> _exchange(String path, Map<String, Object> body) async {
+    final uri = Uri.parse('$baseUrl$path');
     final response = await _client
         .post(
           uri,
           headers: const {'content-type': 'application/json'},
-          body: jsonEncode({
-            'idToken': idToken,
-            if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
-            if (confirmSwitch) 'confirmSwitch': true,
-          }),
+          body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 12));
 
@@ -61,7 +85,8 @@ class OAuthAuthService {
       try {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic> &&
-            decoded['error'] == 'google_account_in_use') {
+            (decoded['error'] == 'google_account_in_use' ||
+                decoded['error'] == 'account_in_use')) {
           throw GoogleAccountInUseException(
             existingName: decoded['existingName'] as String? ?? 'Player',
             existingUsername:
@@ -73,9 +98,9 @@ class OAuthAuthService {
         if (error is GoogleAccountInUseException) rethrow;
       }
       throw OAuthAuthException(
-        'Google account already in use',
+        'Account already in use',
         statusCode: 409,
-        code: 'google_account_in_use',
+        code: 'account_in_use',
       );
     }
 

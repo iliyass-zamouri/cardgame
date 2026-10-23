@@ -4,7 +4,6 @@ import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/data/decks/deck_catalog.dart';
-import 'package:cardgame/data/ranking/ranking_api.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
@@ -51,7 +50,7 @@ class PlayerProfileScreen extends ConsumerWidget {
     final matchesAsync =
         isSelf
             ? ref.watch(matchHistoryProvider)
-            : ref.watch(_targetMatchesProvider(effectivePlayerId));
+            : ref.watch(playerMatchesProvider(effectivePlayerId));
 
     return FeltScaffold(
       title: l10n.profile,
@@ -72,7 +71,7 @@ class PlayerProfileScreen extends ConsumerWidget {
             ref.invalidate(matchHistoryProvider);
             ref.invalidate(myRankProvider);
           } else {
-            ref.invalidate(_targetMatchesProvider(effectivePlayerId));
+            ref.invalidate(playerMatchesProvider(effectivePlayerId));
           }
         },
         child: ListView(
@@ -122,7 +121,10 @@ class PlayerProfileScreen extends ConsumerWidget {
                     entry?.username?.isNotEmpty == true
                         ? entry!.username!
                         : (isSelf ? myProfile.username : 'player');
-                final avatarId = isSelf ? myProfile.avatarId : 'default';
+                final avatarId =
+                    isSelf
+                        ? myProfile.avatarId
+                        : (entry?.avatarId ?? 'default');
                 final remoteDeckId = entry?.deckId;
                 final deckId =
                     (remoteDeckId != null && remoteDeckId.isNotEmpty)
@@ -244,6 +246,7 @@ class PlayerProfileScreen extends ConsumerWidget {
     final authLabel = switch (authStatus) {
       SessionAuthStatus.guest => l10n.guest,
       SessionAuthStatus.google => l10n.google,
+      SessionAuthStatus.apple => l10n.apple,
       _ => null,
     };
 
@@ -564,15 +567,3 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
-
-final _targetMatchesProvider = FutureProvider.autoDispose
-    .family<List<MatchHistoryItem>, String>((ref, playerId) async {
-      if (playerId.isEmpty) return const [];
-      final profile = ref.watch(playerProfileProvider).value;
-      return ref
-          .watch(rankingApiProvider)
-          .fetchMatchHistory(
-            playerId: playerId,
-            accessToken: profile?.accessToken,
-          );
-    });

@@ -108,6 +108,9 @@ PODS:
     - Flutter
   - flutter_native_splash (2.4.3):
     - Flutter
+  - flutter_webrtc (1.6.2):
+    - Flutter
+    - WebRTC-SDK (= 150.7871.01)
   - Google-Mobile-Ads-SDK (12.14.0):
     - GoogleUserMessagingPlatform (>= 1.1)
   - google_mobile_ads (7.0.0):
@@ -209,8 +212,11 @@ PODS:
     - RevenueCat (= 5.87.1)
   - RecaptchaInterop (101.0.0)
   - RevenueCat (5.87.1)
+  - sign_in_with_apple (0.0.1):
+    - Flutter
   - url_launcher_ios (0.0.1):
     - Flutter
+  - WebRTC-SDK (150.7871.01)
   - webview_flutter_wkwebview (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -225,11 +231,13 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - flutter_native_splash (from `.symlinks/plugins/flutter_native_splash/ios`)
+  - flutter_webrtc (from `.symlinks/plugins/flutter_webrtc/ios`)
   - google_mobile_ads (from `.symlinks/plugins/google_mobile_ads/ios`)
   - google_sign_in_ios (from `.symlinks/plugins/google_sign_in_ios/darwin`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - purchases_flutter (from `.symlinks/plugins/purchases_flutter/ios`)
+  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
   - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
 
@@ -262,6 +270,7 @@ SPEC REPOS:
     - PurchasesHybridCommon
     - RecaptchaInterop
     - RevenueCat
+    - WebRTC-SDK
 
 EXTERNAL SOURCES:
   app_tracking_transparency:
@@ -282,6 +291,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_local_notifications/ios"
   flutter_native_splash:
     :path: ".symlinks/plugins/flutter_native_splash/ios"
+  flutter_webrtc:
+    :path: ".symlinks/plugins/flutter_webrtc/ios"
   google_mobile_ads:
     :path: ".symlinks/plugins/google_mobile_ads/ios"
   google_sign_in_ios:
@@ -292,6 +303,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
   purchases_flutter:
     :path: ".symlinks/plugins/purchases_flutter/ios"
+  sign_in_with_apple:
+    :path: ".symlinks/plugins/sign_in_with_apple/ios"
   url_launcher_ios:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
   webview_flutter_wkwebview:
@@ -319,6 +332,7 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_local_notifications: a5a732f069baa862e728d839dd2ebb904737effb
   flutter_native_splash: c32d145d68aeda5502d5f543ee38c192065986cf
+  flutter_webrtc: 99283145164f482a16bf7122ef407b5d59d43158
   Google-Mobile-Ads-SDK: 4534fd2dfcd3f705c5485a6633c5188d03d4eed2
   google_mobile_ads: df3008bafbe1f2ad6862f87334e560d2f047f902
   google_sign_in_ios: 000870aa06da9b28d1d0bf7ef70ff0213059dd28
@@ -339,7 +353,9 @@ SPEC CHECKSUMS:
   PurchasesHybridCommon: 10fa5043609584e834a84b4641f9c1166e69ea55
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   RevenueCat: 7d45133f048270481facf0f7b02530e503a01620
+  sign_in_with_apple: c5dcc141574c8c54d5ac99dd2163c0c72ad22418
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
+  WebRTC-SDK: 7dc931c64c00c735a614382f1a59cf65019c3c17
   webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d
 
 PODFILE CHECKSUM: 9a03737f45e33df7386e2092f0d24d8412df7a0d

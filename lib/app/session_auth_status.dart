@@ -1,12 +1,14 @@
 enum SessionAuthStatus {
   signedOut,
   guest,
-  google;
+  google,
+  apple;
 
   static SessionAuthStatus fromStorage(String? raw) {
     return switch (raw) {
       'guest' => SessionAuthStatus.guest,
       'google' => SessionAuthStatus.google,
+      'apple' => SessionAuthStatus.apple,
       _ => SessionAuthStatus.signedOut,
     };
   }
@@ -18,6 +20,7 @@ enum SessionAuthStatus {
   String get linkedAccountLabel => switch (this) {
     SessionAuthStatus.guest => 'Guest',
     SessionAuthStatus.google => 'Google',
+    SessionAuthStatus.apple => 'Apple',
     SessionAuthStatus.signedOut => 'None',
   };
 }

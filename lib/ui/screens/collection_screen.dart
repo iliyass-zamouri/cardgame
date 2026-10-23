@@ -44,11 +44,14 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen>
     super.dispose();
   }
 
-  /// Marketplace tab 1 sells avatars, tab 2 decks.
   void _openShop({required bool avatars}) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => MarketplaceScreen(initialTabIndex: avatars ? 1 : 2),
+        builder:
+            (_) => MarketplaceScreen(
+              initialTab:
+                  avatars ? MarketplaceTab.avatars : MarketplaceTab.decks,
+            ),
       ),
     );
   }

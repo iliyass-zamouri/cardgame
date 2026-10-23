@@ -17,11 +17,29 @@ class InvalidOAuthProviderError extends Error {
   }
 }
 
+/** OAuth provider → players column holding the provider's stable user id. */
+const OAUTH_SUB_COLUMNS = Object.freeze({
+  google: 'google_sub',
+  apple: 'apple_sub',
+});
+
+function oauthSubColumn(provider) {
+  const column = OAUTH_SUB_COLUMNS[provider];
+  if (!column) {
+    throw new InvalidOAuthProviderError(provider);
+  }
+  return column;
+}
+
+/** OAuth account already linked to another player while a local guest exists. */
 class GoogleAccountInUseError extends Error {
-  constructor({ existingName, existingUsername, guestPlayerId }) {
-    super('Google account is already linked to another player');
+  constructor({ existingName, existingUsername, guestPlayerId, provider = 'google' }) {
+    super(`${provider} account is already linked to another player`);
     this.name = 'GoogleAccountInUseError';
-    this.code = 'google_account_in_use';
+    // Old clients only understand `google_account_in_use`.
+    this.code =
+      provider === 'google' ? 'google_account_in_use' : 'account_in_use';
+    this.provider = provider;
     this.existingName = existingName ?? 'Player';
     this.existingUsername = existingUsername ?? 'player';
     this.guestPlayerId = guestPlayerId ?? null;
@@ -42,7 +60,8 @@ async function resolveLinkableGuest(deviceId) {
     if (
       byDevice &&
       byDevice.auth_type === 'guest' &&
-      !byDevice.google_sub
+      !byDevice.google_sub &&
+      !byDevice.apple_sub
     ) {
       return byDevice;
     }
@@ -54,7 +73,7 @@ async function resolveLinkableGuest(deviceId) {
 
 const PLAYER_SELECT = `
   p.id, p.display_name, p.username, p.device_id,
-  p.created_ip, p.last_ip, p.auth_type, p.google_sub, p.email,
+  p.created_ip, p.last_ip, p.auth_type, p.google_sub, p.apple_sub, p.email,
   p.money, p.chips, p.token_version, p.tutorial_done
 `;
 
@@ -111,6 +130,72 @@ async function ensurePlayersEmailColumn() {
   } finally {
     conn.release();
   }
+}
+
+/** Add players.apple_sub + 'apple' auth_type for existing DBs. */
+async function ensurePlayersAppleColumn() {
+  const pool = getPool();
+  const conn = await pool.getConnection();
+  try {
+    const [typeRows] = await conn.query(
+      `SELECT COLUMN_TYPE AS columnType
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'players'
+         AND COLUMN_NAME = 'auth_type'
+       LIMIT 1`,
+    );
+    const columnType = String(typeRows[0]?.columnType ?? '');
+    if (columnType && !columnType.includes("'apple'")) {
+      await conn.query(
+        `ALTER TABLE players
+         MODIFY COLUMN auth_type ENUM('guest', 'google', 'apple') NOT NULL DEFAULT 'guest'`,
+      );
+    }
+    if (!(await columnExists(conn, 'players', 'apple_sub'))) {
+      await conn.query(
+        `ALTER TABLE players ADD COLUMN apple_sub VARCHAR(255) NULL AFTER google_sub`,
+      );
+    }
+    if (!(await indexExists(conn, 'players', 'uq_players_apple_sub'))) {
+      await conn.query(
+        `ALTER TABLE players ADD UNIQUE KEY uq_players_apple_sub (apple_sub)`,
+      );
+    }
+    if (!(await columnExists(conn, 'players', 'apple_refresh_token'))) {
+      await conn.query(
+        `ALTER TABLE players ADD COLUMN apple_refresh_token VARCHAR(512) NULL AFTER apple_sub`,
+      );
+    }
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Store the Sign in with Apple refresh token (revoked on account deletion).
+ * @param {string} playerId
+ * @param {string} refreshToken
+ */
+async function setPlayerAppleRefreshToken(playerId, refreshToken) {
+  if (!playerId || !refreshToken) return;
+  await getPool().execute(
+    `UPDATE players SET apple_refresh_token = :refreshToken WHERE id = :playerId`,
+    { refreshToken, playerId },
+  );
+}
+
+/**
+ * @param {string} playerId
+ * @returns {Promise<string|null>}
+ */
+async function getPlayerAppleRefreshToken(playerId) {
+  if (!playerId) return null;
+  const [rows] = await getPool().execute(
+    `SELECT apple_refresh_token AS token FROM players WHERE id = :playerId LIMIT 1`,
+    { playerId },
+  );
+  return rows[0]?.token || null;
 }
 
 /**
@@ -463,19 +548,24 @@ async function findOrCreateGuest({ deviceId, clientIp }) {
   };
 }
 
-async function findPlayerByGoogleSub(googleSub) {
-  if (typeof googleSub !== 'string' || !googleSub.trim()) {
+async function findPlayerByOAuthSub(provider, sub) {
+  const column = oauthSubColumn(provider);
+  if (typeof sub !== 'string' || !sub.trim()) {
     return null;
   }
   const pool = getPool();
   const [rows] = await pool.execute(
     `SELECT ${PLAYER_SELECT}
      FROM players p
-     WHERE p.google_sub = :googleSub
+     WHERE p.${column} = :sub
      LIMIT 1`,
-    { googleSub: googleSub.trim() },
+    { sub: sub.trim() },
   );
   return rows[0] ?? null;
+}
+
+async function findPlayerByGoogleSub(googleSub) {
+  return findPlayerByOAuthSub('google', googleSub);
 }
 
 async function linkGuestToProvider({
@@ -486,9 +576,7 @@ async function linkGuestToProvider({
   email = null,
   clientIp = null,
 }) {
-  if (provider !== 'google') {
-    throw new InvalidOAuthProviderError(provider);
-  }
+  const column = oauthSubColumn(provider);
   const pool = getPool();
   const name =
     typeof displayNameHint === 'string' && displayNameHint.trim()
@@ -500,14 +588,15 @@ async function linkGuestToProvider({
   await pool.execute(
     `UPDATE players
      SET auth_type = :authType,
-         google_sub = :sub,
+         ${column} = :sub,
          email = COALESCE(:email, email),
          display_name = COALESCE(:displayName, display_name),
          last_seen_at = CURRENT_TIMESTAMP,
          last_ip = COALESCE(:clientIp, last_ip)
      WHERE id = :playerId
        AND auth_type = 'guest'
-       AND google_sub IS NULL`,
+       AND google_sub IS NULL
+       AND apple_sub IS NULL`,
     {
       authType: provider,
       sub,
@@ -536,10 +625,7 @@ async function createOAuthPlayer({
   email = null,
   clientIp = null,
 }) {
-  if (provider !== 'google') {
-    throw new InvalidOAuthProviderError(provider);
-  }
-
+  const column = oauthSubColumn(provider);
   const pool = getPool();
   const playerId = `${provider}-${randomUUID()}`;
   const ip = clientIp ? normalizeClientIp(clientIp) : null;
@@ -573,7 +659,7 @@ async function createOAuthPlayer({
     try {
       await pool.execute(
         `INSERT INTO players
-           (id, display_name, username, device_id, created_ip, last_ip, auth_type, google_sub, email)
+           (id, display_name, username, device_id, created_ip, last_ip, auth_type, ${column}, email)
          VALUES
            (:playerId, :displayName, :username, :deviceId, :clientIp, :clientIp, :authType, :sub, :email)`,
         {
@@ -592,13 +678,13 @@ async function createOAuthPlayer({
         display_name: name,
         username,
         auth_type: provider,
-        google_sub: sub,
+        [column]: sub,
         email: safeEmail,
         _created: true,
       };
     } catch (error) {
       if (error?.code === 'ER_DUP_ENTRY') {
-        const existing = await findPlayerByGoogleSub(sub);
+        const existing = await findPlayerByOAuthSub(provider, sub);
         if (existing) {
           await maybeSetPlayerEmail(existing.id, safeEmail);
           return { ...existing, _created: false };
@@ -625,9 +711,7 @@ async function findOrLinkOAuth({
   clientIp = null,
   confirmSwitch = false,
 }) {
-  if (provider !== 'google') {
-    throw new InvalidOAuthProviderError(provider);
-  }
+  const column = oauthSubColumn(provider);
   if (typeof sub !== 'string' || !sub.trim()) {
     throw new Error('OAuth sub is required');
   }
@@ -636,7 +720,7 @@ async function findOrLinkOAuth({
   const safeEmail = normalizeEmail(email);
   const allowSwitch = confirmSwitch === true;
 
-  const existing = await findPlayerByGoogleSub(safeSub);
+  const existing = await findPlayerByOAuthSub(provider, safeSub);
   if (existing) {
     const linkableGuest = await resolveLinkableGuest(deviceId);
     if (
@@ -648,6 +732,7 @@ async function findOrLinkOAuth({
         existingName: existing.display_name,
         existingUsername: existing.username,
         guestPlayerId: linkableGuest.id,
+        provider,
       });
     }
     if (ip) {
@@ -672,20 +757,21 @@ async function findOrLinkOAuth({
       email: safeEmail,
       clientIp: ip,
     });
-    if (linked && linked.auth_type === provider && linked.google_sub === safeSub) {
+    if (linked && linked.auth_type === provider && linked[column] === safeSub) {
       return {
         ...mapPlayerRow(linked),
         isNew: false,
         linkedFromGuest: true,
       };
     }
-    const raced = await findPlayerByGoogleSub(safeSub);
+    const raced = await findPlayerByOAuthSub(provider, safeSub);
     if (raced) {
       if (raced.id !== linkableGuest.id && !allowSwitch) {
         throw new GoogleAccountInUseError({
           existingName: raced.display_name,
           existingUsername: raced.username,
           guestPlayerId: linkableGuest.id,
+          provider,
         });
       }
       await maybeSetPlayerEmail(raced.id, safeEmail);
@@ -722,7 +808,11 @@ module.exports = {
   findOrLinkOAuth,
   findGuestByDevice,
   findPlayerByGoogleSub,
+  findPlayerByOAuthSub,
   ensurePlayersEmailColumn,
+  ensurePlayersAppleColumn,
+  setPlayerAppleRefreshToken,
+  getPlayerAppleRefreshToken,
   ensureSessionSchema,
   getPlayerTokenVersion,
   bumpTokenVersion,

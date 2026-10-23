@@ -12,6 +12,8 @@ extension AppLocalizationsX on BuildContext {
 String localizeErrorCode(AppLocalizations l10n, String? code) {
   return switch (code) {
     'connection_lost' => l10n.errConnectionLost,
+    'chat_rate_limited' => l10n.errChatRateLimited,
+    'chat_invalid' => l10n.errChatInvalid,
     'enter_room_code' => l10n.errEnterRoomCode,
     'server_not_connected' => l10n.errServerNotConnected,
     'command_failed' => l10n.errCommandFailed,

@@ -6,7 +6,7 @@ const {
 
 /**
  * @param {{
- *   provider: 'google',
+ *   provider: 'google'|'apple',
  *   sub: string,
  *   displayNameHint?: string|null,
  *   email?: string|null,
@@ -24,7 +24,7 @@ async function authenticateOAuth({
   clientIp,
   confirmSwitch = false,
 }) {
-  if (provider !== 'google') {
+  if (provider !== 'google' && provider !== 'apple') {
     throw new InvalidOAuthProviderError(provider);
   }
   return findOrLinkOAuth({

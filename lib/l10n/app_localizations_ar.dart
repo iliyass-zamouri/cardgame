@@ -23,6 +23,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get continueWithGoogle => 'المتابعة مع Google';
 
   @override
+  String get continueWithApple => 'المتابعة مع Apple';
+
+  @override
   String get signingIn => 'جارٍ تسجيل الدخول…';
 
   @override
@@ -39,6 +42,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get googleSignInFailed => 'فشل تسجيل الدخول عبر Google. حاول مجددًا.';
+
+  @override
+  String get appleSignInFailed => 'فشل تسجيل الدخول عبر Apple. حاول مجددًا.';
 
   @override
   String get tagline => 'لاعبان. طاولة واحدة.';
@@ -107,6 +113,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get google => 'Google';
+
+  @override
+  String get apple => 'Apple';
 
   @override
   String get player => 'لاعب';
@@ -940,10 +949,19 @@ class AppLocalizationsAr extends AppLocalizations {
   String get linkingGoogle => 'جارٍ الربط…';
 
   @override
+  String get linkAppleAccount => 'ربط حساب Apple';
+
+  @override
   String get linkGoogleSuccess => 'تم ربط حساب Google. تم حفظ تقدمك.';
 
   @override
   String get linkGoogleSwitched => 'تم تسجيل الدخول بحساب Google.';
+
+  @override
+  String get linkAppleSuccess => 'تم ربط حساب Apple. تم حفظ تقدمك.';
+
+  @override
+  String get linkAppleSwitched => 'تم تسجيل الدخول بحساب Apple.';
 
   @override
   String get saveProgressTitle => 'احفظ تقدمك';
@@ -953,11 +971,23 @@ class AppLocalizationsAr extends AppLocalizations {
       'اربط حساب Google للاحتفاظ بأموالك ورقائقك وترتيبك عند تغيير الجهاز.';
 
   @override
+  String get saveProgressBodyIos =>
+      'اربط حساب Apple أو Google للاحتفاظ بأموالك ورقائقك وترتيبك عند تغيير الجهاز.';
+
+  @override
   String get googleAccountInUseTitle => 'حساب Google مستخدم';
+
+  @override
+  String get appleAccountInUseTitle => 'حساب Apple مستخدم';
 
   @override
   String googleAccountInUseBody(String username) {
     return 'حساب Google هذا ينتمي بالفعل إلى @$username. التبديل إلى ذلك الحساب؟ ستفقد تقدم الضيف على هذا الجهاز.';
+  }
+
+  @override
+  String appleAccountInUseBody(String username) {
+    return 'حساب Apple هذا ينتمي بالفعل إلى @$username. التبديل إلى ذلك الحساب؟ ستفقد تقدم الضيف على هذا الجهاز.';
   }
 
   @override
@@ -1357,4 +1387,126 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get tutPromptLater => 'ليس الآن';
+
+  @override
+  String get chat => 'الدردشة';
+
+  @override
+  String get chatHint => 'اكتب رسالة…';
+
+  @override
+  String get chatEmpty => 'لا توجد رسائل بعد. قل مرحبًا!';
+
+  @override
+  String get quickPhrases => 'عبارات سريعة';
+
+  @override
+  String get phraseHello => 'مرحبًا!';
+
+  @override
+  String get phraseGoodLuck => 'حظًا موفقًا';
+
+  @override
+  String get phraseWellPlayed => 'أحسنت اللعب';
+
+  @override
+  String get phrasePlayFast => 'العب بسرعة!';
+
+  @override
+  String get phraseOops => 'أوبس';
+
+  @override
+  String get phraseThanks => 'شكرًا';
+
+  @override
+  String get phraseUnlucky => 'سحبة سيئة';
+
+  @override
+  String get phraseHehe => 'هههه';
+
+  @override
+  String get phraseGg => 'لعبة جيدة';
+
+  @override
+  String get micOn => 'الميكروفون مفعّل';
+
+  @override
+  String get micOff => 'الميكروفون مغلق';
+
+  @override
+  String get micPermissionDenied =>
+      'الوصول إلى الميكروفون متوقف. فعّله من إعدادات الهاتف لتتحدث.';
+
+  @override
+  String get voiceOpponentTalking => 'الصوت مفعّل';
+
+  @override
+  String get muteOpponent => 'كتم اللاعب';
+
+  @override
+  String get unmuteOpponent => 'إلغاء كتم اللاعب';
+
+  @override
+  String opponentMutedToast(String name) {
+    return 'تم كتم $name';
+  }
+
+  @override
+  String get reportPlayer => 'الإبلاغ عن اللاعب';
+
+  @override
+  String reportPlayerConfirm(String name) {
+    return 'هل تريد الإبلاغ عن $name بسبب سلوك سيئ؟';
+  }
+
+  @override
+  String get reportedToast => 'شكرًا، سنراجع هذا اللاعب';
+
+  @override
+  String get recentForm => 'الأداء الأخير';
+
+  @override
+  String get noRecentMatches => 'لا توجد مباريات بعد';
+
+  @override
+  String get tableChatSettings => 'دردشة الطاولة';
+
+  @override
+  String get showOpponentChat => 'إظهار دردشة الخصم';
+
+  @override
+  String get voiceChatSetting => 'الدردشة الصوتية';
+
+  @override
+  String get errChatRateLimited => 'تمهّل، أنت ترسل الرسائل بسرعة كبيرة';
+
+  @override
+  String get errChatInvalid => 'تعذّر إرسال الرسالة';
+
+  @override
+  String get phraseNiceSwap => 'تبديل رائع!';
+
+  @override
+  String get phraseSharpMemory => 'يا لها من ذاكرة!';
+
+  @override
+  String get phraseStopPeeking => 'توقف عن التلصص!';
+
+  @override
+  String get phraseGiveCardBack => 'أعد لي ورقتي!';
+
+  @override
+  String get phraseBlackKingPlease => 'ملكًا أسود من فضلك!';
+
+  @override
+  String get phraseLowTotal => 'مجموعي صغير جدًا';
+
+  @override
+  String get phraseFoundJoker => 'وجدت جوكر!';
+
+  @override
+  String get phraseKnowMyCards => 'أعرف كل أوراقي';
+
+  @override
+  String get phraseEndingNextTurn => 'سأنهيها في الدور القادم!';
 }

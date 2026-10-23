@@ -26,10 +26,13 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 
-class MarketplaceScreen extends ConsumerStatefulWidget {
-  const MarketplaceScreen({super.key, this.initialTabIndex = 0});
+/// Marketplace tabs, in display order.
+enum MarketplaceTab { decks, avatars, exchange }
 
-  final int initialTabIndex;
+class MarketplaceScreen extends ConsumerStatefulWidget {
+  const MarketplaceScreen({super.key, this.initialTab = MarketplaceTab.decks});
+
+  final MarketplaceTab initialTab;
 
   @override
   ConsumerState<MarketplaceScreen> createState() => _MarketplaceScreenState();
@@ -44,9 +47,9 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 3,
+      length: MarketplaceTab.values.length,
       vsync: this,
-      initialIndex: widget.initialTabIndex,
+      initialIndex: widget.initialTab.index,
     );
     // Refresh inventory when entering marketplace
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -74,15 +77,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
           Tab(
             height: 40,
             child: _ShopTabLabel(
-              icon: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ChipIcon(size: 14),
-                  SizedBox(width: 2),
-                  CashIcon(size: 14),
-                ],
-              ),
-              label: l10n.exchange,
+              icon: const HugeIcon(icon: AppIcons.style, size: 16),
+              label: l10n.deckShop,
             ),
           ),
           Tab(
@@ -95,8 +91,15 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
           Tab(
             height: 40,
             child: _ShopTabLabel(
-              icon: const HugeIcon(icon: AppIcons.style, size: 16),
-              label: l10n.deckShop,
+              icon: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ChipIcon(size: 14),
+                  SizedBox(width: 2),
+                  CashIcon(size: 14),
+                ],
+              ),
+              label: l10n.exchange,
             ),
           ),
         ],
@@ -122,7 +125,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _ExchangeTab(
+                    _DecksTab(
                       profile: profile,
                       onBusy: (busy) => setState(() => _isLoading = busy),
                     ),
@@ -130,7 +133,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
                       profile: profile,
                       onBusy: (busy) => setState(() => _isLoading = busy),
                     ),
-                    _DecksTab(
+                    _ExchangeTab(
                       profile: profile,
                       onBusy: (busy) => setState(() => _isLoading = busy),
                     ),

@@ -3,6 +3,7 @@ import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/core/monetization/purchases_providers.dart';
 import 'package:cardgame/core/monetization/purchases_service.dart';
+import 'package:cardgame/data/auth/apple_sign_in_service.dart';
 import 'package:cardgame/data/auth/auth_config.dart';
 import 'package:cardgame/data/auth/device_identity_service.dart';
 import 'package:cardgame/data/auth/google_sign_in_service.dart';
@@ -56,6 +57,10 @@ final googleSignInServiceProvider = Provider<GoogleSignInService>((ref) {
   return GoogleSignInService();
 });
 
+final appleSignInServiceProvider = Provider<AppleSignInService>((ref) {
+  return AppleSignInService();
+});
+
 class SessionAuthNotifier extends AsyncNotifier<SessionAuthStatus> {
   SessionAuthRepository get _repo => ref.read(sessionAuthRepositoryProvider);
 
@@ -96,6 +101,12 @@ class SessionAuthNotifier extends AsyncNotifier<SessionAuthStatus> {
 
   Future<void> enterWithGoogle() async {
     const next = SessionAuthStatus.google;
+    state = const AsyncData(next);
+    await _repo.save(next);
+  }
+
+  Future<void> enterWithApple() async {
+    const next = SessionAuthStatus.apple;
     state = const AsyncData(next);
     await _repo.save(next);
   }
@@ -170,7 +181,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
   }
 
   /// Mint/refresh session JWT when Hive profile predates auth tokens.
-  /// Guest: silent device re-auth. Google without token: sign out (re-login).
+  /// Guest: silent device re-auth. Google/Apple without token: sign out (re-login).
   Future<bool> ensureAccessToken() async {
     final current = await future;
     if (current.isEmpty || current.playerId.isEmpty) return false;
@@ -199,7 +210,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       }
     }
 
-    // Google sessions without a stored JWT must sign in again.
+    // Google/Apple sessions without a stored JWT must sign in again.
     await ref.read(sessionAuthProvider.notifier).signOut();
     return false;
   }
