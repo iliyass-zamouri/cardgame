@@ -6,7 +6,7 @@
   <title>Shadow Hand ops</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -111,6 +111,150 @@
     #app { display: none; }
     #app.show { display: block; }
     #gate.hide { display: none; }
+
+    /* Daily rewards tab */
+    .dr-note {
+      display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+      background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+      padding: 10px 12px; border-radius: var(--radius); margin-bottom: 12px; font-size: 12.5px;
+    }
+    .seg {
+      display: flex; gap: 2px; flex-wrap: wrap; width: fit-content; max-width: 100%;
+      background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px; padding: 3px; margin-bottom: 14px;
+    }
+    .seg button {
+      border: 0; background: transparent; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+      color: var(--muted); font-weight: 600; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .seg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(17, 24, 39, 0.08); }
+    .seg .dirty-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+    .seg .dirty-dot[hidden] { display: none; }
+    .dr-sub { display: none; }
+    .dr-sub.on { display: block; }
+    .card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .card-head h2 { margin: 0; }
+    .card-head .cap { margin: 0; }
+    .card-head .push { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .card .lead { color: var(--muted); font-size: 12px; margin: -4px 0 12px; }
+    .days-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+    .day-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; background: #fff; min-width: 0; }
+    .day-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 6px;
+      margin-bottom: 8px; font-weight: 650; font-size: 12.5px;
+    }
+    .rw {
+      position: relative; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      padding: 6px 34px 6px 6px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; background: var(--bg);
+    }
+    .rw .icon-btn { position: absolute; top: 7px; right: 4px; margin-left: 0; }
+    .dr-table td { vertical-align: middle; }
+    .inline-group { display: inline-flex; gap: 8px; align-items: center; }
+    .rw select, .rw input, .dr-table input, .dr-select {
+      background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; font-size: 12.5px; min-width: 0;
+    }
+    .rw input[type="number"] { width: 92px; }
+    .dr-table input[type="number"] { width: 84px; }
+    .rw .grow { flex: 1 1 150px; }
+    .rw .hint { color: var(--muted); font-size: 11px; }
+    .icon-btn {
+      margin-left: auto; border: 0; background: transparent; cursor: pointer; color: var(--muted);
+      font-size: 16px; line-height: 1; padding: 3px 7px; border-radius: 4px;
+    }
+    .icon-btn:hover:not(:disabled) { background: #ffe4e6; color: var(--down); }
+    .icon-btn:disabled { opacity: 0.3; cursor: default; }
+    .link-btn { border: 0; background: transparent; color: var(--info); cursor: pointer; font-weight: 600; font-size: 12px; padding: 2px 0; }
+    .link-btn:disabled { color: var(--muted); cursor: default; }
+    .btn-danger {
+      border: 1px solid #fecaca; background: #fff; color: var(--down);
+      border-radius: 6px; padding: 7px 12px; cursor: pointer; font-weight: 650; font-size: 12px;
+    }
+    .btn-primary:disabled, .btn-muted:disabled, .btn-danger:disabled { opacity: 0.45; cursor: default; }
+    .chip.warn { background: #fef3c7; color: #b45309; }
+    .chip.bad { background: #ffe4e6; color: #be123c; }
+    .chip.info { background: #dbeafe; color: #1d4ed8; }
+    .chip.soon { background: #fff; color: var(--muted); border: 1px dashed #d1d5db; }
+    .card h2 .chip { margin-left: 6px; vertical-align: 1px; }
+    .field label.toggle {
+      display: flex; align-items: center; gap: 8px; color: var(--text);
+      font-size: 12.5px; font-weight: 600; margin: 0; cursor: pointer;
+    }
+    .field label.toggle input { width: auto; }
+    .savebar {
+      position: sticky; bottom: 0; z-index: 30;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      margin-top: 14px; padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(8px);
+      border: 1px solid var(--line); border-radius: var(--radius);
+      box-shadow: 0 -6px 18px rgba(17, 24, 39, 0.06);
+    }
+    .savebar .state { display: inline-flex; align-items: center; gap: 7px; font-weight: 650; font-size: 12.5px; }
+    .savebar .state .dot { background: var(--up); }
+    .savebar.dirty .state .dot { background: var(--warn); }
+    .savebar .spacer { flex: 1; }
+    .savebar .msg { flex-basis: 100%; margin-left: 0; }
+    .savebar .msg:empty { display: none; }
+    @media (max-width: 640px) {
+      .savebar { padding: 8px 10px; gap: 6px; }
+      .savebar #dr-live, .savebar .spacer { display: none; }
+      .savebar .state { flex-basis: 100%; }
+      .savebar button { flex: 1 1 auto; padding: 7px 10px; font-size: 12px; }
+    }
+    .warn-box {
+      background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+      border-radius: 6px; padding: 8px 10px; font-size: 12px; margin-bottom: 10px;
+    }
+    .kpis.tight { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kpis.tight .kpi .v { font-size: 18px; }
+    .bars { display: grid; gap: 5px; margin: 4px 0 10px; }
+    .bar-row { display: grid; grid-template-columns: 46px 1fr 64px; gap: 8px; align-items: center; font-size: 12px; }
+    .bar-row .bar { height: 8px; background: var(--bg-2); border-radius: 999px; overflow: hidden; }
+    .bar-row .bar span { display: block; height: 100%; background: var(--ink); border-radius: 999px; }
+    .bar-row .num { text-align: right; font: 600 11.5px/1 var(--mono); color: var(--muted); }
+    /* The player preview borrows the app's own look: felt, ivory cards, gold, Cinzel. */
+    .felt { background: radial-gradient(120% 90% at 50% 0%, #237a4f 0%, #1f6b45 45%, #155234 100%); border-radius: 12px; padding: 16px 12px; }
+    .felt-inner { max-width: 380px; margin: 0 auto; }
+    .pv-head {
+      color: #f5c542; font: 700 15px/1.2 "Cinzel", Georgia, serif; letter-spacing: 0.12em;
+      text-align: center; text-transform: uppercase; margin-bottom: 12px; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+    }
+    .pv-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .pv-card {
+      position: relative; min-height: 98px; padding: 20px 6px 16px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+      background: linear-gradient(180deg, #fbf5e6, #eadfc4); color: #17171c;
+      border: 1px solid #c9a34a; border-radius: 9px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.28);
+    }
+    .pv-card.wide { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; gap: 16px; min-height: 86px; }
+    .pv-card.today {
+      box-shadow: 0 0 0 2px #f5c542, 0 0 18px rgba(245, 197, 66, 0.55), 0 4px 0 rgba(0, 0, 0, 0.3);
+      transform: translateY(-2px);
+    }
+    .pv-rank {
+      position: absolute; top: 5px; left: 7px; display: flex; flex-direction: column; align-items: center;
+      font: 700 13px/1 "Cinzel", Georgia, serif;
+    }
+    .pv-rank.red { color: #c62828; }
+    .pv-tag {
+      position: absolute; top: 6px; right: 7px; font: 700 8.5px/1 var(--sans);
+      letter-spacing: 0.08em; text-transform: uppercase; color: #7a5a0e;
+    }
+    .pv-item {
+      display: flex; flex-direction: column; align-items: center; gap: 3px; max-width: 100%;
+      text-align: center; font: 700 11.5px/1.15 "Cinzel", Georgia, serif; overflow-wrap: anywhere;
+    }
+    .pv-ico { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 800 13px/1 var(--sans); }
+    .pv-ico.money { background: radial-gradient(circle at 35% 30%, #ffe08a, #f5c542 55%, #c8961e); color: #7a5a0e; border: 1px solid #c8961e; }
+    .pv-ico.chips { background: radial-gradient(circle, #17171c 52%, #2b2b33 53%); border: 3px dashed #f5c542; }
+    .pv-ico.avatar { background: #12293a; color: #ffe08a; border: 2px solid #c9a34a; font-size: 10px; }
+    .pv-ico.deck {
+      width: 20px; height: 28px; border-radius: 4px;
+      background: repeating-linear-gradient(45deg, #1d4ed8 0 3px, #1e3a8a 3px 6px);
+      border: 2px solid #fbf5e6; box-shadow: 0 0 0 1px #c9a34a;
+    }
+    .pv-ico.boost { background: #fff3c4; border: 1px solid #c8961e; }
+    .pv-ico.freeze { background: #e0f2fe; border: 1px solid #7dd3fc; }
+    .pv-ico.chest { border-radius: 6px; background: linear-gradient(#8b5a2b, #5a3826); color: #ffe08a; border: 1px solid #c9a34a; }
+    .pv-val { position: absolute; bottom: 4px; right: 6px; font: 600 9px/1 var(--mono); color: #8a7a55; }
   </style>
 </head>
 <body>
@@ -141,6 +285,7 @@
       <button type="button" data-tab="push" role="tab">Push</button>
       <button type="button" data-tab="theme" role="tab">Theme</button>
       <button type="button" data-tab="gameplay" role="tab">Gameplay</button>
+      <button type="button" data-tab="daily" role="tab">Daily rewards</button>
     </nav>
 
     <div id="panel-overview" class="panel on" role="tabpanel">
@@ -385,13 +530,75 @@
         <p class="cap" id="tt-total"></p>
       </section>
     </div>
+
+    <div id="panel-daily" class="panel" role="tabpanel">
+      <div class="dr-note">
+        <strong>Not in the app yet.</strong>
+        <span>The streak screen ships with the next app update. Set the rewards up now; players see them once they update.</span>
+      </div>
+      <nav class="seg" id="dr-seg" aria-label="Daily rewards sections">
+        <button type="button" data-sub="calendar" class="on">Calendar<span class="dirty-dot" hidden></span></button>
+        <button type="button" data-sub="events">Events<span class="dirty-dot" hidden></span></button>
+        <button type="button" data-sub="chests">Chests<span class="dirty-dot" hidden></span></button>
+        <button type="button" data-sub="rules">Rules<span class="dirty-dot" hidden></span></button>
+        <button type="button" data-sub="players">Players</button>
+        <button type="button" data-sub="performance">Performance</button>
+      </nav>
+      <div class="empty" id="dr-loading">Loading…</div>
+      <div id="dr-sub-calendar" class="dr-sub"></div>
+      <div id="dr-sub-events" class="dr-sub"></div>
+      <div id="dr-sub-chests" class="dr-sub"></div>
+      <div id="dr-sub-rules" class="dr-sub"></div>
+      <div id="dr-sub-players" class="dr-sub">
+        <section class="card" style="margin-bottom:12px">
+          <h2>Find a player</h2>
+          <p class="lead">Search by name, username, email or id. Fixes apply at once and are logged on the player.</p>
+          <div class="search">
+            <input id="dr-player-q" placeholder="Name, username, email, or paste a player id and press Enter" autocomplete="off" />
+          </div>
+          <div class="table-wrap" id="dr-player-results" style="max-height:260px"></div>
+        </section>
+        <div id="dr-player-detail"></div>
+      </div>
+      <div id="dr-sub-performance" class="dr-sub">
+        <section class="kpis" id="dr-kpis"></section>
+        <p class="cap" id="dr-perf-note" style="margin:-4px 0 12px"></p>
+        <section class="grid-3">
+          <div class="card">
+            <h2>Claims · 30d</h2>
+            <div class="chart-box"><canvas id="chart-dr-claims"></canvas></div>
+            <div class="cap">By the player's local day</div>
+          </div>
+          <div class="card">
+            <h2>Where players are in the week</h2>
+            <div class="chart-box"><canvas id="chart-dr-cycle"></canvas></div>
+            <div class="cap">Claims per day of the 7-day cycle · 30d</div>
+          </div>
+          <div class="card">
+            <h2>Streak length</h2>
+            <div class="chart-box"><canvas id="chart-dr-streaks"></canvas></div>
+            <div class="cap">Players who claimed in the last 7 days</div>
+          </div>
+        </section>
+      </div>
+      <div class="savebar" id="dr-savebar" style="display:none">
+        <span class="state"><span class="dot"></span><span id="dr-state">All changes saved</span></span>
+        <span class="cap" id="dr-live" style="margin:0">—</span>
+        <span class="spacer"></span>
+        <button class="btn-muted" type="button" id="dr-discard">Discard</button>
+        <button class="btn-muted" type="button" id="dr-defaults">Load defaults</button>
+        <button class="btn-muted" type="button" id="dr-revert">Revert last save</button>
+        <button class="btn-primary" type="button" id="dr-save">Save &amp; publish</button>
+        <span class="msg" id="dr-msg"></span>
+      </div>
+    </div>
   </div>
 
   <script>
   (function () {
     const STORAGE_KEY = 'shadowhand.adminSecret';
     const TAB_KEY = 'shadowhand.adminTab';
-    const TABS = ['overview', 'live', 'matches', 'players', 'data', 'push', 'theme', 'gameplay'];
+    const TABS = ['overview', 'live', 'matches', 'players', 'data', 'push', 'theme', 'gameplay', 'daily'];
     const COLORS = {
       ink: '#111827', up: '#16a34a', down: '#e11d48', warn: '#d97706',
       info: '#2563eb', muted: '#9ca3af', tick: '#6b7280',
@@ -524,6 +731,7 @@
       if (tab === 'data' && secret) void loadDataPlayers();
       if (tab === 'theme' && secret) void loadTheme();
       if (tab === 'gameplay' && secret) void loadTurnTimer();
+      if (tab === 'daily' && secret) void loadDaily();
     }
 
     function renderTheme(state) {
@@ -594,6 +802,946 @@
       } catch (error) {
         setMsg('tt-msg', error.message || 'Save failed', false);
       }
+    }
+
+    // ------------------------------------------------------------------
+    // Daily rewards tab. One draft copy of the streak config is edited in
+    // place and published as a whole document. Inputs carry data-path, so
+    // typing updates the draft and the derived views without re-rendering
+    // the inputs. Adding, removing or changing a type re-renders the section.
+    // ------------------------------------------------------------------
+    const DR_SUB_KEY = 'shadowhand.adminDailySub';
+    const DR_SUBS = ['calendar', 'events', 'chests', 'rules', 'players', 'performance'];
+    // Which config keys each editing section owns, for its unsaved-changes dot.
+    const DR_SECTIONS = {
+      calendar: ['calendar'],
+      events: ['events'],
+      chests: ['chests'],
+      rules: ['enabled', 'graceDays', 'minClaimGapHours', 'rescue', 'adBoost', 'boosters', 'comeback', 'reminder'],
+    };
+    const DR_LANGS = [['en', 'English'], ['fr', 'Français'], ['es', 'Español'], ['pt', 'Português'], ['ar', 'العربية']];
+    const DR_KINDS = [
+      ['money', 'Money'], ['chips', 'Chips'], ['avatar', 'Avatar'], ['deck', 'Card deck'],
+      ['coin_boost', 'Coin Boost'], ['streak_freeze', 'Streak Freeze'], ['chest', 'Mystery chest'],
+    ];
+    const DR_SUITS = [['♠', false], ['♥', true], ['♣', false], ['♦', true]];
+    const DR_ACTION_LABELS = {
+      restore: 'Restored streak',
+      gift_freeze: 'Gifted Streak Freeze',
+      shift_days: 'Moved back (QA)',
+      reset: 'Reset (QA)',
+    };
+    const dr = {
+      live: null,
+      draft: null,
+      defaults: null,
+      catalog: null,
+      source: 'default',
+      hasPrevious: false,
+      sub: sessionStorage.getItem(DR_SUB_KEY) || 'calendar',
+      previewId: 'default',
+      player: null,
+      searchTimer: null,
+    };
+
+    function drKeys(path) {
+      return String(path).split('.').map((key) => (/^\d+$/.test(key) ? Number(key) : key));
+    }
+    function drGet(path) {
+      return drKeys(path).reduce((node, key) => (node == null ? undefined : node[key]), dr.draft);
+    }
+    function drSet(path, value) {
+      const keys = drKeys(path);
+      const last = keys.pop();
+      const parent = keys.reduce((node, key) => node[key], dr.draft);
+      if (value === undefined) delete parent[last];
+      else parent[last] = value;
+    }
+    function drSame(a, b) {
+      return JSON.stringify(a) === JSON.stringify(b);
+    }
+    function drIsDirty() {
+      return !!dr.draft && !drSame(dr.draft, dr.live);
+    }
+    function drSectionDirty(sub) {
+      return !!dr.draft && DR_SECTIONS[sub].some((key) => !drSame(dr.draft[key], dr.live?.[key]));
+    }
+    function drFmt(value) {
+      return Math.round(Number(value) || 0).toLocaleString('en-US');
+    }
+    function drCompact(value) {
+      const v = Math.round(Number(value) || 0);
+      if (v >= 1e6) return (v / 1e6).toFixed(v % 1e6 ? 1 : 0) + 'M';
+      if (v >= 1e4) return Math.round(v / 1e3) + 'K';
+      if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+      return String(v);
+    }
+    function drHours(minutes) {
+      const m = Math.round(Number(minutes) || 0);
+      if (m < 60) return m + ' min';
+      const h = m / 60;
+      return (Number.isInteger(h) ? h : h.toFixed(1)) + 'h';
+    }
+    function drDuration(seconds) {
+      const s = Math.max(0, Math.round(Number(seconds) || 0));
+      if (s === 0) return 'now';
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      return h ? `${h}h ${m}m` : `${Math.max(1, m)}m`;
+    }
+    function drUtcOffset(minutes) {
+      if (minutes == null) return 'not set yet';
+      const abs = Math.abs(minutes);
+      const mins = abs % 60 ? ':' + String(abs % 60).padStart(2, '0') : '';
+      return `UTC${minutes < 0 ? '−' : '+'}${Math.floor(abs / 60)}${mins}`;
+    }
+    function drKind(reward) {
+      return reward?.type === 'booster' ? reward.boosterId : reward?.type;
+    }
+    function drItemsOf(kind) {
+      return (kind === 'avatar' ? dr.catalog?.avatars : dr.catalog?.decks) || [];
+    }
+    function drItem(kind, id) {
+      return drItemsOf(kind).find((item) => item.id === id);
+    }
+    function drPrice(item) {
+      return item ? `${drFmt(item.price)} ${item.currency === 'chips' ? 'chips' : 'money'}` : '';
+    }
+    /** Half the shop price, in the item's own currency. */
+    function drSuggestFallback(item) {
+      if (!item) return { type: 'money', amount: 100 };
+      return { type: item.currency === 'chips' ? 'chips' : 'money', amount: Math.max(1, Math.floor(item.price / 2)) };
+    }
+    function drChestIds() {
+      return Object.keys(dr.draft?.chests || {});
+    }
+    function drChestTitle(id) {
+      return dr.draft?.chests?.[id]?.title?.en || id;
+    }
+    function drLimit(key, fallback) {
+      return dr.catalog?.limits?.[key] ?? fallback;
+    }
+    function drNewReward(kind) {
+      if (kind === 'chips') return { type: 'chips', amount: 1 };
+      if (kind === 'avatar' || kind === 'deck') {
+        const item = drItemsOf(kind).find((entry) => entry.id !== 'default');
+        return { type: kind, itemId: item ? item.id : '', fallback: drSuggestFallback(item) };
+      }
+      if (kind === 'coin_boost') return { type: 'booster', boosterId: 'coin_boost', minutes: 60 };
+      if (kind === 'streak_freeze') return { type: 'booster', boosterId: 'streak_freeze', quantity: 1 };
+      if (kind === 'chest') return { type: 'chest', chestId: drChestIds()[0] || '' };
+      return { type: 'money', amount: 100 };
+    }
+
+    /** Money-equivalent of one reward: chips at the exchange rate, items at shop price, chests at expected value. */
+    function drWorth(reward, depth = 0) {
+      const perChip = dr.catalog?.moneyPerChip || 1000;
+      const out = { currency: 0, items: 0, minutes: 0, freezes: 0 };
+      const kind = drKind(reward);
+      if (kind === 'money') out.currency = Number(reward.amount) || 0;
+      else if (kind === 'chips') out.currency = (Number(reward.amount) || 0) * perChip;
+      else if (kind === 'avatar' || kind === 'deck') {
+        const item = drItem(kind, reward.itemId);
+        if (item) out.items = item.price * (item.currency === 'chips' ? perChip : 1);
+        else if (reward.fallback) {
+          out.currency = (Number(reward.fallback.amount) || 0) * (reward.fallback.type === 'chips' ? perChip : 1);
+        }
+      } else if (kind === 'coin_boost') out.minutes = Number(reward.minutes) || 0;
+      else if (kind === 'streak_freeze') out.freezes = Number(reward.quantity) || 0;
+      else if (kind === 'chest' && depth === 0) {
+        const pool = dr.draft?.chests?.[reward.chestId]?.pool || [];
+        const total = pool.reduce((sum, entry) => sum + (Number(entry.weight) || 0), 0);
+        if (total > 0) {
+          for (const entry of pool) {
+            const share = (Number(entry.weight) || 0) / total;
+            const inner = drWorth(entry.reward, 1);
+            for (const key of Object.keys(out)) out[key] += inner[key] * share;
+          }
+        }
+      }
+      return out;
+    }
+    function drDayWorth(day) {
+      const sum = { currency: 0, items: 0, minutes: 0, freezes: 0 };
+      for (const reward of day?.rewards || []) {
+        const worth = drWorth(reward);
+        for (const key of Object.keys(sum)) sum[key] += worth[key];
+      }
+      sum.total = sum.currency + sum.items;
+      return sum;
+    }
+    function drDayWorthLabel(day) {
+      const worth = drDayWorth(day);
+      if (worth.total > 0) return '≈ ' + drFmt(worth.total);
+      // Boosters have no money value, so a booster-only day would read "≈ 0".
+      return worth.minutes > 0 || worth.freezes > 0 ? 'boosters only' : '≈ 0';
+    }
+    /** An edit makes the last save or discard message stale. */
+    function drTouched() {
+      setMsg('dr-msg', '', true);
+    }
+
+    function drNum(path, value, min, max, label) {
+      return `<input type="number" inputmode="numeric" step="1" min="${min}" max="${max}" data-path="${esc(path)}" data-type="int"` +
+        ` value="${Number.isFinite(value) ? value : ''}" aria-label="${esc(label)}" title="${esc(label)} · ${drFmt(min)}–${drFmt(max)}" />`;
+    }
+
+    function drRewardRow(reward, path, { allowChest, canRemove, removePath }) {
+      const kind = drKind(reward);
+      const kinds = DR_KINDS.filter(([key]) => allowChest || key !== 'chest').map(([key, label]) => {
+        const off = key === 'chest' && drChestIds().length === 0;
+        return `<option value="${key}"${key === kind ? ' selected' : ''}${off ? ' disabled' : ''}>${label}</option>`;
+      }).join('');
+      let fields = '';
+      if (kind === 'money' || kind === 'chips') {
+        fields = drNum(`${path}.amount`, reward.amount, 1, drLimit(kind === 'money' ? 'maxMoney' : 'maxChips', 1e6), 'Amount');
+      } else if (kind === 'avatar' || kind === 'deck') {
+        const items = drItemsOf(kind).filter((item) => item.id !== 'default');
+        const known = items.some((item) => item.id === reward.itemId);
+        const fallback = reward.fallback || { type: 'money', amount: 1 };
+        fields = `<select class="grow" data-path="${esc(path)}.itemId" data-act="pick-item" aria-label="Item">
+            ${known ? '' : `<option value="${esc(reward.itemId)}" selected>${esc(reward.itemId || 'Pick one')} (not in the shop)</option>`}
+            ${items.map((item) => `<option value="${esc(item.id)}"${item.id === reward.itemId ? ' selected' : ''}>${esc(item.name)} · ${esc(drPrice(item))}</option>`).join('')}
+          </select>
+          <span class="hint">If owned, give</span>
+          ${drNum(`${path}.fallback.amount`, fallback.amount, 1, drLimit(fallback.type === 'chips' ? 'maxChips' : 'maxMoney', 1e6), 'Given instead when already owned')}
+          <select data-path="${esc(path)}.fallback.type" data-type="text" data-rerender aria-label="Currency given instead">
+            <option value="money"${fallback.type === 'money' ? ' selected' : ''}>money</option>
+            <option value="chips"${fallback.type === 'chips' ? ' selected' : ''}>chips</option>
+          </select>`;
+      } else if (kind === 'coin_boost') {
+        fields = `${drNum(`${path}.minutes`, reward.minutes, 1, drLimit('maxBoostMinutes', 10080), 'Minutes of Coin Boost')}
+          <span class="hint" data-hint-for="${esc(path)}.minutes">min · ${esc(drHours(reward.minutes))}</span>`;
+      } else if (kind === 'streak_freeze') {
+        fields = `${drNum(`${path}.quantity`, reward.quantity, 1, drLimit('maxFreezeQuantity', 5), 'How many freezes')}
+          <span class="hint">freezes</span>`;
+      } else if (kind === 'chest') {
+        fields = `<select class="grow" data-path="${esc(path)}.chestId" data-type="text" aria-label="Chest">
+          ${drChestIds().map((id) => `<option value="${esc(id)}"${id === reward.chestId ? ' selected' : ''}>${esc(drChestTitle(id))}</option>`).join('')}
+        </select>`;
+      }
+      return `<div class="rw">
+        <select data-act="set-kind" data-path="${esc(path)}" aria-label="Reward type">${kinds}</select>
+        ${fields}
+        <button type="button" class="icon-btn" data-act="remove-item" data-path="${esc(removePath || path)}" title="Remove" aria-label="Remove"${canRemove ? '' : ' disabled'}>×</button>
+      </div>`;
+    }
+    function drRewardList(list, path, { allowChest }) {
+      const max = drLimit('maxRewardsPerDay', 3);
+      return list.map((reward, index) =>
+        drRewardRow(reward, `${path}.${index}`, { allowChest, canRemove: list.length > 1 })).join('') +
+        `<button type="button" class="link-btn" data-act="add-reward" data-path="${esc(path)}"${list.length >= max ? ' disabled' : ''}>+ Add reward</button>`;
+    }
+    function drDayGrid(days, path) {
+      return `<div class="days-grid">${days.map((day, index) => `
+        <div class="day-card">
+          <div class="day-head">
+            <span>Day ${day.day}${day.day === 7 ? ' <span class="chip warn">Jackpot</span>' : ''}</span>
+            <span class="sub" data-day-worth="${esc(path)}.${index}" title="Money-equivalent">${esc(drDayWorthLabel(day))}</span>
+          </div>
+          ${drRewardList(day.rewards, `${path}.${index}.rewards`, { allowChest: true })}
+        </div>`).join('')}</div>`;
+    }
+    function drTitleFields(title, path) {
+      return `<div class="field-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">${DR_LANGS.map(([code, name]) => `
+        <div class="field">
+          <label>${esc(name)}${code === 'en' ? ' · required' : ''}</label>
+          <input data-path="${esc(path)}.${code}" data-type="title" maxlength="40" value="${esc(title?.[code] ?? '')}"
+            aria-label="${esc(name)} title"${code === 'ar' ? ' dir="rtl"' : ''}${code === 'en' ? '' : ' placeholder="Uses English if empty"'} />
+        </div>`).join('')}</div>`;
+    }
+    function drField(path, min, max, label) {
+      const id = 'dr-f-' + path.replace(/[^a-z0-9]+/gi, '-');
+      const value = drGet(path);
+      return `<div class="field"><label for="${id}">${esc(label)}</label>
+        <input id="${id}" type="number" inputmode="numeric" step="1" min="${min}" max="${max}" data-path="${esc(path)}" data-type="int" value="${Number.isFinite(value) ? value : ''}" /></div>`;
+    }
+    function drToggle(path, label) {
+      return `<div class="field span-2"><label class="toggle"><input type="checkbox" data-path="${esc(path)}" data-type="bool"${drGet(path) ? ' checked' : ''} /> ${esc(label)}</label></div>`;
+    }
+
+    // ---- Calendar: day editors, the in-app preview and the week's economy
+    function drCalendars() {
+      const list = [{ id: 'default', label: 'Default calendar', days: dr.draft.calendar.days, title: null }];
+      dr.draft.events.forEach((event, index) => list.push({
+        id: 'event:' + index,
+        label: 'Event · ' + (event.title?.en || event.id),
+        days: event.days,
+        title: event.title?.en,
+      }));
+      return list;
+    }
+    function drPreviewItem(reward) {
+      const tile = (cls, glyph, text) => `<span class="pv-item"><span class="pv-ico ${cls}">${glyph}</span>${esc(text)}</span>`;
+      const kind = drKind(reward);
+      if (kind === 'money') return tile('money', '$', drCompact(reward.amount));
+      if (kind === 'chips') return tile('chips', '', drCompact(reward.amount));
+      if (kind === 'avatar') {
+        const name = drItem('avatar', reward.itemId)?.name || reward.itemId || '?';
+        return tile('avatar', esc(name.split(/\s+/).map((word) => word[0]).join('').slice(0, 2).toUpperCase()), name);
+      }
+      if (kind === 'deck') return tile('deck', '', drItem('deck', reward.itemId)?.name || reward.itemId || '?');
+      if (kind === 'coin_boost') return tile('boost', '⚡', drHours(reward.minutes));
+      if (kind === 'streak_freeze') return tile('freeze', '❄', '×' + (reward.quantity ?? ''));
+      if (kind === 'chest') return tile('chest', '?', drChestTitle(reward.chestId));
+      return '';
+    }
+    function drPreview(calendar) {
+      const cards = calendar.days.map((day, index) => {
+        const [suit, red] = DR_SUITS[index % DR_SUITS.length];
+        const wide = day.day === 7;
+        const tag = day.day === 1 ? 'Today' : day.day === 2 ? 'Tomorrow' : wide ? 'Jackpot' : '';
+        const worth = drDayWorth(day).total;
+        return `<div class="pv-card${wide ? ' wide' : ''}${day.day === 1 ? ' today' : ''}">
+          <span class="pv-rank${red ? ' red' : ''}">${day.day === 1 ? 'A' : day.day}<span>${suit}</span></span>
+          ${tag ? `<span class="pv-tag">${tag}</span>` : ''}
+          ${day.rewards.map(drPreviewItem).join('')}
+          ${worth > 0 ? `<span class="pv-val" title="Money-equivalent">≈${drCompact(worth)}</span>` : ''}
+        </div>`;
+      }).join('');
+      return `<div class="felt"><div class="felt-inner">
+        <div class="pv-head">${esc(calendar.title || 'Daily streak')}</div>
+        <div class="pv-grid">${cards}</div>
+      </div></div>`;
+    }
+    function drEstimate(calendar) {
+      const perDay = calendar.days.map(drDayWorth);
+      const week = perDay.reduce((sum, day) => {
+        for (const key of Object.keys(sum)) sum[key] += day[key];
+        return sum;
+      }, { currency: 0, items: 0, minutes: 0, freezes: 0, total: 0 });
+      const multiplier = dr.draft.adBoost.enabled ? dr.draft.adBoost.multiplier : 1;
+      const adDaily = (dr.catalog?.adRewardMoney || 0) * (dr.catalog?.adDailyCap || 0);
+      const perDayAvg = week.total / 7;
+      const ratio = adDaily > 0 ? perDayAvg / adDaily : 0;
+      const starting = dr.catalog?.startingMoney || 0;
+      const top = Math.max(1, ...perDay.map((day) => day.total));
+      const warning = ratio > 10
+        ? `<div class="warn-box">Generous: each day pays about ${ratio.toFixed(1)}× what rewarded ads pay in a day (${drFmt(adDaily)}). Watch the money supply after launch.</div>`
+        : '';
+      return `${warning}
+        <div class="kpis tight">${kpiHtml([
+          { l: 'Week value', v: drFmt(week.total), s: 'money-equivalent' },
+          { l: 'Per day', v: drFmt(perDayAvg), s: adDaily ? ratio.toFixed(1) + '× the daily ad cap' : 'no ad cap set' },
+          {
+            l: multiplier > 1 ? `Every claim ×${multiplier}` : 'Ad boost off',
+            v: drFmt(week.currency * multiplier + week.items),
+            s: 'if players always watch the ad',
+          },
+          { l: 'Vs. a new player', v: starting ? (week.total / starting).toFixed(1) + '×' : '—', s: `their ${drFmt(starting)} starting money` },
+        ])}</div>
+        <div class="bars">${perDay.map((day, index) => `
+          <div class="bar-row"><span>Day ${index + 1}</span><span class="bar"><span style="width:${(day.total / top * 100).toFixed(1)}%"></span></span><span class="num">${drFmt(day.total)}</span></div>`).join('')}
+        </div>
+        <div class="cap">Plus ${esc(drHours(week.minutes))} of Coin Boost and ${esc(String(Math.round(week.freezes * 10) / 10))} Streak Freeze over the week.
+          Chips count as ${drFmt(dr.catalog?.moneyPerChip)} money, items at shop price, chests at their expected value. Boosters aren't valued.</div>`;
+    }
+    function drRenderCalendar() {
+      const calendars = drCalendars();
+      if (!calendars.some((entry) => entry.id === dr.previewId)) dr.previewId = 'default';
+      $('dr-sub-calendar').innerHTML = `
+        <section class="grid-2-1">
+          <div class="card" style="min-width:0">
+            <div class="card-head"><h2>Default calendar</h2><span class="cap">Players follow this week unless an event is live.</span></div>
+            ${drDayGrid(dr.draft.calendar.days, 'calendar.days')}
+          </div>
+          <div style="display:grid;gap:12px;align-content:start;min-width:0">
+            <div class="card">
+              <div class="card-head"><h2>Player preview</h2>
+                <div class="push"><select class="dr-select" data-act="preview" aria-label="Calendar to preview">
+                  ${calendars.map((entry) => `<option value="${esc(entry.id)}"${entry.id === dr.previewId ? ' selected' : ''}>${esc(entry.label)}</option>`).join('')}
+                </select></div>
+              </div>
+              <div id="dr-preview"></div>
+              <div class="cap">Day 1 shown as today. The app draws the final art.</div>
+            </div>
+            <div class="card">
+              <h2>Economy · one week</h2>
+              <div id="dr-estimate"></div>
+            </div>
+          </div>
+        </section>`;
+      drRefreshDerived();
+    }
+
+    // ---- Events
+    function drTodayUtc() {
+      return new Date().toISOString().slice(0, 10);
+    }
+    function drShiftDate(date, days) {
+      return new Date(Date.parse(date + 'T00:00:00Z') + days * 86400000).toISOString().slice(0, 10);
+    }
+    function drEventStatus(event) {
+      const today = drTodayUtc();
+      if (!event.startsAt || !event.endsAt) return { label: 'Set the dates', cls: 'warn' };
+      if (event.endsAt < event.startsAt) return { label: 'Ends before it starts', cls: 'bad' };
+      if (today < event.startsAt) {
+        const days = Math.round((Date.parse(event.startsAt) - Date.parse(today)) / 86400000);
+        return { label: `Starts in ${days} day${days === 1 ? '' : 's'}`, cls: 'info' };
+      }
+      if (today > event.endsAt) return { label: 'Ended', cls: 'idle' };
+      return { label: 'Live now', cls: 'good' };
+    }
+    function drEventOverlap(index) {
+      const event = dr.draft.events[index];
+      const other = dr.draft.events.find((entry, i) => i !== index && event.startsAt && entry.startsAt &&
+        event.startsAt <= entry.endsAt && entry.startsAt <= event.endsAt);
+      return other ? (other.title?.en || other.id) : null;
+    }
+    function drAddEvent() {
+      const today = drTodayUtc();
+      const lastEnd = dr.draft.events.reduce((latest, event) => (event.endsAt > latest ? event.endsAt : latest), '');
+      const startsAt = lastEnd && lastEnd >= today ? drShiftDate(lastEnd, 1) : drShiftDate(today, 7);
+      let n = dr.draft.events.length + 1;
+      while (dr.draft.events.some((event) => event.id === `event-${n}`)) n += 1;
+      dr.draft.events.push({
+        id: `event-${n}`,
+        title: { en: 'New event' },
+        startsAt,
+        endsAt: drShiftDate(startsAt, 6),
+        days: structuredClone(dr.draft.calendar.days),
+      });
+    }
+    function drRenderEvents() {
+      const events = dr.draft.events;
+      const cards = events.map((event, index) => {
+        const status = drEventStatus(event);
+        const overlap = drEventOverlap(index);
+        return `<section class="card" style="margin-bottom:12px">
+          <div class="card-head">
+            <h2>${esc(event.title?.en || event.id)}</h2>
+            <span class="chip ${status.cls}">${esc(status.label)}</span>
+            ${overlap ? `<span class="chip bad">Overlaps ${esc(overlap)}</span>` : ''}
+            <div class="push">
+              <button class="link-btn" type="button" data-act="copy-default" data-path="events.${index}.days">Copy days from default</button>
+              <button class="btn-danger" type="button" data-act="remove-event" data-index="${index}">Delete</button>
+            </div>
+          </div>
+          <div class="field-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+            <div class="field"><label>Id · lowercase, digits, dashes</label>
+              <input data-path="events.${index}.id" data-type="slug" maxlength="40" value="${esc(event.id)}" aria-label="Event id" /></div>
+            <div class="field"><label>Starts · player's local date</label>
+              <input type="date" data-path="events.${index}.startsAt" data-type="text" data-rerender value="${esc(event.startsAt)}" aria-label="Start date" /></div>
+            <div class="field"><label>Ends · inclusive</label>
+              <input type="date" data-path="events.${index}.endsAt" data-type="text" data-rerender value="${esc(event.endsAt)}" aria-label="End date" /></div>
+          </div>
+          <div style="margin-top:10px">${drTitleFields(event.title, `events.${index}.title`)}</div>
+          <div style="margin-top:12px">${drDayGrid(event.days, `events.${index}.days`)}</div>
+        </section>`;
+      }).join('');
+      $('dr-sub-events').innerHTML = `
+        <section class="card" style="margin-bottom:12px">
+          <div class="card-head"><h2>Event calendars</h2>
+            <div class="push"><button class="btn-primary" type="button" data-act="add-event"${events.length >= drLimit('maxEvents', 12) ? ' disabled' : ''}>New event</button></div>
+          </div>
+          <p class="lead" style="margin-bottom:0">An event replaces the default week while its dates include the player's own date. Players keep their place in the week. Events can't overlap.</p>
+        </section>
+        ${cards || '<div class="empty">No events yet. Seasonal weeks such as Ramadan, a launch or Halloween go here.</div>'}`;
+    }
+
+    // ---- Chests
+    function drChestUses(id) {
+      const uses = [];
+      const holds = (rewards) => rewards.some((reward) => reward.type === 'chest' && reward.chestId === id);
+      const scan = (days, label) => days.forEach((day) => { if (holds(day.rewards)) uses.push(`${label} day ${day.day}`); });
+      scan(dr.draft.calendar.days, 'Default');
+      dr.draft.events.forEach((event) => scan(event.days, event.title?.en || event.id));
+      if (holds(dr.draft.comeback.rewards)) uses.push('Welcome back');
+      return uses;
+    }
+    function drOdds(id, index) {
+      const pool = dr.draft.chests[id]?.pool || [];
+      const total = pool.reduce((sum, entry) => sum + (Number(entry.weight) || 0), 0);
+      return total > 0 ? ((Number(pool[index]?.weight) || 0) / total * 100).toFixed(1) + '%' : '—';
+    }
+    function drChestValue(id) {
+      const worth = drWorth({ type: 'chest', chestId: id });
+      return 'Expected ≈ ' + drFmt(worth.currency + worth.items);
+    }
+    function drAddChest() {
+      let n = drChestIds().length + 1;
+      while (dr.draft.chests[`chest_${n}`]) n += 1;
+      dr.draft.chests[`chest_${n}`] = {
+        title: { en: 'New chest' },
+        pool: [{ weight: 1, reward: { type: 'money', amount: 500 } }],
+      };
+    }
+    function drRenderChests() {
+      const ids = drChestIds();
+      const cards = ids.map((id) => {
+        const chest = dr.draft.chests[id];
+        const uses = drChestUses(id);
+        return `<section class="card" style="margin-bottom:12px">
+          <div class="card-head">
+            <h2>${esc(chest.title?.en || id)}</h2><code>${esc(id)}</code>
+            <span class="cap">${uses.length ? 'Used on ' + esc(uses.join(', ')) : 'Not on any day yet'}</span>
+            <div class="push">
+              <span class="sub" data-chest-ev="${esc(id)}">${esc(drChestValue(id))}</span>
+              <button class="btn-danger" type="button" data-act="remove-chest" data-id="${esc(id)}"${uses.length ? ' disabled title="Take it off every day first"' : ''}>Delete</button>
+            </div>
+          </div>
+          ${drTitleFields(chest.title, `chests.${id}.title`)}
+          <div class="table-wrap" style="max-height:none;margin-top:10px"><table class="dr-table">
+            <thead><tr><th style="width:100px">Weight</th><th style="width:70px">Odds</th><th>Reward</th></tr></thead>
+            <tbody>${chest.pool.map((entry, index) => `<tr>
+              <td>${drNum(`chests.${id}.pool.${index}.weight`, entry.weight, 1, 1000, 'Weight')}</td>
+              <td class="sub" data-odds="${esc(id)}" data-odds-index="${index}">${drOdds(id, index)}</td>
+              <td>${drRewardRow(entry.reward, `chests.${id}.pool.${index}.reward`, {
+                allowChest: false, canRemove: chest.pool.length > 1, removePath: `chests.${id}.pool.${index}`,
+              })}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>
+          <button class="link-btn" type="button" data-act="add-pool" data-path="chests.${esc(id)}.pool"${chest.pool.length >= drLimit('maxChestEntries', 20) ? ' disabled' : ''}>+ Add entry</button>
+        </section>`;
+      }).join('');
+      $('dr-sub-chests').innerHTML = `
+        <section class="card" style="margin-bottom:12px">
+          <div class="card-head"><h2>Mystery chests</h2>
+            <div class="push"><button class="btn-primary" type="button" data-act="add-chest"${ids.length >= drLimit('maxChests', 10) ? ' disabled' : ''}>New chest</button></div>
+          </div>
+          <p class="lead" style="margin-bottom:0">A chest gives one reward, rolled on the server when the player claims it. Weights set the odds. Put a chest on a day from Calendar or Events.</p>
+        </section>
+        ${cards || '<div class="empty">No chests.</div>'}`;
+    }
+
+    // ---- Rules
+    function drRenderRules() {
+      $('dr-sub-rules').innerHTML = `
+        <section class="grid">
+          <div class="card">
+            <h2>Streak</h2>
+            <p class="lead">Players claim once per local day. Missing more days than the grace allows breaks the streak.</p>
+            <div class="field-grid">
+              ${drToggle('enabled', 'Streak rewards on')}
+              ${drField('graceDays', 0, 3, 'Grace days (missed days forgiven)')}
+              ${drField('minClaimGapHours', 0, 24, 'Minimum hours between two claims')}
+            </div>
+          </div>
+          <div class="card">
+            <h2>Rescue</h2>
+            <p class="lead">When grace runs out, a player can pay chips to keep the streak for a few days. After that it starts over.</p>
+            <div class="field-grid">
+              ${drToggle('rescue.enabled', 'Rescue on')}
+              ${drField('rescue.chipCost', 1, 50, 'Price (chips)')}
+              ${drField('rescue.windowDays', 0, 7, 'Days to decide after grace runs out')}
+            </div>
+          </div>
+        </section>
+        <section class="grid">
+          <div class="card">
+            <h2>Ad boost <span class="chip warn">App-reported</span></h2>
+            <p class="lead">A rewarded ad multiplies the money and chips in that day's claim. Until server-side ad verification ships, the app reports the ad itself, so keep this at ×2.</p>
+            <div class="field-grid">
+              ${drToggle('adBoost.enabled', 'Ad boost on')}
+              ${drField('adBoost.multiplier', 2, 5, 'Multiplier (×)')}
+            </div>
+          </div>
+          <div class="card">
+            <h2>Coin Boost</h2>
+            <p class="lead">While a Coin Boost runs, winning a money match pays this share of the winnings on top of the pot, up to the cap. Chips matches are unchanged.</p>
+            <div class="field-grid">
+              ${drField('boosters.coin_boost.percent', 1, 50, 'Bonus on winnings (%)')}
+              ${drField('boosters.coin_boost.maxBonus', 0, 100000, 'Most money per match')}
+            </div>
+          </div>
+        </section>
+        <section class="grid">
+          <div class="card">
+            <h2>Welcome back</h2>
+            <p class="lead">A one-time gift for players returning after a long break, shown before the streak.</p>
+            <div class="field-grid">
+              ${drToggle('comeback.enabled', 'Welcome back on')}
+              ${drField('comeback.absentDays', 1, 90, 'Days away')}
+              ${drField('comeback.cooldownDays', 1, 365, 'Days before it can repeat')}
+            </div>
+            <div style="margin-top:10px">${drRewardList(dr.draft.comeback.rewards, 'comeback.rewards', { allowChest: true })}</div>
+          </div>
+          <div class="card">
+            <h2>Reminders <span class="chip soon">Not live yet</span></h2>
+            <p class="lead">Push reminders ship in a later update. At most one push a day: players on a streak of 3 or more get the at-risk message at its own hour.</p>
+            <div class="field-grid">
+              ${drToggle('reminder.enabled', 'Reminders on')}
+              ${drField('reminder.localHour', 0, 23, 'Reminder hour (player time)')}
+              ${drField('reminder.atRiskHour', 0, 23, 'At-risk hour (streaks of 3+)')}
+            </div>
+          </div>
+        </section>`;
+    }
+
+    // ---- Players: lookup and support fixes
+    function drPlayerState(status) {
+      if (!status || status.enabled === false) return { label: 'Streaks off', cls: 'idle' };
+      if (status.state === 'broken') return { label: `Broken · rescue until ${status.rescue?.lastDate || '—'}`, cls: 'bad' };
+      if (status.state === 'claimed') return { label: 'Claimed today', cls: 'info' };
+      if (status.streak?.resets) return { label: 'Resets on next claim', cls: 'warn' };
+      return { label: 'Can claim now', cls: 'good' };
+    }
+    function drGrantText(entry) {
+      if (!entry) return '';
+      if (entry.type === 'money' || entry.type === 'chips') return `${drFmt(entry.amount)} ${entry.type}`;
+      if (entry.type === 'avatar' || entry.type === 'deck') {
+        const name = drItem(entry.type, entry.itemId)?.name || entry.itemId;
+        return entry.converted ? `${name} (owned, gave ${drGrantText(entry.converted)})` : name;
+      }
+      if (entry.type === 'booster') {
+        return entry.boosterId === 'coin_boost' ? `Coin Boost ${drHours(entry.minutes)}` : `Streak Freeze ×${entry.quantity}`;
+      }
+      if (entry.type === 'chest') return `${drChestTitle(entry.chestId)} → ${entry.loot ? drGrantText(entry.loot) : 'nothing'}`;
+      return entry.type;
+    }
+    function drSupportText(entry) {
+      const detail = entry.detail || {};
+      if (entry.action === 'restore') {
+        return `Last claim moved from ${detail.from || '—'} to ${detail.to || '—'} · day ${detail.day ?? '—'}, ${detail.count ?? '—'}-day streak kept`;
+      }
+      if (entry.action === 'gift_freeze') return `+${detail.quantity} (now ${detail.freezes})`;
+      if (entry.action === 'shift_days') return `${detail.days} day${detail.days === 1 ? '' : 's'} into the past`;
+      return 'Streak, claims and boosters cleared';
+    }
+    function drRenderPlayer() {
+      const box = $('dr-player-detail');
+      const body = dr.player;
+      if (!body) {
+        box.innerHTML = '';
+        return;
+      }
+      const { player, streak, status, claims, support } = body;
+      const state = drPlayerState(status);
+      const canRestore = status?.state === 'broken' || !!status?.streak?.resets;
+      const nextDay = status?.streak?.nextDay;
+      const next = status?.enabled === false ? '—' : status?.state === 'claimed' ? drDuration(status.secondsUntilNextClaim) : 'now';
+      const flags = (claim) => [
+        claim.calendarId && claim.calendarId !== 'default' ? esc(claim.calendarId) : '',
+        claim.boosted ? 'ad boosted' : '',
+        claim.rescueChips ? `rescued for ${claim.rescueChips} chips` : '',
+        claim.freezesUsed ? `${claim.freezesUsed} freeze used` : '',
+      ].filter(Boolean).join(' · ');
+      box.innerHTML = `
+        <section class="grid">
+          <div class="card">
+            <div class="card-head">
+              <h2>${esc(playerLabel({ name: player.name, username: player.username, playerId: player.id }))}</h2>
+              <span class="chip ${state.cls}">${esc(state.label)}</span>
+            </div>
+            <div class="sub">${esc(player.id)} · ${drFmt(player.money)} money · ${drFmt(player.chips)} chips · seen ${esc(fmtTime(player.lastSeenAt))}</div>
+            <div class="kpis" style="margin:12px 0 0">${kpiHtml([
+              { l: 'Day', v: `${streak.position || 0} / 7`, s: `week ${streak.cycles + 1}` },
+              { l: 'Streak', v: streak.count, s: `best ${streak.best}` },
+              { l: 'Next claim', v: next, s: nextDay ? `day ${nextDay}` : '' },
+              { l: 'Freezes', v: streak.freezes, s: streak.coinBoostRemainingSeconds ? `Coin Boost ${drDuration(streak.coinBoostRemainingSeconds)} left` : 'no Coin Boost running' },
+            ])}</div>
+            <div class="cap">Last claim ${streak.lastClaimAtMs ? esc(fmtTime(streak.lastClaimAtMs)) + ' · their day ' + esc(streak.lastClaimDate) : 'never'} · timezone ${esc(drUtcOffset(streak.tzOffsetMinutes))}</div>
+          </div>
+          <div class="card">
+            <h2>Fix</h2>
+            <p class="lead">${canRestore
+              ? `Restore keeps their ${streak.count}-day streak, so their next claim is day ${nextDay}. It costs them nothing.`
+              : 'Restore works while a streak is broken, before the player starts over.'}</p>
+            <div class="form-actions" style="margin-top:0">
+              <button class="btn-primary" type="button" data-act="player-restore"${canRestore ? '' : ' disabled'}>Restore streak</button>
+              <span class="inline-group">
+                <select class="dr-select" id="dr-gift-qty" aria-label="Freezes to gift">
+                  ${[1, 2, 3, 4, 5].map((q) => `<option value="${q}">${q}</option>`).join('')}
+                </select>
+                <button class="btn-muted" type="button" data-act="player-gift">Gift Streak Freeze</button>
+              </span>
+            </div>
+            ${body.debug ? `<div class="form-actions">
+              <span class="chip warn">QA only</span>
+              <input class="dr-select" id="dr-shift-days" type="number" min="1" max="30" value="1" aria-label="Days to move back" style="width:70px" />
+              <button class="btn-muted" type="button" data-act="player-shift">Move back days</button>
+              <button class="btn-danger" type="button" data-act="player-reset">Reset streak</button>
+            </div>` : ''}
+            <div class="form-actions"><span class="msg" id="dr-player-msg" style="margin-left:0"></span></div>
+          </div>
+        </section>
+        <section class="grid">
+          <div class="card">
+            <h2>Recent claims</h2>
+            ${claims.length ? `<div class="table-wrap"><table>
+              <thead><tr><th>When</th><th>Claim</th><th>Rewards</th></tr></thead>
+              <tbody>${claims.map((claim) => `<tr>
+                <td class="sub">${esc(fmtTime(claim.claimedAtMs))}<div>their day ${esc(claim.localDate)}</div></td>
+                <td>${claim.kind === 'comeback' ? 'Welcome back' : `Day ${esc(claim.cycleDay)}`}<div class="sub">${flags(claim)}</div></td>
+                <td class="sub">${esc((claim.granted || []).map(drGrantText).join(', '))}</td>
+              </tr>`).join('')}</tbody></table></div>` : '<div class="empty">No claims yet.</div>'}
+          </div>
+          <div class="card">
+            <h2>Support history</h2>
+            ${support.length ? `<div class="table-wrap"><table>
+              <thead><tr><th>When</th><th>Fix</th></tr></thead>
+              <tbody>${support.map((entry) => `<tr>
+                <td class="sub">${esc(fmtTime(entry.createdAtMs))}</td>
+                <td><div class="name">${esc(DR_ACTION_LABELS[entry.action] || entry.action)}</div><div class="sub">${esc(drSupportText(entry))}</div></td>
+              </tr>`).join('')}</tbody></table></div>` : '<div class="empty">No fixes yet.</div>'}
+          </div>
+        </section>`;
+    }
+    async function drSearchPlayers(query) {
+      const box = $('dr-player-results');
+      if (!query) {
+        box.innerHTML = '';
+        return;
+      }
+      try {
+        const body = await api('/admin/players?q=' + encodeURIComponent(query));
+        const list = (body.players || []).slice(0, 20);
+        box.innerHTML = list.length ? `<table><tbody>${list.map((row) => `<tr>
+          <td><div class="name">${esc(playerLabel(row))}</div><div class="sub">${esc(row.playerId)}</div></td>
+          <td class="sub">${esc(row.authType || '')}<div>seen ${esc(fmtTime(row.lastSeenAt))}</div></td>
+          <td style="text-align:right"><button class="btn-muted" type="button" data-act="open-player" data-id="${esc(row.playerId)}">Open</button></td>
+        </tr>`).join('')}</tbody></table>` : '<div class="empty">No players match. Paste a full player id and press Enter.</div>';
+      } catch (error) {
+        box.innerHTML = `<div class="empty">${esc(error.message || 'Search failed')}</div>`;
+      }
+    }
+    async function drLoadPlayer(playerId) {
+      const box = $('dr-player-detail');
+      box.innerHTML = '<div class="empty">Loading player…</div>';
+      try {
+        dr.player = await api('/admin/daily-rewards/player?id=' + encodeURIComponent(playerId));
+        drRenderPlayer();
+      } catch (error) {
+        dr.player = null;
+        box.innerHTML = `<div class="empty">${esc(error.message || 'Could not load the player')}</div>`;
+      }
+    }
+    async function drPlayerAction(action, extra) {
+      const player = dr.player?.player;
+      if (!player) return;
+      const name = playerLabel({ name: player.name, username: player.username, playerId: player.id });
+      const questions = {
+        restore: `Restore ${name}'s streak? Their next claim continues where they left off.`,
+        gift_freeze: `Gift ${extra?.quantity || 1} Streak Freeze to ${name}?`,
+        shift_days: `QA: move ${name}'s streak ${extra?.days || 1} day(s) into the past?`,
+        reset: `QA: wipe ${name}'s streak, claims and boosters?`,
+      };
+      if (!confirm(questions[action])) return;
+      setMsg('dr-player-msg', 'Working…', true);
+      try {
+        dr.player = await apiPost('/admin/daily-rewards/player/action', { playerId: player.id, action, ...(extra || {}) });
+        drRenderPlayer();
+        setMsg('dr-player-msg', `${DR_ACTION_LABELS[action]} · logged on the player`, true);
+      } catch (error) {
+        setMsg('dr-player-msg', error.message || 'That did not work', false);
+      }
+    }
+
+    // ---- Performance
+    function drPct(part, whole) {
+      return whole > 0 ? Math.round((part / whole) * 100) + '%' : '—';
+    }
+    function drRenderStats(s) {
+      const t = s.totals || {};
+      const r = s.reach || {};
+      $('dr-kpis').innerHTML = kpiHtml([
+        { l: 'Claims · 30d', v: drFmt(t.claims), s: drFmt(t.claimers) + ' players' },
+        { l: 'Claim rate · 24h', v: drPct(r.claimers24h, r.active24h), s: `${drFmt(r.claimers24h)} of ${drFmt(r.active24h)} active` },
+        { l: 'Weekly reach', v: drPct(r.claimers7d, r.active7d), s: `${drFmt(r.claimers7d)} of ${drFmt(r.active7d)} active` },
+        { l: 'Ad boosted', v: drPct(t.boosted, t.claims), s: drFmt(t.boosted) + ' claims' },
+        { l: 'Rescues', v: drFmt(t.rescues), s: drFmt(t.rescueChips) + ' chips spent' },
+        { l: 'Freezes used', v: drFmt(t.freezesUsed), s: 'streaks saved' },
+        { l: 'Welcome back', v: drFmt(t.comebacks), s: 'bonuses claimed' },
+      ]);
+      $('dr-perf-note').textContent = t.claims
+        ? ''
+        : 'No claims yet. These fill in once the app update with the streak screen ships.';
+      const days = s.byDay || [];
+      const stacked = chartOpts();
+      stacked.scales.x.stacked = true;
+      stacked.scales.y.stacked = true;
+      stacked.plugins.legend = { display: true, position: 'bottom', labels: { color: COLORS.tick, boxWidth: 10 } };
+      upsertChart('drClaims', 'chart-dr-claims', {
+        type: 'bar',
+        data: {
+          labels: days.map((d) => dayLabel(d.day)),
+          datasets: [
+            { label: 'Plain', data: days.map((d) => d.claims - d.boosted - d.rescued), backgroundColor: COLORS.ink },
+            { label: 'Ad boosted', data: days.map((d) => d.boosted), backgroundColor: COLORS.info },
+            { label: 'Rescued', data: days.map((d) => d.rescued), backgroundColor: COLORS.warn },
+          ],
+        },
+        options: stacked,
+      });
+      const cycle = s.byCycleDay || [];
+      upsertChart('drCycle', 'chart-dr-cycle', {
+        type: 'bar',
+        data: {
+          labels: cycle.map((d) => 'Day ' + d.day),
+          datasets: [{ data: cycle.map((d) => d.claims), backgroundColor: COLORS.up }],
+        },
+        options: chartOpts(),
+      });
+      const streaks = s.streaks || [];
+      upsertChart('drStreaks', 'chart-dr-streaks', {
+        type: 'bar',
+        data: {
+          labels: streaks.map((d) => d.bucket + ' days'),
+          datasets: [{ data: streaks.map((d) => d.players), backgroundColor: COLORS.info }],
+        },
+        options: chartOpts(),
+      });
+    }
+    async function loadDailyStats() {
+      try {
+        drRenderStats(await api('/admin/daily-rewards/stats?days=30'));
+      } catch (error) {
+        $('dr-perf-note').textContent = error.message || 'Could not load streak stats';
+      }
+    }
+
+    // ---- State, rendering and saving
+    function drRenderSaveBar() {
+      const dirty = drIsDirty();
+      $('dr-savebar').style.display = dr.draft && DR_SECTIONS[dr.sub] ? '' : 'none';
+      $('dr-savebar').classList.toggle('dirty', dirty);
+      $('dr-state').textContent = dirty ? 'Unsaved changes' : 'All changes saved';
+      // Discard and Save only mean something once there is an edit.
+      $('dr-discard').hidden = !dirty;
+      $('dr-save').hidden = !dirty;
+      $('dr-save').disabled = false;
+      $('dr-revert').disabled = !dr.hasPrevious;
+      if (dr.live) {
+        $('dr-live').textContent = `Live: ${dr.live.enabled ? 'on' : 'off'} · ${dr.source === 'admin' ? 'saved in admin' : 'code defaults'}`;
+      }
+      document.querySelectorAll('#dr-seg button').forEach((button) => {
+        const dot = button.querySelector('.dirty-dot');
+        if (dot) dot.hidden = !drSectionDirty(button.dataset.sub);
+      });
+    }
+    function drRefreshDerived() {
+      if (!dr.draft) return;
+      const panel = $('panel-daily');
+      panel.querySelectorAll('[data-day-worth]').forEach((el) => {
+        const day = drGet(el.dataset.dayWorth);
+        if (day) el.textContent = drDayWorthLabel(day);
+      });
+      panel.querySelectorAll('[data-hint-for]').forEach((el) => {
+        el.textContent = 'min · ' + drHours(drGet(el.dataset.hintFor));
+      });
+      panel.querySelectorAll('[data-odds]').forEach((el) => {
+        el.textContent = drOdds(el.dataset.odds, Number(el.dataset.oddsIndex));
+      });
+      panel.querySelectorAll('[data-chest-ev]').forEach((el) => {
+        el.textContent = drChestValue(el.dataset.chestEv);
+      });
+      if (dr.sub === 'calendar' && $('dr-preview')) {
+        const calendars = drCalendars();
+        const calendar = calendars.find((entry) => entry.id === dr.previewId) || calendars[0];
+        $('dr-preview').innerHTML = drPreview(calendar);
+        $('dr-estimate').innerHTML = drEstimate(calendar);
+      }
+      drRenderSaveBar();
+    }
+    function drRenderSub() {
+      if (dr.draft) {
+        if (dr.sub === 'calendar') drRenderCalendar();
+        else if (dr.sub === 'events') drRenderEvents();
+        else if (dr.sub === 'chests') drRenderChests();
+        else if (dr.sub === 'rules') drRenderRules();
+      }
+      if (dr.sub === 'players') drRenderPlayer();
+      drRenderSaveBar();
+    }
+    function drShowSub(sub) {
+      dr.sub = DR_SUBS.includes(sub) ? sub : 'calendar';
+      sessionStorage.setItem(DR_SUB_KEY, dr.sub);
+      document.querySelectorAll('#dr-seg button').forEach((button) => {
+        button.classList.toggle('on', button.dataset.sub === dr.sub);
+      });
+      DR_SUBS.forEach((id) => $('dr-sub-' + id).classList.toggle('on', id === dr.sub));
+      drRenderSub();
+      if (dr.sub === 'performance') void loadDailyStats();
+      requestAnimationFrame(() => charts.forEach((chart) => chart.resize()));
+    }
+    function drAdopt(state, { keepDraft = false } = {}) {
+      dr.live = state.config;
+      dr.source = state.source;
+      dr.hasPrevious = !!state.hasPrevious;
+      dr.defaults = state.defaults || dr.defaults;
+      if (!keepDraft || !dr.draft) dr.draft = structuredClone(state.config);
+    }
+    async function loadDaily() {
+      try {
+        const [state, catalog] = await Promise.all([
+          api('/admin/daily-rewards'),
+          dr.catalog ? Promise.resolve(dr.catalog) : api('/admin/reward-catalog'),
+        ]);
+        dr.catalog = catalog;
+        // Coming back to the tab keeps an unsaved draft.
+        drAdopt(state, { keepDraft: drIsDirty() });
+        $('dr-loading').style.display = 'none';
+      } catch (error) {
+        $('dr-loading').textContent = error.message || 'Could not load daily rewards';
+      }
+      drShowSub(dr.sub);
+    }
+    async function saveDaily() {
+      setMsg('dr-msg', 'Saving…', true);
+      $('dr-save').disabled = true;
+      try {
+        drAdopt(await apiPost('/admin/daily-rewards', dr.draft));
+        drRenderSub();
+        setMsg('dr-msg', 'Saved · live for players within 15 seconds', true);
+      } catch (error) {
+        setMsg('dr-msg', error.message || 'Save failed', false);
+        drRenderSaveBar();
+      }
+    }
+    async function revertDaily() {
+      const question = 'Put back the version saved before the last one? It goes live within 15 seconds.' +
+        (drIsDirty() ? ' Your unsaved edits will be dropped.' : '');
+      if (!confirm(question)) return;
+      setMsg('dr-msg', 'Restoring…', true);
+      try {
+        drAdopt(await apiPost('/admin/daily-rewards/revert', {}));
+        drRenderSub();
+        setMsg('dr-msg', 'Previous version restored · live within 15 seconds', true);
+      } catch (error) {
+        setMsg('dr-msg', error.message || 'Revert failed', false);
+      }
+    }
+    function drApplyInput(el) {
+      const { path, type } = el.dataset;
+      let value = el.value;
+      if (type === 'bool') value = el.checked;
+      else if (type === 'int') value = el.value.trim() === '' ? null : Number(el.value);
+      else if (type === 'slug') {
+        value = el.value.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        if (value !== el.value) el.value = value;
+      } else if (type === 'title' && !path.endsWith('.en') && value.trim() === '') {
+        value = undefined;
+      }
+      drSet(path, value);
+    }
+    function drAction(button) {
+      const { act, path } = button.dataset;
+      if (act === 'open-player') return void drLoadPlayer(button.dataset.id);
+      if (act === 'player-restore') return void drPlayerAction('restore');
+      if (act === 'player-gift') return void drPlayerAction('gift_freeze', { quantity: Number($('dr-gift-qty').value) || 1 });
+      if (act === 'player-shift') return void drPlayerAction('shift_days', { days: Number($('dr-shift-days').value) || 1 });
+      if (act === 'player-reset') return void drPlayerAction('reset');
+      if (!dr.draft) return;
+      drTouched();
+      if (act === 'add-reward') drGet(path).push(drNewReward('money'));
+      else if (act === 'remove-item') {
+        const keys = path.split('.');
+        const index = Number(keys.pop());
+        drGet(keys.join('.')).splice(index, 1);
+      } else if (act === 'add-event') drAddEvent();
+      else if (act === 'remove-event') {
+        if (!confirm('Delete this event and its 7 days?')) return;
+        dr.draft.events.splice(Number(button.dataset.index), 1);
+      } else if (act === 'copy-default') {
+        if (!confirm("Replace this event's 7 days with the default calendar's?")) return;
+        drSet(path, structuredClone(dr.draft.calendar.days));
+      } else if (act === 'add-chest') drAddChest();
+      else if (act === 'remove-chest') {
+        if (!confirm('Delete this chest?')) return;
+        delete dr.draft.chests[button.dataset.id];
+      } else if (act === 'add-pool') drGet(path).push({ weight: 10, reward: { type: 'money', amount: 500 } });
+      else return;
+      drRenderSub();
     }
 
     function renderOverviewKpis(live, s) {
@@ -1125,6 +2273,71 @@
       if (!turnTimerDefaults) return;
       fillTurnTimerForm(turnTimerDefaults);
       setMsg('tt-msg', 'Defaults filled in · press Apply to save', true);
+    });
+
+    $('dr-seg').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-sub]');
+      if (button) drShowSub(button.dataset.sub);
+    });
+    $('panel-daily').addEventListener('input', (event) => {
+      const el = event.target;
+      if (!dr.draft || !el.dataset?.path || el.dataset.act) return;
+      drTouched();
+      drApplyInput(el);
+      drRefreshDerived();
+    });
+    $('panel-daily').addEventListener('change', (event) => {
+      const el = event.target;
+      const { act, path } = el.dataset || {};
+      if (!dr.draft) return;
+      if (act === 'set-kind' || act === 'pick-item') drTouched();
+      if (act === 'set-kind') {
+        drSet(path, drNewReward(el.value));
+        drRenderSub();
+      } else if (act === 'pick-item') {
+        drSet(path, el.value);
+        const reward = drGet(path.replace(/\.itemId$/, ''));
+        reward.fallback = drSuggestFallback(drItem(reward.type, el.value));
+        drRenderSub();
+      } else if (act === 'preview') {
+        dr.previewId = el.value;
+        drRefreshDerived();
+      } else if (path) {
+        drApplyInput(el);
+        if ('rerender' in el.dataset) drRenderSub();
+        else drRefreshDerived();
+      }
+    });
+    $('panel-daily').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-act]');
+      if (button && !button.disabled) drAction(button);
+    });
+    $('dr-player-q').addEventListener('input', () => {
+      clearTimeout(dr.searchTimer);
+      const query = $('dr-player-q').value.trim();
+      dr.searchTimer = setTimeout(() => void drSearchPlayers(query), 250);
+    });
+    $('dr-player-q').addEventListener('keydown', (event) => {
+      const query = $('dr-player-q').value.trim();
+      if (event.key === 'Enter' && query) void drLoadPlayer(query);
+    });
+    $('dr-save').addEventListener('click', () => void saveDaily());
+    $('dr-revert').addEventListener('click', () => void revertDaily());
+    $('dr-discard').addEventListener('click', () => {
+      dr.draft = structuredClone(dr.live);
+      drRenderSub();
+      setMsg('dr-msg', 'Edits discarded', true);
+    });
+    $('dr-defaults').addEventListener('click', () => {
+      if (!dr.defaults) return;
+      dr.draft = structuredClone(dr.defaults);
+      drRenderSub();
+      setMsg('dr-msg', 'Defaults loaded into the editor · press Save & publish to make them live', true);
+    });
+    window.addEventListener('beforeunload', (event) => {
+      if (!drIsDirty()) return;
+      event.preventDefault();
+      event.returnValue = '';
     });
 
     if (secret) {

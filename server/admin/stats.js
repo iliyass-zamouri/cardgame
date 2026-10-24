@@ -472,6 +472,7 @@ async function exportAdminGooglePlayersCsv() {
 }
 
 module.exports = {
+  fillDays,
   getAdminDashboardStats,
   getPlayersByIds,
   searchAdminPlayers,

@@ -1547,4 +1547,170 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get phraseEndingNextTurn => 'Je termine au prochain tour !';
+
+  @override
+  String get dailyStreakTitle => 'Série quotidienne';
+
+  @override
+  String dailyDay(int day) {
+    return 'Jour $day';
+  }
+
+  @override
+  String dailyDayOfWeek(int day) {
+    return 'Jour $day sur 7';
+  }
+
+  @override
+  String get dailyToday => 'Aujourd\'hui';
+
+  @override
+  String get dailyTomorrow => 'Demain';
+
+  @override
+  String get dailyJackpot => 'Jackpot';
+
+  @override
+  String dailyStreakCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Série de $count jours',
+      one: 'Série de 1 jour',
+      zero: 'Commencez votre série',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String dailyBest(int best) {
+    return 'Record $best';
+  }
+
+  @override
+  String dailyNextIn(String time) {
+    return 'Prochaine récompense dans $time';
+  }
+
+  @override
+  String get dailyComeBackTomorrow => 'Revenez demain';
+
+  @override
+  String get dailyShortAd => 'Pub courte';
+
+  @override
+  String dailyBoostedBadge(int multiplier) {
+    return 'Bonus pub ×$multiplier';
+  }
+
+  @override
+  String get dailyStreakBrokenTitle => 'Votre série s\'est arrêtée';
+
+  @override
+  String dailyStreakBrokenBody(int day) {
+    return 'Restaurez-la pour continuer au jour $day, ou recommencez une série au jour 1.';
+  }
+
+  @override
+  String get dailyRestore => 'Restaurer';
+
+  @override
+  String get dailyStartOver => 'Recommencer';
+
+  @override
+  String get dailyGraceForgiven => 'Jour manqué pardonné';
+
+  @override
+  String get dailyFreezeSaves => 'Un Gel de série sauve votre série';
+
+  @override
+  String get dailyNewStreak => 'Une nouvelle série commence aujourd\'hui';
+
+  @override
+  String dailyEventEnds(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Se termine dans $days jours',
+      one: 'Se termine demain',
+      zero: 'Se termine aujourd\'hui',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dailyCoinBoost => 'Boost de pièces';
+
+  @override
+  String dailyCoinBoostBody(int percent) {
+    return '+$percent % d\'argent sur les victoires';
+  }
+
+  @override
+  String get dailyStreakFreeze => 'Gel de série';
+
+  @override
+  String get dailyStreakFreezeBody =>
+      'Sauve votre série si vous manquez un jour';
+
+  @override
+  String get dailyMysteryChest => 'Coffre mystère';
+
+  @override
+  String get dailyChestInside => 'Contenu possible';
+
+  @override
+  String get dailyChestNote =>
+      'Une récompense, tirée au sort quand vous la réclamez.';
+
+  @override
+  String get dailyMysteryGift => 'Cadeau mystère';
+
+  @override
+  String get dailyNew => 'Nouveau !';
+
+  @override
+  String get dailyAlreadyOwned => 'Déjà possédé';
+
+  @override
+  String get dailyCollect => 'Récupérer';
+
+  @override
+  String get dailyCollected => 'Récupéré';
+
+  @override
+  String dailyDayReward(int day) {
+    return 'Récompense du jour $day';
+  }
+
+  @override
+  String get dailyJackpotWon => 'Jackpot !';
+
+  @override
+  String get dailyWelcomeBack => 'Bon retour !';
+
+  @override
+  String get dailyWelcomeBackBody =>
+      'On vous a gardé un cadeau pendant votre absence.';
+
+  @override
+  String get dailyClaimFailed =>
+      'Impossible de récupérer pour le moment. Réessayez.';
+
+  @override
+  String get dailyLoadFailed => 'Impossible de charger votre série.';
+
+  @override
+  String get dailyRetry => 'Réessayer';
+
+  @override
+  String dailyEntryReady(int day) {
+    return 'La récompense du jour $day est prête';
+  }
+
+  @override
+  String get dailyEntryBroken => 'Série arrêtée · restaurez-la';
+
+  @override
+  String get dailyEntryComeback => 'Un cadeau de retour vous attend';
 }

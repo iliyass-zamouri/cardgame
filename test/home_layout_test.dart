@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/daily_reward_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/home_menu_providers.dart';
@@ -8,8 +12,10 @@ import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/data/app/app_config_api.dart';
 import 'package:cardgame/data/app/home_menu_config.dart';
+import 'package:cardgame/data/daily_reward/daily_reward_models.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
 import 'package:cardgame/services/push_prefs_repository.dart';
+import 'package:cardgame/ui/screens/daily_reward/daily_entry_pill.dart';
 import 'package:cardgame/ui/screens/home/game_starter.dart';
 import 'package:cardgame/ui/screens/home/home_menu_widgets.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
@@ -34,6 +40,26 @@ class _OfflineConfigApi extends AppConfigApi {
 
   @override
   Future<AppConfig> fetch() async => const AppConfig();
+}
+
+/// The streak as the server sent it in [fixture], or switched off.
+class _FixedDailyRewards extends DailyRewardController {
+  _FixedDailyRewards(this.fixture);
+
+  final String? fixture;
+
+  @override
+  Future<DailyRewardView?> build() async {
+    final name = fixture;
+    if (name == null) return null;
+    final json = jsonDecode(
+      File('test/fixtures/daily_reward/$name.json').readAsStringSync(),
+    );
+    return DailyRewardView(
+      DailyRewardStatus.fromJson(json as Map<String, dynamic>),
+      dailyRewardClock(),
+    );
+  }
 }
 
 Future<void> _font(String family, List<String> files) async {
@@ -94,25 +120,35 @@ void main() {
       empty,
     ),
   ]) {
-    testWidgets('home layout fits: $name', (tester) async {
-      await _pumpHome(
+    // With and without the streak banner above the play card.
+    for (final daily in [null, 'status_midweek', 'status_claimed']) {
+      testWidgets('home layout fits: $name${daily == null ? '' : ' $daily'}', (
         tester,
-        locale: locale,
-        conn: conn,
-        size: size,
-        menu: menu,
-      );
+      ) async {
+        await _pumpHome(
+          tester,
+          locale: locale,
+          conn: conn,
+          size: size,
+          menu: menu,
+          daily: daily,
+        );
 
-      // Layout overflows surface as exceptions in widget tests.
-      expect(tester.takeException(), isNull);
-      expect(find.byType(PrimaryPlayCard), findsOneWidget);
-      expect(find.byType(ModePlayingCard), findsNWidgets(menu.modes.length));
-      expect(find.byType(HomeNavBar), findsOneWidget);
-      expect(
-        tester.widget<HomeNavBar>(find.byType(HomeNavBar)).items,
-        hasLength(menu.nav.length),
-      );
-    });
+        // Layout overflows surface as exceptions in widget tests.
+        expect(tester.takeException(), isNull);
+        expect(find.byType(PrimaryPlayCard), findsOneWidget);
+        expect(find.byType(ModePlayingCard), findsNWidgets(menu.modes.length));
+        expect(find.byType(HomeNavBar), findsOneWidget);
+        expect(
+          tester.widget<HomeNavBar>(find.byType(HomeNavBar)).items,
+          hasLength(menu.nav.length),
+        );
+        expect(
+          find.byType(DailyEntryPill),
+          daily == null ? findsNothing : findsOneWidget,
+        );
+      });
+    }
   }
 
   for (final locale in ['en', 'ar']) {
@@ -168,6 +204,7 @@ Future<void> _pumpHome(
   required ConnectionStatus conn,
   required Size size,
   required HomeMenuConfig menu,
+  String? daily,
 }) async {
   tester.view.physicalSize = size * 3;
   tester.view.devicePixelRatio = 3;
@@ -203,6 +240,7 @@ Future<void> _pumpHome(
         tutorialProgressRepositoryProvider.overrideWithValue(
           TutorialProgressRepository.memory(),
         ),
+        dailyRewardProvider.overrideWith(() => _FixedDailyRewards(daily)),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

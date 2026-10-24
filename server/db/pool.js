@@ -69,6 +69,9 @@ async function initDb() {
   const { ensureAppSettingsSchema } = require('./app_settings');
   await ensureAppSettingsSchema();
 
+  const { ensureDailyRewardsSchema } = require('./daily_rewards');
+  await ensureDailyRewardsSchema();
+
   return pool;
 }
 

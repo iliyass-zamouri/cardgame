@@ -1523,4 +1523,172 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get phraseEndingNextTurn => 'سأنهيها في الدور القادم!';
+
+  @override
+  String get dailyStreakTitle => 'السلسلة اليومية';
+
+  @override
+  String dailyDay(int day) {
+    return 'اليوم $day';
+  }
+
+  @override
+  String dailyDayOfWeek(int day) {
+    return 'اليوم $day من 7';
+  }
+
+  @override
+  String get dailyToday => 'اليوم';
+
+  @override
+  String get dailyTomorrow => 'غدًا';
+
+  @override
+  String get dailyJackpot => 'الجائزة الكبرى';
+
+  @override
+  String dailyStreakCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'سلسلة $count يوم',
+      many: 'سلسلة $count يومًا',
+      few: 'سلسلة $count أيام',
+      two: 'سلسلة يومين',
+      one: 'سلسلة يوم واحد',
+      zero: 'ابدأ سلسلتك',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String dailyBest(int best) {
+    return 'الأفضل $best';
+  }
+
+  @override
+  String dailyNextIn(String time) {
+    return 'المكافأة التالية بعد $time';
+  }
+
+  @override
+  String get dailyComeBackTomorrow => 'عُد غدًا';
+
+  @override
+  String get dailyShortAd => 'إعلان قصير';
+
+  @override
+  String dailyBoostedBadge(int multiplier) {
+    return 'مضاعفة ×$multiplier بالإعلان';
+  }
+
+  @override
+  String get dailyStreakBrokenTitle => 'انقطعت سلسلتك';
+
+  @override
+  String dailyStreakBrokenBody(int day) {
+    return 'استعدها لتكمل من اليوم $day، أو ابدأ سلسلة جديدة من اليوم 1.';
+  }
+
+  @override
+  String get dailyRestore => 'استعادة';
+
+  @override
+  String get dailyStartOver => 'البدء من جديد';
+
+  @override
+  String get dailyGraceForgiven => 'سامحناك على اليوم الفائت';
+
+  @override
+  String get dailyFreezeSaves => 'تجميد السلسلة يحمي سلسلتك';
+
+  @override
+  String get dailyNewStreak => 'تبدأ سلسلة جديدة اليوم';
+
+  @override
+  String dailyEventEnds(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'ينتهي بعد $days يوم',
+      many: 'ينتهي بعد $days يومًا',
+      few: 'ينتهي بعد $days أيام',
+      two: 'ينتهي بعد يومين',
+      one: 'ينتهي غدًا',
+      zero: 'ينتهي اليوم',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dailyCoinBoost => 'معزز العملات';
+
+  @override
+  String dailyCoinBoostBody(int percent) {
+    return '+$percent% نقود عند الفوز بالمباريات';
+  }
+
+  @override
+  String get dailyStreakFreeze => 'تجميد السلسلة';
+
+  @override
+  String get dailyStreakFreezeBody => 'يحفظ سلسلتك إذا فاتك يوم';
+
+  @override
+  String get dailyMysteryChest => 'صندوق غامض';
+
+  @override
+  String get dailyChestInside => 'ماذا قد تجد';
+
+  @override
+  String get dailyChestNote => 'مكافأة واحدة تُختار عشوائيًا عند الاستلام.';
+
+  @override
+  String get dailyMysteryGift => 'هدية غامضة';
+
+  @override
+  String get dailyNew => 'جديد!';
+
+  @override
+  String get dailyAlreadyOwned => 'تملكه بالفعل';
+
+  @override
+  String get dailyCollect => 'اجمع';
+
+  @override
+  String get dailyCollected => 'تم الاستلام';
+
+  @override
+  String dailyDayReward(int day) {
+    return 'مكافأة اليوم $day';
+  }
+
+  @override
+  String get dailyJackpotWon => 'الجائزة الكبرى!';
+
+  @override
+  String get dailyWelcomeBack => 'مرحبًا بعودتك!';
+
+  @override
+  String get dailyWelcomeBackBody => 'احتفظنا لك بهدية أثناء غيابك.';
+
+  @override
+  String get dailyClaimFailed => 'تعذّر الاستلام الآن. حاول مرة أخرى.';
+
+  @override
+  String get dailyLoadFailed => 'تعذّر تحميل سلسلتك.';
+
+  @override
+  String get dailyRetry => 'إعادة المحاولة';
+
+  @override
+  String dailyEntryReady(int day) {
+    return 'مكافأة اليوم $day جاهزة';
+  }
+
+  @override
+  String get dailyEntryBroken => 'انقطعت السلسلة · استعدها';
+
+  @override
+  String get dailyEntryComeback => 'هدية العودة بانتظارك';
 }

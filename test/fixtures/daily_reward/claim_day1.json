@@ -1,0 +1,245 @@
+{
+  "alreadyClaimed": false,
+  "day": 1,
+  "calendarId": "default",
+  "boosted": false,
+  "granted": [
+    {
+      "type": "money",
+      "amount": 200
+    }
+  ],
+  "chipsSpent": 0,
+  "freezesUsed": 0,
+  "graceUsed": 0,
+  "rescued": false,
+  "streakReset": false,
+  "streak": {
+    "count": 1,
+    "best": 1,
+    "position": 1,
+    "cycle": 0
+  },
+  "money": 700,
+  "chips": 1,
+  "ownedAvatars": [
+    "default"
+  ],
+  "ownedDecks": [
+    "default"
+  ],
+  "status": {
+    "enabled": true,
+    "state": "claimed",
+    "serverNow": 1792836000000,
+    "tzOffsetMinutes": 60,
+    "calendar": {
+      "id": "default",
+      "title": null,
+      "endsAt": null
+    },
+    "streak": {
+      "count": 1,
+      "best": 1,
+      "position": 1,
+      "cycle": 0,
+      "nextDay": 2,
+      "resets": false
+    },
+    "days": [
+      {
+        "day": 1,
+        "rewards": [
+          {
+            "type": "money",
+            "amount": 200
+          }
+        ],
+        "status": "claimed"
+      },
+      {
+        "day": 2,
+        "rewards": [
+          {
+            "type": "booster",
+            "boosterId": "coin_boost",
+            "minutes": 60
+          }
+        ],
+        "status": "next"
+      },
+      {
+        "day": 3,
+        "rewards": [
+          {
+            "type": "chips",
+            "amount": 1
+          }
+        ],
+        "status": "upcoming"
+      },
+      {
+        "day": 4,
+        "rewards": [
+          {
+            "type": "money",
+            "amount": 400
+          },
+          {
+            "type": "booster",
+            "boosterId": "streak_freeze",
+            "quantity": 1
+          }
+        ],
+        "status": "upcoming"
+      },
+      {
+        "day": 5,
+        "rewards": [
+          {
+            "type": "money",
+            "amount": 300
+          },
+          {
+            "type": "booster",
+            "boosterId": "coin_boost",
+            "minutes": 240
+          }
+        ],
+        "status": "upcoming"
+      },
+      {
+        "day": 6,
+        "rewards": [
+          {
+            "type": "chips",
+            "amount": 2
+          }
+        ],
+        "status": "upcoming"
+      },
+      {
+        "day": 7,
+        "rewards": [
+          {
+            "type": "money",
+            "amount": 1000
+          },
+          {
+            "type": "chest",
+            "chestId": "royal"
+          }
+        ],
+        "status": "upcoming"
+      }
+    ],
+    "nextReward": {
+      "day": 2,
+      "rewards": [
+        {
+          "type": "booster",
+          "boosterId": "coin_boost",
+          "minutes": 60
+        }
+      ]
+    },
+    "secondsUntilNextClaim": 46800,
+    "grace": {
+      "days": 1,
+      "missedDays": 0,
+      "graceUsed": 0
+    },
+    "freezes": {
+      "count": 0,
+      "willUse": 0
+    },
+    "rescue": {
+      "available": false,
+      "chipCost": 3,
+      "lastDate": null
+    },
+    "adBoost": {
+      "enabled": true,
+      "multiplier": 2
+    },
+    "coinBoost": {
+      "remainingSeconds": 0,
+      "percent": 25,
+      "maxBonus": 2000
+    },
+    "comeback": {
+      "available": false,
+      "rewards": [
+        {
+          "type": "money",
+          "amount": 500
+        },
+        {
+          "type": "chips",
+          "amount": 1
+        }
+      ],
+      "absentDays": 0
+    },
+    "chests": {
+      "royal": {
+        "title": {
+          "en": "Royal Chest",
+          "fr": "Coffre royal",
+          "es": "Cofre real",
+          "pt": "Baú real",
+          "ar": "الصندوق الملكي"
+        },
+        "pool": [
+          {
+            "weight": 60,
+            "reward": {
+              "type": "money",
+              "amount": 2000
+            }
+          },
+          {
+            "weight": 25,
+            "reward": {
+              "type": "chips",
+              "amount": 3
+            }
+          },
+          {
+            "weight": 10,
+            "reward": {
+              "type": "avatar",
+              "itemId": "queen-of-heart",
+              "fallback": {
+                "type": "money",
+                "amount": 1500
+              }
+            }
+          },
+          {
+            "weight": 4,
+            "reward": {
+              "type": "deck",
+              "itemId": "neon_nights",
+              "fallback": {
+                "type": "money",
+                "amount": 2500
+              }
+            }
+          },
+          {
+            "weight": 1,
+            "reward": {
+              "type": "deck",
+              "itemId": "gilded_gold",
+              "fallback": {
+                "type": "money",
+                "amount": 8000
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

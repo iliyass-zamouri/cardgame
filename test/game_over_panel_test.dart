@@ -47,6 +47,7 @@ void main() {
       potAmount: 100,
       stakePool: 100,
       stakePerPlayer: 50,
+      matchType: 'random',
       you: PlayerSnapshot(
         connected: true,
         displayName: 'Alice',
@@ -167,6 +168,7 @@ void main() {
       potAmount: 100,
       stakePool: 100,
       stakePerPlayer: 50,
+      matchType: 'random',
       you: PlayerSnapshot(
         connected: true,
         displayName: 'Alice',
@@ -254,5 +256,102 @@ void main() {
     expect(find.text('+2 XP'), findsOneWidget);
     expect(find.text('-16 Elo'), findsOneWidget);
     expect(find.text('VICTORY'), findsNothing);
+  });
+
+  testWidgets('GameOverPanel hides the empty reward block in a robot match', (
+    tester,
+  ) async {
+    const profile = PlayerProfile(
+      playerId: 'guest-1',
+      name: 'Alice',
+      username: 'alice_ace',
+      avatarId: 'golden-king',
+    );
+
+    const snapshot = GameSnapshot(
+      roomId: 'room-1',
+      version: 2,
+      status: GameStatus.ended,
+      ready: true,
+      deckCount: 0,
+      discardTopTag: 'A2',
+      discardRecentTags: ['A2'],
+      isYourTurn: false,
+      potAmount: 0,
+      stakePool: 0,
+      stakePerPlayer: 0,
+      you: PlayerSnapshot(
+        connected: true,
+        displayName: 'Alice',
+        playerId: 'guest-1',
+        launch: LaunchStatus.ended,
+        total: 12,
+        cards: [],
+        handCardTag: null,
+        hasHandCard: false,
+      ),
+      opponent: PlayerSnapshot(
+        connected: true,
+        displayName: 'Robot',
+        playerId: 'bot-1',
+        launch: LaunchStatus.ended,
+        total: 44,
+        cards: [],
+        handCardTag: null,
+        hasHandCard: false,
+      ),
+      result: GameResult(scores: [12, 44], winnerIndex: 0),
+      lastAction: null,
+    );
+
+    const gameState = GameSessionState(
+      connection: ConnectionStatus.connected,
+      game: snapshot,
+      clientId: 'guest-1',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameSessionProvider.overrideWith(
+            () => _FixedGameSessionController(gameState),
+          ),
+          sessionAuthRepositoryProvider.overrideWithValue(
+            SessionAuthRepository.memory(SessionAuthStatus.guest),
+          ),
+          playerProfileRepositoryProvider.overrideWithValue(
+            PlayerProfileRepository.memory(profile),
+          ),
+          rankingApiProvider.overrideWithValue(
+            RankingApi(
+              baseUrl: 'http://localhost',
+              client: MockClient(
+                (_) async => http.Response('{"matches":[],"elo":1200}', 200),
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: Scaffold(body: GameOverPanel()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(find.text('VICTORY'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w.runtimeType.toString() == '_RewardBlock',
+      ),
+      findsNothing,
+    );
   });
 }

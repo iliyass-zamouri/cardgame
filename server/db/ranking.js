@@ -1,5 +1,6 @@
 const { randomUUID } = require('crypto');
 const { getPool } = require('./pool');
+const { computeBoostBonus } = require('../daily_rewards');
 
 const ELO_START = 1000;
 const ELO_K = 32;
@@ -307,6 +308,26 @@ async function refundEscrow({ playerIds, stake, currency = 'money' }) {
   }
 }
 /**
+ * Extra money a winner's running Coin Boost adds to a won pot, using the
+ * admin's percent and cap ([coinBoost]). 0 without an active boost.
+ */
+async function coinBoostBonus(conn, playerId, { pot, ownStake, coinBoost, nowMs }) {
+  if (!coinBoost || pot <= ownStake) return 0;
+  const [rows] = await conn.execute(
+    `SELECT active_until_ms FROM player_boosters
+     WHERE player_id = :playerId AND booster_id = 'coin_boost'`,
+    { playerId },
+  );
+  if (!(Number(rows[0]?.active_until_ms) > nowMs)) return 0;
+  return computeBoostBonus({
+    pot,
+    ownStake,
+    percent: coinBoost.percent,
+    maxBonus: coinBoost.maxBonus,
+  });
+}
+
+/**
  * @param {{
  *   roomId: string,
  *   players: Array<{ playerId: string, cardTotal: number }>,
@@ -316,6 +337,8 @@ async function refundEscrow({ playerIds, stake, currency = 'money' }) {
  *   potAmount?: number,
  *   stakeCurrency?: 'money'|'chips',
  *   escrowed?: boolean,
+ *   coinBoost?: { percent: number, maxBonus: number } | null,
+ *   nowMs?: number,
  * }} input
  */
 async function recordRankedMatch({
@@ -327,6 +350,8 @@ async function recordRankedMatch({
   potAmount = 0,
   stakeCurrency = 'money',
   escrowed = false,
+  coinBoost = null,
+  nowMs = Date.now(),
 }) {
   if (!Array.isArray(players) || players.length !== 2) return null;
   const [p0, p1] = players;
@@ -459,6 +484,24 @@ async function recordRankedMatch({
         }
       }
 
+      // A running Coin Boost (a daily streak reward) tops up money winnings.
+      // MySQL applies SET assignments left to right, so this adds on top of
+      // the pot credit above.
+      seat.boostBonus =
+        seat.result === 'win' && column === 'money'
+          ? await coinBoostBonus(conn, seat.playerId, {
+              pot: escrowed ? safePot : safeStake * 2,
+              ownStake: safeStake,
+              coinBoost,
+              nowMs,
+            })
+          : 0;
+      if (seat.boostBonus > 0) {
+        balanceUpdate += ', money = money + :boostBonus';
+        updateParams.boostBonus = seat.boostBonus;
+        after.money += seat.boostBonus;
+      }
+
       seat.moneyAfter = after.money;
       seat.chipsAfter = after.chips;
 
@@ -488,6 +531,7 @@ async function recordRankedMatch({
         quit: seat.quit,
         moneyAfter: seat.moneyAfter,
         chipsAfter: seat.chipsAfter,
+        boostBonus: seat.boostBonus,
       })),
     };
   } catch (error) {

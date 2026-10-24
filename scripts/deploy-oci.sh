@@ -92,4 +92,16 @@ fi
 REMOTE
 
 ssh -i "${SSH_KEY}" "${HOST}" \
-  "cd ${REMOTE_DIR} && sudo docker compose up --build -d && sudo docker compose ps && curl -sS http://127.0.0.1:8080/health && echo && sudo docker compose logs --tail=40 server"
+  "cd ${REMOTE_DIR} && sudo docker compose up --build -d && sudo docker compose ps"
+
+# A fresh container takes a few seconds to boot and run its schema checks, so
+# poll /health for up to a minute instead of failing on the first probe.
+echo "waiting for /health ..."
+if ! ssh -i "${SSH_KEY}" "${HOST}" \
+  'for attempt in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/health && exit 0; sleep 2; done; exit 1'; then
+  echo "error: server did not become healthy within 60s" >&2
+  ssh -i "${SSH_KEY}" "${HOST}" "cd ${REMOTE_DIR} && sudo docker compose logs --tail=80 server"
+  exit 1
+fi
+echo
+ssh -i "${SSH_KEY}" "${HOST}" "cd ${REMOTE_DIR} && sudo docker compose logs --tail=40 server"

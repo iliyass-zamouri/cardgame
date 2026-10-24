@@ -1542,4 +1542,170 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get phraseEndingNextTurn => 'Termino na próxima jogada!';
+
+  @override
+  String get dailyStreakTitle => 'Sequência diária';
+
+  @override
+  String dailyDay(int day) {
+    return 'Dia $day';
+  }
+
+  @override
+  String dailyDayOfWeek(int day) {
+    return 'Dia $day de 7';
+  }
+
+  @override
+  String get dailyToday => 'Hoje';
+
+  @override
+  String get dailyTomorrow => 'Amanhã';
+
+  @override
+  String get dailyJackpot => 'Prêmio máximo';
+
+  @override
+  String dailyStreakCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sequência de $count dias',
+      one: 'Sequência de 1 dia',
+      zero: 'Comece sua sequência',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String dailyBest(int best) {
+    return 'Recorde $best';
+  }
+
+  @override
+  String dailyNextIn(String time) {
+    return 'Próxima recompensa em $time';
+  }
+
+  @override
+  String get dailyComeBackTomorrow => 'Volte amanhã';
+
+  @override
+  String get dailyShortAd => 'Anúncio curto';
+
+  @override
+  String dailyBoostedBadge(int multiplier) {
+    return 'Bônus de anúncio ×$multiplier';
+  }
+
+  @override
+  String get dailyStreakBrokenTitle => 'Sua sequência foi interrompida';
+
+  @override
+  String dailyStreakBrokenBody(int day) {
+    return 'Restaure-a para continuar no dia $day, ou comece uma nova sequência a partir do dia 1.';
+  }
+
+  @override
+  String get dailyRestore => 'Restaurar';
+
+  @override
+  String get dailyStartOver => 'Começar de novo';
+
+  @override
+  String get dailyGraceForgiven => 'Dia perdido perdoado';
+
+  @override
+  String get dailyFreezeSaves =>
+      'Um Congelamento de sequência salva sua sequência';
+
+  @override
+  String get dailyNewStreak => 'Uma nova sequência começa hoje';
+
+  @override
+  String dailyEventEnds(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Termina em $days dias',
+      one: 'Termina amanhã',
+      zero: 'Termina hoje',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dailyCoinBoost => 'Impulso de moedas';
+
+  @override
+  String dailyCoinBoostBody(int percent) {
+    return '+$percent% de dinheiro ao vencer partidas';
+  }
+
+  @override
+  String get dailyStreakFreeze => 'Congelamento de sequência';
+
+  @override
+  String get dailyStreakFreezeBody =>
+      'Salva sua sequência se você perder um dia';
+
+  @override
+  String get dailyMysteryChest => 'Baú misterioso';
+
+  @override
+  String get dailyChestInside => 'O que pode sair';
+
+  @override
+  String get dailyChestNote => 'Uma recompensa, sorteada quando você resgata.';
+
+  @override
+  String get dailyMysteryGift => 'Presente misterioso';
+
+  @override
+  String get dailyNew => 'Novo!';
+
+  @override
+  String get dailyAlreadyOwned => 'Você já tem';
+
+  @override
+  String get dailyCollect => 'Coletar';
+
+  @override
+  String get dailyCollected => 'Coletado';
+
+  @override
+  String dailyDayReward(int day) {
+    return 'Recompensa do dia $day';
+  }
+
+  @override
+  String get dailyJackpotWon => 'Prêmio máximo!';
+
+  @override
+  String get dailyWelcomeBack => 'Que bom te ver de novo!';
+
+  @override
+  String get dailyWelcomeBackBody =>
+      'Guardamos um presente enquanto você esteve fora.';
+
+  @override
+  String get dailyClaimFailed =>
+      'Não foi possível coletar agora. Tente de novo.';
+
+  @override
+  String get dailyLoadFailed => 'Não foi possível carregar sua sequência.';
+
+  @override
+  String get dailyRetry => 'Tentar de novo';
+
+  @override
+  String dailyEntryReady(int day) {
+    return 'A recompensa do dia $day está pronta';
+  }
+
+  @override
+  String get dailyEntryBroken => 'Sequência interrompida · restaure-a';
+
+  @override
+  String get dailyEntryComeback => 'Um presente de boas-vindas espera por você';
 }

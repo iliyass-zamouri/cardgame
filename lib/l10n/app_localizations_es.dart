@@ -1547,4 +1547,168 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get phraseEndingNextTurn => '¡Termino en el próximo turno!';
+
+  @override
+  String get dailyStreakTitle => 'Racha diaria';
+
+  @override
+  String dailyDay(int day) {
+    return 'Día $day';
+  }
+
+  @override
+  String dailyDayOfWeek(int day) {
+    return 'Día $day de 7';
+  }
+
+  @override
+  String get dailyToday => 'Hoy';
+
+  @override
+  String get dailyTomorrow => 'Mañana';
+
+  @override
+  String get dailyJackpot => 'Premio mayor';
+
+  @override
+  String dailyStreakCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Racha de $count días',
+      one: 'Racha de 1 día',
+      zero: 'Empieza tu racha',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String dailyBest(int best) {
+    return 'Récord $best';
+  }
+
+  @override
+  String dailyNextIn(String time) {
+    return 'Próxima recompensa en $time';
+  }
+
+  @override
+  String get dailyComeBackTomorrow => 'Vuelve mañana';
+
+  @override
+  String get dailyShortAd => 'Anuncio corto';
+
+  @override
+  String dailyBoostedBadge(int multiplier) {
+    return 'Bonus de anuncio ×$multiplier';
+  }
+
+  @override
+  String get dailyStreakBrokenTitle => 'Tu racha se rompió';
+
+  @override
+  String dailyStreakBrokenBody(int day) {
+    return 'Restáurala para seguir en el día $day, o empieza una nueva racha desde el día 1.';
+  }
+
+  @override
+  String get dailyRestore => 'Restaurar';
+
+  @override
+  String get dailyStartOver => 'Empezar de nuevo';
+
+  @override
+  String get dailyGraceForgiven => 'Día perdido perdonado';
+
+  @override
+  String get dailyFreezeSaves => 'Un Congelador de racha salva tu racha';
+
+  @override
+  String get dailyNewStreak => 'Hoy empieza una nueva racha';
+
+  @override
+  String dailyEventEnds(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Termina en $days días',
+      one: 'Termina mañana',
+      zero: 'Termina hoy',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dailyCoinBoost => 'Impulso de monedas';
+
+  @override
+  String dailyCoinBoostBody(int percent) {
+    return '+$percent % de dinero al ganar partidas';
+  }
+
+  @override
+  String get dailyStreakFreeze => 'Congelador de racha';
+
+  @override
+  String get dailyStreakFreezeBody => 'Salva tu racha si faltas un día';
+
+  @override
+  String get dailyMysteryChest => 'Cofre misterioso';
+
+  @override
+  String get dailyChestInside => 'Qué puede salir';
+
+  @override
+  String get dailyChestNote => 'Una recompensa, elegida al azar al reclamarla.';
+
+  @override
+  String get dailyMysteryGift => 'Regalo misterioso';
+
+  @override
+  String get dailyNew => '¡Nuevo!';
+
+  @override
+  String get dailyAlreadyOwned => 'Ya lo tienes';
+
+  @override
+  String get dailyCollect => 'Recoger';
+
+  @override
+  String get dailyCollected => 'Recogido';
+
+  @override
+  String dailyDayReward(int day) {
+    return 'Recompensa del día $day';
+  }
+
+  @override
+  String get dailyJackpotWon => '¡Premio mayor!';
+
+  @override
+  String get dailyWelcomeBack => '¡Qué bueno verte de nuevo!';
+
+  @override
+  String get dailyWelcomeBackBody =>
+      'Te guardamos un regalo mientras no estabas.';
+
+  @override
+  String get dailyClaimFailed =>
+      'No se pudo recoger ahora. Inténtalo de nuevo.';
+
+  @override
+  String get dailyLoadFailed => 'No se pudo cargar tu racha.';
+
+  @override
+  String get dailyRetry => 'Reintentar';
+
+  @override
+  String dailyEntryReady(int day) {
+    return 'La recompensa del día $day está lista';
+  }
+
+  @override
+  String get dailyEntryBroken => 'Racha rota · restáurala';
+
+  @override
+  String get dailyEntryComeback => 'Te espera un regalo de bienvenida';
 }

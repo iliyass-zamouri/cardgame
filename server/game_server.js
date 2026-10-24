@@ -102,6 +102,24 @@ const {
 } = require('./turn_timer');
 const { getSetting, setSetting } = require('./db/app_settings');
 const {
+  DEFAULTS: DAILY_REWARD_DEFAULTS,
+  createDailyRewardsStore,
+  parseSupportAction,
+  validateConfig: validateDailyRewardsConfig,
+} = require('./daily_rewards');
+const {
+  getDailyRewardStats,
+  getDailyRewardPlayer,
+  applySupportAction,
+} = require('./db/daily_rewards_admin');
+const {
+  getDailyRewardStatus,
+  claimDailyReward,
+  claimComeback,
+  rewardCatalog,
+  rewardCatalogBody,
+} = require('./db/daily_rewards');
+const {
   playerExists,
   upsertDeviceToken,
   removeDeviceToken,
@@ -194,6 +212,31 @@ function dbTurnTimerStore() {
   });
 }
 
+const DAILY_REWARDS_SETTING_KEY = 'daily_rewards';
+const DAILY_REWARDS_PREVIOUS_KEY = 'daily_rewards_prev';
+
+/** Admin streak reward table, stored in app_settings. See server/daily_rewards.js. */
+function dbDailyRewardsStore() {
+  const readKey = (key) => async () => {
+    if (!isDbReady()) return null;
+    const raw = await getSetting(key);
+    if (raw === null) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      console.error(`[daily-rewards] ${key} is not JSON, ignoring it`);
+      return null;
+    }
+  };
+  const writeKey = (key) => (config) => setSetting(key, JSON.stringify(config));
+  return createDailyRewardsStore({
+    read: readKey(DAILY_REWARDS_SETTING_KEY),
+    write: writeKey(DAILY_REWARDS_SETTING_KEY),
+    readPrevious: readKey(DAILY_REWARDS_PREVIOUS_KEY),
+    writePrevious: writeKey(DAILY_REWARDS_PREVIOUS_KEY),
+  });
+}
+
 function adminTurnTimerBody(state) {
   return {
     enabled: state.enabled,
@@ -206,6 +249,32 @@ function adminTurnTimerBody(state) {
   };
 }
 
+const DAILY_REWARD_ERROR_STATUS = {
+  player_not_found: 404,
+  invalid_choice: 400,
+  streak_broken: 409,
+  insufficient_funds: 409,
+  daily_disabled: 409,
+  comeback_unavailable: 409,
+  streak_not_broken: 409,
+};
+
+/** A timezone offset in minutes, or null to keep the stored one. */
+function readOffset(value) {
+  const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return typeof number === 'number' && Number.isFinite(number) ? number : null;
+}
+
+function adminDailyRewardsBody(state, hasPrevious) {
+  const { source, ...config } = state;
+  return { config, source, hasPrevious, defaults: DAILY_REWARD_DEFAULTS };
+}
+
+/** QA-only support actions (time shift, reset). Never set on prod. */
+function dailyRewardsDebug() {
+  return process.env.DAILY_REWARDS_DEBUG === '1';
+}
+
 class GameServer {
   constructor({
     port = 8080,
@@ -214,6 +283,8 @@ class GameServer {
     botMatchMaxDelayMs = 6000,
     themeStore = dbThemeStore(),
     turnTimerStore = dbTurnTimerStore(),
+    dailyRewardsStore = dbDailyRewardsStore(),
+    clock = Date.now,
   } = {}) {
     this.port = port;
     this.host = host;
@@ -221,6 +292,8 @@ class GameServer {
     this.botMatchMaxDelayMs = botMatchMaxDelayMs;
     this.themeStore = themeStore;
     this.turnTimerStore = turnTimerStore;
+    this.dailyRewardsStore = dailyRewardsStore;
+    this.clock = clock;
     this.rooms = new Map();
     this.clients = new Map();
     /** @type {Array<object>} FIFO matchmaking queue of client contexts */
@@ -253,6 +326,7 @@ class GameServer {
     if (this.httpServer) return this.address;
     // Load the saved turn limit before the first match can be seated.
     await this.turnTimerStore.refresh();
+    await this.dailyRewardsStore.refresh();
 
     this.httpServer = http.createServer((request, response) => {
       this.#handleHttp(request, response).catch((error) => {
@@ -743,6 +817,56 @@ class GameServer {
 
     if (request.method === 'POST' && url.pathname === '/admin/turn-timer') {
       await this.#handleAdminTurnTimerSet(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/daily-reward') {
+      await this.#handleDailyRewardStatus(request, response, url);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/daily-reward/claim') {
+      await this.#handleDailyRewardClaim(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/daily-reward/comeback/claim') {
+      await this.#handleComebackClaim(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/daily-rewards') {
+      await this.#handleAdminDailyRewardsGet(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/admin/daily-rewards') {
+      await this.#handleAdminDailyRewardsSet(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/admin/daily-rewards/revert') {
+      await this.#handleAdminDailyRewardsRevert(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/reward-catalog') {
+      await this.#handleAdminRewardCatalog(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/daily-rewards/stats') {
+      await this.#handleAdminDailyRewardsStats(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/daily-rewards/player') {
+      await this.#handleAdminDailyRewardsPlayer(request, response, url);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/admin/daily-rewards/player/action') {
+      await this.#handleAdminDailyRewardsAction(request, response);
       return;
     }
 
@@ -2497,7 +2621,12 @@ class GameServer {
           this.#noteBotMatchEnd(changedRoom, roomBot);
         }
       },
-      onRankedEnd: (payload) => recordRankedMatch(payload),
+      onRankedEnd: (payload) =>
+        recordRankedMatch({
+          ...payload,
+          coinBoost: this.dailyRewardsStore.current().boosters.coin_boost,
+          nowMs: this.clock(),
+        }),
       beforeRematch: ({ playerIds, stake, currency }) => escrowStake({ playerIds, stake, currency })
         .catch((error) => {
           // Without a DB (tests/local), rematch unstaked as matchmaking does.
@@ -2785,6 +2914,222 @@ class GameServer {
     } catch (error) {
       console.error('[admin/turn-timer] save failed', error);
       sendJson(response, 500, { error: 'server_error', message: 'Turn timer save failed' });
+    }
+  }
+
+  #sendDailyRewardError(response, error, label) {
+    const status = DAILY_REWARD_ERROR_STATUS[error.code];
+    if (!status) {
+      console.error(`[${label}]`, error);
+      sendJson(response, 500, { error: 'server_error', message: 'Daily reward request failed' });
+      return;
+    }
+    sendJson(response, status, { error: error.code, message: error.message, ...error.details });
+  }
+
+  async #handleDailyRewardStatus(request, response, url) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    try {
+      const status = await getDailyRewardStatus({
+        playerId: auth.playerId,
+        nowMs: this.clock(),
+        tzOffsetMinutes: readOffset(url.searchParams.get('tzOffset')),
+        config: this.dailyRewardsStore.current(),
+      });
+      sendJson(response, 200, status);
+    } catch (error) {
+      this.#sendDailyRewardError(response, error, 'daily-reward');
+    }
+  }
+
+  async #handleDailyRewardClaim(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const input = body && typeof body === 'object' ? body : {};
+
+    try {
+      const result = await claimDailyReward({
+        playerId: auth.playerId,
+        nowMs: this.clock(),
+        tzOffsetMinutes: readOffset(input.tzOffsetMinutes),
+        boosted: input.boosted === true,
+        choice: input.streakChoice ?? null,
+        config: this.dailyRewardsStore.current(),
+      });
+      sendJson(response, 200, result);
+    } catch (error) {
+      this.#sendDailyRewardError(response, error, 'daily-reward/claim');
+    }
+  }
+
+  async #handleComebackClaim(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const input = body && typeof body === 'object' ? body : {};
+
+    try {
+      const result = await claimComeback({
+        playerId: auth.playerId,
+        nowMs: this.clock(),
+        tzOffsetMinutes: readOffset(input.tzOffsetMinutes),
+        config: this.dailyRewardsStore.current(),
+      });
+      sendJson(response, 200, result);
+    } catch (error) {
+      this.#sendDailyRewardError(response, error, 'daily-reward/comeback');
+    }
+  }
+
+  async #handleAdminDailyRewardsGet(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    await this.dailyRewardsStore.refresh();
+    sendJson(
+      response,
+      200,
+      adminDailyRewardsBody(
+        this.dailyRewardsStore.current(),
+        await this.dailyRewardsStore.hasPrevious(),
+      ),
+    );
+  }
+
+  async #handleAdminDailyRewardsSet(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    // A save replaces the whole table. The admin tab always sends a full copy.
+    const { config, error, message } = validateDailyRewardsConfig(body, {
+      catalog: rewardCatalog(),
+    });
+    if (error) {
+      sendJson(response, 400, { error, message });
+      return;
+    }
+    try {
+      const saved = await this.dailyRewardsStore.set(config);
+      console.log('[admin/daily-rewards] saved', {
+        enabled: saved.enabled,
+        events: saved.events.length,
+        graceDays: saved.graceDays,
+      });
+      sendJson(
+        response,
+        200,
+        adminDailyRewardsBody(saved, await this.dailyRewardsStore.hasPrevious()),
+      );
+    } catch (error) {
+      console.error('[admin/daily-rewards] save failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Daily rewards save failed' });
+    }
+  }
+
+  async #handleAdminDailyRewardsRevert(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    try {
+      const restored = await this.dailyRewardsStore.revert();
+      console.log('[admin/daily-rewards] reverted');
+      sendJson(
+        response,
+        200,
+        adminDailyRewardsBody(restored, await this.dailyRewardsStore.hasPrevious()),
+      );
+    } catch (error) {
+      if (error.code === 'no_previous') {
+        sendJson(response, 409, { error: error.code, message: error.message });
+        return;
+      }
+      console.error('[admin/daily-rewards] revert failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Daily rewards revert failed' });
+    }
+  }
+
+  async #handleAdminRewardCatalog(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    sendJson(response, 200, rewardCatalogBody());
+  }
+
+  async #handleAdminDailyRewardsStats(request, response, url) {
+    if (!assertAdminPushSecret(request, response)) return;
+    try {
+      const stats = await getDailyRewardStats({
+        nowMs: this.clock(),
+        days: Number(url.searchParams.get('days')) || 30,
+      });
+      sendJson(response, 200, stats);
+    } catch (error) {
+      console.error('[admin/daily-rewards/stats]', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Could not load streak stats' });
+    }
+  }
+
+  async #handleAdminDailyRewardsPlayer(request, response, url) {
+    if (!assertAdminPushSecret(request, response)) return;
+    const playerId = (url.searchParams.get('id') || '').trim();
+    if (!playerId) {
+      sendJson(response, 400, { error: 'invalid_value', message: 'id is required' });
+      return;
+    }
+    try {
+      const body = await getDailyRewardPlayer({
+        playerId,
+        nowMs: this.clock(),
+        config: this.dailyRewardsStore.current(),
+        debug: dailyRewardsDebug(),
+      });
+      sendJson(response, 200, body);
+    } catch (error) {
+      this.#sendDailyRewardError(response, error, 'admin/daily-rewards/player');
+    }
+  }
+
+  async #handleAdminDailyRewardsAction(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const debug = dailyRewardsDebug();
+    const parsed = parseSupportAction(body, { debug });
+    if (parsed.error) {
+      sendJson(response, parsed.error === 'debug_only' ? 403 : 400, {
+        error: parsed.error,
+        message: parsed.message,
+      });
+      return;
+    }
+    try {
+      const nowMs = this.clock();
+      const config = this.dailyRewardsStore.current();
+      const done = await applySupportAction({ ...parsed, nowMs, config });
+      const player = await getDailyRewardPlayer({ playerId: parsed.playerId, nowMs, config, debug });
+      sendJson(response, 200, { ...player, done: { action: parsed.action, ...done } });
+    } catch (error) {
+      this.#sendDailyRewardError(response, error, 'admin/daily-rewards/action');
     }
   }
 

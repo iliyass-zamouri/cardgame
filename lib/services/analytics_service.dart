@@ -166,4 +166,13 @@ class AnalyticsService {
   Future<void> interstitialAd({required String result}) async {
     await logEvent(name: 'interstitial_ad', parameters: {'result': result});
   }
+
+  /// Daily streak funnel: `view`, `claim`, `ad`, `rescue`, `restart`,
+  /// `comeback`, logged as `daily_reward_<action>`.
+  Future<void> dailyReward({
+    required String action,
+    Map<String, Object>? parameters,
+  }) async {
+    await logEvent(name: 'daily_reward_$action', parameters: parameters);
+  }
 }

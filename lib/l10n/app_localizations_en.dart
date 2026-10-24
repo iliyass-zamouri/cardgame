@@ -1539,4 +1539,167 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get phraseEndingNextTurn => 'Ending it next turn!';
+
+  @override
+  String get dailyStreakTitle => 'Daily Streak';
+
+  @override
+  String dailyDay(int day) {
+    return 'Day $day';
+  }
+
+  @override
+  String dailyDayOfWeek(int day) {
+    return 'Day $day of 7';
+  }
+
+  @override
+  String get dailyToday => 'Today';
+
+  @override
+  String get dailyTomorrow => 'Tomorrow';
+
+  @override
+  String get dailyJackpot => 'Jackpot';
+
+  @override
+  String dailyStreakCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count-day streak',
+      one: '1-day streak',
+      zero: 'Start your streak',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String dailyBest(int best) {
+    return 'Best $best';
+  }
+
+  @override
+  String dailyNextIn(String time) {
+    return 'Next reward in $time';
+  }
+
+  @override
+  String get dailyComeBackTomorrow => 'Come back tomorrow';
+
+  @override
+  String get dailyShortAd => 'Short ad';
+
+  @override
+  String dailyBoostedBadge(int multiplier) {
+    return '×$multiplier ad boost';
+  }
+
+  @override
+  String get dailyStreakBrokenTitle => 'Your streak broke';
+
+  @override
+  String dailyStreakBrokenBody(int day) {
+    return 'Restore it to carry on at Day $day, or start a new streak from Day 1.';
+  }
+
+  @override
+  String get dailyRestore => 'Restore';
+
+  @override
+  String get dailyStartOver => 'Start over';
+
+  @override
+  String get dailyGraceForgiven => 'Missed day forgiven';
+
+  @override
+  String get dailyFreezeSaves => 'A Streak Freeze saves your streak';
+
+  @override
+  String get dailyNewStreak => 'A new streak starts today';
+
+  @override
+  String dailyEventEnds(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Ends in $days days',
+      one: 'Ends tomorrow',
+      zero: 'Ends today',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dailyCoinBoost => 'Coin Boost';
+
+  @override
+  String dailyCoinBoostBody(int percent) {
+    return '+$percent% money on match wins';
+  }
+
+  @override
+  String get dailyStreakFreeze => 'Streak Freeze';
+
+  @override
+  String get dailyStreakFreezeBody => 'Saves your streak if you miss a day';
+
+  @override
+  String get dailyMysteryChest => 'Mystery Chest';
+
+  @override
+  String get dailyChestInside => 'What\'s inside';
+
+  @override
+  String get dailyChestNote => 'One reward, picked by chance when you claim.';
+
+  @override
+  String get dailyMysteryGift => 'Mystery gift';
+
+  @override
+  String get dailyNew => 'New!';
+
+  @override
+  String get dailyAlreadyOwned => 'Already owned';
+
+  @override
+  String get dailyCollect => 'Collect';
+
+  @override
+  String get dailyCollected => 'Collected';
+
+  @override
+  String dailyDayReward(int day) {
+    return 'Day $day reward';
+  }
+
+  @override
+  String get dailyJackpotWon => 'Jackpot!';
+
+  @override
+  String get dailyWelcomeBack => 'Welcome back!';
+
+  @override
+  String get dailyWelcomeBackBody =>
+      'We kept a gift for you while you were away.';
+
+  @override
+  String get dailyClaimFailed => 'Couldn\'t collect right now. Try again.';
+
+  @override
+  String get dailyLoadFailed => 'Couldn\'t load your streak.';
+
+  @override
+  String get dailyRetry => 'Try again';
+
+  @override
+  String dailyEntryReady(int day) {
+    return 'Day $day reward is ready';
+  }
+
+  @override
+  String get dailyEntryBroken => 'Streak broken · restore it';
+
+  @override
+  String get dailyEntryComeback => 'A welcome-back gift is waiting';
 }

@@ -2893,6 +2893,258 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ending it next turn!'**
   String get phraseEndingNextTurn;
+
+  /// No description provided for @dailyStreakTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily Streak'**
+  String get dailyStreakTitle;
+
+  /// No description provided for @dailyDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day}'**
+  String dailyDay(int day);
+
+  /// No description provided for @dailyDayOfWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day} of 7'**
+  String dailyDayOfWeek(int day);
+
+  /// No description provided for @dailyToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get dailyToday;
+
+  /// No description provided for @dailyTomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow'**
+  String get dailyTomorrow;
+
+  /// No description provided for @dailyJackpot.
+  ///
+  /// In en, this message translates to:
+  /// **'Jackpot'**
+  String get dailyJackpot;
+
+  /// No description provided for @dailyStreakCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Start your streak} =1{1-day streak} other{{count}-day streak}}'**
+  String dailyStreakCount(int count);
+
+  /// No description provided for @dailyBest.
+  ///
+  /// In en, this message translates to:
+  /// **'Best {best}'**
+  String dailyBest(int best);
+
+  /// No description provided for @dailyNextIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Next reward in {time}'**
+  String dailyNextIn(String time);
+
+  /// No description provided for @dailyComeBackTomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Come back tomorrow'**
+  String get dailyComeBackTomorrow;
+
+  /// No description provided for @dailyShortAd.
+  ///
+  /// In en, this message translates to:
+  /// **'Short ad'**
+  String get dailyShortAd;
+
+  /// No description provided for @dailyBoostedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'×{multiplier} ad boost'**
+  String dailyBoostedBadge(int multiplier);
+
+  /// No description provided for @dailyStreakBrokenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your streak broke'**
+  String get dailyStreakBrokenTitle;
+
+  /// No description provided for @dailyStreakBrokenBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore it to carry on at Day {day}, or start a new streak from Day 1.'**
+  String dailyStreakBrokenBody(int day);
+
+  /// No description provided for @dailyRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get dailyRestore;
+
+  /// No description provided for @dailyStartOver.
+  ///
+  /// In en, this message translates to:
+  /// **'Start over'**
+  String get dailyStartOver;
+
+  /// No description provided for @dailyGraceForgiven.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed day forgiven'**
+  String get dailyGraceForgiven;
+
+  /// No description provided for @dailyFreezeSaves.
+  ///
+  /// In en, this message translates to:
+  /// **'A Streak Freeze saves your streak'**
+  String get dailyFreezeSaves;
+
+  /// No description provided for @dailyNewStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'A new streak starts today'**
+  String get dailyNewStreak;
+
+  /// No description provided for @dailyEventEnds.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =0{Ends today} =1{Ends tomorrow} other{Ends in {days} days}}'**
+  String dailyEventEnds(int days);
+
+  /// No description provided for @dailyCoinBoost.
+  ///
+  /// In en, this message translates to:
+  /// **'Coin Boost'**
+  String get dailyCoinBoost;
+
+  /// No description provided for @dailyCoinBoostBody.
+  ///
+  /// In en, this message translates to:
+  /// **'+{percent}% money on match wins'**
+  String dailyCoinBoostBody(int percent);
+
+  /// No description provided for @dailyStreakFreeze.
+  ///
+  /// In en, this message translates to:
+  /// **'Streak Freeze'**
+  String get dailyStreakFreeze;
+
+  /// No description provided for @dailyStreakFreezeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Saves your streak if you miss a day'**
+  String get dailyStreakFreezeBody;
+
+  /// No description provided for @dailyMysteryChest.
+  ///
+  /// In en, this message translates to:
+  /// **'Mystery Chest'**
+  String get dailyMysteryChest;
+
+  /// No description provided for @dailyChestInside.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s inside'**
+  String get dailyChestInside;
+
+  /// No description provided for @dailyChestNote.
+  ///
+  /// In en, this message translates to:
+  /// **'One reward, picked by chance when you claim.'**
+  String get dailyChestNote;
+
+  /// No description provided for @dailyMysteryGift.
+  ///
+  /// In en, this message translates to:
+  /// **'Mystery gift'**
+  String get dailyMysteryGift;
+
+  /// No description provided for @dailyNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New!'**
+  String get dailyNew;
+
+  /// No description provided for @dailyAlreadyOwned.
+  ///
+  /// In en, this message translates to:
+  /// **'Already owned'**
+  String get dailyAlreadyOwned;
+
+  /// No description provided for @dailyCollect.
+  ///
+  /// In en, this message translates to:
+  /// **'Collect'**
+  String get dailyCollect;
+
+  /// No description provided for @dailyCollected.
+  ///
+  /// In en, this message translates to:
+  /// **'Collected'**
+  String get dailyCollected;
+
+  /// No description provided for @dailyDayReward.
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day} reward'**
+  String dailyDayReward(int day);
+
+  /// No description provided for @dailyJackpotWon.
+  ///
+  /// In en, this message translates to:
+  /// **'Jackpot!'**
+  String get dailyJackpotWon;
+
+  /// No description provided for @dailyWelcomeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back!'**
+  String get dailyWelcomeBack;
+
+  /// No description provided for @dailyWelcomeBackBody.
+  ///
+  /// In en, this message translates to:
+  /// **'We kept a gift for you while you were away.'**
+  String get dailyWelcomeBackBody;
+
+  /// No description provided for @dailyClaimFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t collect right now. Try again.'**
+  String get dailyClaimFailed;
+
+  /// No description provided for @dailyLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your streak.'**
+  String get dailyLoadFailed;
+
+  /// No description provided for @dailyRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get dailyRetry;
+
+  /// No description provided for @dailyEntryReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day} reward is ready'**
+  String dailyEntryReady(int day);
+
+  /// No description provided for @dailyEntryBroken.
+  ///
+  /// In en, this message translates to:
+  /// **'Streak broken · restore it'**
+  String get dailyEntryBroken;
+
+  /// No description provided for @dailyEntryComeback.
+  ///
+  /// In en, this message translates to:
+  /// **'A welcome-back gift is waiting'**
+  String get dailyEntryComeback;
 }
 
 class _AppLocalizationsDelegate

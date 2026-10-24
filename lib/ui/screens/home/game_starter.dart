@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/daily_reward_providers.dart';
 import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
@@ -10,12 +11,15 @@ import 'package:cardgame/app/push_providers.dart';
 import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/data/auth/apple_sign_in_service.dart';
+import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/app/home_menu_config.dart';
 import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/analytics_service.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/screens/collection_screen.dart';
+import 'package:cardgame/ui/screens/daily_reward/daily_entry_pill.dart';
+import 'package:cardgame/ui/screens/daily_reward/daily_reward_modal.dart';
 import 'package:cardgame/ui/screens/friends_screen.dart';
 import 'package:cardgame/ui/screens/home/home_menu_widgets.dart';
 import 'package:cardgame/ui/screens/home/nav_art.dart';
@@ -30,8 +34,9 @@ import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/widgets/country_flag.dart';
-import 'package:cardgame/ui/widgets/currency_icon.dart';
+import 'package:cardgame/ui/widgets/hud_counter.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
+import 'package:cardgame/ui/widgets/reward_fly_overlay.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -61,10 +66,37 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
     if (_softPromptChecked || !mounted || TrailerMode.enabled) return;
     _softPromptChecked = true;
 
+    // A waiting streak reward goes first and takes this visit's slot.
+    final showedDaily = await _maybeDailyRewards();
+    if (!mounted || showedDaily) return;
     final showedPush = await _maybeSoftPushPrompt();
     if (!mounted) return;
     if (showedPush) return;
     await _maybeGuestLinkPrompt();
+  }
+
+  /// The welcome-back gift and the streak, when something waits to be
+  /// claimed. New players are offered the tutorial first and meet the streak
+  /// on their next start. Returns true if anything was shown.
+  Future<bool> _maybeDailyRewards() async {
+    DailyRewardView? view;
+    try {
+      // On a cold start the saved profile may still be loading.
+      final profile = await ref
+          .read(playerProfileProvider.future)
+          .timeout(const Duration(seconds: 4));
+      if (profile.isEmpty || !profile.tutorialDone || !mounted) return false;
+      view = await ref
+          .read(dailyRewardProvider.future)
+          .timeout(const Duration(seconds: 6));
+    } catch (_) {
+      return false;
+    }
+    if (!mounted || view == null || !view.status.needsAttention) return false;
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (!mounted) return false;
+    await openDailyRewards(context, ref, source: 'launch');
+    return true;
   }
 
   /// Returns true if the push dialog was shown this visit.
@@ -443,6 +475,7 @@ class _HomeTab extends ConsumerWidget {
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
     final displayName = profile.isEmpty ? l10n.player : profile.name;
     final unread = ref.watch(notificationsUnreadCountProvider);
+    final dailyVisible = ref.watch(dailyEntryVisibleProvider);
 
     // Opaque so it can fade in over another tab.
     return FeltTableBackground(
@@ -491,6 +524,7 @@ class _HomeTab extends ConsumerWidget {
                           final fixedHeight =
                               logoWidth / 3 +
                               18 +
+                              (dailyVisible ? DailyEntryPill.height + 12 : 0) +
                               92 +
                               (modes.isEmpty ? 0 : 14 + modeHeight) +
                               18 +
@@ -530,6 +564,13 @@ class _HomeTab extends ConsumerWidget {
                                     )
                                   else
                                     const SizedBox(height: 20),
+                                  if (dailyVisible) ...[
+                                    const DealIn(
+                                      delay: Duration(milliseconds: 80),
+                                      child: DailyEntryPill(),
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
                                   DealIn(
                                     delay: const Duration(milliseconds: 150),
                                     child: PrimaryPlayCard(
@@ -845,7 +886,8 @@ class _TopBar extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: _ResourcePill(
-                          icon: const CashIcon(size: 30),
+                          key: HudAnchors.money,
+                          currency: CurrencyType.money,
                           value: money,
                           onTap: onMarketplace,
                         ),
@@ -853,7 +895,8 @@ class _TopBar extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: _ResourcePill(
-                          icon: const ChipIcon(size: 30),
+                          key: HudAnchors.chips,
+                          currency: CurrencyType.chips,
                           value: chips,
                           onTap: onMarketplace,
                         ),
@@ -912,103 +955,30 @@ class _TopBar extends ConsumerWidget {
   }
 }
 
-/// 1234 -> 1234, 12500 -> 12.5K, 1020000 -> 1.02M.
-String _compactAmount(int value) {
-  String trim(String s) =>
-      s.contains('.') ? s.replaceFirst(RegExp(r'\.?0+$'), '') : s;
-  if (value >= 1000000) {
-    return '${trim((value / 1000000).toStringAsFixed(2))}M';
-  }
-  if (value >= 10000) return '${trim((value / 1000).toStringAsFixed(1))}K';
-  return '$value';
-}
-
 LinearGradient get _goldGradient => LinearGradient(
   begin: Alignment.topCenter,
   end: Alignment.bottomCenter,
   colors: [CasinoColors.goldHi, CasinoColors.gold, CasinoColors.goldLo],
 );
 
-/// Currency counter: coin overlapping a recessed track, gold "+" at the end.
+/// A top-bar currency counter; tapping it opens the shop.
 class _ResourcePill extends StatelessWidget {
   const _ResourcePill({
-    required this.icon,
+    super.key,
+    required this.currency,
     required this.value,
     required this.onTap,
   });
 
-  final Widget icon;
+  final CurrencyType currency;
   final int value;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final locale = Localizations.localeOf(context);
     return Pressable(
       onTap: onTap,
-      child: SizedBox(
-        height: 36,
-        child: Stack(
-          alignment: AlignmentDirectional.centerStart,
-          children: [
-            Container(
-              height: 30,
-              margin: const EdgeInsetsDirectional.only(start: 14),
-              padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 3, 0),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.7),
-                    Colors.black.withValues(alpha: 0.4),
-                  ],
-                ),
-                border: Border.all(
-                  color: CasinoColors.gold.withValues(alpha: 0.4),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        _compactAmount(value),
-                        maxLines: 1,
-                        style: TextStyle(
-                          fontFamily: CasinoFonts.displayFor(locale),
-                          color: CasinoColors.goldSoft,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          height: 1.2,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: _goldGradient,
-                      border: Border.all(color: const Color(0xFF7A5A0E)),
-                    ),
-                    child: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedAdd01,
-                      size: 16,
-                      strokeWidth: 2.6,
-                      color: CardInk.black,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            icon,
-          ],
-        ),
-      ),
+      child: HudCounter(currency: currency, value: value),
     );
   }
 }

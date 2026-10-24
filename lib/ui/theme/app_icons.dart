@@ -14,7 +14,13 @@ abstract final class AppIcons {
   static const clear = HugeIcons.strokeRoundedCancel01;
   static const close = HugeIcons.strokeRoundedCancel01;
   static const copy = HugeIcons.strokeRoundedCopy01;
+  static const crown = HugeIcons.strokeRoundedCrown;
   static const diamond = HugeIcons.strokeRoundedDiamond;
+  static const fire = HugeIcons.strokeRoundedFire;
+  static const gift = HugeIcons.strokeRoundedGift;
+  static const playVideo = HugeIcons.strokeRoundedPlayCircle02;
+  static const snow = HugeIcons.strokeRoundedSnow;
+  static const timer = HugeIcons.strokeRoundedTimer02;
   static const edit = HugeIcons.strokeRoundedEdit01;
   static const trophy = HugeIcons.strokeRoundedTrophy;
   static const face = HugeIcons.strokeRoundedUser;

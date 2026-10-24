@@ -331,6 +331,26 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
     return reward;
   }
 
+  /// Balances and owned items as the server reported them after a reward
+  /// (daily streak, welcome-back gift).
+  Future<void> applyServerGrant({
+    int? money,
+    int? chips,
+    List<String>? ownedAvatars,
+    List<String>? ownedDecks,
+  }) async {
+    final current = await future;
+    if (!ref.mounted || current.isEmpty) return;
+    final next = current.copyWith(
+      money: money ?? current.money,
+      chips: chips ?? current.chips,
+      ownedAvatars: ownedAvatars ?? current.ownedAvatars,
+      ownedDecks: ownedDecks ?? current.ownedDecks,
+    );
+    await _repo.save(next);
+    state = AsyncData(next);
+  }
+
   Future<Map<String, dynamic>> redeemIapPurchase({
     required String productId,
     required String transactionId,

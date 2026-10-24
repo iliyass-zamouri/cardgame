@@ -10,6 +10,7 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
+import 'package:cardgame/ui/widgets/gold_burst.dart';
 import 'package:cardgame/ui/widgets/insufficient_funds_sheet.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
@@ -296,7 +297,7 @@ class _RecapState extends State<_Recap> with TickerProviderStateMixin {
                 builder:
                     (_, _) => CustomPaint(
                       size: Size.infinite,
-                      painter: _ParticlePainter(
+                      painter: ConfettiPainter(
                         t: _ambient.value,
                         win: outcome == _Outcome.win,
                       ),
@@ -366,40 +367,44 @@ class _RecapState extends State<_Recap> with TickerProviderStateMixin {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          _RewardBlock(
-                            outcome: outcome,
-                            pot: widget.pot,
-                            potCurrency: widget.potCurrency,
-                            count: countIn,
-                            drawLabel: l10n.draw,
-                            prizeLabel: l10n.prize,
-                            child: FadeTransition(
-                              opacity: chipsIn,
-                              child: Wrap(
-                                alignment: WrapAlignment.center,
-                                spacing: 8,
-                                runSpacing: 6,
-                                children: [
-                                  if (!widget.neutral) ...[
-                                    _StatChip(
-                                      label:
-                                          '${widget.xp >= 0 ? '+' : ''}${widget.xp} ${l10n.xp}',
-                                      color: _inkGold,
-                                    ),
-                                    _StatChip(
-                                      label:
-                                          '${widget.eloDelta >= 0 ? '+${widget.eloDelta}' : '${widget.eloDelta}'} ${l10n.elo}',
-                                      color:
-                                          widget.eloDelta >= 0
-                                              ? const Color(0xFF1E7A45)
-                                              : CardInk.red,
-                                    ),
+                          // Practice (robot) matches have no pot and no
+                          // XP/Elo, so there is nothing to put in the block.
+                          if (widget.pot > 0 || !widget.neutral) ...[
+                            const SizedBox(height: 16),
+                            _RewardBlock(
+                              outcome: outcome,
+                              pot: widget.pot,
+                              potCurrency: widget.potCurrency,
+                              count: countIn,
+                              drawLabel: l10n.draw,
+                              prizeLabel: l10n.prize,
+                              child: FadeTransition(
+                                opacity: chipsIn,
+                                child: Wrap(
+                                  alignment: WrapAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 6,
+                                  children: [
+                                    if (!widget.neutral) ...[
+                                      _StatChip(
+                                        label:
+                                            '${widget.xp >= 0 ? '+' : ''}${widget.xp} ${l10n.xp}',
+                                        color: _inkGold,
+                                      ),
+                                      _StatChip(
+                                        label:
+                                            '${widget.eloDelta >= 0 ? '+${widget.eloDelta}' : '${widget.eloDelta}'} ${l10n.elo}',
+                                        color:
+                                            widget.eloDelta >= 0
+                                                ? const Color(0xFF1E7A45)
+                                                : CardInk.red,
+                                      ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                           if (widget.status == _RematchStatus.waiting ||
                               widget.status == _RematchStatus.starting) ...[
                             const SizedBox(height: 14),
@@ -584,8 +589,9 @@ class _Header extends StatelessWidget {
                 child: AnimatedBuilder(
                   animation: ambient,
                   builder:
-                      (_, _) =>
-                          CustomPaint(painter: _RaysPainter(t: ambient.value)),
+                      (_, _) => CustomPaint(
+                        painter: GoldRaysPainter(t: ambient.value),
+                      ),
                 ),
               ),
             ),
@@ -960,152 +966,6 @@ class _StatChip extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Slowly turning gold rays that fade out radially, so the burst has no
-/// visible edge.
-class _RaysPainter extends CustomPainter {
-  const _RaysPainter({required this.t});
-
-  final double t;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = Offset(size.width / 2, size.height * 0.43);
-    final radius = size.width * 0.5;
-    const rays = 20;
-    final paint =
-        Paint()
-          ..shader = RadialGradient(
-            colors: [
-              CasinoColors.gold.withValues(alpha: 0.28),
-              CasinoColors.gold.withValues(alpha: 0.07),
-              CasinoColors.gold.withValues(alpha: 0),
-            ],
-            stops: const [0, 0.45, 1],
-          ).createShader(Rect.fromCircle(center: c, radius: radius));
-    final base = t * 2 * math.pi;
-    for (var i = 0; i < rays; i++) {
-      final a0 = base + i * 2 * math.pi / rays;
-      final a1 = a0 + math.pi / rays * 0.8;
-      canvas.drawPath(
-        Path()
-          ..moveTo(c.dx, c.dy)
-          ..lineTo(c.dx + math.cos(a0) * radius, c.dy + math.sin(a0) * radius)
-          ..lineTo(c.dx + math.cos(a1) * radius, c.dy + math.sin(a1) * radius)
-          ..close(),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _RaysPainter old) => old.t != t;
-}
-
-class _Particle {
-  const _Particle(
-    this.x,
-    this.y0,
-    this.speed,
-    this.sway,
-    this.phase,
-    this.spin,
-    this.size,
-    this.shape,
-    this.role,
-  );
-
-  final double x;
-  final double y0;
-  final int speed;
-  final int sway;
-  final double phase;
-  final int spin;
-  final double size;
-  final int shape;
-
-  /// Index into [_confettiColor]. Resolved at paint time, so the particles
-  /// created once and cached in [_ParticlePainter] follow the active theme.
-  final int role;
-
-  Color get color => _confettiColor(role);
-}
-
-/// Confetti colour for a [_Particle.role]; the loss ember is -1.
-Color _confettiColor(int role) => switch (role) {
-  0 => CasinoColors.gold,
-  1 => CasinoColors.goldSoft,
-  2 => Colors.white,
-  3 => const Color(0xFFE53935),
-  4 => const Color(0xFF26A69A),
-  _ => const Color(0xFF7A1A1A).withValues(alpha: 0.5),
-};
-
-/// Full-screen falling confetti (gold suits and ribbons) for a win, or slow
-/// dim spades for a loss. Every motion is an integer number of cycles per
-/// [t] loop so the animation wraps seamlessly.
-class _ParticlePainter extends CustomPainter {
-  _ParticlePainter({required this.t, required this.win});
-
-  final double t;
-  final bool win;
-
-  static final List<_Particle> _winParts = _make(win: true);
-  static final List<_Particle> _loseParts = _make(win: false);
-
-  static List<_Particle> _make({required bool win}) {
-    final rnd = math.Random(win ? 11 : 5);
-    final count = win ? 44 : 14;
-    return List.generate(count, (i) {
-      return _Particle(
-        rnd.nextDouble(),
-        rnd.nextDouble(),
-        win ? 2 + rnd.nextInt(3) : 1,
-        1 + rnd.nextInt(3),
-        rnd.nextDouble(),
-        1 + rnd.nextInt(4),
-        win ? 7 + rnd.nextDouble() * 8 : 14 + rnd.nextDouble() * 12,
-        win ? rnd.nextInt(5) : 0,
-        win ? rnd.nextInt(5) : -1,
-      );
-    });
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final parts = win ? _winParts : _loseParts;
-    for (final p in parts) {
-      final fy = (p.y0 + t * p.speed) % 1.0;
-      final dx = math.sin(2 * math.pi * (t * p.sway + p.phase)) * 14;
-      final pos = Offset(p.x * size.width + dx, fy * (size.height + 60) - 30);
-      final angle = 2 * math.pi * (t * p.spin + p.phase);
-      canvas.save();
-      canvas.translate(pos.dx, pos.dy);
-      canvas.rotate(angle);
-      final paint = Paint()..color = p.color;
-      if (p.shape >= 4) {
-        // Ribbon.
-        canvas.drawRect(
-          Rect.fromCenter(
-            center: Offset.zero,
-            width: p.size * 0.5,
-            height: p.size * 1.6,
-          ),
-          paint,
-        );
-      } else {
-        final suit = win ? SuitShape.values[p.shape % 4] : SuitShape.spades;
-        canvas.scale(p.size);
-        canvas.drawPath(suitPath(suit), paint);
-      }
-      canvas.restore();
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ParticlePainter old) =>
-      old.t != t || old.win != win;
 }
 
 /// Mirrors server `POINTS_QUIT_PENALTY` until the ranked result arrives.
