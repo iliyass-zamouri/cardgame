@@ -101,19 +101,30 @@ class _CardGameViewState extends ConsumerState<CardGameView> {
 
     // Raw pointer events stay out of the gesture arena, so card taps still
     // work; a tap that moves past slop is rejected by Flame and becomes a scroll.
+    // Every pointer event also wakes the board loop, which sleeps when idle,
+    // so a tap's bounce and the move it sends always get frames.
     return Listener(
       onPointerDown: (event) {
+        _game.wake();
         if (_scrollPointer != null) return;
         _scrollPointer = event.pointer;
         _game.beginHandScroll(event.localPosition.toVector2());
       },
       onPointerMove: (event) {
+        _game.wake();
         if (event.pointer != _scrollPointer) return;
         _game.scrollHandBy(event.delta.dy);
       },
-      onPointerUp: (event) => _endScroll(event.pointer),
-      onPointerCancel: (event) => _endScroll(event.pointer),
+      onPointerUp: (event) {
+        _game.wake();
+        _endScroll(event.pointer);
+      },
+      onPointerCancel: (event) {
+        _game.wake();
+        _endScroll(event.pointer);
+      },
       onPointerSignal: (event) {
+        _game.wake();
         if (event is! PointerScrollEvent) return;
         _game
           ..beginHandScroll(event.localPosition.toVector2())

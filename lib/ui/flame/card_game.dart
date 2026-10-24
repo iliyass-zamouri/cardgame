@@ -17,6 +17,7 @@ import 'package:flame/effects.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/animation.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/painting.dart';
 
 typedef CardTapCallback = void Function(int cardIndex);
@@ -77,6 +78,7 @@ class CardGame extends FlameGame {
     uiTextDirection = textDirection;
     uiFontFamily = fontFamily;
     if (!_ready) return;
+    wake();
     _localShuffleLabel.label = shuffleLabel;
     _opponentShuffleLabel.label = shuffleLabel;
     _localShuffleLabel.textDirection = textDirection;
@@ -92,7 +94,46 @@ class CardGame extends FlameGame {
   /// so a change shows up on the next frame.
   String get cardBackSkinId => CardBackSkins.activeId;
 
-  set cardBackSkinId(String id) => CardBackSkins.select(id);
+  set cardBackSkinId(String id) {
+    CardBackSkins.select(id);
+    wake();
+  }
+
+  /// Consecutive frames with nothing moving on the board.
+  int _idleFrames = 0;
+
+  /// A short grace period, so the final frame of every tween is painted and
+  /// back-to-back events don't stop and restart the loop.
+  static const _idleFramesToSleep = 10;
+
+  /// The board is turn-based and still most of the time. Instead of
+  /// repainting every vsync, the loop sleeps once nothing is moving; every
+  /// input that can change the board calls [wake].
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (_animatingAction || hasLifecycleEvents || _hasMotion(world)) {
+      _idleFrames = 0;
+      return;
+    }
+    if (++_idleFrames >= _idleFramesToSleep) pauseEngine();
+  }
+
+  /// Restarts the loop if it went to sleep. Cheap; call it on any input.
+  void wake() {
+    _idleFrames = 0;
+    if (paused) resumeEngine();
+  }
+
+  /// Whether any effect or timer is running under [component].
+  static bool _hasMotion(Component component) {
+    if (!component.hasChildren) return false;
+    for (final child in component.children) {
+      if (child is Effect || child is TimerComponent) return true;
+      if (_hasMotion(child)) return true;
+    }
+    return false;
+  }
 
   GameSnapshot? _snapshot;
   GameSnapshot? _pending;
@@ -128,6 +169,7 @@ class CardGame extends FlameGame {
   set peekSelecting(bool value) {
     if (_peekSelecting == value) return;
     _peekSelecting = value;
+    wake();
     if (_ready) _refreshInteraction();
   }
 
@@ -136,6 +178,7 @@ class CardGame extends FlameGame {
   set queenMode(QueenMode value) {
     if (_queenMode == value) return;
     _queenMode = value;
+    wake();
     if (value != QueenMode.replacePick) {
       _replaceFirstSide = null;
       _replaceFirstIndex = null;
@@ -145,8 +188,11 @@ class CardGame extends FlameGame {
   }
 
   void setReplaceSelection({String? side, int? index}) {
+    // Called on every host rebuild; re-applying would drop peek lifts.
+    if (_replaceFirstSide == side && _replaceFirstIndex == index) return;
     _replaceFirstSide = side;
     _replaceFirstIndex = index;
+    wake();
     if (_ready) {
       _applyReplaceFloat();
       _syncTableHint();
@@ -237,6 +283,7 @@ class CardGame extends FlameGame {
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
+    wake();
     if (!_ready) return;
     _applyLayout(size);
     _layoutHands();
@@ -258,6 +305,7 @@ class CardGame extends FlameGame {
   }
 
   void applySnapshot(GameSnapshot snapshot) {
+    wake();
     if (!_ready) {
       _pending = snapshot;
       return;
@@ -606,17 +654,20 @@ class CardGame extends FlameGame {
     localCard.opacityOverride = 0;
     oppCard.opacityOverride = 0;
 
+    // Start at each card's current size: the picked one may still be floated.
     final ghostA = _ghostCard(
       localCard.tag,
       localStart,
       faceUp: localCard.tag != null,
       backSkinId: _youBackSkinId,
+      fit: _handFit * localCard.scale.x,
     );
     final ghostB = _ghostCard(
       oppCard.tag,
       oppStart,
       faceUp: oppCard.tag != null,
       backSkinId: _opponentBackSkinId,
+      fit: _handFit * oppCard.scale.x,
     );
     world.addAll([ghostA, ghostB]);
 
@@ -634,49 +685,69 @@ class CardGame extends FlameGame {
       onComplete();
     }
 
-    ghostA.add(
-      SequenceEffect([
-        MoveEffect.to(
-          localLift,
-          EffectController(duration: _liftDuration, curve: Curves.easeOutBack),
+    // Grow to read after the lift, then shrink back to hand size on the way,
+    // so each lands exactly over the slot card it becomes.
+    SequenceEffect peekThenLand() => SequenceEffect([
+      _PauseEffect(_liftDuration),
+      ScaleEffect.to(
+        Vector2.all(_peekScale),
+        EffectController(duration: 0.12),
+      ),
+      _PauseEffect(_readDuration),
+      ScaleEffect.to(
+        _handFit,
+        EffectController(
+          duration: _travelDuration,
+          curve: Curves.easeInOutCubic,
         ),
-        ScaleEffect.to(
-          Vector2.all(_peekScale),
-          EffectController(duration: 0.12),
-        ),
-        _PauseEffect(_readDuration),
-        MoveEffect.to(
-          oppSlot,
-          EffectController(
-            duration: _travelDuration,
-            curve: Curves.easeInOutCubic,
+      ),
+    ]);
+
+    ghostA
+      ..add(
+        SequenceEffect([
+          MoveEffect.to(
+            localLift,
+            EffectController(
+              duration: _liftDuration,
+              curve: Curves.easeOutBack,
+            ),
           ),
-        ),
-        RemoveEffect(),
-      ]),
-    );
-    ghostB.add(
-      SequenceEffect([
-        MoveEffect.to(
-          oppLift,
-          EffectController(duration: _liftDuration, curve: Curves.easeOutBack),
-        ),
-        ScaleEffect.to(
-          Vector2.all(_peekScale),
-          EffectController(duration: 0.12),
-        ),
-        _PauseEffect(_readDuration),
-        MoveEffect.to(
-          localSlot,
-          EffectController(
-            duration: _travelDuration,
-            curve: Curves.easeInOutCubic,
+          _PauseEffect(0.12 + _readDuration),
+          MoveEffect.to(
+            oppSlot,
+            EffectController(
+              duration: _travelDuration,
+              curve: Curves.easeInOutCubic,
+            ),
           ),
-        ),
-        _CallbackEffect(finish),
-        RemoveEffect(),
-      ]),
-    );
+          RemoveEffect(),
+        ]),
+      )
+      ..add(peekThenLand());
+    ghostB
+      ..add(
+        SequenceEffect([
+          MoveEffect.to(
+            oppLift,
+            EffectController(
+              duration: _liftDuration,
+              curve: Curves.easeOutBack,
+            ),
+          ),
+          _PauseEffect(0.12 + _readDuration),
+          MoveEffect.to(
+            localSlot,
+            EffectController(
+              duration: _travelDuration,
+              curve: Curves.easeInOutCubic,
+            ),
+          ),
+          _CallbackEffect(finish),
+          RemoveEffect(),
+        ]),
+      )
+      ..add(peekThenLand());
   }
 
   void _applyJackPeekZoom(GameSnapshot snapshot, GameSnapshot? previous) {
@@ -957,6 +1028,7 @@ class CardGame extends FlameGame {
           drawnFaceUp: true,
           handStart: handStart,
           drawnStart: _table.worldDeckPosition,
+          drawnFromDeck: true,
           discard: discard,
           previousDiscardTop: previousDiscardTop,
         );
@@ -1078,14 +1150,21 @@ class CardGame extends FlameGame {
   static const _peekScale = 1.35;
   static const _liftForward = 60.0;
 
+  /// Your own drawn card goes straight to the pile: you have already seen it.
+  static const _quickThrowDuration = 0.4;
+
   /// Put SFX before card fully settles on discard (~55% through travel).
   static const _putEarlyFraction = 0.55;
 
   /// Fire put mid-flight toward discard (after optional lift+read).
-  void _schedulePutSfx({required bool withLiftRead, double extraPause = 0}) {
+  void _schedulePutSfx({
+    required bool withLiftRead,
+    double extraPause = 0,
+    double travel = _travelDuration,
+  }) {
     final beforeTravel =
         (withLiftRead ? _liftDuration + _readDuration : 0.0) + extraPause;
-    final early = beforeTravel + _travelDuration * _putEarlyFraction;
+    final early = beforeTravel + travel * _putEarlyFraction;
     // Attach to world so it survives ghost card removal timing.
     world.add(
       TimerComponent(
@@ -1124,6 +1203,7 @@ class CardGame extends FlameGame {
       plan.handStart,
       faceUp: false,
       backSkinId: _handSkin(isSelf: plan.isSelf),
+      fit: _handFit,
     );
     world.add(thrown);
     _schedulePutSfx(withLiftRead: true);
@@ -1165,7 +1245,7 @@ class CardGame extends FlameGame {
         ),
         _PauseEffect(_readDuration),
         ScaleEffect.to(
-          Vector2.all(0.85),
+          _pileFit,
           EffectController(
             duration: _travelDuration,
             curve: Curves.easeInOutCubic,
@@ -1180,6 +1260,7 @@ class CardGame extends FlameGame {
       plan.drawnStart!,
       faceUp: plan.drawnFaceUp,
       backSkinId: _handSkin(isSelf: plan.isSelf),
+      fit: _drawnFit(plan),
     );
     world.add(drawn);
     if (!plan.drawnFaceUp) {
@@ -1213,7 +1294,7 @@ class CardGame extends FlameGame {
       SequenceEffect([
         _PauseEffect(phaseA),
         ScaleEffect.to(
-          Vector2.all(0.85),
+          _pileFit,
           EffectController(
             duration: _travelDuration,
             curve: Curves.easeInOutCubic,
@@ -1243,6 +1324,7 @@ class CardGame extends FlameGame {
       plan.handStart,
       faceUp: false,
       backSkinId: _handSkin(isSelf: plan.isSelf),
+      fit: _handFit,
     );
     world.add(card);
     card.flipTo(
@@ -1282,7 +1364,7 @@ class CardGame extends FlameGame {
         ),
         _PauseEffect(_readDuration),
         ScaleEffect.to(
-          Vector2.all(0.85),
+          _pileFit,
           EffectController(
             duration: _travelDuration,
             curve: Curves.easeInOutCubic,
@@ -1324,20 +1406,33 @@ class CardGame extends FlameGame {
     );
     _expectingPenaltyAppendSelf = plan.isSelf;
     world.add(penalty);
-    penalty.add(
-      SequenceEffect([
-        _PauseEffect(shake * 4),
-        MoveEffect.to(
-          landing,
-          EffectController(
-            duration: _travelDuration,
-            curve: Curves.easeInOutCubic,
+    penalty
+      ..add(
+        SequenceEffect([
+          _PauseEffect(shake * 4),
+          MoveEffect.to(
+            landing,
+            EffectController(
+              duration: _travelDuration,
+              curve: Curves.easeInOutCubic,
+            ),
           ),
-        ),
-        _CallbackEffect(onComplete),
-        RemoveEffect(),
-      ]),
-    );
+          _CallbackEffect(onComplete),
+          RemoveEffect(),
+        ]),
+      )
+      ..add(
+        SequenceEffect([
+          _PauseEffect(shake * 4),
+          ScaleEffect.to(
+            _handFit,
+            EffectController(
+              duration: _travelDuration,
+              curve: Curves.easeInOutCubic,
+            ),
+          ),
+        ]),
+      );
   }
 
   void _runSwap(_CardActionPlan plan, VoidCallback onComplete) {
@@ -1364,6 +1459,7 @@ class CardGame extends FlameGame {
       plan.handStart,
       faceUp: false,
       backSkinId: _handSkin(isSelf: plan.isSelf),
+      fit: _handFit,
     )..priority = 200;
     world.add(thrown);
     thrown.flipTo(
@@ -1402,7 +1498,7 @@ class CardGame extends FlameGame {
         ),
         _PauseEffect(_readDuration),
         ScaleEffect.to(
-          Vector2.all(0.85),
+          _pileFit,
           EffectController(
             duration: _travelDuration,
             curve: Curves.easeInOutCubic,
@@ -1418,6 +1514,7 @@ class CardGame extends FlameGame {
       plan.drawnStart!,
       faceUp: plan.drawnFaceUp,
       backSkinId: _handSkin(isSelf: plan.isSelf),
+      fit: _drawnFit(plan),
     )..priority = 200;
     world.add(placed);
     placed.add(
@@ -1442,7 +1539,7 @@ class CardGame extends FlameGame {
       SequenceEffect([
         _PauseEffect(phaseA),
         ScaleEffect.to(
-          Vector2.all(1),
+          _handFit,
           EffectController(
             duration: _travelDuration,
             curve: Curves.easeInOutCubic,
@@ -1463,19 +1560,29 @@ class CardGame extends FlameGame {
       backSkinId: _turnBackSkinId,
     );
     world.add(card);
-    card.add(
-      SequenceEffect([
-        MoveEffect.to(
-          landing,
+    card
+      ..add(
+        SequenceEffect([
+          MoveEffect.to(
+            landing,
+            EffectController(
+              duration: _travelDuration,
+              curve: Curves.easeInOutCubic,
+            ),
+          ),
+          _CallbackEffect(onComplete),
+          RemoveEffect(),
+        ]),
+      )
+      ..add(
+        ScaleEffect.to(
+          _fit(_drawnFor(plan).cardSize),
           EffectController(
             duration: _travelDuration,
             curve: Curves.easeInOutCubic,
           ),
         ),
-        _CallbackEffect(onComplete),
-        RemoveEffect(),
-      ]),
-    );
+      );
   }
 
   /// Drawn slot → discard pile.
@@ -1497,8 +1604,42 @@ class CardGame extends FlameGame {
       plan.drawnStart!,
       faceUp: plan.drawnFaceUp,
       backSkinId: _handSkin(isSelf: plan.isSelf),
+      fit: _drawnFit(plan),
     );
     world.add(card);
+    void land() {
+      _table.releaseDiscard();
+      onComplete();
+    }
+
+    if (plan.isSelf) {
+      // You already saw this card face-up: no lift, no read, just the throw.
+      _schedulePutSfx(withLiftRead: false, travel: _quickThrowDuration);
+      card
+        ..add(
+          SequenceEffect([
+            MoveEffect.to(
+              plan.discard,
+              EffectController(
+                duration: _quickThrowDuration,
+                curve: Curves.easeInOutCubic,
+              ),
+            ),
+            _CallbackEffect(land),
+            RemoveEffect(),
+          ]),
+        )
+        ..add(
+          ScaleEffect.to(
+            _pileFit,
+            EffectController(
+              duration: _quickThrowDuration,
+              curve: Curves.easeInOutCubic,
+            ),
+          ),
+        );
+      return;
+    }
     if (!plan.drawnFaceUp) {
       card.flipTo(
         tag: tag,
@@ -1523,10 +1664,7 @@ class CardGame extends FlameGame {
             curve: Curves.easeInOutCubic,
           ),
         ),
-        _CallbackEffect(() {
-          _table.releaseDiscard();
-          onComplete();
-        }),
+        _CallbackEffect(land),
         RemoveEffect(),
       ]),
     );
@@ -1538,7 +1676,7 @@ class CardGame extends FlameGame {
         ),
         _PauseEffect(_readDuration),
         ScaleEffect.to(
-          Vector2.all(0.85),
+          _pileFit,
           EffectController(
             duration: _travelDuration,
             curve: Curves.easeInOutCubic,
@@ -1551,22 +1689,42 @@ class CardGame extends FlameGame {
   String _handSkin({required bool isSelf}) =>
       isSelf ? _youBackSkinId : _opponentBackSkinId;
 
+  /// Ghosts are pile-sized. [fit] starts one exactly over the card it stands
+  /// in for, so hand-offs never pop.
   PlayingCardComponent _ghostCard(
     String? tag,
     Vector2 start, {
     required bool faceUp,
     required String backSkinId,
+    Vector2? fit,
   }) {
     return PlayingCardComponent(
         cardIndex: -20,
         tag: faceUp ? tag : null,
         visible: faceUp,
-        sizeOverride: Vector2(86, 124),
+        sizeOverride: _ghostSize,
         backSkinId: backSkinId,
       )
       ..position = start
+      ..scale = fit ?? _pileFit
       ..priority = 100;
   }
+
+  static final Vector2 _ghostSize = Vector2(86, 124);
+
+  /// Scale that lays a ghost exactly over a card of [cardSize].
+  static Vector2 _fit(Vector2 cardSize) =>
+      Vector2(cardSize.x / _ghostSize.x, cardSize.y / _ghostSize.y);
+
+  static final Vector2 _handFit = _fit(
+    Vector2(HandArea.cardWidth, HandArea.cardHeight),
+  );
+
+  /// Deck, discard pile and the local drawn card are ghost-sized.
+  static final Vector2 _pileFit = Vector2.all(1);
+
+  Vector2 _drawnFit(_CardActionPlan plan) =>
+      plan.drawnFromDeck ? _pileFit : _fit(_drawnFor(plan).cardSize);
 
   HandArea? _scrollingHand;
 
@@ -1574,6 +1732,7 @@ class CardGame extends FlameGame {
   /// scrollable hand.
   void beginHandScroll(Vector2 screenPoint) {
     _scrollingHand = null;
+    wake();
     if (!_ready) return;
     final worldPoint = camera.globalToLocal(screenPoint);
     for (final hand in [_localHand, _opponentHand]) {
@@ -1587,10 +1746,12 @@ class CardGame extends FlameGame {
   void scrollHandBy(double dy) {
     // Action animations aim at slot positions captured up front.
     if (_animatingAction) return;
+    wake();
     _scrollingHand?.scrollBy(dy / camera.viewfinder.zoom);
   }
 
   void endHandScroll() {
+    wake();
     _scrollingHand?.settleScroll();
     _scrollingHand = null;
   }
@@ -1879,14 +2040,11 @@ class HandArea extends PositionComponent {
 
     for (final card in List<PlayingCardComponent>.from(_cards)) {
       if (!keep.contains(card)) {
-        card.add(
-          SequenceEffect([
-            ScaleEffect.to(
-              Vector2.zero(),
-              EffectController(duration: 0.18, curve: Curves.easeIn),
-            ),
-            RemoveEffect(),
-          ]),
+        card.scaleTo(
+          0,
+          duration: 0.18,
+          curve: Curves.easeIn,
+          onDone: card.removeFromParent,
         );
       }
     }
@@ -1933,13 +2091,7 @@ class HandArea extends PositionComponent {
     }
 
     for (var i = 0; i < count; i++) {
-      final card = _cards[i];
-      for (final effect in card.children.whereType<MoveEffect>().toList()) {
-        effect.removeFromParent();
-      }
-      for (final effect in card.children.whereType<SequenceEffect>().toList()) {
-        effect.removeFromParent();
-      }
+      final card = _cards[i]..stopMotion();
 
       // Slight deck offset so the stack reads as a pile, not one card.
       final stackPos = pileCenter + Vector2(i * 1.2, -i * 0.8);
@@ -2103,7 +2255,8 @@ class TableArea extends PositionComponent {
     _discardHoldSkinId = null;
     _pendingDiscardTag = null;
     _pendingDiscardSkinId = null;
-    _applyDiscard(tag, backSkinId: skinId, animate: true);
+    // The ghost card has just landed showing this face: take over silently.
+    _applyDiscard(tag, backSkinId: skinId, animate: false);
   }
 
   void sync({
@@ -2135,8 +2288,7 @@ class TableArea extends PositionComponent {
     String? backSkinId,
     required bool animate,
   }) {
-    final previous = _discard.tag;
-    final wasEmpty = previous == null || _discard.opacityOverride <= 0;
+    final showing = _discard.tag != null && _discard.opacityOverride > 0;
     if (backSkinId != null) {
       _discard.backSkinId = backSkinId;
     }
@@ -2145,20 +2297,20 @@ class TableArea extends PositionComponent {
       return;
     }
     _discard.opacityOverride = 1;
-    if (wasEmpty) {
-      // First card: show the face at once. A flip would flash the back.
-      _discard.reveal(tag: discardTag, visible: true);
-    } else {
-      _discard.updateFromSnapshot(
-        CardSnapshot(index: -2, tag: discardTag, visible: true),
-        tappable: false,
-      );
-    }
-    if (animate && discardTag != previous) {
-      _discard.snapScale(0.7);
-      _discard.scaleTo(1, duration: 0.2);
-    } else {
+    if (showing && _discard.tag == discardTag) {
       _discard.normalizeScale(1);
+      return;
+    }
+    // The pile never flips: a flip would flash the card underneath. Faces
+    // switch at once, so a sync in the same frame sees nothing new.
+    _discard.reveal(tag: discardTag, visible: true);
+    if (animate) {
+      // No ghost carried this card in (reconnect, unplanned diff): a short
+      // settle marks the change without a zoom.
+      _discard.snapScale(0.92);
+      _discard.scaleTo(1, duration: 0.16);
+    } else {
+      _discard.snapScale(1);
     }
   }
 
@@ -2192,6 +2344,9 @@ class DrawnCardSlot extends PositionComponent {
 
   Vector2 get worldSlotPosition => absolutePositionOfAnchor(Anchor.center);
 
+  /// The opponent's drawn card sits small beside their hand.
+  Vector2 get cardSize => isSelf ? Vector2(86, 124) : Vector2(48, 70);
+
   void setCardOpacity(double opacity) {
     _card?.opacityOverride = opacity;
   }
@@ -2215,7 +2370,7 @@ class DrawnCardSlot extends PositionComponent {
         cardIndex: isSelf ? -10 : -11,
         tag: visibleTag,
         visible: faceUp && visibleTag != null,
-        sizeOverride: Vector2(isSelf ? 86 : 48, isSelf ? 124 : 70),
+        sizeOverride: cardSize,
         backSkinId: backSkinId,
       )..onPressed = canThrow ? () => onThrow?.call() : null;
       add(_card!);
@@ -2249,15 +2404,23 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     String? backSkinId,
   }) : _tag = tag,
        _visible = visible,
-       backSkinId = backSkinId ?? CardBackSkins.ornateBlue.id {
+       _targetTag = tag,
+       _targetVisible = visible,
+       _backSkinId = backSkinId ?? CardBackSkins.ornateBlue.id {
     size = sizeOverride ?? Vector2(78, 112);
     anchor = Anchor.center;
   }
 
   int cardIndex;
+
+  /// Face being painted. Mid-flip this is still the side turning away.
   String? _tag;
   bool _visible;
-  String backSkinId;
+
+  /// Face the card shows, or is flipping to.
+  String? _targetTag;
+  bool _targetVisible;
+  String _backSkinId;
   bool highlighted = false;
   bool peeking = false;
   bool _tappable = false;
@@ -2270,7 +2433,30 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
   double _zoomCue = 0;
   bool _zoomCueActive = false;
 
-  String? get tag => _tag;
+  // One owned tween per channel. Flame's move/scale effects add deltas, and an
+  // effect added this frame is not in `children` yet, so cancelling by type
+  // let two tweens stack (the pile ending a throw at 1.3x). Each tween checks
+  // it is still the owner before touching the card.
+  Effect? _scaleFx;
+  _MoveTween? _moveFx;
+  SequenceEffect? _flipFx;
+
+  /// Art resolved for the face and skin last painted; see [_CardArt.resolve].
+  _ResolvedArt? _art;
+
+  String? get tag => _targetTag;
+
+  /// Face being painted right now (null while face-down).
+  @visibleForTesting
+  String? get shownTag => _visible ? _tag : null;
+
+  String get backSkinId => _backSkinId;
+
+  set backSkinId(String value) {
+    if (_backSkinId == value) return;
+    _backSkinId = value;
+    _art = null;
+  }
 
   void setTappable(bool value) {
     _tappable = value;
@@ -2314,9 +2500,7 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
 
   /// Jump to [target] with no tween (finger-tracking scroll).
   void snapTo(Vector2 target) {
-    for (final effect in children.whereType<MoveEffect>().toList()) {
-      effect.removeFromParent();
-    }
+    cancelMove();
     _targetPosition = target.clone();
     position = target;
   }
@@ -2326,39 +2510,49 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
       return;
     }
     _targetPosition = target.clone();
+    cancelMove();
     if ((position - target).length <= 1) {
       position = target;
       return;
     }
-    for (final effect in children.whereType<MoveEffect>().toList()) {
-      effect.removeFromParent();
-    }
     add(
-      MoveEffect.to(
+      _moveFx = _MoveTween(
+        this,
         target,
         EffectController(duration: 0.26, curve: Curves.easeOutCubic),
       ),
     );
   }
 
+  void cancelMove() {
+    _moveFx?.removeFromParent();
+    _moveFx = null;
+  }
+
+  /// Drops every in-flight move (layout tween, shake, shuffle) so a new path
+  /// starts clean. A flip in progress keeps going.
+  void stopMotion() {
+    cancelMove();
+    for (final effect in children.whereType<SequenceEffect>().toList()) {
+      if (!identical(effect, _flipFx)) effect.removeFromParent();
+    }
+  }
+
   /// Snap scale + bookkeeping with no animation (deal start, hard reset).
   void snapScale(double value) {
     _clearScaleEffects();
     _targetScale = value;
-    scale = Vector2.all(value);
+    scale.splat(value);
   }
 
   /// Bring scale in line with [value] without restarting tweens on every layout.
   ///
-  /// - Same target + in-flight ScaleEffect → leave it (deal pop, peek tween).
+  /// - Same target + tween in flight → leave it (deal pop, peek tween).
   /// - Same target + drifted actual scale → hard snap (hot reload / interrupted).
   /// - New target → animated [scaleTo].
   void normalizeScale(double value) {
     if ((_targetScale - value).abs() < 0.01) {
-      final animating =
-          children.whereType<ScaleEffect>().isNotEmpty ||
-          children.whereType<_ScaleBounceEffect>().isNotEmpty;
-      if (animating) return;
+      if (_scaleFx != null) return;
       if ((scale.x - value).abs() > 0.02 || (scale.y - value).abs() > 0.02) {
         snapScale(value);
       }
@@ -2367,30 +2561,34 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     scaleTo(value);
   }
 
-  void scaleTo(double value, {double duration = 0.26}) {
+  void scaleTo(
+    double value, {
+    double duration = 0.26,
+    Curve curve = Curves.easeOutCubic,
+    VoidCallback? onDone,
+  }) {
     _clearScaleEffects();
     final reached =
         (scale.x - value).abs() < 0.01 && (scale.y - value).abs() < 0.01;
     _targetScale = value;
     if (reached) {
-      scale = Vector2.all(value);
+      scale.splat(value);
+      onDone?.call();
       return;
     }
     add(
-      ScaleEffect.to(
-        Vector2.all(value),
-        EffectController(duration: duration, curve: Curves.easeOutCubic),
+      _scaleFx = _ScaleTween(
+        this,
+        value,
+        EffectController(duration: duration, curve: curve),
+        onDone: onDone,
       ),
     );
   }
 
   void _clearScaleEffects() {
-    for (final effect in children.whereType<ScaleEffect>().toList()) {
-      effect.removeFromParent();
-    }
-    for (final effect in children.whereType<_ScaleBounceEffect>().toList()) {
-      effect.removeFromParent();
-    }
+    _scaleFx?.removeFromParent();
+    _scaleFx = null;
   }
 
   void flipTo({
@@ -2400,52 +2598,53 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     double duration = 0.12,
     bool sfx = true,
   }) {
-    if (sfx) {
-      // Delay-matched cue so sound lines up with the half-flip.
-      if (delay <= 0) {
-        SfxService.instance.flip();
-      } else {
-        add(
-          SequenceEffect([
-            _PauseEffect(delay),
-            _CallbackEffect(SfxService.instance.flip),
-          ]),
-        );
-      }
-    }
-    final effects = <Effect>[
-      if (delay > 0) _PauseEffect(delay),
-      _FlipEffect(to: 0, duration: duration),
-      _CallbackEffect(() {
-        _tag = tag;
-        _visible = visible;
-      }),
-      _FlipEffect(to: 1, duration: duration),
-    ];
-    add(SequenceEffect(effects));
+    _cancelFlip();
+    _targetTag = tag;
+    _targetVisible = visible;
+    late final SequenceEffect flip;
+    flip = SequenceEffect(
+      [
+        if (delay > 0) _PauseEffect(delay),
+        // Delay-matched cue so sound lines up with the half-flip.
+        if (sfx) _CallbackEffect(SfxService.instance.flip),
+        _FlipEffect(this, to: 0, duration: duration),
+        _CallbackEffect(() {
+          if (!identical(_flipFx, flip)) return;
+          _tag = tag;
+          _visible = visible;
+        }),
+        _FlipEffect(this, to: 1, duration: duration),
+      ],
+      onComplete: () {
+        if (identical(_flipFx, flip)) _flipFx = null;
+      },
+    );
+    add(_flipFx = flip);
+  }
+
+  void _cancelFlip() {
+    _flipFx?.removeFromParent();
+    _flipFx = null;
   }
 
   /// Instantly set face without animation. Drops any in-flight flip so a
   /// queued callback cannot put the previous face back.
   void reveal({required String? tag, required bool visible}) {
-    for (final effect in children.whereType<SequenceEffect>().toList()) {
-      effect.removeFromParent();
-    }
+    _cancelFlip();
     _flip = 1;
-    _tag = tag;
-    _visible = visible;
+    _tag = _targetTag = tag;
+    _visible = _targetVisible = visible;
   }
 
   void updateFromSnapshot(CardSnapshot snapshot, {required bool tappable}) {
     cardIndex = snapshot.index;
-    final faceChanged = _visible != snapshot.visible || _tag != snapshot.tag;
+    // Against the target face, so a sync landing mid-flip doesn't flip again.
+    final faceChanged =
+        _targetVisible != snapshot.visible || _targetTag != snapshot.tag;
     _tappable = tappable;
     if (faceChanged) {
       // Sync/deal flips stay silent — action anims + peek own their SFX.
       flipTo(tag: snapshot.tag, visible: snapshot.visible, sfx: false);
-    } else {
-      _tag = snapshot.tag;
-      _visible = snapshot.visible;
     }
   }
 
@@ -2463,7 +2662,7 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
 
   void _bounce() {
     _clearScaleEffects();
-    add(_ScaleBounceEffect(restScale: _targetScale));
+    add(_scaleFx = _ScaleBounceEffect(this, restScale: _targetScale));
   }
 
   @override
@@ -2471,6 +2670,11 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     if (opacityOverride <= 0) return;
     final squeeze = _flip.abs().clamp(0.08, 1.0);
     final faceUp = _visible && _tag != null && _flip >= 0;
+    final faceTag = faceUp ? _tag : null;
+    var art = _art;
+    if (art == null || art.tag != faceTag || art.backSkinId != _backSkinId) {
+      art = _art = _CardArt.resolve(faceTag, _backSkinId, size.x, size.y);
+    }
 
     // Opacity is only ever 0 or 1 in practice; an offscreen layer per card per
     // frame is the single most expensive thing on the board, so only pay for
@@ -2488,11 +2692,10 @@ class PlayingCardComponent extends PositionComponent with TapCallbacks {
     canvas.translate(-size.x / 2, 0);
     _CardArt.paint(
       canvas,
-      tag: faceUp ? _tag : null,
+      art,
       width: size.x,
       height: size.y,
       highlighted: highlighted,
-      backSkinId: backSkinId,
     );
     canvas.restore();
     if (_zoomCueActive && _zoomCue > 0) {
@@ -2557,7 +2760,9 @@ class _CardArt {
   /// without limit. Comfortably above a single match's working set.
   static const _maxBodies = 64;
 
-  static final Map<String, Image> _bodies = <String, Image>{};
+  /// Faces are keyed by (tag, face theme), so skins sharing a face theme
+  /// share one set of faces; backs are keyed by skin id.
+  static final Map<Object, Image> _bodies = <Object, Image>{};
   static final Map<String, Image> _shadows = <String, Image>{};
 
   static final Paint _imagePaint =
@@ -2574,15 +2779,33 @@ class _CardArt {
     return math.min(dpr.clamp(1.0, 3.0) * 1.2, 3.0);
   }
 
+  /// Looks up everything a card of this face, skin and size paints. Cards
+  /// hold the result until their face or skin changes, so a steady frame
+  /// builds no cache keys and does no skin lookup.
+  static _ResolvedArt resolve(
+    String? tag,
+    String backSkinId,
+    double width,
+    double height,
+  ) {
+    final skin = CardBackSkins.byId(backSkinId);
+    return _ResolvedArt(
+      tag: tag,
+      backSkinId: backSkinId,
+      body: _body(tag, skin),
+      shadow: _shadow(width, height),
+      borderColor: skin.faceTheme.borderColor,
+    );
+  }
+
   static void paint(
-    Canvas canvas, {
-    required String? tag,
+    Canvas canvas,
+    _ResolvedArt art, {
     required double width,
     required double height,
     required bool highlighted,
-    required String backSkinId,
   }) {
-    final shadow = _shadow(width, height);
+    final shadow = art.shadow;
     canvas.drawImageRect(
       shadow,
       Rect.fromLTWH(0, 0, shadow.width.toDouble(), shadow.height.toDouble()),
@@ -2595,7 +2818,7 @@ class _CardArt {
       _shadowPaint,
     );
 
-    final body = _body(tag, backSkinId);
+    final body = art.body;
     canvas.drawImageRect(
       body,
       Rect.fromLTWH(0, 0, body.width.toDouble(), body.height.toDouble()),
@@ -2603,7 +2826,6 @@ class _CardArt {
       _imagePaint,
     );
 
-    final faceTheme = CardBackSkins.byId(backSkinId).faceTheme;
     final border = RRect.fromRectAndRadius(
       Rect.fromLTWH(0, 0, width, height),
       Radius.circular(width * 0.1),
@@ -2627,7 +2849,7 @@ class _CardArt {
     }
     _borderPaint
       ..strokeWidth = 1.5
-      ..color = faceTheme.borderColor;
+      ..color = art.borderColor;
     canvas.drawRRect(border.deflate(0.75), _borderPaint);
   }
 
@@ -2639,19 +2861,19 @@ class _CardArt {
   /// change never records new art mid-animation.
   static void warmBacks(Iterable<String> backSkinIds) {
     for (final id in backSkinIds) {
-      _body(null, id);
+      _body(null, CardBackSkins.byId(id));
     }
   }
 
-  static Image _body(String? tag, String backSkinId) {
-    final key = '${tag ?? 'back'}|$backSkinId';
+  static Image _body(String? tag, CardBackSkin skin) {
+    final Object key = tag == null ? skin.id : (tag, skin.faceTheme);
     final cached = _bodies.remove(key);
     if (cached != null) {
       // Re-insert to mark most recently used.
       _bodies[key] = cached;
       return cached;
     }
-    final image = _rasterizeBody(tag, backSkinId);
+    final image = _rasterizeBody(tag, skin);
     _bodies[key] = image;
     if (_bodies.length > _maxBodies) {
       // Drop the reference only; frames already recorded keep their own
@@ -2661,7 +2883,7 @@ class _CardArt {
     return image;
   }
 
-  static Image _rasterizeBody(String? tag, String backSkinId) {
+  static Image _rasterizeBody(String? tag, CardBackSkin skin) {
     final scale = _rasterScale;
     final recorder = PictureRecorder();
     final canvas = Canvas(recorder)..scale(scale);
@@ -2671,7 +2893,6 @@ class _CardArt {
       const Rect.fromLTWH(0, 0, w, h),
       const Radius.circular(w * 0.1),
     );
-    final skin = CardBackSkins.byId(backSkinId);
     final faceTheme = skin.faceTheme;
     if (tag == null) {
       _paintBack(canvas, rect, w, h, skin);
@@ -3067,6 +3288,23 @@ class _CardArt {
   }
 }
 
+/// What one card paints for a given face, skin and size.
+class _ResolvedArt {
+  const _ResolvedArt({
+    required this.tag,
+    required this.backSkinId,
+    required this.body,
+    required this.shadow,
+    required this.borderColor,
+  });
+
+  final String? tag;
+  final String backSkinId;
+  final Image body;
+  final Image shadow;
+  final Color borderColor;
+}
+
 class _CardMeta {
   const _CardMeta(this.rank, this.suit, this.color, this.value);
 
@@ -3277,27 +3515,81 @@ class _ShufflePickLabel extends PositionComponent with TapCallbacks {
   }
 }
 
+/// Half of a card flip. Takes the card explicitly: inside a [SequenceEffect]
+/// its parent is the sequence, not the card.
 class _FlipEffect extends Effect {
-  _FlipEffect({required this.to, required double duration})
+  _FlipEffect(this.card, {required this.to, required double duration})
     : super(EffectController(duration: duration));
 
+  final PlayingCardComponent card;
   final double to;
-  late double _from;
+  double _from = 1;
 
   @override
   void onStart() {
-    final target = parent;
-    if (target is PlayingCardComponent) {
-      _from = target._flip;
-    }
+    _from = card._flip;
   }
 
   @override
   void apply(double progress) {
-    final target = parent;
-    if (target is PlayingCardComponent) {
-      target._flip = lerpDouble(_from, to, progress)!;
+    // A flip replaced this frame may still tick once; leave the card alone.
+    if (!identical(card._flipFx, parent)) return;
+    card._flip = lerpDouble(_from, to, progress)!;
+  }
+}
+
+/// Absolute scale tween owning [PlayingCardComponent._scaleFx]. Once another
+/// scale change takes over it stops touching the card, so tweens never stack.
+class _ScaleTween extends Effect {
+  _ScaleTween(this.card, this.to, super.controller, {VoidCallback? onDone})
+    : super(onComplete: onDone);
+
+  final PlayingCardComponent card;
+  final double to;
+  double _from = 1;
+
+  bool get _owner => identical(card._scaleFx, this);
+
+  @override
+  void onStart() {
+    _from = card.scale.x;
+  }
+
+  @override
+  void apply(double progress) {
+    if (!_owner) return;
+    card.scale.splat(lerpDouble(_from, to, progress)!);
+  }
+
+  @override
+  void onFinish() {
+    if (_owner) {
+      card._scaleFx = null;
+    } else {
+      onComplete = null;
     }
+    super.onFinish();
+  }
+}
+
+/// Layout move owning [PlayingCardComponent._moveFx]. Stays delta-based so a
+/// shake ([MoveEffect.by]) still layers on top, but a replaced move goes inert.
+class _MoveTween extends MoveToEffect {
+  _MoveTween(this.card, super.destination, super.controller);
+
+  final PlayingCardComponent card;
+
+  bool get _owner => identical(card._moveFx, this);
+
+  @override
+  void apply(double progress) {
+    if (_owner) super.apply(progress);
+  }
+
+  @override
+  void onFinish() {
+    if (_owner) card._moveFx = null;
+    super.onFinish();
   }
 }
 
@@ -3338,6 +3630,7 @@ class _CardActionPlan {
     this.deckStart,
     this.handOrigin,
     this.drawnFaceUp = true,
+    this.drawnFromDeck = false,
   });
 
   final _CardActionKind kind;
@@ -3352,6 +3645,9 @@ class _CardActionPlan {
   final Vector2? deckStart;
   final Vector2? handOrigin;
   final bool drawnFaceUp;
+
+  /// [drawnStart] is the deck rather than a drawn slot.
+  final bool drawnFromDeck;
 }
 
 class _PauseEffect extends Effect {
@@ -3361,17 +3657,20 @@ class _PauseEffect extends Effect {
   void apply(double progress) {}
 }
 
-/// Tap feedback scale pulse — cancellable by type so layout `scaleTo` wins.
+/// Tap feedback scale pulse. Shares the card's scale slot, so a layout
+/// `scaleTo` cancels it.
 class _ScaleBounceEffect extends Effect {
-  _ScaleBounceEffect({required this.restScale})
+  _ScaleBounceEffect(this.card, {required this.restScale})
     : super(EffectController(duration: 0.14));
 
+  final PlayingCardComponent card;
   final double restScale;
+
+  bool get _owner => identical(card._scaleFx, this);
 
   @override
   void apply(double progress) {
-    final target = parent;
-    if (target is! PositionComponent) return;
+    if (!_owner) return;
     final dip = restScale * 0.94;
     // 0→0.5 squeeze to dip, 0.5→1 release to rest.
     final value =
@@ -3386,14 +3685,14 @@ class _ScaleBounceEffect extends Effect {
               restScale,
               Curves.easeOut.transform((progress - 0.5) * 2),
             )!;
-    target.scale = Vector2.all(value);
+    card.scale.splat(value);
   }
 
   @override
   void onFinish() {
-    final target = parent;
-    if (target is PositionComponent) {
-      target.scale = Vector2.all(restScale);
+    if (_owner) {
+      card.scale.splat(restScale);
+      card._scaleFx = null;
     }
     super.onFinish();
   }

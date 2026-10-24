@@ -26,14 +26,16 @@ class TurnCountdownRing extends StatefulWidget {
   State<TurnCountdownRing> createState() => _TurnCountdownRingState();
 }
 
-class _TurnCountdownRingState extends State<TurnCountdownRing>
-    with SingleTickerProviderStateMixin {
+class _TurnCountdownRingState extends State<TurnCountdownRing> {
   static const _urgentMs = 5000;
 
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: Duration(milliseconds: widget.timer.limitMs),
-  );
+  /// Ten steps a second. The arc creeps a few pixels a second, so this looks
+  /// smooth, and unlike a vsync ticker it lets the app go idle between steps
+  /// instead of drawing full frames for the whole turn.
+  static const _step = Duration(milliseconds: 100);
+
+  Timer? _ticker;
+  int _remainingMs = 0;
 
   @override
   void initState() {
@@ -53,66 +55,60 @@ class _TurnCountdownRingState extends State<TurnCountdownRing>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _ticker?.cancel();
     super.dispose();
   }
 
-  int get _remainingMs {
-    final remaining = ((1 - _controller.value) * widget.timer.limitMs).round();
-    return remaining.clamp(0, widget.timer.limitMs).toInt();
-  }
-
   void _anchor(TurnTimer timer) {
-    _controller
-      ..duration = Duration(milliseconds: timer.limitMs)
-      ..value = 1 - timer.remainingMs / timer.limitMs;
-    if (timer.remainingMs > 0) {
-      unawaited(
-        _controller.animateTo(
-          1,
-          duration: Duration(milliseconds: timer.remainingMs),
-          curve: Curves.linear,
-        ),
+    _ticker?.cancel();
+    _ticker = null;
+    final anchorMs = timer.remainingMs.clamp(0, timer.limitMs).toInt();
+    _remainingMs = anchorMs;
+    if (anchorMs <= 0) return;
+    _ticker = Timer.periodic(_step, (ticker) {
+      // `tick` counts elapsed periods, late callbacks included, so the
+      // countdown never drifts behind the clock.
+      final remaining = math.max(
+        0,
+        anchorMs - ticker.tick * _step.inMilliseconds,
       );
-    }
+      if (remaining <= 0) ticker.cancel();
+      if (!mounted) return;
+      setState(() => _remainingMs = remaining);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final limitMs = widget.timer.limitMs;
+    final remainingMs = _remainingMs;
+    final color =
+        remainingMs <= _urgentMs
+            ? CasinoColors.foldHi
+            : (widget.accent ?? CasinoColors.gold);
     return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          final limitMs = widget.timer.limitMs;
-          final remainingMs = _remainingMs;
-          final color =
-              remainingMs <= _urgentMs
-                  ? CasinoColors.foldHi
-                  : (widget.accent ?? CasinoColors.gold);
-          return Stack(
-            clipBehavior: Clip.none,
-            fit: StackFit.expand,
-            children: [
-              CustomPaint(
-                painter: _TurnArcPainter(
-                  fraction: remainingMs / limitMs,
-                  color: color,
-                ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(
+            painter: _TurnArcPainter(
+              fraction: remainingMs / limitMs,
+              color: color,
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: -8,
+            child: Center(
+              child: _SecondsPill(
+                seconds: (remainingMs / 1000).ceil(),
+                color: color,
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: -8,
-                child: Center(
-                  child: _SecondsPill(
-                    seconds: (remainingMs / 1000).ceil(),
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+            ),
+          ),
+        ],
       ),
     );
   }
