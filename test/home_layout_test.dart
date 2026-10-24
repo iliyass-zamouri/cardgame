@@ -22,6 +22,8 @@ import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
 import 'package:cardgame/ui/screens/tutorial/tutorial_progress_repository.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/theme/wide_layout.dart';
+import 'package:cardgame/ui/widgets/reward_fly_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -252,6 +254,31 @@ void main() {
     );
     // The open page moved into the new layout instead of rebuilding.
     expect(tester.element(find.byType(HowToPlayScreen)), same(page));
+  });
+
+  testWidgets('a wide header floats at the page width, not the window', (
+    tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      locale: 'en',
+      conn: ConnectionStatus.connected,
+      size: const Size(1920, 1080),
+      menu: HomeMenuConfig.fallback,
+    );
+
+    final bar = tester.getRect(
+      find
+          .ancestor(
+            of: find.byKey(HudAnchors.money),
+            matching: find.byType(ClipRRect),
+          )
+          .last,
+    );
+    // Centred in the page beside the rail, at the content's width.
+    const page = Rect.fromLTRB(HomeNavRail.width, 0, 1920, 1080);
+    expect(bar.width, WideLayout.contentMaxWidth);
+    expect(bar.center.dx, moreOrLessEquals(page.center.dx));
   });
 }
 

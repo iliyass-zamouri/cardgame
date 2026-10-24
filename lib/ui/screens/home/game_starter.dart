@@ -906,6 +906,11 @@ class _TopBar extends ConsumerWidget {
   /// Height of the profile and leaderboard cards.
   static const _cardHeight = 70.0;
 
+  /// Widths the wide bar gives its cards and pills when there's room.
+  static const _profileWidth = 340.0;
+  static const _leagueWidth = 230.0;
+  static const _pillWidth = 200.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -917,7 +922,11 @@ class _TopBar extends ConsumerWidget {
       ConnectionStatus.connecting => CasinoColors.gold,
       ConnectionStatus.disconnected => CasinoColors.foldHi,
     };
-    const radius = BorderRadius.vertical(bottom: Radius.circular(24));
+    final wide = WideLayout.of(context);
+    final radius =
+        wide
+            ? BorderRadius.circular(20)
+            : const BorderRadius.vertical(bottom: Radius.circular(24));
     final top = MediaQuery.paddingOf(context).top;
     final money = _ResourcePill(
       key: HudAnchors.money,
@@ -954,37 +963,42 @@ class _TopBar extends ConsumerWidget {
     final league = _LeagueCard(rank: myRank?.rank, onTap: onLeague);
 
     final Widget content;
-    if (WideLayout.of(context)) {
+    if (wide) {
       // One row: who you are on the left, your purse and alerts on the right.
       content = Padding(
-        padding: EdgeInsets.fromLTRB(20, top + 12, 20, 14),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: WideLayout.contentMaxWidth,
-            ),
-            child: Row(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // The cards and pills keep their natural widths, with any extra
+            // room opening up between the two groups; a narrower panel
+            // shrinks them all alike.
+            const gaps = 10 + 24 + 10 + 16 + 8 + 2 * 36.0;
+            const natural = _profileWidth + _leagueWidth + 2 * _pillWidth;
+            final k = math.min(1.0, (constraints.maxWidth - gaps) / natural);
+            return Row(
               children: [
-                Expanded(
-                  flex: 5,
-                  child: SizedBox(height: _cardHeight, child: profile),
+                SizedBox(
+                  width: _profileWidth * k,
+                  height: _cardHeight,
+                  child: profile,
                 ),
                 const SizedBox(width: 10),
-                Expanded(
-                  flex: 3,
-                  child: SizedBox(height: _cardHeight, child: league),
+                SizedBox(
+                  width: _leagueWidth * k,
+                  height: _cardHeight,
+                  child: league,
                 ),
-                const SizedBox(width: 28),
-                Expanded(flex: 3, child: money),
+                const Spacer(),
+                SizedBox(width: _pillWidth * k, child: money),
                 const SizedBox(width: 10),
-                Expanded(flex: 3, child: chips),
+                SizedBox(width: _pillWidth * k, child: chips),
                 const SizedBox(width: 16),
                 notifications,
                 const SizedBox(width: 8),
                 settings,
               ],
-            ),
-          ),
+            );
+          },
         ),
       );
     } else {
@@ -1021,10 +1035,10 @@ class _TopBar extends ConsumerWidget {
       );
     }
 
-    return DecoratedBox(
-      decoration: const BoxDecoration(
+    final bar = DecoratedBox(
+      decoration: BoxDecoration(
         borderRadius: radius,
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: Color(0x99000000),
             blurRadius: 16,
@@ -1069,8 +1083,34 @@ class _TopBar extends ConsumerWidget {
                 ),
               ),
             ),
+            // A floating panel is rimmed all round, like the play panels.
+            if (wide)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: radius,
+                    border: Border.all(
+                      color: CasinoColors.gold.withValues(alpha: 0.3),
+                    ),
+                  ),
+                ),
+              ),
             content,
           ],
+        ),
+      ),
+    );
+    if (!wide) return bar;
+    // A wide window floats the bar over the felt, as wide as the page
+    // content below it rather than the whole window.
+    return Padding(
+      padding: EdgeInsets.fromLTRB(28, top + 14, 28, 0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: WideLayout.contentMaxWidth,
+          ),
+          child: bar,
         ),
       ),
     );
