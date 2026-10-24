@@ -10,7 +10,9 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/theme/pot_card_style.dart';
+import 'package:cardgame/ui/theme/wide_layout.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,6 +53,9 @@ const double _viewportFraction = 0.72;
 /// Pot cards are laid out at this design width and scaled to fit.
 const double _designCardWidth = 240;
 
+/// Widest the front card gets in a wide window's fan.
+const double _wideCardMaxWidth = 420;
+
 /// Each pot tier reads as a higher card: 10♣ · J♦ · Q♥ · K♠ · A♠, then the
 /// chip tables as the remaining aces: A♥ · A♦ · A♣.
 const _tierRanks = ['10', 'J', 'Q', 'K', 'A', 'A', 'A', 'A'];
@@ -85,7 +90,11 @@ bool _isLightChip(Color color) => color.computeLuminance() > 0.5;
 /// so the raster cache never holds full-resolution bitmaps.
 int _potCacheWidth(BuildContext context) {
   final mq = MediaQuery.of(context);
-  final px = mq.size.width * _viewportFraction * 0.8 * mq.devicePixelRatio;
+  final cardWidth =
+      WideLayout.of(context)
+          ? _wideCardMaxWidth
+          : mq.size.width * _viewportFraction;
+  final px = cardWidth * 0.8 * mq.devicePixelRatio;
   // Art ships at 1024px wide; decoding larger only wastes memory.
   return px.round().clamp(320, 1024);
 }
@@ -199,10 +208,23 @@ class StakeSelectorScreen extends ConsumerStatefulWidget {
       _StakeSelectorScreenState();
 }
 
-class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
+class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen>
+    with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController(
     viewportFraction: _viewportFraction,
   );
+
+  /// The wide fan's position in cards: whole at rest, fractional mid-move.
+  late final AnimationController _fan;
+
+  /// Pot the selection is heading to, so quick repeated steps add up before
+  /// the cards arrive.
+  int _target = 0;
+
+  /// Whether the last build showed the wide fan rather than the carousel.
+  bool? _wide;
+
+  DateTime _lastWheelStep = DateTime(0);
 
   /// Selection lives in a notifier so swiping only rebuilds the chip rail and
   /// the bottom action panel, never the carousel itself.
@@ -214,6 +236,8 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
   @override
   void initState() {
     super.initState();
+    _fan = AnimationController.unbounded(vsync: this)
+      ..addListener(_onFanMoved);
     if (_shippedArt == null) {
       _loadShippedPotArt().then((shipped) {
         if (mounted) setState(() => _shippedArt = shipped);
@@ -224,8 +248,18 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _fan.dispose();
     _selected.dispose();
     super.dispose();
+  }
+
+  int get _lastIndex => StakeSelectorScreen.potOptions.length - 1;
+
+  void _onFanMoved() {
+    final index = _fan.value.round().clamp(0, _lastIndex);
+    if (index == _selected.value) return;
+    HapticFeedback.selectionClick();
+    _selected.value = index;
   }
 
   void _onPlay(PotOption option, bool canAfford) {
@@ -258,11 +292,53 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
   }
 
   void _snapTo(int index) {
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
-    );
+    _target = index;
+    const duration = Duration(milliseconds: 320);
+    if (_wide ?? false) {
+      _fan.animateTo(
+        index.toDouble(),
+        duration: duration,
+        curve: Curves.easeOutCubic,
+      );
+    } else {
+      _pageController.animateToPage(
+        index,
+        duration: duration,
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  /// Moves the selection [delta] pots along, stopping at either end.
+  void _step(int delta) {
+    final index = (_target + delta).clamp(0, _lastIndex);
+    if (index != _target) _snapTo(index);
+  }
+
+  /// One step per wheel notch; a smooth-scrolling wheel sends a burst.
+  void _wheelStep(int delta) {
+    final now = DateTime.now();
+    if (now.difference(_lastWheelStep) < const Duration(milliseconds: 180)) {
+      return;
+    }
+    _lastWheelStep = now;
+    _step(delta);
+  }
+
+  /// Brings the layout that just appeared to the current selection.
+  void _syncLayout(bool wide) {
+    if (_wide != null && wide != _wide) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final index = _selected.value;
+        if (wide) {
+          _fan.value = index.toDouble();
+        } else if (_pageController.hasClients) {
+          _pageController.jumpToPage(index);
+        }
+      });
+    }
+    _wide = wide;
   }
 
   @override
@@ -273,112 +349,354 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen> {
     final playerChips = profile?.chips ?? 0;
     final options = StakeSelectorScreen.potOptions;
     final cacheWidth = _potCacheWidth(context);
+    final wide = WideLayout.of(context);
+    _syncLayout(wide);
+    final rtl = Directionality.of(context) == TextDirection.rtl;
 
-    return FeltScaffold(
-      title: l10n.selectMatchStake,
-      body: SafeArea(
-        top: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-              child: _BalanceStrip(
-                playerMoney: playerMoney,
-                playerChips: playerChips,
-                marketplaceLabel: l10n.marketplace,
-                onMarketplace: _openMarketplace,
+    Widget card(int index, double width) {
+      final option = options[index];
+      return SizedBox(
+        width: width,
+        height: width / _cardAspect,
+        child: _PotPlayingCard(
+          option: option,
+          tier: index,
+          image:
+              _shippedArt?.contains(option.assetPath) ?? false
+                  ? _potImage(option.assetPath, cacheWidth)
+                  : null,
+          cityName: option.nameBuilder(l10n),
+          canAfford: option.canAfford(money: playerMoney, chips: playerChips),
+          onTap: () => _snapTo(index),
+        ),
+      );
+    }
+
+    void play() {
+      final option = options[_selected.value];
+      _onPlay(
+        option,
+        option.canAfford(money: playerMoney, chips: playerChips),
+      );
+    }
+
+    final balance = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: _BalanceStrip(
+        playerMoney: playerMoney,
+        playerChips: playerChips,
+        marketplaceLabel: l10n.marketplace,
+        onMarketplace: _openMarketplace,
+      ),
+    );
+    final actionPanel = ValueListenableBuilder<int>(
+      valueListenable: _selected,
+      builder: (context, selected, _) {
+        final option = options[selected];
+        final canAfford = option.canAfford(
+          money: playerMoney,
+          chips: playerChips,
+        );
+        return _ActionPanel(
+          option: option,
+          canAfford: canAfford,
+          playLabel:
+              canAfford
+                  ? l10n.play
+                  : option.currency == CurrencyType.chips
+                  ? l10n.getMoreChips
+                  : l10n.getMoreMoney,
+          onPlay: () => _onPlay(option, canAfford),
+        );
+      },
+    );
+
+    final Widget body;
+    if (wide) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: WideLayout.readableMaxWidth,
               ),
+              child: balance,
             ),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Fit the portrait card to whichever axis is tighter so
-                  // short screens never overflow.
-                  final byWidth = constraints.maxWidth * _viewportFraction - 16;
-                  final byHeight = (constraints.maxHeight - 28) * _cardAspect;
-                  final cardWidth = math.max(0.0, math.min(byWidth, byHeight));
-                  return Center(
-                    child: SizedBox(
-                      height: cardWidth / _cardAspect + 24,
-                      child: PageView.builder(
-                        controller: _pageController,
-                        itemCount: options.length,
-                        onPageChanged: (index) {
-                          HapticFeedback.selectionClick();
-                          _selected.value = index;
-                        },
-                        itemBuilder: (context, index) {
-                          final option = options[index];
-                          return _CarouselItem(
-                            controller: _pageController,
-                            index: index,
-                            selected: _selected,
-                            child: Center(
-                              child: SizedBox(
-                                width: cardWidth,
-                                height: cardWidth / _cardAspect,
-                                child: _PotPlayingCard(
-                                  option: option,
-                                  tier: index,
-                                  image:
-                                      _shippedArt?.contains(option.assetPath) ??
-                                              false
-                                          ? _potImage(
-                                            option.assetPath,
-                                            cacheWidth,
-                                          )
-                                          : null,
-                                  cityName: option.nameBuilder(l10n),
-                                  canAfford: option.canAfford(
-                                    money: playerMoney,
-                                    chips: playerChips,
-                                  ),
-                                  onTap: () => _snapTo(index),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Room below for the fanned cards' drop.
+                final cardWidth = math.max(
+                  0.0,
+                  math.min(
+                    (constraints.maxHeight - 56) * _cardAspect,
+                    _wideCardMaxWidth,
+                  ),
+                );
+                return _PotFan(
+                  position: _fan,
+                  cardWidth: cardWidth,
+                  cards: [
+                    for (var i = 0; i < options.length; i++)
+                      RepaintBoundary(
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: card(i, cardWidth),
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                  ],
+                  onDragStart: _fan.stop,
+                  onDrag:
+                      (cards) =>
+                          _fan.value = (_fan.value + cards).clamp(
+                            -0.4,
+                            _lastIndex + 0.4,
+                          ),
+                  onDragEnd:
+                      (cardsPerSecond) => _snapTo(
+                        (_fan.value + cardsPerSecond * 0.15).round().clamp(
+                          0,
+                          _lastIndex,
+                        ),
+                      ),
+                  onWheel: _wheelStep,
+                );
+              },
             ),
-            ValueListenableBuilder<int>(
-              valueListenable: _selected,
-              builder:
-                  (context, selected, _) => _ChipRail(
+          ),
+          ValueListenableBuilder<int>(
+            valueListenable: _selected,
+            builder: (context, selected, _) {
+              Widget arrow(int delta) {
+                final enabled =
+                    delta < 0 ? selected > 0 : selected < _lastIndex;
+                return AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: enabled ? 1 : 0.3,
+                  child: FeltIconButton(
+                    icon:
+                        delta < 0 ? AppIcons.arrowBack : AppIcons.arrowForward,
+                    mirrorInRtl: true,
+                    size: 44,
+                    onTap: enabled ? () => _step(delta) : null,
+                  ),
+                );
+              }
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  arrow(-1),
+                  const SizedBox(width: 20),
+                  _ChipRail(
                     options: options,
                     selected: selected,
                     playerMoney: playerMoney,
                     playerChips: playerChips,
                     onTap: _snapTo,
+                    showAll: true,
                   ),
+                  const SizedBox(width: 20),
+                  arrow(1),
+                ],
+              );
+            },
+          ),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: actionPanel,
             ),
-            ValueListenableBuilder<int>(
-              valueListenable: _selected,
-              builder: (context, selected, _) {
-                final option = options[selected];
-                final canAfford = option.canAfford(
-                  money: playerMoney,
-                  chips: playerChips,
-                );
-                return _ActionPanel(
-                  option: option,
-                  canAfford: canAfford,
-                  playLabel:
-                      canAfford
-                          ? l10n.play
-                          : option.currency == CurrencyType.chips
-                          ? l10n.getMoreChips
-                          : l10n.getMoreMoney,
-                  onPlay: () => _onPlay(option, canAfford),
+          ),
+        ],
+      );
+    } else {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          balance,
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Fit the portrait card to whichever axis is tighter so
+                // short screens never overflow.
+                final byWidth = constraints.maxWidth * _viewportFraction - 16;
+                final byHeight = (constraints.maxHeight - 28) * _cardAspect;
+                final cardWidth = math.max(0.0, math.min(byWidth, byHeight));
+                return Center(
+                  child: SizedBox(
+                    height: cardWidth / _cardAspect + 24,
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: options.length,
+                      onPageChanged: (index) {
+                        HapticFeedback.selectionClick();
+                        _selected.value = index;
+                        _target = index;
+                      },
+                      itemBuilder: (context, index) {
+                        return _CarouselItem(
+                          controller: _pageController,
+                          index: index,
+                          selected: _selected,
+                          child: Center(child: card(index, cardWidth)),
+                        );
+                      },
+                    ),
+                  ),
                 );
               },
             ),
-          ],
+          ),
+          ValueListenableBuilder<int>(
+            valueListenable: _selected,
+            builder:
+                (context, selected, _) => _ChipRail(
+                  options: options,
+                  selected: selected,
+                  playerMoney: playerMoney,
+                  playerChips: playerChips,
+                  onTap: _snapTo,
+                ),
+          ),
+          actionPanel,
+        ],
+      );
+    }
+
+    return FeltScaffold(
+      title: l10n.selectMatchStake,
+      // The fan runs the full width; its rails keep their own widths.
+      maxBodyWidth: double.infinity,
+      body: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.arrowLeft):
+              () => _step(rtl ? 1 : -1),
+          const SingleActivator(LogicalKeyboardKey.arrowRight):
+              () => _step(rtl ? -1 : 1),
+          const SingleActivator(LogicalKeyboardKey.enter): play,
+        },
+        child: Focus(
+          autofocus: true,
+          child: SafeArea(top: false, child: body),
+        ),
+      ),
+    );
+  }
+}
+
+/// Wide windows: every pot dealt out as a fanned hand, the selected card in
+/// front at full size and its neighbours tucked behind it, smaller, tilted
+/// and dimmed. [position] is the selection in cards, fractional mid-move.
+/// Only the transforms change per frame; [cards] are never rebuilt.
+class _PotFan extends StatelessWidget {
+  const _PotFan({
+    required this.position,
+    required this.cardWidth,
+    required this.cards,
+    required this.onDragStart,
+    required this.onDrag,
+    required this.onDragEnd,
+    required this.onWheel,
+  });
+
+  final Animation<double> position;
+  final double cardWidth;
+  final List<Widget> cards;
+  final VoidCallback onDragStart;
+
+  /// Dragged this many cards towards the later pots.
+  final ValueChanged<double> onDrag;
+
+  /// Let go moving this many cards a second towards the later pots.
+  final ValueChanged<double> onDragEnd;
+
+  /// A wheel notch, one pot later (1) or earlier (-1).
+  final ValueChanged<int> onWheel;
+
+  /// Distance between neighbouring centres as a share of the card width.
+  /// Under 1, so each neighbour tucks behind the card in front of it.
+  static const _spacing = 0.8;
+
+  /// Cards further than this from the front aren't built.
+  static const _reach = 3.2;
+
+  @override
+  Widget build(BuildContext context) {
+    // Later pots lie towards the reading direction's end.
+    final dir = Directionality.of(context) == TextDirection.rtl ? -1.0 : 1.0;
+    final spacing = cardWidth * _spacing;
+    return Listener(
+      onPointerSignal: (event) {
+        if (event is! PointerScrollEvent) return;
+        final delta = event.scrollDelta;
+        final horizontal = delta.dx.abs() > delta.dy.abs();
+        final amount = horizontal ? delta.dx * dir : delta.dy;
+        if (amount == 0) return;
+        GestureBinding.instance.pointerSignalResolver.register(
+          event,
+          (_) => onWheel(amount > 0 ? 1 : -1),
+        );
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragStart: (_) => onDragStart(),
+        onHorizontalDragUpdate:
+            (details) => onDrag(-dir * details.primaryDelta! / spacing),
+        onHorizontalDragEnd:
+            (details) =>
+                onDragEnd(-dir * (details.primaryVelocity ?? 0) / spacing),
+        child: AnimatedBuilder(
+          animation: position,
+          builder: (context, _) {
+            final page = position.value;
+            // Furthest first, so the front card paints (and hit-tests) on top.
+            final order = [
+              for (var i = 0; i < cards.length; i++)
+                if ((i - page).abs() < _reach) i,
+            ]..sort((a, b) => (b - page).abs().compareTo((a - page).abs()));
+            return Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                for (final i in order) _placed(i, i - page, dir, spacing),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _placed(int index, double offset, double dir, double spacing) {
+    final away = offset.abs();
+    final near = math.min(away, 2.0);
+    // Cards shrink with distance, so each step out is a little shorter.
+    final dx =
+        offset * spacing * (1 - 0.06 * (away - 1).clamp(0.0, 2.0));
+    final dy = 16 * near + 6 * near * near;
+    final scale = 1 - 0.1 * math.min(away, 2.5);
+    // Side cards are shaded rather than faded, so the card behind never
+    // shows through; only the outermost fade as they leave the reach.
+    final fade = ((_reach - away) / (_reach - 2.5)).clamp(0.0, 1.0);
+    Widget card = DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.24 * near),
+        borderRadius: _PotPlayingCard.radius,
+      ),
+      child: cards[index],
+    );
+    if (fade < 1) card = Opacity(opacity: fade, child: card);
+    return KeyedSubtree(
+      key: ValueKey(index),
+      child: Transform.translate(
+        offset: Offset(dir * dx, dy),
+        child: Transform.rotate(
+          angle: dir * offset.clamp(-2.5, 2.5) * 0.06,
+          child: Transform.scale(scale: scale, child: card),
         ),
       ),
     );
@@ -551,11 +869,12 @@ class _PotPlayingCard extends StatelessWidget {
   final bool canAfford;
   final VoidCallback onTap;
 
+  static const radius = BorderRadius.all(Radius.circular(16));
+
   @override
   Widget build(BuildContext context) {
     final rank = _tierRanks[tier.clamp(0, _tierRanks.length - 1)];
     final suit = _tierSuits[tier.clamp(0, _tierSuits.length - 1)];
-    const radius = BorderRadius.all(Radius.circular(16));
 
     return GestureDetector(
       onTap: onTap,
@@ -955,7 +1274,8 @@ class _LockedVeil extends StatelessWidget {
 /// Poker chips, one per pot tier, shown like carousel dots: a window of
 /// [_ChipRail.visible] chips follows the selection, the chip just past each
 /// edge peeks in small and faded, and the rest are hidden. The selected chip
-/// lifts off the felt.
+/// lifts off the felt. [showAll] lays every chip out instead, the chip
+/// tables set apart from the money tables.
 class _ChipRail extends StatelessWidget {
   const _ChipRail({
     required this.options,
@@ -963,6 +1283,7 @@ class _ChipRail extends StatelessWidget {
     required this.playerMoney,
     required this.playerChips,
     required this.onTap,
+    this.showAll = false,
   });
 
   final List<PotOption> options;
@@ -970,20 +1291,34 @@ class _ChipRail extends StatelessWidget {
   final int playerMoney;
   final int playerChips;
   final ValueChanged<int> onTap;
+  final bool showAll;
 
   static const visible = 5;
   static const _slot = 60.0;
 
   /// Room at each end for the peeking neighbour.
   static const _peek = 26.0;
+
+  /// Space between the money tables and the chip tables when all show.
+  static const _groupGap = 24.0;
   static const _duration = Duration(milliseconds: 260);
+
+  double get _edge => showAll ? 0 : _peek;
+
+  /// Extra room before chip [i]: the group gap, once past the money tables.
+  double _gapBefore(int i) =>
+      showAll && options[i].currency != options.first.currency
+          ? _groupGap
+          : 0;
 
   @override
   Widget build(BuildContext context) {
-    final shown = math.min(visible, options.length);
+    final shown = showAll ? options.length : math.min(visible, options.length);
     // Keep the selection centred, but never scroll past either end.
     final first = (selected - shown ~/ 2).clamp(0, options.length - shown);
-    final width = shown * _slot + 2 * _peek;
+    final width = shown * _slot + 2 * _edge + _gapBefore(options.length - 1);
+    // Chips run the same way as the cards: right to left in RTL.
+    final rtl = Directionality.of(context) == TextDirection.rtl;
 
     return SizedBox(
       height: 70,
@@ -996,7 +1331,7 @@ class _ChipRail extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               for (var i = 0; i < options.length; i++)
-                _chipAt(i, i - first, shown),
+                _chipAt(i, i - first, shown, rtl ? width : null),
             ],
           ),
         ),
@@ -1004,17 +1339,18 @@ class _ChipRail extends StatelessWidget {
     );
   }
 
-  /// Chip [i] at [slot] positions from the window's first chip.
-  Widget _chipAt(int i, int slot, int shown) {
+  /// Chip [i] at [slot] positions from the window's first chip, measured
+  /// from the right of a rail [mirrorWidth] wide when given.
+  Widget _chipAt(int i, int slot, int shown, double? mirrorWidth) {
     final inWindow = slot >= 0 && slot < shown;
     // Distance past the window edge: 1 = peeking neighbour, 2+ = hidden.
     final beyond = slot < 0 ? -slot : slot - shown + 1;
     final double center =
         inWindow
-            ? _peek + (slot + 0.5) * _slot
+            ? _edge + (slot + 0.5) * _slot + _gapBefore(i)
             : slot < 0
-            ? _peek + (slot + 0.5) * _slot * 0.45
-            : _peek + shown * _slot + (beyond - 0.5) * _slot * 0.45;
+            ? _edge + (slot + 0.5) * _slot * 0.45
+            : _edge + shown * _slot + (beyond - 0.5) * _slot * 0.45;
     final affordable = options[i].canAfford(
       money: playerMoney,
       chips: playerChips,
@@ -1030,7 +1366,7 @@ class _ChipRail extends StatelessWidget {
       key: ValueKey(options[i].id),
       duration: _duration,
       curve: Curves.easeOutCubic,
-      left: center - _slot / 2,
+      left: (mirrorWidth == null ? center : mirrorWidth - center) - _slot / 2,
       top: 0,
       width: _slot,
       height: 70,
