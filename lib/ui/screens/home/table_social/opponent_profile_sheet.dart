@@ -11,12 +11,12 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/country_flag.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// Quick profile card for the opponent, opened by tapping their seat.
 Future<void> showOpponentProfileSheet(
@@ -172,7 +172,7 @@ class _OpponentProfileSheetState extends ConsumerState<_OpponentProfileSheet> {
                         onTap: requested ? null : _addFriend,
                       ),
                     _SheetAction(
-                      icon: AppIcons.flag,
+                      icon: AppIcons.report,
                       label: l10n.reportPlayer,
                       color: CasinoColors.foldHi,
                       onTap: () => _report(name),
@@ -197,7 +197,7 @@ class _SheetAction extends StatelessWidget {
     this.color,
   });
 
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final String label;
   final VoidCallback? onTap;
   final Color? color;
@@ -224,7 +224,7 @@ class _SheetAction extends StatelessWidget {
             ),
             child: Column(
               children: [
-                HugeIcon(icon: icon, size: 20, color: color),
+                GameIcon(icon: icon, size: 20, color: color),
                 const SizedBox(height: 6),
                 Text(
                   label,

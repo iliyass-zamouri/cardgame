@@ -21,6 +21,7 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/insufficient_funds_sheet.dart';
 import 'package:cardgame/ui/widgets/reward_fly_overlay.dart';
@@ -28,7 +29,6 @@ import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// Opens the 7-day streak. [source] is logged: 'launch' or 'home'.
 Future<void> showDailyRewardModal(
@@ -582,7 +582,7 @@ class _DailyRewardModalState extends ConsumerState<DailyRewardModal>
                     leading:
                         _busy
                             ? const SuitCardLoader(height: 18)
-                            : const HugeIcon(
+                            : const GameIcon(
                               icon: AppIcons.gift,
                               size: 22,
                               color: CardInk.black,
@@ -803,7 +803,7 @@ class _StreakHeader extends StatelessWidget {
 class _Pill extends StatelessWidget {
   const _Pill({required this.icon, required this.text, this.mono = false});
 
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final String text;
   final bool mono;
 
@@ -820,7 +820,7 @@ class _Pill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          HugeIcon(icon: icon, size: 15, color: color),
+          GameIcon(icon: icon, size: 15, color: color),
           const SizedBox(width: 6),
           Text(
             text,
@@ -952,11 +952,11 @@ class _Notices extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final claimable = status.state == DailyRewardState.claimable;
-    final notes = <(List<List<dynamic>>, String)>[
+    final notes = <(GameIconData, String)>[
       if (status.isEvent && status.calendarEndsAt != null)
         (AppIcons.crown, l10n.dailyEventEnds(_daysLeft(status))),
       if (claimable && status.freezesWillUse > 0)
-        (AppIcons.snow, l10n.dailyFreezeSaves),
+        (AppIcons.freeze, l10n.dailyFreezeSaves),
       if (claimable && status.graceUsed > 0 && status.freezesWillUse == 0)
         (AppIcons.checkCircle, l10n.dailyGraceForgiven),
       if (claimable && status.resets) (AppIcons.refresh, l10n.dailyNewStreak),
@@ -987,7 +987,7 @@ class _Notices extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  HugeIcon(icon: icon, size: 14, color: CasinoColors.goldSoft),
+                  GameIcon(icon: icon, size: 14, color: CasinoColors.goldSoft),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
@@ -1071,8 +1071,8 @@ class _AdBoostButton extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const HugeIcon(
-                      icon: AppIcons.playVideo,
+                    const GameIcon(
+                      icon: AppIcons.watchAd,
                       size: 18,
                       color: Colors.white,
                     ),

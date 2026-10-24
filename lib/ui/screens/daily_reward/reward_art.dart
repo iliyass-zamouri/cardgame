@@ -6,12 +6,12 @@ import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/amount_format.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// The picture for one reward, drawn to fit a [size] square. Everything is
 /// code-drawn like the rest of the table: coins, chips, the player's avatars
@@ -513,7 +513,7 @@ class _GiftMedallion extends StatelessWidget {
           border: Border.all(color: const Color(0xFF7A5A0E)),
         ),
         child: Center(
-          child: HugeIcon(
+          child: GameIcon(
             icon: AppIcons.gift,
             size: size * 0.5,
             color: const Color(0xFF4A3708),

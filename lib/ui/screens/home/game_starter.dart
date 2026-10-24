@@ -23,7 +23,6 @@ import 'package:cardgame/ui/screens/daily_reward/daily_entry_pill.dart';
 import 'package:cardgame/ui/screens/daily_reward/daily_reward_modal.dart';
 import 'package:cardgame/ui/screens/friends_screen.dart';
 import 'package:cardgame/ui/screens/home/home_menu_widgets.dart';
-import 'package:cardgame/ui/screens/home/nav_art.dart';
 import 'package:cardgame/ui/screens/home/stake_selector_modal.dart';
 import 'package:cardgame/ui/screens/how_to_play_screen.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
@@ -43,7 +42,7 @@ import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/trailer/trailer_mode.dart';
 
@@ -264,15 +263,15 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
 
   RailDockItem _navItem(HomeNavTab tab, int friendsBadge, bool selected) {
     final l10n = context.l10n;
-    final (art, label) = switch (tab) {
-      HomeNavTab.shop => (NavArt.shop, l10n.shop),
-      HomeNavTab.friends => (NavArt.friends, l10n.friends),
-      HomeNavTab.home => (NavArt.home, l10n.home),
-      HomeNavTab.collection => (NavArt.collection, l10n.collection),
-      HomeNavTab.rules => (NavArt.rules, l10n.howToPlay),
+    final (icon, label) = switch (tab) {
+      HomeNavTab.shop => (AppIcons.shop, l10n.shop),
+      HomeNavTab.friends => (AppIcons.friends, l10n.friends),
+      HomeNavTab.home => (AppIcons.home, l10n.home),
+      HomeNavTab.collection => (AppIcons.decks, l10n.collection),
+      HomeNavTab.rules => (AppIcons.rules, l10n.howToPlay),
     };
     return RailDockItem(
-      art: art,
+      icon: icon,
       label: label,
       badge: tab == HomeNavTab.friends ? friendsBadge : 0,
       selected: selected,
@@ -454,21 +453,21 @@ class _HomeTab extends ConsumerWidget {
       HomeMode.createRoom => ModePlayingCard(
         label: l10n.createRoom,
         suit: SuitShape.hearts,
-        icon: AppIcons.addHome,
+        icon: AppIcons.createRoom,
         height: height,
         onTap: connected ? notifier.createRoom : null,
       ),
       HomeMode.joinRoom => ModePlayingCard(
         label: l10n.joinRoom,
         suit: SuitShape.diamonds,
-        icon: AppIcons.login,
+        icon: AppIcons.enter,
         height: height,
         onTap: connected ? () => _showJoinRoomDialog(context) : null,
       ),
       HomeMode.playVsRobot => ModePlayingCard(
         label: l10n.playVsRobot,
         suit: SuitShape.clubs,
-        icon: AppIcons.game,
+        icon: AppIcons.robot,
         height: height,
         onTap: () => notifier.playVsRobot(robotName: l10n.robotName),
       ),
@@ -1154,7 +1153,7 @@ class _RailIconButton extends StatelessWidget {
     this.badge = 0,
   });
 
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final String tooltip;
   final VoidCallback onTap;
   final int badge;
@@ -1184,7 +1183,7 @@ class _RailIconButton extends StatelessWidget {
                   ),
                 ),
                 alignment: Alignment.center,
-                child: HugeIcon(
+                child: GameIcon(
                   icon: icon,
                   color: CasinoColors.goldSoft,
                   size: 19,
@@ -1395,7 +1394,7 @@ class _LeagueCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: HugeIcon(
+                    child: GameIcon(
                       icon: AppIcons.trophy,
                       size: 21,
                       color: CasinoColors.gold,

@@ -9,9 +9,9 @@ import 'package:cardgame/ui/screens/daily_reward/streak_countdown.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// Whether the home tab shows [DailyEntryPill], so its layout can make room.
 final dailyEntryVisibleProvider = Provider<bool>((ref) {
@@ -214,7 +214,7 @@ class _StreakBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const HugeIcon(
+          const GameIcon(
             icon: AppIcons.fire,
             size: 15,
             color: Color(0xFFFF9A2E),

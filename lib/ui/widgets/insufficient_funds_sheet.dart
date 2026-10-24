@@ -5,10 +5,10 @@ import 'package:cardgame/ui/screens/marketplace_screen.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// Money per chip on the server exchange (`MONEY_PER_CHIP`).
 const _moneyPerChip = 1000;
@@ -129,7 +129,7 @@ class InsufficientFundsSheet extends ConsumerWidget {
             else if (inChips)
               GoldButton(
                 label: l10n.buyChips,
-                leading: const HugeIcon(icon: AppIcons.shoppingBag),
+                leading: const GameIcon(icon: AppIcons.shop),
                 onPressed:
                     () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -143,7 +143,7 @@ class InsufficientFundsSheet extends ConsumerWidget {
             else ...[
               GoldButton(
                 label: l10n.exchangeChips,
-                leading: const HugeIcon(icon: AppIcons.swapHoriz),
+                leading: const GameIcon(icon: AppIcons.swap),
                 onPressed:
                     chips > 0
                         ? () => CurrencyConversionModal.show(
@@ -155,7 +155,7 @@ class InsufficientFundsSheet extends ConsumerWidget {
               const SizedBox(height: 10),
               LeatherButton(
                 label: l10n.buyMoney,
-                leading: const HugeIcon(icon: AppIcons.shoppingBag),
+                leading: const GameIcon(icon: AppIcons.shop),
                 onPressed:
                     () => Navigator.of(context).push(
                       MaterialPageRoute<void>(

@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cardgame/ui/flame/suit_shapes.dart';
-import 'package:cardgame/ui/screens/home/nav_art.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 
 /// Plays a "dealt onto the table" entrance after [delay].
 class DealIn extends StatefulWidget {
@@ -335,7 +334,7 @@ class PrimaryPlayCard extends StatelessWidget {
 
   final String title;
   final String subtitle;
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final VoidCallback? onTap;
 
   @override
@@ -406,7 +405,7 @@ class PrimaryPlayCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: HugeIcon(
+                    child: GameIcon(
                       icon: icon,
                       size: 26,
                       color: CasinoColors.gold,
@@ -472,7 +471,7 @@ class ModePlayingCard extends StatelessWidget {
 
   final String label;
   final SuitShape suit;
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final VoidCallback? onTap;
   final double height;
 
@@ -529,7 +528,7 @@ class ModePlayingCard extends StatelessWidget {
                           color: color.withValues(alpha: 0.35),
                         ),
                       ),
-                      child: HugeIcon(icon: icon, size: 20, color: color),
+                      child: GameIcon(icon: icon, size: 20, color: color),
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
@@ -612,14 +611,14 @@ class _WordFitText extends StatelessWidget {
 
 class RailDockItem {
   const RailDockItem({
-    required this.art,
+    required this.icon,
     required this.label,
     required this.onTap,
     this.badge = 0,
     this.selected = false,
   });
 
-  final NavArt art;
+  final GameIconData icon;
   final String label;
   final VoidCallback onTap;
   final int badge;
@@ -1271,7 +1270,11 @@ class _NavTile extends StatelessWidget {
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      NavArtIcon(item.art, size: _iconSize),
+                      GameIcon(
+                        icon: item.icon,
+                        size: _iconSize,
+                        color: Colors.white,
+                      ),
                       if (item.badge > 0)
                         PositionedDirectional(
                           top: -4,

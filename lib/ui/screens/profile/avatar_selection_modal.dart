@@ -10,7 +10,7 @@ import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
@@ -153,7 +153,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
                 LeatherButton(
                   label: l10n.marketplace,
                   compact: true,
-                  leading: const HugeIcon(icon: AppIcons.shoppingBag),
+                  leading: const GameIcon(icon: AppIcons.shop),
                   onPressed: () {
                     Navigator.of(dialogCtx).pop(false);
                     Navigator.of(context).pop();
@@ -349,7 +349,7 @@ class _AvatarGridTile extends StatelessWidget {
                         shape: BoxShape.circle,
                         color: Colors.black38,
                       ),
-                      child: const HugeIcon(
+                      child: const GameIcon(
                         icon: AppIcons.lock,
                         color: Colors.white70,
                         size: 24,
@@ -365,7 +365,7 @@ class _AvatarGridTile extends StatelessWidget {
                           shape: BoxShape.circle,
                           color: CasinoColors.gold,
                         ),
-                        child: HugeIcon(
+                        child: GameIcon(
                           icon: AppIcons.check,
                           size: 12,
                           color: CasinoColors.bg,

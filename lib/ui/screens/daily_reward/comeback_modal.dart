@@ -14,12 +14,12 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/gold_burst.dart';
 import 'package:cardgame/ui/widgets/reward_fly_overlay.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// The welcome-back gift for a player returning after a long break.
 Future<void> showComebackModal(BuildContext context) {
@@ -253,7 +253,7 @@ class _ComebackModalState extends ConsumerState<ComebackModal>
                     leading:
                         _claiming
                             ? const SuitCardLoader(height: 18)
-                            : HugeIcon(
+                            : GameIcon(
                               icon:
                                   _claimed
                                       ? AppIcons.checkCircle

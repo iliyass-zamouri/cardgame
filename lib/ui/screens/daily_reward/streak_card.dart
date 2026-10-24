@@ -7,10 +7,10 @@ import 'package:cardgame/ui/screens/daily_reward/reward_art.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:cardgame/ui/widgets/gold_burst.dart';
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// How a day card is drawn.
 enum DayCardLook { upcoming, today, next, claimed }
@@ -466,7 +466,7 @@ class _Tag extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (jackpot) ...[
-            HugeIcon(
+            GameIcon(
               icon: AppIcons.crown,
               size: fontSize * 1.2,
               color: today ? CardInk.black : const Color(0xFF7A5A0E),
@@ -818,10 +818,9 @@ class GoldSeal extends StatelessWidget {
               ),
             ),
             child: Center(
-              child: HugeIcon(
+              child: GameIcon(
                 icon: AppIcons.check,
                 size: size * 0.48,
-                strokeWidth: 2.8,
                 color: const Color(0xFF4A3708),
               ),
             ),

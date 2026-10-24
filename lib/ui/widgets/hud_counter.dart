@@ -1,13 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/amount_format.dart';
 import 'package:cardgame/ui/widgets/counting_amount.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// The top bar's money or chip counter: the coin overlapping a recessed
 /// track, the amount, and a gold "+" at the end. A rise (a reward landing, a
@@ -132,10 +133,9 @@ class _HudCounterState extends State<HudCounter>
                     ),
                     border: Border.all(color: const Color(0xFF7A5A0E)),
                   ),
-                  child: const HugeIcon(
-                    icon: HugeIcons.strokeRoundedAdd01,
+                  child: const GameIcon(
+                    icon: AppIcons.add,
                     size: 16,
-                    strokeWidth: 2.6,
                     color: CardInk.black,
                   ),
                 ),

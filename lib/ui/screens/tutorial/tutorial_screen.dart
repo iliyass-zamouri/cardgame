@@ -3,8 +3,10 @@ import 'dart:math' as math;
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/screens/tutorial/tutorial_controller.dart';
 import 'package:cardgame/ui/screens/tutorial/tutorial_table.dart';
+import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:flutter/material.dart';
 
 /// Plays [lessons] from [startIndex] onward, one hands-on lesson at a time.
@@ -311,8 +313,8 @@ class _LessonDoneOverlay extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.check_circle_rounded,
+                GameIcon(
+                  icon: AppIcons.checkCircle,
                   color: CasinoColors.success,
                   size: 44,
                 ),
@@ -372,8 +374,8 @@ class _FinishedCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.emoji_events_rounded,
+            GameIcon(
+              icon: AppIcons.trophy,
               color: CasinoColors.gold,
               size: 56,
             ),

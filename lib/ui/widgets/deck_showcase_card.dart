@@ -4,9 +4,9 @@ import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// Collectible-style deck card: a frame in the deck's rarity colour, the
 /// deck fanned under a spotlight, then name, blurb and an action (shop or
@@ -142,9 +142,7 @@ class DeckShowcaseCard extends StatelessWidget {
                                 )
                                 : _StatusDot(
                                   icon:
-                                      locked
-                                          ? AppIcons.lock
-                                          : AppIcons.visibility,
+                                      locked ? AppIcons.lock : AppIcons.reveal,
                                   color: CasinoColors.goldSoft,
                                 ),
                       ),
@@ -217,7 +215,7 @@ class DeckShowcaseCard extends StatelessWidget {
 class _StatusDot extends StatelessWidget {
   const _StatusDot({required this.icon, required this.color});
 
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final Color color;
 
   @override
@@ -230,7 +228,7 @@ class _StatusDot extends StatelessWidget {
         color: Colors.black.withValues(alpha: 0.55),
         border: Border.all(color: color.withValues(alpha: 0.8)),
       ),
-      child: HugeIcon(icon: icon, size: 14, color: color),
+      child: GameIcon(icon: icon, size: 14, color: color),
     );
   }
 }
@@ -298,7 +296,7 @@ class _RarityBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const HugeIcon(
+          const GameIcon(
             icon: AppIcons.diamond,
             size: 12,
             color: Color(0xFF17171C),

@@ -404,11 +404,11 @@ class _ActionButtons extends StatelessWidget {
                 TutorialAction.endGame => l10n.endGame,
               },
               icon: switch (action) {
-                TutorialAction.reveal => AppIcons.visibility,
-                TutorialAction.peek => AppIcons.zoomIn,
+                TutorialAction.reveal => AppIcons.reveal,
+                TutorialAction.peek => AppIcons.peek,
                 TutorialAction.shuffle => AppIcons.shuffle,
-                TutorialAction.replace => AppIcons.swapHoriz,
-                TutorialAction.endGame => AppIcons.flag,
+                TutorialAction.replace => AppIcons.swap,
+                TutorialAction.endGame => AppIcons.endGame,
               },
               tone:
                   action == TutorialAction.endGame

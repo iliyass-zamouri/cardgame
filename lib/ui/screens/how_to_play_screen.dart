@@ -7,6 +7,7 @@ import 'package:cardgame/ui/screens/tutorial/tutorial_screen.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/playing_card_face.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -120,7 +121,7 @@ class _HowToPlayScreenState extends ConsumerState<HowToPlayScreen> {
             FeltTileGroup(
               children: [
                 FeltTile(
-                  icon: AppIcons.menuBook,
+                  icon: AppIcons.rules,
                   title: l10n.tutQuickRules,
                   subtitle: l10n.tutQuickRulesSubtitle,
                   onTap:
@@ -163,7 +164,11 @@ class _LessonBadge extends StatelessWidget {
       ),
       child:
           done
-              ? const Icon(Icons.check_rounded, color: Colors.white, size: 22)
+              ? const GameIcon(
+                icon: AppIcons.check,
+                color: Colors.white,
+                size: 22,
+              )
               : Text(
                 '$number',
                 style: TextStyle(

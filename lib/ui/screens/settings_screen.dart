@@ -28,7 +28,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
@@ -200,7 +200,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           FeltTileGroup(
             children: [
               FeltTile(
-                icon: AppIcons.menuBook,
+                icon: AppIcons.rules,
                 title: l10n.howToPlay,
                 onTap:
                     () => Navigator.of(context).push(
@@ -210,7 +210,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
               ),
               FeltTile(
-                icon: AppIcons.style,
+                icon: AppIcons.decks,
                 title: l10n.deck,
                 onTap:
                     () => Navigator.of(context).push(
@@ -271,7 +271,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 onTap: () => _launchLegalUrl(PRIVACY_URL),
               ),
               FeltTile(
-                icon: AppIcons.menuBook,
+                icon: AppIcons.document,
                 title: 'Terms of Service',
                 onTap: () => _launchLegalUrl(TOS_URL),
               ),
@@ -281,7 +281,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           FeltTileGroup(
             children: [
               FeltTile(
-                icon: AppIcons.logout,
+                icon: AppIcons.exit,
                 title: l10n.signOut,
                 destructive: true,
                 onTap: () async {
@@ -290,7 +290,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 },
               ),
               FeltTile(
-                icon: AppIcons.removeCircle,
+                icon: AppIcons.trash,
                 title: 'Delete Account',
                 destructive: true,
                 onTap: () => _confirmDeleteAccount(context),
@@ -705,7 +705,7 @@ class _ProCardState extends ConsumerState<_ProCard> {
       padding: const EdgeInsets.fromLTRB(26, 16, 18, 16),
       child: Row(
         children: [
-          const HugeIcon(icon: AppIcons.premium, color: CardInk.red, size: 30),
+          const GameIcon(icon: AppIcons.premium, color: CardInk.red, size: 30),
           const SizedBox(width: 14),
           const Expanded(
             child: Column(
@@ -787,7 +787,7 @@ class _NotifyPrefsGroup extends ConsumerWidget {
     final notifier = ref.read(notifyPrefsProvider.notifier);
 
     FeltTile toggle(
-      List<List<dynamic>> icon,
+      GameIconData icon,
       String title,
       bool value,
       ValueChanged<bool> onChanged,
@@ -817,13 +817,13 @@ class _NotifyPrefsGroup extends ConsumerWidget {
         ),
         toggle(AppIcons.people, 'Friends', prefs.social, notifier.setSocial),
         toggle(
-          AppIcons.trendingUp,
+          AppIcons.ranking,
           'Ranking',
           prefs.ranking,
           notifier.setRanking,
         ),
         toggle(
-          AppIcons.stars,
+          AppIcons.sparkles,
           'News & offers',
           prefs.marketing,
           notifier.setMarketing,
@@ -843,7 +843,7 @@ class _TableSocialGroup extends ConsumerWidget {
     final notifier = ref.read(tableSocialPrefsProvider.notifier);
 
     FeltTile toggle(
-      List<List<dynamic>> icon,
+      GameIconData icon,
       String title,
       bool value,
       ValueChanged<bool> onChanged,

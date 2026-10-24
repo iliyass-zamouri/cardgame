@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 
 /// Pill auth CTAs styled for the casino theme.
@@ -60,7 +60,7 @@ class AuthProviderButton extends StatefulWidget {
       onPressed: onPressed,
       backgroundColor: CasinoColors.gold,
       foregroundColor: CasinoColors.bg,
-      leading: const HugeIcon(icon: AppIcons.person, size: 22),
+      leading: const GameIcon(icon: AppIcons.person, size: 22),
     );
   }
 

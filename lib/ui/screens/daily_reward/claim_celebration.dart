@@ -9,12 +9,12 @@ import 'package:cardgame/ui/screens/daily_reward/reward_art.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/amount_format.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/gold_burst.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// Full-screen reveal after a claim: the rewards land in a gold burst under
 /// turning rays, amounts count up, a chest throws its lid open to show what
@@ -328,7 +328,7 @@ class _ClaimCelebrationState extends State<ClaimCelebration>
                             child: GoldButton(
                               label: l10n.dailyCollect,
                               height: 52,
-                              leading: const HugeIcon(
+                              leading: const GameIcon(
                                 icon: AppIcons.gift,
                                 size: 20,
                                 color: CardInk.black,
@@ -389,8 +389,8 @@ class _BoostBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          HugeIcon(
-            icon: AppIcons.playVideo,
+          GameIcon(
+            icon: AppIcons.watchAd,
             size: 16,
             color: CasinoColors.goldSoft,
           ),

@@ -1,7 +1,7 @@
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 
 /// Decode widths for avatar art. A few fixed steps, rather than the exact
@@ -75,7 +75,7 @@ class PlayerAvatar extends StatelessWidget {
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return Center(
-              child: HugeIcon(
+              child: GameIcon(
                 icon: AppIcons.person,
                 size: size * 0.55,
                 color: CasinoColors.goldSoft,
@@ -119,7 +119,7 @@ class PlayerAvatar extends StatelessWidget {
                   color: CasinoColors.gold,
                   border: Border.all(color: CasinoColors.surface, width: 1.5),
                 ),
-                child: HugeIcon(
+                child: GameIcon(
                   icon: AppIcons.edit,
                   size: 11,
                   color: CasinoColors.bg,

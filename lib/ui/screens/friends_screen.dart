@@ -9,7 +9,7 @@ import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 
@@ -120,7 +120,7 @@ class _FriendsListTab extends ConsumerWidget {
                   GoldButton(
                     label: l10n.retryConnection,
                     compact: true,
-                    leading: const HugeIcon(icon: AppIcons.refresh),
+                    leading: const GameIcon(icon: AppIcons.refresh),
                     onPressed:
                         () => ref.read(friendsDataProvider.notifier).refresh(),
                   ),
@@ -136,7 +136,7 @@ class _FriendsListTab extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  HugeIcon(
+                  GameIcon(
                     icon: AppIcons.people,
                     size: 64,
                     color: CasinoColors.gold.withValues(alpha: 0.5),
@@ -162,7 +162,7 @@ class _FriendsListTab extends ConsumerWidget {
                   const SizedBox(height: 24),
                   GoldButton(
                     label: l10n.addFriend,
-                    leading: const HugeIcon(icon: AppIcons.personAdd),
+                    leading: const GameIcon(icon: AppIcons.personAdd),
                     onPressed: onGoToAdd,
                   ),
                 ],
@@ -291,7 +291,7 @@ class _FriendCard extends ConsumerWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: HugeIcon(
+                icon: GameIcon(
                   icon: AppIcons.moreVert,
                   color: CasinoColors.textMuted,
                 ),
@@ -431,7 +431,7 @@ class _FriendCard extends ConsumerWidget {
                         value: 'remove',
                         child: Row(
                           children: [
-                            HugeIcon(
+                            GameIcon(
                               icon: AppIcons.personRemove,
                               color: CasinoColors.foldHi,
                               size: 18,
@@ -451,7 +451,7 @@ class _FriendCard extends ConsumerWidget {
                         value: 'block',
                         child: Row(
                           children: [
-                            HugeIcon(
+                            GameIcon(
                               icon: AppIcons.lock,
                               color: CasinoColors.foldHi,
                               size: 18,
@@ -471,8 +471,8 @@ class _FriendCard extends ConsumerWidget {
                         value: 'report',
                         child: Row(
                           children: [
-                            HugeIcon(
-                              icon: AppIcons.flag,
+                            GameIcon(
+                              icon: AppIcons.report,
                               color: CasinoColors.gold,
                               size: 18,
                             ),
@@ -525,7 +525,7 @@ class _FriendRequestsTab extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  HugeIcon(
+                  GameIcon(
                     icon: AppIcons.mail,
                     size: 56,
                     color: CasinoColors.gold.withValues(alpha: 0.5),
@@ -739,14 +739,14 @@ class _SearchPlayersTabState extends ConsumerState<_SearchPlayersTab> {
             decoration: InputDecoration(
               hintText: l10n.searchByUsername,
               hintStyle: TextStyle(color: CasinoColors.textMuted),
-              prefixIcon: HugeIcon(
+              prefixIcon: GameIcon(
                 icon: AppIcons.search,
                 color: CasinoColors.goldSoft,
               ),
               suffixIcon:
                   _searchController.text.isNotEmpty
                       ? IconButton(
-                        icon: HugeIcon(
+                        icon: GameIcon(
                           icon: AppIcons.clear,
                           color: CasinoColors.textMuted,
                         ),
@@ -873,7 +873,7 @@ class _SearchResultCard extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              HugeIcon(
+              GameIcon(
                 icon: AppIcons.check,
                 color: CasinoColors.raiseHi,
                 size: 14,
@@ -912,7 +912,7 @@ class _SearchResultCard extends ConsumerWidget {
         actionButton = GoldButton(
           label: l10n.accept,
           compact: true,
-          leading: const HugeIcon(icon: AppIcons.check),
+          leading: const GameIcon(icon: AppIcons.check),
           onPressed: () {
             ref.read(playerSearchProvider.notifier).acceptUserRequest(player);
           },
@@ -922,7 +922,7 @@ class _SearchResultCard extends ConsumerWidget {
         actionButton = GoldButton(
           label: l10n.addFriend,
           compact: true,
-          leading: const HugeIcon(icon: AppIcons.personAdd),
+          leading: const GameIcon(icon: AppIcons.personAdd),
           onPressed: () {
             ref.read(playerSearchProvider.notifier).sendRequestToUser(player);
           },

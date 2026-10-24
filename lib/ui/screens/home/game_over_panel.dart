@@ -9,6 +9,7 @@ import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/gold_burst.dart';
 import 'package:cardgame/ui/widgets/insufficient_funds_sheet.dart';
@@ -17,7 +18,6 @@ import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 enum _Outcome { win, lose, draw, none }
 
@@ -468,8 +468,8 @@ class _RecapState extends State<_Recap> with TickerProviderStateMixin {
                                           ),
                                         ),
                                         child: const Center(
-                                          child: HugeIcon(
-                                            icon: AppIcons.logout,
+                                          child: GameIcon(
+                                            icon: AppIcons.exit,
                                             size: 20,
                                             color: CardInk.red,
                                           ),
@@ -486,7 +486,7 @@ class _RecapState extends State<_Recap> with TickerProviderStateMixin {
                                         widget.rematchReady
                                             ? l10n.waitingEllipsis
                                             : l10n.rematch,
-                                    leading: const HugeIcon(
+                                    leading: const GameIcon(
                                       icon: AppIcons.replay,
                                       size: 20,
                                       color: CardInk.black,

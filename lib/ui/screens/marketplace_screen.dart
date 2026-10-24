@@ -23,7 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 
@@ -82,14 +82,14 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
           Tab(
             height: 40,
             child: _ShopTabLabel(
-              icon: const HugeIcon(icon: AppIcons.style, size: 16),
+              icon: const GameIcon(icon: AppIcons.decks, size: 16),
               label: l10n.deckShop,
             ),
           ),
           Tab(
             height: 40,
             child: _ShopTabLabel(
-              icon: const HugeIcon(icon: AppIcons.face, size: 16),
+              icon: const GameIcon(icon: AppIcons.avatars, size: 16),
               label: l10n.avatarShop,
             ),
           ),
@@ -403,7 +403,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
                       ),
                     ),
                     child: const Center(
-                      child: HugeIcon(
+                      child: GameIcon(
                         icon: AppIcons.playCircle,
                         color: Color(0xFF1E7A45),
                         size: 24,
@@ -491,7 +491,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
           bottom: 16,
           child: GoldButton(
             label: l10n.exchange,
-            leading: const HugeIcon(icon: AppIcons.swapHoriz),
+            leading: const GameIcon(icon: AppIcons.swap),
             onPressed: _showConversionModal,
           ),
         ),
@@ -515,7 +515,7 @@ class _IapPackItem {
   final CurrencyType currency;
   final int amount;
   final String priceUsd;
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
 }
 
 const _iapPacks = [
@@ -525,7 +525,7 @@ const _iapPacks = [
     currency: CurrencyType.chips,
     amount: 1,
     priceUsd: '\$0.99',
-    icon: AppIcons.stars,
+    icon: AppIcons.sparkles,
   ),
   _IapPackItem(
     productId: PurchasesConfig.chips5,
@@ -796,8 +796,8 @@ class _CurrencyConversionModalState
               ),
               Row(
                 children: [
-                  HugeIcon(
-                    icon: AppIcons.swapHoriz,
+                  GameIcon(
+                    icon: AppIcons.swap,
                     color: CasinoColors.gold,
                     size: 22,
                   ),
@@ -949,7 +949,7 @@ class _ExchangeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    final arrow = HugeIcon(
+    final arrow = GameIcon(
       icon: AppIcons.arrowForward,
       color: CasinoColors.gold,
       size: 20,
@@ -973,7 +973,7 @@ class _ExchangeCard extends StatelessWidget {
           Row(
             children: [
               FeltIconButton(
-                icon: AppIcons.removeCircle,
+                icon: AppIcons.remove,
                 size: 34,
                 onTap: onDecrement,
               ),
@@ -989,11 +989,7 @@ class _ExchangeCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              FeltIconButton(
-                icon: AppIcons.addCircle,
-                size: 34,
-                onTap: onIncrement,
-              ),
+              FeltIconButton(icon: AppIcons.add, size: 34, onTap: onIncrement),
               const Spacer(),
               rtl ? Transform.flip(flipX: true, child: arrow) : arrow,
               const Spacer(),
@@ -1282,7 +1278,7 @@ class _EquippedPill extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          HugeIcon(
+          GameIcon(
             icon: AppIcons.checkCircle,
             size: compact ? 14 : 18,
             color: ink,

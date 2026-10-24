@@ -17,6 +17,7 @@ dependencies:
   web_socket_channel: ^3.0.1
   flame: ^1.35.1
   flutter_svg: ^2.3.0
+  path_parsing: ^1.1.0
   google_sign_in: ^7.2.0
   http: ^1.6.0
   hive: ^2.2.3
@@ -32,7 +33,6 @@ dependencies:
   app_tracking_transparency: ^2.0.6
   purchases_flutter: ^10.10.1
   audioplayers: ^6.7.1
-  hugeicons: ^1.2.0
   url_launcher: ^6.3.2
   package_info_plus: ^9.0.1
   country_flags: ^4.1.2

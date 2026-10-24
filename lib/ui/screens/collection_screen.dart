@@ -9,13 +9,13 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:cardgame/ui/widgets/deck_showcase_card.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// The player's card decks and avatars: equip what they own, and jump to the
 /// shop for the rest.
@@ -72,7 +72,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen>
       maxBodyWidth: 1000,
       actions: [
         FeltIconButton(
-          icon: AppIcons.shoppingBag,
+          icon: AppIcons.shop,
           tooltip: l10n.shop,
           onTap: () => _openShop(avatars: _tabs.index == 1),
         ),
@@ -83,7 +83,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen>
           Tab(
             height: 44,
             child: _TabLabel(
-              icon: AppIcons.style,
+              icon: AppIcons.decks,
               label: l10n.collectionCards,
               count: l10n.ownedCount(ownedDecks.length, DeckCatalog.all.length),
             ),
@@ -91,7 +91,7 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen>
           Tab(
             height: 44,
             child: _TabLabel(
-              icon: AppIcons.face,
+              icon: AppIcons.avatars,
               label: l10n.collectionAvatars,
               count: l10n.ownedCount(
                 ownedAvatars.length,
@@ -138,7 +138,7 @@ class _TabLabel extends StatelessWidget {
     required this.count,
   });
 
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final String label;
   final String count;
 
@@ -150,7 +150,7 @@ class _TabLabel extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            HugeIcon(icon: icon, size: 16),
+            GameIcon(icon: icon, size: 16),
             const SizedBox(width: 6),
             Flexible(
               child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -228,12 +228,12 @@ class _EquippedShowcase extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     _ShowcaseLine(
-                      icon: AppIcons.face,
+                      icon: AppIcons.avatars,
                       text: l10n.avatarName(avatar),
                     ),
                     const SizedBox(height: 2),
                     _ShowcaseLine(
-                      icon: AppIcons.style,
+                      icon: AppIcons.decks,
                       text: l10n.deckName(deck),
                     ),
                   ],
@@ -252,7 +252,7 @@ class _EquippedShowcase extends StatelessWidget {
           GoldButton(
             label: l10n.shop,
             compact: true,
-            leading: const HugeIcon(icon: AppIcons.shoppingBag),
+            leading: const GameIcon(icon: AppIcons.shop),
             onPressed: onShop,
           ),
         ],
@@ -264,14 +264,14 @@ class _EquippedShowcase extends StatelessWidget {
 class _ShowcaseLine extends StatelessWidget {
   const _ShowcaseLine({required this.icon, required this.text});
 
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final String text;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        HugeIcon(icon: icon, size: 13, color: CasinoColors.goldSoft),
+        GameIcon(icon: icon, size: 13, color: CasinoColors.goldSoft),
         const SizedBox(width: 5),
         Expanded(
           child: Text(
@@ -329,7 +329,7 @@ class _CollectionGrid extends StatelessWidget {
           sliver: SliverToBoxAdapter(
             child: LeatherButton(
               label: context.l10n.getMoreInShop,
-              leading: const HugeIcon(icon: AppIcons.shoppingBag),
+              leading: const GameIcon(icon: AppIcons.shop),
               onPressed: onShop,
             ),
           ),
@@ -566,7 +566,7 @@ class _EquippedPill extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          HugeIcon(icon: AppIcons.check, size: 14, color: color),
+          GameIcon(icon: AppIcons.check, size: 14, color: color),
           const SizedBox(width: 4),
           Flexible(
             child: FittedBox(
@@ -601,7 +601,7 @@ class _LockBadge extends StatelessWidget {
         color: CardInk.black.withValues(alpha: 0.75),
         border: Border.all(color: CasinoColors.gold.withValues(alpha: 0.7)),
       ),
-      child: HugeIcon(
+      child: GameIcon(
         icon: AppIcons.lock,
         size: 16,
         color: CasinoColors.goldSoft,

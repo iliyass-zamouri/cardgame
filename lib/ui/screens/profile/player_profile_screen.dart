@@ -19,7 +19,7 @@ import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 
@@ -322,7 +322,7 @@ class PlayerProfileScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const HugeIcon(
+                          const GameIcon(
                             icon: AppIcons.copy,
                             size: 12,
                             color: _brownInk,
@@ -433,8 +433,8 @@ class PlayerProfileScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const HugeIcon(
-                    icon: AppIcons.game,
+                  const GameIcon(
+                    icon: AppIcons.decks,
                     size: 15,
                     color: _brownInk,
                   ),

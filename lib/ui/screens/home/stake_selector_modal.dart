@@ -9,6 +9,7 @@ import 'package:cardgame/ui/screens/marketplace_screen.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/pot_card_style.dart';
 import 'package:cardgame/ui/theme/wide_layout.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
@@ -16,7 +17,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 class PotOption {
   const PotOption({
@@ -811,8 +811,8 @@ class _BalanceStrip extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        HugeIcon(
-                          icon: AppIcons.shoppingBag,
+                        GameIcon(
+                          icon: AppIcons.shop,
                           size: 15,
                           color: CasinoColors.gold,
                         ),
@@ -1248,7 +1248,7 @@ class _LockedVeil extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              HugeIcon(
+              GameIcon(
                 icon: AppIcons.lock,
                 size: 18,
                 color: CasinoColors.gold,
@@ -1561,7 +1561,7 @@ class _ActionPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              HugeIcon(
+              GameIcon(
                 icon: AppIcons.trophy,
                 size: 16,
                 color: CasinoColors.goldSoft,
@@ -1632,8 +1632,8 @@ class _ActionPanel extends StatelessWidget {
                               ? CardInk.black
                               : CasinoColors.gold.withValues(alpha: 0.15),
                     ),
-                    child: HugeIcon(
-                      icon: canAfford ? AppIcons.bolt : AppIcons.shoppingBag,
+                    child: GameIcon(
+                      icon: canAfford ? AppIcons.bolt : AppIcons.shop,
                       size: 20,
                       color: CasinoColors.gold,
                     ),

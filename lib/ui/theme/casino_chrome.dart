@@ -8,7 +8,7 @@ import 'package:cardgame/ui/theme/city_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 
 /// Turns [CasinoGlass] blur off for a subtree.
@@ -134,7 +134,7 @@ class CasinoHudButton extends StatelessWidget {
 
   static const height = 44.0;
 
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final VoidCallback onPressed;
   final String? label;
   final String? tooltip;
@@ -221,7 +221,7 @@ class CasinoHudButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            HugeIcon(icon: icon, size: 20, color: foreground),
+            GameIcon(icon: icon, size: 20, color: foreground),
             if (label != null) ...[
               const SizedBox(width: 7),
               Text(
@@ -313,7 +313,7 @@ class CasinoActionButton extends StatelessWidget {
   final String label;
   final CasinoActionTone tone;
   final VoidCallback? onPressed;
-  final List<List<dynamic>>? icon;
+  final GameIconData? icon;
   final bool expanded;
   final double height;
 
@@ -409,7 +409,7 @@ class CasinoActionButton extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      HugeIcon(
+                      GameIcon(
                         icon: icon!,
                         color: onTone,
                         size: expanded || raised ? 22 : 18,
@@ -563,7 +563,7 @@ class CasinoToast extends StatelessWidget {
               color: success ? CasinoColors.success : CasinoColors.fold,
               shape: BoxShape.circle,
             ),
-            child: HugeIcon(
+            child: GameIcon(
               icon: success ? AppIcons.check : AppIcons.close,
               size: 18,
               color: Colors.white,
@@ -602,7 +602,7 @@ class CasinoToast extends StatelessWidget {
           if (onClose != null)
             IconButton(
               onPressed: onClose,
-              icon: const HugeIcon(icon: AppIcons.close, size: 18),
+              icon: const GameIcon(icon: AppIcons.close, size: 18),
               color: CasinoColors.textMuted,
               visualDensity: VisualDensity.compact,
             ),

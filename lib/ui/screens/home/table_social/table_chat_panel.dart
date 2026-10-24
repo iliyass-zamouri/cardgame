@@ -5,10 +5,10 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// Quick phrases, emoji reactions and free text for the current table.
 Future<void> showTableChatPanel(BuildContext context, WidgetRef ref) {
@@ -370,7 +370,7 @@ class VoiceSeatIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return HugeIcon(
+    return GameIcon(
       icon: muted ? AppIcons.volumeMute : AppIcons.mic,
       size: 14,
       color: muted ? CasinoColors.textMuted : const Color(0xFF7ED50E),

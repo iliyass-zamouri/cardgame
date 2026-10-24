@@ -40,7 +40,7 @@ import 'package:cardgame/ui/widgets/turn_countdown_ring.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/trailer/trailer_mode.dart';
 
@@ -344,7 +344,7 @@ class WaitingRoom extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                HugeIcon(
+                GameIcon(
                   icon: AppIcons.copy,
                   size: 13,
                   color: CasinoColors.goldSoft,
@@ -368,7 +368,7 @@ class WaitingRoom extends ConsumerWidget {
       GoldButton(
         label: youReady ? l10n.waitingEllipsis : l10n.ready,
         height: 54,
-        leading: HugeIcon(
+        leading: GameIcon(
           icon: youReady ? AppIcons.hourglass : AppIcons.check,
         ),
         onPressed: bothJoined && !youReady ? notifier.readyUp : null,
@@ -378,7 +378,7 @@ class WaitingRoom extends ConsumerWidget {
         label: l10n.leaveRoom,
         height: 44,
         color: CasinoColors.foldHi,
-        leading: const HugeIcon(icon: AppIcons.logout),
+        leading: const GameIcon(icon: AppIcons.exit),
         onPressed: notifier.leaveRoom,
       ),
     ];
@@ -642,7 +642,7 @@ class _InviteFriendsSection extends ConsumerWidget {
                         GoldButton(
                           label: l10n.addFriend,
                           compact: true,
-                          leading: const HugeIcon(icon: AppIcons.personAdd),
+                          leading: const GameIcon(icon: AppIcons.personAdd),
                           onPressed:
                               () => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
@@ -733,7 +733,7 @@ class _InviteFriendsSection extends ConsumerWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                HugeIcon(
+                                GameIcon(
                                   icon: AppIcons.check,
                                   size: 14,
                                   color: CasinoColors.gold,
@@ -842,7 +842,7 @@ class _LobbySeat extends StatelessWidget {
                       color: CasinoColors.gold,
                       border: Border.all(color: CardInk.black, width: 1.5),
                     ),
-                    child: const HugeIcon(
+                    child: const GameIcon(
                       icon: AppIcons.check,
                       size: 14,
                       color: CardInk.black,
@@ -1144,7 +1144,7 @@ class GameHud extends ConsumerWidget {
                       if (playing)
                         CasinoHudButton(
                           accent: accent,
-                          icon: AppIcons.flag,
+                          icon: AppIcons.endGame,
                           label: l10n.endGame,
                           tone: CasinoHudTone.danger,
                           onPressed:
@@ -1270,7 +1270,7 @@ class GameHud extends ConsumerWidget {
                     bottom: 16,
                     child: CasinoActionButton(
                       label: l10n.reveal,
-                      icon: AppIcons.visibility,
+                      icon: AppIcons.reveal,
                       tone: CasinoActionTone.raise,
                       expanded: false,
                       raised: true,
@@ -1284,7 +1284,7 @@ class GameHud extends ConsumerWidget {
                     bottom: 16,
                     child: CasinoActionButton(
                       label: peekSelecting ? l10n.cancel : l10n.peek,
-                      icon: peekSelecting ? AppIcons.close : AppIcons.zoomIn,
+                      icon: peekSelecting ? AppIcons.close : AppIcons.peek,
                       tone: CasinoActionTone.raise,
                       expanded: false,
                       raised: true,
@@ -1323,7 +1323,7 @@ class GameHud extends ConsumerWidget {
                           const SizedBox(height: 10),
                           CasinoActionButton(
                             label: l10n.replace,
-                            icon: AppIcons.swapHoriz,
+                            icon: AppIcons.swap,
                             tone: CasinoActionTone.raise,
                             expanded: false,
                             raised: true,
@@ -1468,7 +1468,7 @@ Future<void> _showGameMenu(
                     ),
                   ),
                   _GameMenuTile(
-                    icon: AppIcons.menuBook,
+                    icon: AppIcons.rules,
                     label: l10n.howToPlay,
                     onTap: () {
                       Navigator.of(sheetContext).pop();
@@ -1498,7 +1498,7 @@ Future<void> _showGameMenu(
                   ),
                   if (playing)
                     _GameMenuTile(
-                      icon: AppIcons.flag,
+                      icon: AppIcons.endGame,
                       label: l10n.endGame,
                       destructive: true,
                       onTap: () async {
@@ -1514,7 +1514,7 @@ Future<void> _showGameMenu(
                       },
                     ),
                   _GameMenuTile(
-                    icon: AppIcons.logout,
+                    icon: AppIcons.exit,
                     label: l10n.leaveRoom,
                     destructive: true,
                     onTap: () async {
@@ -1552,7 +1552,7 @@ class _GameMenuTile extends StatelessWidget {
     this.destructive = false,
   });
 
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final String label;
   final String? subtitle;
   final VoidCallback onTap;
@@ -1570,7 +1570,7 @@ class _GameMenuTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           child: Row(
             children: [
-              HugeIcon(icon: icon, size: 22, color: color),
+              GameIcon(icon: icon, size: 22, color: color),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -1598,7 +1598,7 @@ class _GameMenuTile extends StatelessWidget {
                   ],
                 ),
               ),
-              HugeIcon(
+              GameIcon(
                 icon: AppIcons.chevronRight,
                 size: 20,
                 color: CasinoColors.textMuted.withValues(alpha: 0.7),

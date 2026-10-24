@@ -6,11 +6,11 @@ import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/app_theme.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
+import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/halloween_ambient.dart';
 import 'package:cardgame/ui/theme/wide_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hugeicons/hugeicons.dart';
 
 /// Card-table page shell: felt background + leather header with a gold title.
 ///
@@ -227,7 +227,7 @@ class FeltIconButton extends StatelessWidget {
     this.mirrorInRtl = false,
   });
 
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final VoidCallback? onTap;
   final String? tooltip;
   final int badge;
@@ -236,7 +236,7 @@ class FeltIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget glyph = HugeIcon(
+    Widget glyph = GameIcon(
       icon: icon,
       color: CasinoColors.goldSoft,
       size: size * 0.52,
@@ -915,7 +915,7 @@ class FeltMedallion extends StatelessWidget {
     this.size = 38,
   });
 
-  final List<List<dynamic>> icon;
+  final GameIconData icon;
   final Color? color;
   final double size;
 
@@ -931,7 +931,7 @@ class FeltMedallion extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
       child: Center(
-        child: HugeIcon(icon: icon, color: color, size: size * 0.5),
+        child: GameIcon(icon: icon, color: color, size: size * 0.5),
       ),
     );
   }
@@ -952,7 +952,7 @@ class FeltTile extends StatelessWidget {
   });
 
   final String title;
-  final List<List<dynamic>>? icon;
+  final GameIconData? icon;
   final Widget? leading;
   final String? subtitle;
   final Widget? trailing;
@@ -965,7 +965,7 @@ class FeltTile extends StatelessWidget {
     final rtl = Directionality.of(context) == TextDirection.rtl;
     Widget? trail = trailing;
     if (trail == null && onTap != null) {
-      final chevron = HugeIcon(
+      final chevron = GameIcon(
         icon: AppIcons.chevronRight,
         size: 20,
         color: CasinoColors.gold.withValues(alpha: 0.6),
