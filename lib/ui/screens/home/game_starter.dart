@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/daily_reward_providers.dart';
@@ -33,6 +34,7 @@ import 'package:cardgame/ui/screens/settings_screen.dart';
 import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
+import 'package:cardgame/ui/theme/wide_layout.dart';
 import 'package:cardgame/ui/widgets/country_flag.dart';
 import 'package:cardgame/ui/widgets/hud_counter.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
@@ -55,6 +57,7 @@ class StartGameWidget extends ConsumerStatefulWidget {
 class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
   bool _softPromptChecked = false;
   HomeNavTab _tab = HomeNavTab.home;
+  final _pagesKey = GlobalKey();
 
   @override
   void initState() {
@@ -291,6 +294,11 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
     final friendsBadge = ref.watch(connectedFriendsCountProvider);
     // The server may drop the open tab; fall back to home.
     final current = menu.nav.contains(_tab) ? _tab : HomeNavTab.home;
+    final items = [
+      for (final tab in menu.nav) _navItem(tab, friendsBadge, tab == current),
+    ];
+    // Keyed so the pages keep their state as a window resize swaps layouts.
+    final pages = _TabStack(key: _pagesKey, current: current, builder: _page);
 
     return PopScope(
       canPop: current == HomeNavTab.home,
@@ -299,30 +307,34 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
       },
       child: Scaffold(
         backgroundColor: CasinoColors.feltDeep,
-        body: Stack(
-          children: [
-            // Pages run down to the arc's ends so the arc curves over them
-            // instead of over a straight cut.
-            Positioned.fill(
-              bottom:
-                  HomeNavBar.barHeight + MediaQuery.paddingOf(context).bottom,
-              child: MediaQuery.removePadding(
-                context: context,
-                removeBottom: true,
-                child: _TabStack(current: current, builder: _page),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: HomeNavBar(
-                items: [
-                  for (final tab in menu.nav)
-                    _navItem(tab, friendsBadge, tab == current),
-                ],
-              ),
-            ),
-          ],
-        ),
+        body:
+            WideLayout.of(context)
+                ? Row(
+                  children: [
+                    HomeNavRail(items: items),
+                    Expanded(child: pages),
+                  ],
+                )
+                : Stack(
+                  children: [
+                    // Pages run down to the arc's ends so the arc curves
+                    // over them instead of over a straight cut.
+                    Positioned.fill(
+                      bottom:
+                          HomeNavBar.barHeight +
+                          MediaQuery.paddingOf(context).bottom,
+                      child: MediaQuery.removePadding(
+                        context: context,
+                        removeBottom: true,
+                        child: pages,
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: HomeNavBar(items: items),
+                    ),
+                  ],
+                ),
       ),
     );
   }
@@ -338,7 +350,7 @@ void _pushScreen(BuildContext context, Widget screen) {
 /// survive switches) but only builds a page on its first visit. Hidden pages
 /// are offstage with tickers paused; the incoming page fades in on top.
 class _TabStack extends StatefulWidget {
-  const _TabStack({required this.current, required this.builder});
+  const _TabStack({super.key, required this.current, required this.builder});
 
   final HomeNavTab current;
   final Widget Function(HomeNavTab tab) builder;
@@ -477,6 +489,215 @@ class _HomeTab extends ConsumerWidget {
     final unread = ref.watch(notificationsUnreadCountProvider);
     final dailyVisible = ref.watch(dailyEntryVisibleProvider);
 
+    Widget logo(double width) => DealIn(
+      from: const Offset(0, -0.3),
+      child: Image.asset(
+        'assets/logo/text.png',
+        width: width,
+        fit: BoxFit.contain,
+      ),
+    );
+    final tagline = Text(
+      l10n.tagline,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: CasinoColors.goldSoft,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.6,
+      ),
+    );
+    const daily = DealIn(
+      delay: Duration(milliseconds: 80),
+      child: DailyEntryPill(),
+    );
+    final playCard = DealIn(
+      delay: const Duration(milliseconds: 150),
+      child: PrimaryPlayCard(
+        title: l10n.findMatch,
+        subtitle: l10n.winnerTakesAll,
+        icon: AppIcons.bolt,
+        onTap: connected ? () => showStakeSelectorModal(context) : null,
+      ),
+    );
+    Widget modeRow(double height) => Row(
+      children: [
+        for (final (i, mode) in modes.indexed) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(
+            key: ValueKey(mode),
+            child: _dealtMode(
+              i,
+              modes.length,
+              _modeCard(context, ref, mode, height, connected),
+            ),
+          ),
+        ],
+      ],
+    );
+    final banner = AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      child:
+          connected
+              ? const SizedBox(width: double.infinity)
+              : _ConnectionBanner(connection: connection),
+    );
+
+    final Widget body;
+    if (WideLayout.of(context)) {
+      // Side by side: the logo and fan on one side, the ways to play on the
+      // other, centred at a comfortable width however wide the window.
+      body = Padding(
+        padding: const EdgeInsets.fromLTRB(28, 12, 28, 20),
+        child: Column(
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: WideLayout.contentMaxWidth,
+              ),
+              child: banner,
+            ),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final height = constraints.maxHeight;
+                  final width = math.min(
+                    constraints.maxWidth,
+                    WideLayout.contentMaxWidth,
+                  );
+                  final logoWidth = (width * 0.32).clamp(280.0, 380.0);
+                  // The fan takes what the logo and tagline leave, kept
+                  // under the logo's weight.
+                  final heroHeight = (height - logoWidth / 3 - 48).clamp(
+                    0.0,
+                    250.0,
+                  );
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: height),
+                      child: Center(
+                        child: SizedBox(
+                          width: width,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 11,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    logo(logoWidth),
+                                    tagline,
+                                    const SizedBox(height: 12),
+                                    if (heroHeight >= 120)
+                                      HeroCardFan(
+                                        deckSkinId: profile.deckId,
+                                        height: heroHeight,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 48),
+                              Expanded(
+                                flex: 9,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (dailyVisible) ...[
+                                      daily,
+                                      const SizedBox(height: 16),
+                                    ],
+                                    playCard,
+                                    if (modes.isNotEmpty) ...[
+                                      const SizedBox(height: 16),
+                                      modeRow(140),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      body = SafeArea(
+        top: false,
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              banner,
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final height = constraints.maxHeight;
+                    final compact = height < 560;
+                    final logoWidth = compact ? 220.0 : 280.0;
+                    final modeHeight = compact ? 116.0 : 132.0;
+                    // Hero fan takes whatever the fixed content leaves.
+                    final fixedHeight =
+                        logoWidth / 3 +
+                        18 +
+                        (dailyVisible ? DailyEntryPill.height + 12 : 0) +
+                        92 +
+                        (modes.isEmpty ? 0 : 14 + modeHeight) +
+                        18 +
+                        HomeNavBar.arcDrop;
+                    final heroHeight = (height - fixedHeight).clamp(
+                      0.0,
+                      220.0,
+                    );
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: height),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            logo(logoWidth),
+                            tagline,
+                            if (heroHeight >= 100)
+                              HeroCardFan(
+                                deckSkinId: profile.deckId,
+                                height: heroHeight,
+                              )
+                            else
+                              const SizedBox(height: 20),
+                            if (dailyVisible) ...[
+                              daily,
+                              const SizedBox(height: 12),
+                            ],
+                            playCard,
+                            if (modes.isNotEmpty) ...[
+                              const SizedBox(height: 14),
+                              modeRow(modeHeight),
+                            ],
+                            // Clears the nav arc rising over the bottom.
+                            const SizedBox(height: 8 + HomeNavBar.arcDrop),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     // Opaque so it can fade in over another tab.
     return FeltTableBackground(
       child: Column(
@@ -496,136 +717,7 @@ class _HomeTab extends ConsumerWidget {
             onNotifications: () => showNotificationsPanel(context, ref),
             onSettings: () => _pushScreen(context, const SettingsScreen()),
           ),
-          Expanded(
-            child: SafeArea(
-              top: false,
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOut,
-                      child:
-                          connected
-                              ? const SizedBox(width: double.infinity)
-                              : _ConnectionBanner(connection: connection),
-                    ),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final height = constraints.maxHeight;
-                          final compact = height < 560;
-                          final logoWidth = compact ? 220.0 : 280.0;
-                          final modeHeight = compact ? 116.0 : 132.0;
-                          // Hero fan takes whatever the fixed content leaves.
-                          final fixedHeight =
-                              logoWidth / 3 +
-                              18 +
-                              (dailyVisible ? DailyEntryPill.height + 12 : 0) +
-                              92 +
-                              (modes.isEmpty ? 0 : 14 + modeHeight) +
-                              18 +
-                              HomeNavBar.arcDrop;
-                          final heroHeight = (height - fixedHeight).clamp(
-                            0.0,
-                            220.0,
-                          );
-                          return SingleChildScrollView(
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(minHeight: height),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  DealIn(
-                                    from: const Offset(0, -0.3),
-                                    child: Image.asset(
-                                      'assets/logo/text.png',
-                                      width: logoWidth,
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                  Text(
-                                    l10n.tagline,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: CasinoColors.goldSoft,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.6,
-                                    ),
-                                  ),
-                                  if (heroHeight >= 100)
-                                    HeroCardFan(
-                                      deckSkinId: profile.deckId,
-                                      height: heroHeight,
-                                    )
-                                  else
-                                    const SizedBox(height: 20),
-                                  if (dailyVisible) ...[
-                                    const DealIn(
-                                      delay: Duration(milliseconds: 80),
-                                      child: DailyEntryPill(),
-                                    ),
-                                    const SizedBox(height: 12),
-                                  ],
-                                  DealIn(
-                                    delay: const Duration(milliseconds: 150),
-                                    child: PrimaryPlayCard(
-                                      title: l10n.findMatch,
-                                      subtitle: l10n.winnerTakesAll,
-                                      icon: AppIcons.bolt,
-                                      onTap:
-                                          connected
-                                              ? () => showStakeSelectorModal(
-                                                context,
-                                              )
-                                              : null,
-                                    ),
-                                  ),
-                                  if (modes.isNotEmpty) ...[
-                                    const SizedBox(height: 14),
-                                    Row(
-                                      children: [
-                                        for (final (i, mode)
-                                            in modes.indexed) ...[
-                                          if (i > 0) const SizedBox(width: 10),
-                                          Expanded(
-                                            key: ValueKey(mode),
-                                            child: _dealtMode(
-                                              i,
-                                              modes.length,
-                                              _modeCard(
-                                                context,
-                                                ref,
-                                                mode,
-                                                modeHeight,
-                                                connected,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ],
-                                  // Clears the nav arc rising over the bottom.
-                                  const SizedBox(
-                                    height: 8 + HomeNavBar.arcDrop,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          Expanded(child: body),
         ],
       ),
     );
@@ -811,6 +903,9 @@ class _TopBar extends ConsumerWidget {
   final VoidCallback onNotifications;
   final VoidCallback onSettings;
 
+  /// Height of the profile and leaderboard cards.
+  static const _cardHeight = 70.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
@@ -823,6 +918,108 @@ class _TopBar extends ConsumerWidget {
       ConnectionStatus.disconnected => CasinoColors.foldHi,
     };
     const radius = BorderRadius.vertical(bottom: Radius.circular(24));
+    final top = MediaQuery.paddingOf(context).top;
+    final money = _ResourcePill(
+      key: HudAnchors.money,
+      currency: CurrencyType.money,
+      value: this.money,
+      onTap: onMarketplace,
+    );
+    final chips = _ResourcePill(
+      key: HudAnchors.chips,
+      currency: CurrencyType.chips,
+      value: this.chips,
+      onTap: onMarketplace,
+    );
+    final notifications = _RailIconButton(
+      icon: AppIcons.notifications,
+      tooltip: 'Notifications',
+      badge: unreadNotifications,
+      onTap: onNotifications,
+    );
+    final settings = _RailIconButton(
+      icon: AppIcons.settings,
+      tooltip: l10n.settings,
+      onTap: onSettings,
+    );
+    final profile = _ProfileCard(
+      name: name,
+      username: username,
+      avatarId: avatarId,
+      statusColor: statusColor,
+      countryCode: myRank?.countryCode,
+      totalPoints: ranked?.totalPoints ?? 0,
+      onTap: onProfile,
+    );
+    final league = _LeagueCard(rank: myRank?.rank, onTap: onLeague);
+
+    final Widget content;
+    if (WideLayout.of(context)) {
+      // One row: who you are on the left, your purse and alerts on the right.
+      content = Padding(
+        padding: EdgeInsets.fromLTRB(20, top + 12, 20, 14),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: WideLayout.contentMaxWidth,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: SizedBox(height: _cardHeight, child: profile),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 3,
+                  child: SizedBox(height: _cardHeight, child: league),
+                ),
+                const SizedBox(width: 28),
+                Expanded(flex: 3, child: money),
+                const SizedBox(width: 10),
+                Expanded(flex: 3, child: chips),
+                const SizedBox(width: 16),
+                notifications,
+                const SizedBox(width: 8),
+                settings,
+              ],
+            ),
+          ),
+        ),
+      );
+    } else {
+      content = Padding(
+        padding: EdgeInsets.fromLTRB(12, top + 8, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(child: money),
+                const SizedBox(width: 8),
+                Expanded(child: chips),
+                const SizedBox(width: 8),
+                notifications,
+                const SizedBox(width: 6),
+                settings,
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: _cardHeight,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(flex: 3, child: profile),
+                  const SizedBox(width: 8),
+                  Expanded(flex: 2, child: league),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return DecoratedBox(
       decoration: const BoxDecoration(
@@ -872,82 +1069,7 @@ class _TopBar extends ConsumerWidget {
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                12,
-                MediaQuery.paddingOf(context).top + 8,
-                12,
-                12,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _ResourcePill(
-                          key: HudAnchors.money,
-                          currency: CurrencyType.money,
-                          value: money,
-                          onTap: onMarketplace,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _ResourcePill(
-                          key: HudAnchors.chips,
-                          currency: CurrencyType.chips,
-                          value: chips,
-                          onTap: onMarketplace,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _RailIconButton(
-                        icon: AppIcons.notifications,
-                        tooltip: 'Notifications',
-                        badge: unreadNotifications,
-                        onTap: onNotifications,
-                      ),
-                      const SizedBox(width: 6),
-                      _RailIconButton(
-                        icon: AppIcons.settings,
-                        tooltip: l10n.settings,
-                        onTap: onSettings,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 70,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: _ProfileCard(
-                            name: name,
-                            username: username,
-                            avatarId: avatarId,
-                            statusColor: statusColor,
-                            countryCode: myRank?.countryCode,
-                            totalPoints: ranked?.totalPoints ?? 0,
-                            onTap: onProfile,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 2,
-                          child: _LeagueCard(
-                            rank: myRank?.rank,
-                            onTap: onLeague,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            content,
           ],
         ),
       ),

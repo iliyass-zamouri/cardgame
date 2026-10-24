@@ -965,10 +965,284 @@ class _NavSelectionPainter extends CustomPainter {
       old.count != count || old.slot != slot;
 }
 
+/// Side navigation for wide windows: a leather rail down the leading edge
+/// carrying the same tabs as [HomeNavBar]. A lit panel and a gold pointer on
+/// the rail's inner edge slide to the highlighted tab.
+class HomeNavRail extends StatefulWidget {
+  const HomeNavRail({super.key, required this.items});
+
+  final List<RailDockItem> items;
+
+  static const width = 108.0;
+  static const tileHeight = 92.0;
+
+  @override
+  State<HomeNavRail> createState() => _HomeNavRailState();
+}
+
+class _HomeNavRailState extends State<HomeNavRail>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _slide = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 320),
+    value: 1,
+  );
+  final _tween = Tween<double>(begin: -1, end: -1);
+
+  /// Selected slot from the top; fractional mid-slide and negative when no
+  /// tab is highlighted.
+  late final Animation<double> _slot = _tween.animate(
+    CurvedAnimation(parent: _slide, curve: Curves.easeOutCubic),
+  );
+  int? _target;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncSelection();
+  }
+
+  @override
+  void didUpdateWidget(HomeNavRail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncSelection();
+  }
+
+  void _syncSelection() {
+    final target = widget.items.indexWhere((item) => item.selected);
+    if (target == _target) return;
+    final from = _slot.value;
+    final animate =
+        _target != null &&
+        from >= 0 &&
+        target >= 0 &&
+        !MediaQuery.disableAnimationsOf(context);
+    _target = target;
+    _tween
+      ..begin = animate ? from : target.toDouble()
+      ..end = target.toDouble();
+    if (animate) {
+      _slide.forward(from: 0);
+    } else {
+      _slide.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _slide.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final count = widget.items.length;
+    return SizedBox(
+      width: HomeNavRail.width,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // As on the bar: the leather only repaints on a resize, and a
+          // slide repaints just the selection layer.
+          IgnorePointer(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: _NavRailBodyPainter(count: count, rtl: rtl),
+              ),
+            ),
+          ),
+          IgnorePointer(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: _NavRailSelectionPainter(
+                  count: count,
+                  slot: _slot,
+                  rtl: rtl,
+                ),
+              ),
+            ),
+          ),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              // Each tile is tappable across the rail's full width.
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final item in widget.items)
+                  _NavTile(
+                    item: item,
+                    height: HomeNavRail.tileHeight,
+                    centered: true,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Top of the rail's centred column of tiles.
+double _railTilesTop(Size size, int count) =>
+    (size.height - count * HomeNavRail.tileHeight) / 2;
+
+class _NavRailBodyPainter extends CustomPainter {
+  _NavRailBodyPainter({required this.count, required this.rtl});
+
+  final int count;
+  final bool rtl;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    // Darkest on the outer edge, catching light towards the table.
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = LinearGradient(
+          begin: rtl ? Alignment.centerRight : Alignment.centerLeft,
+          end: rtl ? Alignment.centerLeft : Alignment.centerRight,
+          colors: [
+            CasinoColors.leatherDeep,
+            CasinoColors.leather,
+            const Color(0xFF4A2C1B),
+          ],
+        ).createShader(rect),
+    );
+
+    // Dividers between tabs, inset from the rail's edges.
+    final top = _railTilesTop(size, count);
+    final divider =
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.35)
+          ..strokeWidth = 1.5;
+    for (var i = 1; i < count; i++) {
+      final y = top + i * HomeNavRail.tileHeight;
+      canvas.drawLine(Offset(14, y), Offset(size.width - 14, y), divider);
+    }
+
+    // Gold trim down the inner edge, fading towards both ends.
+    final edge = rtl ? 0.0 : size.width - 2;
+    final trim = Rect.fromLTWH(edge, 0, 2, size.height);
+    canvas.drawRect(
+      trim,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            CasinoColors.gold.withValues(alpha: 0.1),
+            CasinoColors.gold.withValues(alpha: 0.8),
+            CasinoColors.gold.withValues(alpha: 0.1),
+          ],
+        ).createShader(trim),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _NavRailBodyPainter old) =>
+      old.count != count || old.rtl != rtl;
+}
+
+/// The rail's lit panel and the gold pointer on its inner edge. Repaints
+/// straight from [slot], so a slide never rebuilds.
+class _NavRailSelectionPainter extends CustomPainter {
+  _NavRailSelectionPainter({
+    required this.count,
+    required this.slot,
+    required this.rtl,
+  }) : super(repaint: slot);
+
+  final int count;
+  final Animation<double> slot;
+  final bool rtl;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final position = slot.value;
+    if (position < 0) return;
+    const tile = HomeNavRail.tileHeight;
+    final top = _railTilesTop(size, count) + position * tile;
+    final panel = Rect.fromLTWH(0, top, size.width, tile);
+    canvas.drawRect(
+      panel,
+      Paint()
+        ..shader = LinearGradient(
+          begin: rtl ? Alignment.centerLeft : Alignment.centerRight,
+          end: rtl ? Alignment.centerRight : Alignment.centerLeft,
+          colors: [
+            CasinoColors.gold.withValues(alpha: 0.24),
+            CasinoColors.gold.withValues(alpha: 0.04),
+          ],
+        ).createShader(panel),
+    );
+    _paintPointer(canvas, size, top + tile / 2);
+  }
+
+  /// Gold band down the inner edge centred on [cy], peaked towards the page.
+  void _paintPointer(Canvas canvas, Size size, double cy) {
+    const half = HomeNavRail.tileHeight * 0.42;
+    const band = 6.0;
+    const peak = 7.0;
+    const peakHalf = 14.0;
+    // Built for the right-hand edge, then mirrored for RTL.
+    final x = size.width;
+    final path =
+        Path()
+          ..moveTo(x, cy - half)
+          ..lineTo(x - band, cy - half)
+          ..lineTo(x - band, cy - peakHalf)
+          ..lineTo(x - band - peak, cy)
+          ..lineTo(x - band, cy + peakHalf)
+          ..lineTo(x - band, cy + half)
+          ..lineTo(x, cy + half)
+          ..close();
+    canvas.save();
+    if (rtl) {
+      canvas.translate(size.width, 0);
+      canvas.scale(-1, 1);
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.centerRight,
+          end: Alignment.centerLeft,
+          colors: [CasinoColors.goldHi, CasinoColors.gold, CasinoColors.goldLo],
+        ).createShader(
+          Rect.fromLTRB(x - band - peak, cy - half, x, cy + half),
+        ),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = const Color(0xFF7A5A0E),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _NavRailSelectionPainter old) =>
+      old.count != count || old.slot != slot || old.rtl != rtl;
+}
+
 class _NavTile extends StatelessWidget {
-  const _NavTile({required this.item});
+  const _NavTile({
+    required this.item,
+    this.height = HomeNavBar.barHeight,
+    this.centered = false,
+  });
 
   final RailDockItem item;
+  final double height;
+
+  /// Centres the icon and label in the tile instead of seating them on its
+  /// bottom edge, as the rail's taller tiles want.
+  final bool centered;
 
   static const _iconSize = 46.0;
 
@@ -981,11 +1255,12 @@ class _NavTile extends StatelessWidget {
       child: Pressable(
         onTap: item.onTap,
         child: SizedBox(
-          height: HomeNavBar.barHeight,
+          height: height,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment:
+                  centered ? MainAxisAlignment.center : MainAxisAlignment.end,
               children: [
                 // Scaling keeps layout fixed, so selection is compositor-only.
                 AnimatedScale(

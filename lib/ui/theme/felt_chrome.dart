@@ -7,6 +7,7 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/app_theme.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/halloween_ambient.dart';
+import 'package:cardgame/ui/theme/wide_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -23,6 +24,7 @@ class FeltScaffold extends StatelessWidget {
     this.tabs,
     this.floatingActionButton,
     this.showBack = true,
+    this.maxBodyWidth = WideLayout.readableMaxWidth,
   });
 
   final String title;
@@ -31,6 +33,9 @@ class FeltScaffold extends StatelessWidget {
   final TabBar? tabs;
   final Widget? floatingActionButton;
   final bool showBack;
+
+  /// Widest [body] runs in a wide window; the felt and header still span it.
+  final double maxBodyWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +49,10 @@ class FeltScaffold extends StatelessWidget {
           showBack: showBack,
         ),
         floatingActionButton: floatingActionButton,
-        body: body,
+        body:
+            WideLayout.of(context)
+                ? CenteredContent(maxWidth: maxBodyWidth, child: body)
+                : body,
       ),
     );
   }
@@ -180,8 +188,13 @@ class FeltAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
               if (tabs != null)
-                Padding(
+                Container(
                   padding: _tabsPadding,
+                  // A wide window keeps the track a tab bar, not a banner.
+                  constraints:
+                      WideLayout.of(context)
+                          ? const BoxConstraints(maxWidth: 560)
+                          : null,
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(

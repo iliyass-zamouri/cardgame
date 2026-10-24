@@ -119,6 +119,35 @@ void main() {
       const Size(360, 640),
       empty,
     ),
+    // Desktop windows: side rail and the two-pane home.
+    (
+      'wide',
+      'en',
+      ConnectionStatus.connected,
+      const Size(1280, 800),
+      HomeMenuConfig.fallback,
+    ),
+    (
+      'wide_ar',
+      'ar',
+      ConnectionStatus.connected,
+      const Size(1280, 800),
+      HomeMenuConfig.fallback,
+    ),
+    (
+      'wide_smallest_offline',
+      'fr',
+      ConnectionStatus.disconnected,
+      const Size(900, 560),
+      HomeMenuConfig.fallback,
+    ),
+    (
+      'wide_reduced',
+      'en',
+      ConnectionStatus.connected,
+      const Size(1920, 1080),
+      reduced,
+    ),
   ]) {
     // With and without the streak banner above the play card.
     for (final daily in [null, 'status_midweek', 'status_claimed']) {
@@ -138,11 +167,10 @@ void main() {
         expect(tester.takeException(), isNull);
         expect(find.byType(PrimaryPlayCard), findsOneWidget);
         expect(find.byType(ModePlayingCard), findsNWidgets(menu.modes.length));
-        expect(find.byType(HomeNavBar), findsOneWidget);
-        expect(
-          tester.widget<HomeNavBar>(find.byType(HomeNavBar)).items,
-          hasLength(menu.nav.length),
-        );
+        final wide = size.width >= 900 && size.height >= 560;
+        expect(find.byType(HomeNavBar), wide ? findsNothing : findsOneWidget);
+        expect(find.byType(HomeNavRail), wide ? findsOneWidget : findsNothing);
+        expect(_navItems(tester), hasLength(menu.nav.length));
         expect(
           find.byType(DailyEntryPill),
           daily == null ? findsNothing : findsOneWidget,
@@ -151,32 +179,33 @@ void main() {
     }
   }
 
-  for (final locale in ['en', 'ar']) {
-    testWidgets('nav tabs switch in place: $locale', (tester) async {
+  for (final (locale, size) in [
+    ('en', const Size(390, 844)),
+    ('ar', const Size(390, 844)),
+    ('en', const Size(1280, 800)),
+  ]) {
+    testWidgets('nav tabs switch in place: $locale ${size.width}', (
+      tester,
+    ) async {
       await _pumpHome(
         tester,
         locale: locale,
         conn: ConnectionStatus.connected,
-        size: const Size(390, 844),
+        size: size,
         menu: HomeMenuConfig.fallback,
       );
       final fanState = tester.state(find.byType(HeroCardFan));
       String? selectedLabel() =>
-          tester
-              .widget<HomeNavBar>(find.byType(HomeNavBar))
-              .items
-              .singleWhere((item) => item.selected)
-              .label;
+          _navItems(tester).singleWhere((item) => item.selected).label;
       final homeLabel = selectedLabel();
 
-      final rules =
-          tester.widget<HomeNavBar>(find.byType(HomeNavBar)).items.last;
+      final rules = _navItems(tester).last;
       await tester.tap(find.text(rules.label).last);
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
       expect(find.byType(HowToPlayScreen), findsOneWidget);
-      expect(find.byType(HomeNavBar), findsOneWidget);
+      expect(_navItems(tester), hasLength(HomeMenuConfig.fallback.nav.length));
       expect(selectedLabel(), rules.label);
       expect(find.byType(BackButton), findsNothing);
       // Home stays mounted but hidden; untouched tabs are never built.
@@ -196,6 +225,43 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('resizing across the wide breakpoint keeps tabs and pages', (
+    tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      locale: 'en',
+      conn: ConnectionStatus.connected,
+      size: const Size(390, 844),
+      menu: HomeMenuConfig.fallback,
+    );
+    final rules = _navItems(tester).last;
+    await tester.tap(find.text(rules.label).last);
+    await tester.pumpAndSettle();
+    final page = tester.element(find.byType(HowToPlayScreen));
+
+    tester.view.physicalSize = const Size(1280, 800) * 3;
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(HomeNavRail), findsOneWidget);
+    expect(
+      _navItems(tester).singleWhere((item) => item.selected).label,
+      rules.label,
+    );
+    // The open page moved into the new layout instead of rebuilding.
+    expect(tester.element(find.byType(HowToPlayScreen)), same(page));
+  });
+}
+
+/// The home tabs, from the bottom bar on a phone or the rail when wide.
+List<RailDockItem> _navItems(WidgetTester tester) {
+  final rail = find.byType(HomeNavRail);
+  if (rail.evaluate().isNotEmpty) {
+    return tester.widget<HomeNavRail>(rail).items;
+  }
+  return tester.widget<HomeNavBar>(find.byType(HomeNavBar)).items;
 }
 
 Future<void> _pumpHome(

@@ -159,6 +159,8 @@ ThemeData buildCasinoTheme({Locale locale = const Locale('en')}) {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      // Full width on a phone; a wide window centres a sheet-sized panel.
+      constraints: const BoxConstraints(maxWidth: 640),
     ),
     dividerTheme: DividerThemeData(
       color: CasinoColors.gold.withValues(alpha: 0.12),

@@ -68,6 +68,8 @@ class _CollectionScreenState extends ConsumerState<CollectionScreen>
 
     return FeltScaffold(
       title: l10n.collection,
+      // Grids add columns rather than stretch, so they can run wider.
+      maxBodyWidth: 1000,
       actions: [
         FeltIconButton(
           icon: AppIcons.shoppingBag,
@@ -363,8 +365,9 @@ class _DecksGrid extends ConsumerWidget {
     return _CollectionGrid(
       onShop: onShop,
       itemCount: decks.length,
-      delegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      // Two columns on every phone, more as the window widens.
+      delegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 200,
         crossAxisSpacing: 12,
         mainAxisSpacing: 14,
         childAspectRatio: 0.56,
@@ -446,8 +449,9 @@ class _AvatarsGrid extends ConsumerWidget {
     return _CollectionGrid(
       onShop: onShop,
       itemCount: avatars.length,
-      delegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      // Three columns on every phone, more as the window widens.
+      delegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 130,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
         childAspectRatio: 0.62,

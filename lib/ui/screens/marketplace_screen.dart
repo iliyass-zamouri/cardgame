@@ -74,6 +74,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
 
     return FeltScaffold(
       title: l10n.marketplace,
+      // Grids add columns rather than stretch, so they can run wider.
+      maxBodyWidth: 1000,
       tabs: TabBar(
         controller: _tabController,
         tabs: [
@@ -1096,8 +1098,9 @@ class _AvatarsTab extends ConsumerWidget {
 
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      // Two columns on every phone, more as the window widens.
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 200,
         crossAxisSpacing: 12,
         mainAxisSpacing: 14,
         childAspectRatio: 0.62,
@@ -1363,8 +1366,9 @@ class _DecksTab extends ConsumerWidget {
 
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      // Two columns on every phone, more as the window widens.
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 200,
         crossAxisSpacing: 12,
         mainAxisSpacing: 14,
         childAspectRatio: 0.56,

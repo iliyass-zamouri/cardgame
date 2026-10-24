@@ -502,22 +502,29 @@ class CasinoToast extends StatelessWidget {
           top: top,
           left: 8,
           right: 8,
-          child: Material(
-            color: Colors.transparent,
-            child: _ToastSlide(
-              child: CasinoToast(
-                message: message,
-                success: success,
-                actionLabel: actionLabel,
-                onAction:
-                    hasAction
-                        ? () {
-                          acted = true;
-                          hide();
-                          onAction();
-                        }
-                        : null,
-                onClose: dismissible ? dismissWithoutAction : null,
+          // A banner on a phone; a wide window keeps it toast-sized.
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Material(
+                color: Colors.transparent,
+                child: _ToastSlide(
+                  child: CasinoToast(
+                    message: message,
+                    success: success,
+                    actionLabel: actionLabel,
+                    onAction:
+                        hasAction
+                            ? () {
+                              acted = true;
+                              hide();
+                              onAction();
+                            }
+                            : null,
+                    onClose: dismissible ? dismissWithoutAction : null,
+                  ),
+                ),
               ),
             ),
           ),
