@@ -26,6 +26,7 @@ void main() {
         '/settings': NotificationDestination.settings,
         '/rules': NotificationDestination.rules,
         '/tutorial': NotificationDestination.tutorial,
+        '/rate': NotificationDestination.rate,
       };
       expected.forEach((route, destination) {
         expect(_route(route)?.destination, destination, reason: route);
@@ -134,6 +135,7 @@ void main() {
             ..canStartMatch = (() => canStart)
             ..openDailyRewards = ((_) async => calls.add('daily'))
             ..openInbox = ((_) async => calls.add('inbox'))
+            ..openRatePrompt = ((_) async => calls.add('rate'))
             ..playVsRobot = ((_) => calls.add('robot'));
       navigator = NotificationNavigator(
         navigatorKey: key,
@@ -251,11 +253,14 @@ void main() {
       expect(calls, ['robot']);
     });
 
-    testWidgets('daily and inbox links use the bound actions', (tester) async {
+    testWidgets('daily, inbox and rate links use the bound actions', (
+      tester,
+    ) async {
       await pumpApp(tester);
       await go(tester, '/daily');
       await go(tester, '/notifications');
-      expect(calls, ['daily', 'inbox']);
+      await go(tester, '/rate');
+      expect(calls, ['daily', 'inbox', 'rate']);
     });
 
     testWidgets('a room invite asks before joining', (tester) async {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cardgame/ads/interstitial_ad_service.dart';
+import 'package:cardgame/app/app_review_providers.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
@@ -970,6 +971,8 @@ class _GameBoardState extends ConsumerState<GameBoard> {
           if (game != null && oppTotal != null) {
             if (game.you.total < oppTotal) {
               SfxService.instance.win();
+              // A win is a good moment to ask for a rating, back in the lobby.
+              ref.read(appReviewControllerProvider).noteWin();
             } else if (game.you.total > oppTotal) {
               SfxService.instance.lose();
             }

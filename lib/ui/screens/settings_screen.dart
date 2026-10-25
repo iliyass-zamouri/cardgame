@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cardgame/app/app_review_providers.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/locale_provider.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
@@ -264,6 +265,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     }
                   }
                 },
+              ),
+              FeltTile(
+                icon: AppIcons.star,
+                title: l10n.settingsRateApp,
+                onTap:
+                    () => ref
+                        .read(appReviewControllerProvider)
+                        .openFromSettings(context),
               ),
               FeltTile(
                 icon: AppIcons.shield,

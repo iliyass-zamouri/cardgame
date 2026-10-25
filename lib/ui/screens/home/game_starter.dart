@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:cardgame/app/app_review_providers.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/boost_providers.dart';
 import 'package:cardgame/app/daily_reward_providers.dart';
@@ -77,7 +78,22 @@ class _StartGameWidgetState extends ConsumerState<StartGameWidget> {
     final showedPush = await _maybeSoftPushPrompt();
     if (!mounted) return;
     if (showedPush) return;
-    await _maybeGuestLinkPrompt();
+    // The account nudge, when due, takes this visit's slot.
+    final guestLinkDue =
+        ref.read(sessionAuthProvider).value == SessionAuthStatus.guest &&
+        ref.read(guestLinkPrefsRepositoryProvider).shouldShowNudge;
+    if (guestLinkDue) {
+      await _maybeGuestLinkPrompt();
+      return;
+    }
+    await _maybeRatePrompt();
+  }
+
+  /// Last in line: after a win, or once per app start.
+  Future<void> _maybeRatePrompt() async {
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+    await ref.read(appReviewControllerProvider).maybePromptInLobby(context);
   }
 
   /// The welcome-back gift and the streak, when something waits to be

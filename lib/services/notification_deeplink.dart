@@ -28,6 +28,7 @@ enum NotificationDestination {
   settings,
   rules,
   tutorial,
+  rate,
 }
 
 /// Routes that need no parameters.
@@ -42,6 +43,7 @@ const _plainRoutes = {
   '/settings': NotificationDestination.settings,
   '/rules': NotificationDestination.rules,
   '/tutorial': NotificationDestination.tutorial,
+  '/rate': NotificationDestination.rate,
 };
 
 class ResolvedNotificationNav {
@@ -173,6 +175,9 @@ class DeeplinkActions {
 
   Future<void> Function(BuildContext context)? openDailyRewards;
   Future<void> Function(BuildContext context)? openInbox;
+
+  /// The rate-the-app prompt, from the rating push.
+  Future<void> Function(BuildContext context)? openRatePrompt;
   void Function(BuildContext context)? playVsRobot;
 }
 
@@ -220,6 +225,8 @@ class NotificationNavigator {
         unawaited(actions.openDailyRewards?.call(context));
       case NotificationDestination.notifications:
         unawaited(actions.openInbox?.call(context));
+      case NotificationDestination.rate:
+        unawaited(actions.openRatePrompt?.call(context));
       default:
         final page = pageBuilder(nav);
         if (page == null) return;

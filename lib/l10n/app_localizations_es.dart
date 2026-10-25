@@ -1879,4 +1879,84 @@ class AppLocalizationsEs extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get appReviewRibbon => 'Califícanos';
+
+  @override
+  String get appReviewQuestion => '¿Te gusta ShadowHand?';
+
+  @override
+  String get appReviewTapStars => 'Toca una estrella para valorar';
+
+  @override
+  String appReviewStarLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count estrellas',
+      one: '1 estrella',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get appReviewNotNow => 'Ahora no';
+
+  @override
+  String get appReviewFeedbackTitle => 'Lamentamos oírlo';
+
+  @override
+  String get appReviewFeedbackBody =>
+      '¿Qué podríamos mejorar? Todo es opcional.';
+
+  @override
+  String get appReviewCommentHint => 'Cuéntanos más (opcional)';
+
+  @override
+  String get appReviewSend => 'Enviar';
+
+  @override
+  String get appReviewSkip => 'Omitir';
+
+  @override
+  String get appReviewThanksTitle => '¡Gracias!';
+
+  @override
+  String get appReviewThanksFeedback =>
+      'Tu opinión llega directamente a nuestro equipo y nos ayuda a mejorar el juego.';
+
+  @override
+  String get appReviewThanksHappy =>
+      '¡Nos alegra que te guste! Una valoración en la tienda ayuda a otros jugadores a encontrar el juego.';
+
+  @override
+  String get appReviewRateInStore => 'Valorar en la tienda';
+
+  @override
+  String get appReviewDone => 'Listo';
+
+  @override
+  String get appReviewTagBugs => 'Errores o cierres';
+
+  @override
+  String get appReviewTagAds => 'Demasiados anuncios';
+
+  @override
+  String get appReviewTagDifficulty => 'Muy difícil o injusto';
+
+  @override
+  String get appReviewTagEconomy => 'Precios y recompensas';
+
+  @override
+  String get appReviewTagBots => 'Los bots';
+
+  @override
+  String get appReviewTagPerformance => 'Lento o gasta batería';
+
+  @override
+  String get appReviewTagOther => 'Otra cosa';
+
+  @override
+  String get settingsRateApp => 'Valorar ShadowHand';
 }

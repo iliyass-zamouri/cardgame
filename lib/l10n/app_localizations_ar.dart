@@ -1857,4 +1857,86 @@ class AppLocalizationsAr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get appReviewRibbon => 'قيّمنا';
+
+  @override
+  String get appReviewQuestion => 'هل تستمتع بـ ShadowHand؟';
+
+  @override
+  String get appReviewTapStars => 'اضغط على نجمة للتقييم';
+
+  @override
+  String appReviewStarLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count نجمة',
+      few: '$count نجوم',
+      two: 'نجمتان',
+      one: 'نجمة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get appReviewNotNow => 'ليس الآن';
+
+  @override
+  String get appReviewFeedbackTitle => 'نأسف لسماع ذلك';
+
+  @override
+  String get appReviewFeedbackBody =>
+      'ما الذي يمكننا تحسينه؟ كل شيء هنا اختياري.';
+
+  @override
+  String get appReviewCommentHint => 'أخبرنا المزيد (اختياري)';
+
+  @override
+  String get appReviewSend => 'إرسال';
+
+  @override
+  String get appReviewSkip => 'تخطي';
+
+  @override
+  String get appReviewThanksTitle => 'شكرًا لك!';
+
+  @override
+  String get appReviewThanksFeedback =>
+      'تصل ملاحظاتك مباشرة إلى فريقنا وتساعدنا على تحسين اللعبة.';
+
+  @override
+  String get appReviewThanksHappy =>
+      'يسعدنا أنك تستمتع باللعبة! تقييمك في المتجر يساعد لاعبين آخرين على اكتشافها.';
+
+  @override
+  String get appReviewRateInStore => 'قيّم في المتجر';
+
+  @override
+  String get appReviewDone => 'تم';
+
+  @override
+  String get appReviewTagBugs => 'أخطاء أو أعطال';
+
+  @override
+  String get appReviewTagAds => 'إعلانات كثيرة';
+
+  @override
+  String get appReviewTagDifficulty => 'صعبة جدًا أو غير عادلة';
+
+  @override
+  String get appReviewTagEconomy => 'الأسعار والمكافآت';
+
+  @override
+  String get appReviewTagBots => 'الروبوتات';
+
+  @override
+  String get appReviewTagPerformance => 'بطيئة أو تستهلك البطارية';
+
+  @override
+  String get appReviewTagOther => 'شيء آخر';
+
+  @override
+  String get settingsRateApp => 'قيّم ShadowHand';
 }

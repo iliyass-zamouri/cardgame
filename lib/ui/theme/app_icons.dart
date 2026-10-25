@@ -675,6 +675,14 @@ abstract final class AppIcons {
     ),
   ]);
 
+  /// Five-point star: rate the app.
+  static const star = GameIconData([
+    _P.solid(
+      'M50 7L61.2 37.6L93.7 38.8L68.1 58.9L77 90.2L50 72L23 90.2L31.9 58.9'
+      'L6.3 38.8L38.8 37.6Z',
+    ),
+  ]);
+
   /// Premium membership wears the crown.
   static const premium = crown;
 }

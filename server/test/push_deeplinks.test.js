@@ -44,6 +44,7 @@ test('normalizeDeeplink accepts every route in canonical form', () => {
     ['/daily', '/daily'],
     ['/notifications', '/notifications'],
     ['/tutorial', '/tutorial'],
+    ['/rate', '/rate'],
   ];
   for (const [input, expected] of cases) {
     assert.deepEqual(normalizeDeeplink(input), { route: expected }, String(input));
@@ -109,7 +110,7 @@ test('the catalogue lists every deeplink, and each one validates', () => {
     const route = link.route === '/join' ? '/join?roomId=AB12CD' : link.route;
     assert.equal(normalizeDeeplink(route).route, route, link.route);
   }
-  assert.equal(links.length, 12 + POTS.length + 3 + 2);
+  assert.equal(links.length, 13 + POTS.length + 3 + 2);
 });
 
 test('summarizePots splits matches by pot, day and week', () => {

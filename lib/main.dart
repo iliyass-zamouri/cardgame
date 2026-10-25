@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cardgame/ads/ad_ids.dart';
 import 'package:cardgame/ads/interstitial_ad_service.dart';
 import 'package:cardgame/ads/rewarded_ad_service.dart';
+import 'package:cardgame/app/app_review_providers.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/daily_reward_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
@@ -21,6 +22,7 @@ import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/firebase_options.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/analytics_service.dart';
+import 'package:cardgame/services/app_review_prefs_repository.dart';
 import 'package:cardgame/services/app_tracking_service.dart';
 import 'package:cardgame/services/crashlytics_service.dart';
 import 'package:cardgame/services/guest_link_prefs_repository.dart';
@@ -144,6 +146,7 @@ Future<void> main() async {
       final localeRepo = await LocaleRepository.open();
       final pushPrefsRepo = await PushPrefsRepository.open();
       final guestLinkPrefsRepo = await GuestLinkPrefsRepository.open();
+      final appReviewPrefsRepo = await AppReviewPrefsRepository.open();
       final tutorialProgressRepo = await TutorialProgressRepository.open();
       final tableSocialPrefsRepo = await TableSocialPrefsRepository.open();
       final homeMenuRepo = await HomeMenuRepository.open();
@@ -160,6 +163,9 @@ Future<void> main() async {
             pushPrefsRepositoryProvider.overrideWithValue(pushPrefsRepo),
             guestLinkPrefsRepositoryProvider.overrideWithValue(
               guestLinkPrefsRepo,
+            ),
+            appReviewPrefsRepositoryProvider.overrideWithValue(
+              appReviewPrefsRepo,
             ),
             tutorialProgressRepositoryProvider.overrideWithValue(
               tutorialProgressRepo,
@@ -226,6 +232,9 @@ class _MyAppState extends ConsumerState<MyApp> {
       }
       ..openInbox = (context) {
         return showNotificationsPanel(context, ref);
+      }
+      ..openRatePrompt = (context) {
+        return ref.read(appReviewControllerProvider).openFromPush(context);
       }
       ..playVsRobot = (context) {
         ref

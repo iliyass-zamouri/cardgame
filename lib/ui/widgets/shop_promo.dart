@@ -170,7 +170,7 @@ const _featuredInk = Color(0xFF3A2A06);
 const shopSaleGlow = Color(0xFFE5394F);
 
 /// Featured and merchandising badge pills. Sales and bonuses have their own
-/// bar ([ShopSaleBar], [ShopBonusBar]) next to the buy button.
+/// bar next to the buy button ([ShopSaleBar], [ShopPackBuyButton]).
 class ShopPromoTags extends StatelessWidget {
   const ShopPromoTags({
     super.key,
@@ -259,24 +259,98 @@ class ShopSaleBar extends StatelessWidget {
   }
 }
 
-/// The store-pack twin of [ShopSaleBar]: the extra amount and time left.
-class ShopBonusBar extends StatelessWidget {
-  const ShopBonusBar({super.key, required this.pack});
+/// A store pack's buy button. While a bonus runs, a red tab sits on top of
+/// the button with the extra amount and time left, so the card keeps its
+/// height.
+class ShopPackBuyButton extends StatelessWidget {
+  const ShopPackBuyButton({
+    super.key,
+    required this.pack,
+    required this.label,
+    required this.onPressed,
+  });
 
   final IapPackOffer pack;
+  final String label;
+  final VoidCallback onPressed;
+
+  /// Tab and button share this width at most; a long tab scales down.
+  static const _maxWidth = 132.0;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final button = GoldButton(
+      label: label,
+      compact: true,
+      onPressed: onPressed,
+    );
     return ShopTicker(
       until: pack.bonusEndsAt,
       builder: (context, now) {
         final bonus = pack.bonusAt(now);
-        if (bonus == 0) return const SizedBox.shrink();
-        return _PromoStrip(
-          icon: AppIcons.gift,
-          lead: l10n.shopPackBonus(bonus).toUpperCase(),
-          timeLeft: shopTimeLeft(l10n, pack.bonusEndsAt!.difference(now)),
+        if (bonus == 0) return button;
+        const text = TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+          fontSize: 10.5,
+          height: 1.1,
+          fontFeatures: [FontFeature.tabularFigures()],
+        );
+        final tab = Container(
+          height: 20,
+          padding: const EdgeInsets.symmetric(horizontal: 7),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [_saleRed, _saleRedDeep],
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(9)),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const GameIcon(
+                  icon: AppIcons.gift,
+                  size: 11,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 3),
+                Text(l10n.shopPackBonus(bonus).toUpperCase(), style: text),
+                const SizedBox(width: 6),
+                const GameIcon(
+                  icon: AppIcons.timer,
+                  size: 10,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  shopTimeLeft(l10n, pack.bonusEndsAt!.difference(now)),
+                  style: text,
+                ),
+              ],
+            ),
+          ),
+        );
+        return ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _maxWidth),
+          child: IntrinsicWidth(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Tucked a little under the button so the two read as one.
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: tab,
+                ),
+                button,
+              ],
+            ),
+          ),
         );
       },
     );
@@ -290,14 +364,12 @@ class _PromoStrip extends StatelessWidget {
   const _PromoStrip({
     required this.lead,
     required this.timeLeft,
-    this.icon,
     this.struck,
     this.struckIcon,
   });
 
   final String lead;
   final String timeLeft;
-  final GameIconData? icon;
   final String? struck;
   final Widget? struckIcon;
 
@@ -348,13 +420,7 @@ class _PromoStrip extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            GameIcon(icon: icon!, size: _iconSize, color: _saleRedDeep),
-            const SizedBox(width: 3),
-          ],
-          Text(lead, style: _text.copyWith(color: _saleRedDeep)),
-        ],
+        children: [Text(lead, style: _text.copyWith(color: _saleRedDeep))],
       ),
     );
     Widget timer({required bool icon}) => Row(
@@ -406,10 +472,7 @@ class _PromoStrip extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final tagWidth =
-              _width(context, lead, _text) +
-              _tagPad * 2 +
-              (icon == null ? 0 : _iconSize + 3);
+          final tagWidth = _width(context, lead, _text) + _tagPad * 2;
           final max = constraints.maxWidth;
           const timerIconWidth = _iconSize + 2;
           final timeWidth = _width(context, timeLeft, _text);

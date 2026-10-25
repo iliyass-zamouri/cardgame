@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cardgame/ads/rewarded_ad_service.dart';
+import 'package:cardgame/app/app_review_providers.dart';
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/boost_providers.dart';
 import 'package:cardgame/app/daily_reward_providers.dart';
+import 'package:cardgame/data/app_review/app_review_models.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/daily_reward/daily_reward_api.dart';
 import 'package:cardgame/data/daily_reward/daily_reward_models.dart';
@@ -57,10 +59,22 @@ Future<void> openDailyRewards(
   if (_dailyRewardsShownIn?.mounted ?? false) return;
   final navigator = Navigator.of(context, rootNavigator: true);
   _dailyRewardsShownIn = navigator;
+  final stateBefore = ref.read(dailyRewardProvider).value?.status.state;
   try {
     await _openDailyRewards(context, ref, source: source);
   } finally {
     if (identical(_dailyRewardsShownIn, navigator)) _dailyRewardsShownIn = null;
+  }
+  // Just claimed: a good moment to ask for a rating.
+  final stateAfter = ref.read(dailyRewardProvider).value?.status.state;
+  if (stateBefore != DailyRewardState.claimed &&
+      stateAfter == DailyRewardState.claimed &&
+      context.mounted) {
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (!context.mounted) return;
+    await ref
+        .read(appReviewControllerProvider)
+        .maybePrompt(context, AppReviewTrigger.daily);
   }
 }
 

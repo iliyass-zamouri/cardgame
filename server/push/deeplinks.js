@@ -30,6 +30,7 @@ const DEEPLINK_ROUTES = [
   { path: '/settings', label: 'Settings', group: 'screens' },
   { path: '/rules', label: 'How to play', group: 'screens' },
   { path: '/tutorial', label: 'Tutorial', group: 'screens' },
+  { path: '/rate', label: 'Rate the app', group: 'screens' },
 ];
 
 /** Older app builds called the room invite `/table`. */

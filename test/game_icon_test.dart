@@ -73,6 +73,7 @@ const _icons = {
   'playCircle': AppIcons.playCircle,
   'ranking': AppIcons.ranking,
   'shop': AppIcons.shop,
+  'star': AppIcons.star,
 };
 
 const _gold = Color(0xFFF5C542);

@@ -222,6 +222,7 @@ async function listPlayerIdsWithNotifyPref(category) {
  *   minWins?: number,
  *   maxWins?: number,
  *   platforms?: string[] | string,
+ *   notRated?: boolean,
  * }} [args]
  */
 function normalizeMarketingAudienceArgs({
@@ -233,6 +234,7 @@ function normalizeMarketingAudienceArgs({
   minWins,
   maxWins,
   platforms,
+  notRated,
 } = {}) {
   const days = Math.min(
     Math.max(Math.floor(Number(maxLastSeenDays) || 30), 1),
@@ -263,6 +265,7 @@ function normalizeMarketingAudienceArgs({
     minWins,
     maxWins,
     platformList,
+    notRated: notRated === true,
   };
 }
 
@@ -318,6 +321,15 @@ function buildMarketingAudienceSql(norm) {
       return `:${key}`;
     });
     extra.push(`dt.platform IN (${placeholders.join(', ')})`);
+  }
+
+  // Only app builds with the rating prompt have a state row, so older
+  // builds never get a /rate push they can't open.
+  if (norm.notRated) {
+    extra.push(`EXISTS (
+         SELECT 1 FROM app_review_state ars
+         WHERE ars.player_id = p.id AND ars.last_rated_at_ms IS NULL
+       )`);
   }
 
   const extraSql = extra.length ? ` AND ${extra.join(' AND ')}` : '';

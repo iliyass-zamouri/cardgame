@@ -3355,6 +3355,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{amount, plural, =1{1 Cash} other{{amount} Cash}}'**
   String shopCashPack(int amount);
+
+  /// No description provided for @appReviewRibbon.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate us'**
+  String get appReviewRibbon;
+
+  /// No description provided for @appReviewQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Enjoying ShadowHand?'**
+  String get appReviewQuestion;
+
+  /// No description provided for @appReviewTapStars.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a star to rate'**
+  String get appReviewTapStars;
+
+  /// No description provided for @appReviewStarLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 star} other{{count} stars}}'**
+  String appReviewStarLabel(int count);
+
+  /// No description provided for @appReviewNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get appReviewNotNow;
+
+  /// No description provided for @appReviewFeedbackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sorry to hear that'**
+  String get appReviewFeedbackTitle;
+
+  /// No description provided for @appReviewFeedbackBody.
+  ///
+  /// In en, this message translates to:
+  /// **'What could be better? Everything here is optional.'**
+  String get appReviewFeedbackBody;
+
+  /// No description provided for @appReviewCommentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell us more (optional)'**
+  String get appReviewCommentHint;
+
+  /// No description provided for @appReviewSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get appReviewSend;
+
+  /// No description provided for @appReviewSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get appReviewSkip;
+
+  /// No description provided for @appReviewThanksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Thank you!'**
+  String get appReviewThanksTitle;
+
+  /// No description provided for @appReviewThanksFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Your feedback goes straight to our team and helps us make the game better.'**
+  String get appReviewThanksFeedback;
+
+  /// No description provided for @appReviewThanksHappy.
+  ///
+  /// In en, this message translates to:
+  /// **'Glad you’re enjoying it! A rating in the store helps other players find the game.'**
+  String get appReviewThanksHappy;
+
+  /// No description provided for @appReviewRateInStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate in the store'**
+  String get appReviewRateInStore;
+
+  /// No description provided for @appReviewDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get appReviewDone;
+
+  /// No description provided for @appReviewTagBugs.
+  ///
+  /// In en, this message translates to:
+  /// **'Bugs or crashes'**
+  String get appReviewTagBugs;
+
+  /// No description provided for @appReviewTagAds.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many ads'**
+  String get appReviewTagAds;
+
+  /// No description provided for @appReviewTagDifficulty.
+  ///
+  /// In en, this message translates to:
+  /// **'Too hard or unfair'**
+  String get appReviewTagDifficulty;
+
+  /// No description provided for @appReviewTagEconomy.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices and rewards'**
+  String get appReviewTagEconomy;
+
+  /// No description provided for @appReviewTagBots.
+  ///
+  /// In en, this message translates to:
+  /// **'Bots'**
+  String get appReviewTagBots;
+
+  /// No description provided for @appReviewTagPerformance.
+  ///
+  /// In en, this message translates to:
+  /// **'Slow or drains battery'**
+  String get appReviewTagPerformance;
+
+  /// No description provided for @appReviewTagOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Something else'**
+  String get appReviewTagOther;
+
+  /// No description provided for @settingsRateApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate ShadowHand'**
+  String get settingsRateApp;
 }
 
 class _AppLocalizationsDelegate

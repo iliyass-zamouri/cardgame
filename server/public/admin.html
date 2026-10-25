@@ -164,6 +164,8 @@
     .seg button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px var(--shadow); }
     .seg .dirty-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
     .seg .dirty-dot[hidden] { display: none; }
+    .rt-stars { color: var(--warn); letter-spacing: 1px; white-space: nowrap; }
+    .rt-stars .rt-stars-off { color: var(--line); }
     .dr-sub { display: none; }
     .dr-sub.on { display: block; }
     .card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -403,6 +405,7 @@
       <button type="button" data-tab="gameplay" role="tab">Gameplay</button>
       <button type="button" data-tab="daily" role="tab">Daily rewards</button>
       <button type="button" data-tab="shop" role="tab">Shop</button>
+      <button type="button" data-tab="ratings" role="tab">Ratings <span class="badge" id="badge-ratings" hidden>0</span></button>
     </nav>
 
     <div id="panel-overview" class="panel on" role="tabpanel">
@@ -614,6 +617,9 @@
               <input id="pu-min-wins" type="number" min="0" placeholder="optional" />
             </div>
             <div class="field span-2">
+              <label class="toggle"><input id="pu-not-rated" type="checkbox" /> Only players who haven't rated the app (needs the app update)</label>
+            </div>
+            <div class="field span-2">
               <label for="pu-player-ids">Player ids (optional, overrides the filters)</label>
               <input id="pu-player-ids" type="text" placeholder="id1, id2" />
             </div>
@@ -811,6 +817,32 @@
         <span class="msg" id="sh-msg"></span>
       </div>
     </div>
+
+    <div id="panel-ratings" class="panel" role="tabpanel">
+      <div class="dr-note">
+        <strong>Needs the app update.</strong>
+        <span>Only app builds with the rating prompt show it, and only they get the rating push. Older apps are left alone.
+          Settings go live within 15 seconds. Ratings at or above the store threshold are sent on to the Play Store / App Store; lower ones stay here as private feedback.</span>
+      </div>
+      <nav class="seg" id="rt-seg" aria-label="Ratings sections">
+        <button type="button" data-sub="overview" class="on">Overview</button>
+        <button type="button" data-sub="feedback">Feedback</button>
+        <button type="button" data-sub="settings">Settings<span class="dirty-dot" hidden></span></button>
+      </nav>
+      <div id="rt-sub-overview" class="dr-sub"></div>
+      <div id="rt-sub-feedback" class="dr-sub"></div>
+      <div id="rt-sub-settings" class="dr-sub"></div>
+      <div class="savebar" id="rt-savebar" style="display:none">
+        <span class="state"><span class="dot"></span><span id="rt-state">All changes saved</span></span>
+        <span class="cap" id="rt-live" style="margin:0">—</span>
+        <span class="spacer"></span>
+        <button class="btn-muted" type="button" id="rt-discard">Discard</button>
+        <button class="btn-muted" type="button" id="rt-defaults">Load defaults</button>
+        <button class="btn-muted" type="button" id="rt-revert">Revert last save</button>
+        <button class="btn-primary" type="button" id="rt-save">Save &amp; publish</button>
+        <span class="msg" id="rt-msg"></span>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -818,7 +850,7 @@
     const STORAGE_KEY = 'shadowhand.adminSecret';
     const TAB_KEY = 'shadowhand.adminTab';
     const THEME_KEY = 'shadowhand.adminTheme';
-    const TABS = ['overview', 'live', 'matches', 'players', 'data', 'push', 'theme', 'gameplay', 'daily', 'shop'];
+    const TABS = ['overview', 'live', 'matches', 'players', 'data', 'push', 'theme', 'gameplay', 'daily', 'shop', 'ratings'];
     const THEMES = ['auto', 'light', 'dark'];
     // One slot per pot in app order: a categorical order checked for
     // colour-blind separation on both card surfaces. The pot table beside the
@@ -856,7 +888,7 @@
       return { tab: TABS.includes(tab) ? tab : null, sub: sub || null };
     }
     function writeHash(tab, replace) {
-      const next = '#' + tab + (tab === 'daily' ? '/' + dr.sub : tab === 'shop' ? '/' + sh.sub : '');
+      const next = '#' + tab + (tab === 'daily' ? '/' + dr.sub : tab === 'shop' ? '/' + sh.sub : tab === 'ratings' ? '/' + rt.sub : '');
       if (location.hash === next) return;
       if (replace) history.replaceState(null, '', next);
       else location.hash = next;
@@ -887,6 +919,7 @@
       if (stats) renderStats(stats);
       if (liveCache) renderLive(liveCache);
       if (dr.stats) drRenderStats(dr.stats);
+      if (rt.stats && rt.sub === 'overview') rtRenderOverview();
     }
 
     function esc(s) {
@@ -1010,6 +1043,7 @@
       if (tab === 'gameplay' && secret) void loadTurnTimer();
       if (tab === 'daily' && secret) void loadDaily();
       if (tab === 'shop' && secret) void loadShop();
+      if (tab === 'ratings' && secret) void loadRatings();
       if (tab === 'push' && secret) void loadPushTab();
     }
 
@@ -2665,6 +2699,7 @@
       const minW = $('pu-min-wins').value.trim();
       if (minM !== '') payload.minMatchesPlayed = Number(minM);
       if (minW !== '') payload.minWins = Number(minW);
+      if ($('pu-not-rated').checked) payload.notRated = true;
       const playerIds = ($('pu-player-ids').value || '').split(',').map((s) => s.trim()).filter(Boolean);
       if (playerIds.length) payload.playerIds = playerIds;
       return payload;
@@ -2961,6 +2996,7 @@
     ['pu-platform', 'pu-seen-days', 'pu-min-matches', 'pu-min-wins', 'pu-player-ids'].forEach((id) => {
       $(id).addEventListener('input', puScheduleAudience);
     });
+    $('pu-not-rated').addEventListener('change', puScheduleAudience);
     $('pu-send').addEventListener('click', () => void puSend());
     $('pu-history-refresh').addEventListener('click', () => void puLoadHistory());
     $('pu-test-q').addEventListener('input', () => {
@@ -3692,6 +3728,513 @@
       sh.draft = structuredClone(sh.defaults);
       shRenderSub();
       setMsg('sh-msg', 'Defaults loaded into the editor · press Save & publish to make them live', true);
+    });
+
+    // ------------------------------------------------------------- Ratings tab
+    const RT_SUB_KEY = 'shadowhand.adminRatingsSub';
+    const RT_SUBS = ['overview', 'feedback', 'settings'];
+    const RT_TRIGGERS = {
+      win: ['After a win', 'When the player leaves a won match and is back on Home.'],
+      daily: ['After the daily reward', 'Once the daily streak celebration closes.'],
+      launch: ['On app open', 'Last in the launch queue, after the daily, push and account prompts.'],
+      settings: ['"Rate us" in Settings', 'A row in Settings. It skips the rules below, since the player asked.'],
+      push: ['From a push', 'The player opened a rating push. Skips the rules.'],
+    };
+    const RT_TAGS = {
+      bugs: 'Bugs or crashes', ads: 'Too many ads', difficulty: 'Too hard / unfair',
+      economy: 'Prices / rewards', bots: 'Bots', performance: 'Slow / battery', other: 'Something else',
+    };
+    const RT_FLOWS = {
+      gated: 'Our stars first · store only for happy players',
+      native_only: 'Store review sheet straight away (no gating)',
+    };
+    const RT_PLATFORMS = { android: 'Android', ios: 'iOS', macos: 'macOS', other: 'Other' };
+    const rt = {
+      live: null,
+      draft: null,
+      defaults: null,
+      limits: null,
+      tags: null,
+      source: 'default',
+      hasPrevious: false,
+      sub: (parseHash().tab === 'ratings' && parseHash().sub) || sessionStorage.getItem(RT_SUB_KEY) || 'overview',
+      stats: null,
+      statsDays: 30,
+      statsError: null,
+      list: null,
+      listError: null,
+      filters: { stars: '', hasComment: false, platform: 'all', handled: '' },
+      offset: 0,
+      pageSize: 25,
+    };
+
+    function rtGet(path) {
+      return drKeys(path).reduce((node, key) => (node == null ? undefined : node[key]), rt.draft);
+    }
+    function rtSet(path, value) {
+      const keys = drKeys(path);
+      const last = keys.pop();
+      const parent = keys.reduce((node, key) => node[key], rt.draft);
+      parent[last] = value;
+    }
+    function rtIsDirty() {
+      return !!rt.draft && !drSame(rt.draft, rt.live);
+    }
+    function rtStars(count) {
+      return '<span class="rt-stars" aria-label="' + count + ' stars">' + '★'.repeat(count) +
+        '<span class="rt-stars-off">' + '★'.repeat(5 - count) + '</span></span>';
+    }
+    function rtPct(part, whole) {
+      return whole ? Math.round((part / whole) * 100) + '%' : '—';
+    }
+    function rtDate(ms) {
+      return ms ? new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+    }
+
+    // ---- Overview
+    function rtRenderOverview() {
+      const days = [7, 30, 90, 365].map((n) => `<button type="button" data-act="rt-days" data-days="${n}" class="${rt.statsDays === n ? 'on' : ''}">${n} days</button>`).join('');
+      const el = $('rt-sub-overview');
+      if (rt.statsError) {
+        el.innerHTML = `<nav class="seg">${days}</nav><div class="empty">${esc(rt.statsError)}</div>`;
+        return;
+      }
+      const s = rt.stats;
+      if (!s) {
+        el.innerHTML = `<nav class="seg">${days}</nav><div class="empty">Loading…</div>`;
+        return;
+      }
+      const top = Math.max(1, ...s.distribution.map((row) => row.count));
+      const f = s.funnel;
+      el.innerHTML = `<nav class="seg">${days}</nav>
+        <section class="kpis">${kpiHtml([
+          { l: 'Average rating', v: s.average != null ? s.average.toFixed(2) + ' ★' : '—', s: `all time ${s.allTime.average != null ? s.allTime.average.toFixed(2) : '—'} from ${drFmt(s.allTime.ratings)}` },
+          { l: 'Ratings', v: drFmt(s.ratings), s: `last ${s.days} days` },
+          { l: `${s.storeMinStars}★ and up`, v: rtPct(s.happy, s.ratings), s: `${drFmt(s.redirected)} sent to the store` },
+          { l: 'Feedback to read', v: drFmt(s.unhandled), s: `${drFmt(s.withFeedback)} left a reason` },
+          { l: 'Prompt → rating', v: rtPct(f.rated, f.shown), s: `${drFmt(f.shown)} shown · ${drFmt(f.dismissed)} closed` },
+          { l: 'Rating push', v: drFmt(f.pushSent), s: `${drFmt(f.pushOpened)} opened (${rtPct(f.pushOpened, f.pushSent)}) · ${drFmt(s.pushEligibleNow)} eligible now` },
+        ])}</section>
+        <section class="grid">
+          <div class="card">
+            <div class="card-head"><h2>Stars</h2></div>
+            <div style="display:grid;gap:8px">${[...s.distribution].reverse().map((row) => `
+              <div class="bar-row"><span>${row.stars} ★</span><span class="bar"><span style="width:${(row.count / top * 100).toFixed(1)}%;background:${row.stars >= s.storeMinStars ? 'var(--up)' : row.stars <= 2 ? 'var(--down)' : 'var(--warn)'}"></span></span><span class="num">${drFmt(row.count)}</span></div>`).join('')}
+            </div>
+            <p class="cap">Green bars reach the store threshold (${s.storeMinStars}★).</p>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Ratings per day</h2></div>
+            <div class="chart-box sm"><canvas id="rt-chart-daily"></canvas></div>
+          </div>
+        </section>
+        <section class="grid" style="margin-top:12px">
+          <div class="card">
+            <div class="card-head"><h2>By moment</h2></div>
+            <div class="table-wrap" style="max-height:none">${s.byTrigger.length ? `<table>
+              <thead><tr><th>Moment</th><th class="num-cell">Shown</th><th class="num-cell">Closed</th><th class="num-cell">Rated</th><th class="num-cell">Rate</th></tr></thead>
+              <tbody>${s.byTrigger.map((row) => `<tr>
+                <td>${esc(RT_TRIGGERS[row.trigger]?.[0] || row.trigger)}</td>
+                <td class="num-cell">${drFmt(row.shown)}</td>
+                <td class="num-cell">${drFmt(row.dismissed)}</td>
+                <td class="num-cell">${drFmt(row.rated)}</td>
+                <td class="num-cell">${rtPct(row.rated, row.shown)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No prompts shown in this period.</div>'}</div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>By platform</h2></div>
+            <div class="table-wrap" style="max-height:none">${s.byPlatform.length ? `<table>
+              <thead><tr><th>Platform</th><th class="num-cell">Ratings</th><th class="num-cell">Average</th><th class="num-cell">To store</th></tr></thead>
+              <tbody>${s.byPlatform.map((row) => `<tr>
+                <td>${esc(RT_PLATFORMS[row.platform] || row.platform)}</td>
+                <td class="num-cell">${drFmt(row.count)}</td>
+                <td class="num-cell">${row.average != null ? row.average.toFixed(2) : '—'}</td>
+                <td class="num-cell">${drFmt(row.redirected)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No ratings in this period.</div>'}</div>
+            <p class="cap">"To store" counts players sent on to rate publicly. The stores don't report whether they then left a review.</p>
+          </div>
+        </section>`;
+      upsertChart('rtDaily', 'rt-chart-daily', {
+        type: 'bar',
+        data: {
+          labels: s.daily.map((d) => dayLabel(d.day)),
+          datasets: [{ data: s.daily.map((d) => d.count), backgroundColor: COLORS.info }],
+        },
+        options: chartOpts(),
+      });
+    }
+    async function loadRatingStats() {
+      rt.statsError = null;
+      try {
+        rt.stats = await api('/admin/app-review/stats?days=' + rt.statsDays);
+        const badge = $('badge-ratings');
+        badge.textContent = String(rt.stats.unhandled);
+        badge.hidden = !rt.stats.unhandled;
+      } catch (error) {
+        rt.statsError = error.message || 'Could not load rating stats';
+      }
+      // The canvas is rebuilt with the section, so drop the old chart first.
+      charts.get('rtDaily')?.destroy();
+      charts.delete('rtDaily');
+      if (rt.sub === 'overview') rtRenderOverview();
+    }
+
+    // ---- Feedback
+    function rtListQuery() {
+      const q = new URLSearchParams({ limit: String(rt.pageSize), offset: String(rt.offset) });
+      if (rt.filters.stars) q.set('stars', rt.filters.stars);
+      if (rt.filters.hasComment) q.set('hasComment', '1');
+      if (rt.filters.platform !== 'all') q.set('platform', rt.filters.platform);
+      if (rt.filters.handled) q.set('handled', rt.filters.handled);
+      return q;
+    }
+    function rtRenderFeedback() {
+      const f = rt.filters;
+      const option = (value, text, current) => `<option value="${esc(value)}"${current === value ? ' selected' : ''}>${esc(text)}</option>`;
+      const list = rt.list;
+      let body;
+      if (rt.listError) body = `<div class="empty">${esc(rt.listError)}</div>`;
+      else if (!list) body = '<div class="empty">Loading…</div>';
+      else if (!list.items.length) body = '<div class="empty">No ratings match these filters.</div>';
+      else {
+        body = `<table>
+          <thead><tr><th>When</th><th>Player</th><th>Rating</th><th>What could be better</th><th>Device</th><th>Moment</th><th></th></tr></thead>
+          <tbody>${list.items.map((r) => `<tr${r.handled ? ' style="opacity:.6"' : ''}>
+            <td style="white-space:nowrap">${esc(rtDate(r.createdAtMs))}</td>
+            <td><div class="name">${esc(r.playerName || shortId(r.playerId))}</div><div class="sub" style="font-family:var(--mono)" title="${esc(r.playerId)}">${esc(shortId(r.playerId))}</div></td>
+            <td style="white-space:nowrap">${rtStars(r.stars)}${r.storeRedirected ? '<div class="sub">sent to store</div>' : ''}</td>
+            <td style="min-width:220px;max-width:420px">${r.tags.map((tag) => `<span class="chip">${esc(RT_TAGS[tag] || tag)}</span>`).join(' ')}
+              ${r.comment ? `<div style="white-space:pre-wrap;margin-top:4px" dir="auto">${esc(r.comment)}</div>` : (r.tags.length ? '' : '<span class="sub">—</span>')}</td>
+            <td><div>${esc(RT_PLATFORMS[r.platform] || r.platform)}</div><div class="sub">${esc(r.appVersion || '')} · ${esc(r.locale)}</div></td>
+            <td>${esc(RT_TRIGGERS[r.trigger]?.[0] || r.trigger)}</td>
+            <td>${r.comment || r.tags.length
+              ? `<button type="button" class="btn-muted" data-act="rt-handled" data-id="${r.id}" data-handled="${r.handled ? '0' : '1'}">${r.handled ? 'Reopen' : 'Done'}</button>`
+              : ''}</td>
+          </tr>`).join('')}</tbody></table>`;
+      }
+      const from = list && list.total ? list.offset + 1 : 0;
+      const to = list ? list.offset + list.items.length : 0;
+      $('rt-sub-feedback').innerHTML = `<section class="card">
+          <div class="field-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));align-items:end">
+            <div class="field"><label>Stars</label><select class="dr-select" data-filter="stars" aria-label="Stars">
+              ${option('', 'All', f.stars)}${option('1,2', '1–2 ★ (unhappy)', f.stars)}${option('3', '3 ★', f.stars)}${option('4,5', '4–5 ★ (happy)', f.stars)}
+              ${[1, 2, 3, 4, 5].map((n) => option(String(n), `Only ${n} ★`, f.stars)).join('')}</select></div>
+            <div class="field"><label>Platform</label><select class="dr-select" data-filter="platform" aria-label="Platform">
+              ${option('all', 'All', f.platform)}${Object.entries(RT_PLATFORMS).map(([key, text]) => option(key, text, f.platform)).join('')}</select></div>
+            <div class="field"><label>Status</label><select class="dr-select" data-filter="handled" aria-label="Status">
+              ${option('', 'All', f.handled)}${option('0', 'To read', f.handled)}${option('1', 'Done', f.handled)}</select></div>
+            <div class="field"><label class="toggle"><input type="checkbox" data-filter="hasComment"${f.hasComment ? ' checked' : ''} /> Only with a reason</label></div>
+          </div>
+        </section>
+        <section class="card" style="margin-top:12px">
+          <div class="card-head"><h2>Ratings</h2>
+            <span class="push"><span class="cap" style="margin:0">${list ? `${drFmt(from)}–${drFmt(to)} of ${drFmt(list.total)}` : ''}</span>
+              <button type="button" class="btn-muted" data-act="rt-page" data-dir="-1"${!list || rt.offset === 0 ? ' disabled' : ''}>‹ Newer</button>
+              <button type="button" class="btn-muted" data-act="rt-page" data-dir="1"${!list || to >= list.total ? ' disabled' : ''}>Older ›</button>
+              <button type="button" class="btn-muted" data-act="rt-csv">Export CSV</button></span></div>
+          <div class="table-wrap" style="max-height:none">${body}</div>
+          <p class="cap" id="rt-csv-status"></p>
+        </section>`;
+    }
+    async function loadRatingList() {
+      rt.listError = null;
+      try {
+        rt.list = await api('/admin/app-review/list?' + rtListQuery());
+      } catch (error) {
+        rt.list = null;
+        rt.listError = error.message || 'Could not load ratings';
+      }
+      if (rt.sub === 'feedback') rtRenderFeedback();
+    }
+    async function rtSetHandled(id, handled) {
+      try {
+        await apiPost(`/admin/app-review/${id}/handled`, { handled });
+        const row = rt.list?.items.find((item) => item.id === id);
+        if (row) row.handled = handled;
+        rtRenderFeedback();
+        void loadRatingStats();
+      } catch (error) {
+        setMsg('rt-msg', error.message || 'Update failed', false);
+      }
+    }
+    async function rtDownloadCsv() {
+      const status = $('rt-csv-status');
+      status.textContent = 'Building CSV…';
+      try {
+        const q = rtListQuery();
+        q.delete('limit');
+        q.delete('offset');
+        const res = await fetch('/admin/app-review/export.csv?' + q, { headers: { 'x-admin-push-secret': secret } });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.message || ('HTTP ' + res.status));
+        }
+        const blob = await res.blob();
+        const match = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '');
+        const filename = match ? match[1] : 'shadowhand-ratings.csv';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        status.textContent = 'Downloaded ' + filename;
+      } catch (error) {
+        status.textContent = error.message || 'Export failed';
+      }
+    }
+
+    // ---- Settings
+    function rtNum(path, label, range, hint) {
+      return `<div class="field"><label>${esc(label)}</label>${drNum(path, rtGet(path), range[0], range[1], label)}` +
+        (hint ? `<div class="sub" style="margin-top:4px">${esc(hint)}</div>` : '') + '</div>';
+    }
+    function rtToggle(path, label, rerender) {
+      return `<label class="toggle"><input type="checkbox" data-path="${esc(path)}" data-type="bool"${rerender ? ' data-rerender' : ''}${rtGet(path) ? ' checked' : ''} /> ${esc(label)}</label>`;
+    }
+    function rtSelect(path, options, label, type = 'text') {
+      const value = rtGet(path);
+      return `<select class="dr-select" data-path="${esc(path)}" data-type="${type}" aria-label="${esc(label)}">` +
+        Object.entries(options).map(([key, text]) => `<option value="${esc(key)}"${String(value) === key ? ' selected' : ''}>${esc(text)}</option>`).join('') +
+        '</select>';
+    }
+    function rtRenderSettings() {
+      const d = rt.draft;
+      const L = rt.limits;
+      if (!d) {
+        $('rt-sub-settings').innerHTML = '<div class="empty">Loading…</div>';
+        return;
+      }
+      const stars = Object.fromEntries([1, 2, 3, 4, 5].map((n) => [String(n), `${n} ★ and up`]));
+      const hours = Object.fromEntries(Array.from({ length: 24 }, (_, h) => [String(h), String(h).padStart(2, '0') + ':00 UTC']));
+      const gated = d.flow.android === 'gated' || d.flow.ios === 'gated';
+      $('rt-sub-settings').innerHTML = `<section class="card" style="margin-bottom:12px">
+          <div class="card-head"><h2>Rating prompt</h2><span class="push">${d.enabled ? '<span class="chip good">On</span>' : '<span class="chip">Off</span>'}</span></div>
+          <div class="field-grid">
+            <div class="field span-2">${rtToggle('enabled', 'Ask players to rate the app', true)}</div>
+            <div class="field"><label>Android</label>${rtSelect('flow.android', RT_FLOWS, 'Android flow')}</div>
+            <div class="field"><label>iOS and macOS</label>${rtSelect('flow.ios', RT_FLOWS, 'iOS flow')}</div>
+            <div class="field"><label>Send to the store at</label>${rtSelect('storeMinStars', stars, 'Store threshold', 'int')}
+              <div class="sub" style="margin-top:4px">Below that, the app asks what could be better and thanks the player.</div></div>
+            <div class="field"><label>App Store id (numbers only)</label>
+              <input type="text" inputmode="numeric" maxlength="12" data-path="iosAppStoreId" data-type="text" value="${esc(d.iosAppStoreId)}" placeholder="e.g. 6450000000" />
+              <div class="sub" style="margin-top:4px">Opens the App Store page when the review sheet can't show.${!d.iosAppStoreId ? ' <strong>Not set.</strong>' : ''}</div></div>
+          </div>
+          ${gated ? `<p class="cap">Gated flow: Apple (guideline 5.6.1) and Google Play discourage only sending happy players to rate. If a store review flags it, switch that platform to "straight away".</p>` : ''}
+        </section>
+        <section class="card" style="margin-bottom:12px">
+          <div class="card-head"><h2>When to ask</h2></div>
+          <div style="display:grid;gap:10px">${['win', 'daily', 'launch', 'settings'].map((key) => `
+            <div>${rtToggle('triggers.' + key, RT_TRIGGERS[key][0])}<div class="sub" style="margin:2px 0 0 24px">${esc(RT_TRIGGERS[key][1])}</div></div>`).join('')}
+          </div>
+        </section>
+        <section class="card" style="margin-bottom:12px">
+          <div class="card-head"><h2>Who gets asked</h2></div>
+          <p class="lead">Applies to the moments above, except Settings and push. One prompt per app session at most.</p>
+          <div class="field-grid">
+            ${rtNum('rules.minMatchesPlayed', 'Matches played, at least', L.minMatchesPlayed)}
+            ${rtNum('rules.minWins', 'Wins, at least', L.minWins)}
+            ${rtNum('rules.minAccountAgeDays', 'Days since sign-up, at least', L.minAccountAgeDays)}
+            ${rtNum('rules.maxPrompts', 'Times to ask, at most', L.maxPrompts, 'Per player, ever.')}
+            ${rtNum('rules.cooldownDays', 'Days between prompts', L.cooldownDays, 'After a prompt was shown or closed.')}
+            ${rtNum('rules.lowRatingRepromptDays', 'Ask again after a low rating, days', L.lowRatingRepromptDays, '0 = never ask again.')}
+            ${rtNum('rules.highRatingRepromptDays', 'Ask again after a store rating, days', L.highRatingRepromptDays, '0 = never ask again.')}
+          </div>
+        </section>
+        <section class="card" style="margin-bottom:12px">
+          <div class="card-head"><h2>Feedback after a low rating</h2></div>
+          <div class="field">${rtToggle('feedback.askReason', 'Ask "what could be better?" (always optional)', true)}</div>
+          ${d.feedback.askReason ? `<p class="lead" style="margin-top:10px">Reasons the player can tick, besides writing their own:</p>
+          <div style="display:flex;flex-wrap:wrap;gap:6px 16px">${(rt.tags || []).map((tag) => `
+            <label class="inline-group"><input type="checkbox" data-act="rt-tag" data-tag="${esc(tag)}"${d.feedback.tags.includes(tag) ? ' checked' : ''} /> ${esc(RT_TAGS[tag] || tag)}</label>`).join('')}</div>` : ''}
+        </section>
+        <section class="card">
+          <div class="card-head"><h2>Automatic rating push</h2>
+            <span class="push">${d.push.enabled ? '<span class="chip good">On</span>' : '<span class="chip">Off</span>'}
+              ${rt.stats ? `<span class="cap" style="margin:0">${drFmt(rt.stats.pushEligibleNow)} players eligible now</span>` : ''}</span></div>
+          <p class="lead">Checked every 10 minutes. Each player gets it once, in their language, only if they haven't rated, opted in to news pushes, and fit "Who gets asked". Tapping it opens the rating prompt.</p>
+          <div class="field-grid">
+            <div class="field span-2">${rtToggle('push.enabled', 'Send the rating push', true)}</div>
+            ${rtNum('push.minMatchesPlayed', 'Matches played, at least', L.pushMinMatchesPlayed)}
+            ${rtNum('push.minDaysSinceInstall', 'Days since sign-up, at least', L.pushMinDaysSinceInstall)}
+            ${rtNum('push.idleHours', 'Hours since last seen, at least', L.pushIdleHours, 'So nobody is pushed mid-session.')}
+            ${rtNum('push.perTickLimit', 'Players per run, at most', L.pushPerTickLimit)}
+            <div class="field"><label>Send from</label>${rtSelect('push.sendWindowUtc.0', hours, 'Window start', 'int')}</div>
+            <div class="field"><label>Until</label>${rtSelect('push.sendWindowUtc.1', hours, 'Window end', 'int')}</div>
+          </div>
+          <h3 class="cap" style="margin:14px 0 6px">Title · up to ${L.pushTitleLength} characters</h3>
+          ${rtLocFields('push.title', d.push.title, L.pushTitleLength)}
+          <h3 class="cap" style="margin:14px 0 6px">Message · up to ${L.pushBodyLength} characters</h3>
+          ${rtLocFields('push.body', d.push.body, L.pushBodyLength)}
+          <p class="cap">Need a one-off send instead? Use the Push tab with "Rate the app" as the link and "Only players who haven't rated".</p>
+        </section>`;
+    }
+    function rtLocFields(path, value, max) {
+      return `<div class="field-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">${DR_LANGS.map(([code, name]) => `
+          <div class="field"><label>${esc(name)}${code === 'en' ? ' · required' : ''}</label>
+            <input type="text" maxlength="${max}" dir="${code === 'ar' ? 'rtl' : 'auto'}" data-path="${esc(path + '.' + code)}" data-type="loc"
+              value="${esc(value?.[code] || '')}" /></div>`).join('')}</div>`;
+    }
+    function rtApplyInput(el) {
+      const { path, type } = el.dataset;
+      if (type === 'bool') rtSet(path, el.checked);
+      else if (type === 'int') rtSet(path, el.value.trim() === '' ? null : Number(el.value));
+      else if (type === 'loc') {
+        // An empty translation falls back to English in the push.
+        const keys = path.split('.');
+        const lang = keys.pop();
+        const objectPath = keys.join('.');
+        const text = { ...(rtGet(objectPath) || {}) };
+        if (el.value.trim() === '') delete text[lang];
+        else text[lang] = el.value;
+        rtSet(objectPath, text);
+      } else rtSet(path, el.value);
+    }
+
+    // ---- State, sections and saving
+    function rtRenderSaveBar() {
+      const dirty = rtIsDirty();
+      $('rt-savebar').style.display = rt.draft && rt.sub === 'settings' ? '' : 'none';
+      $('rt-savebar').classList.toggle('dirty', dirty);
+      $('rt-state').textContent = dirty ? 'Unsaved changes' : 'All changes saved';
+      $('rt-discard').hidden = !dirty;
+      $('rt-save').hidden = !dirty;
+      $('rt-save').disabled = false;
+      $('rt-revert').disabled = !rt.hasPrevious;
+      if (rt.live) {
+        $('rt-live').textContent = `Live: ${rt.source === 'admin' ? 'saved in admin' : 'code defaults'} · prompt ${rt.live.enabled ? 'on' : 'off'} · push ${rt.live.push.enabled ? 'on' : 'off'}`;
+      }
+      const dot = document.querySelector('#rt-seg button[data-sub="settings"] .dirty-dot');
+      if (dot) dot.hidden = !dirty;
+    }
+    function rtRenderSub() {
+      if (rt.sub === 'overview') rtRenderOverview();
+      else if (rt.sub === 'feedback') rtRenderFeedback();
+      else rtRenderSettings();
+      rtRenderSaveBar();
+    }
+    function rtShowSub(sub) {
+      rt.sub = RT_SUBS.includes(sub) ? sub : 'overview';
+      sessionStorage.setItem(RT_SUB_KEY, rt.sub);
+      if (activeTab === 'ratings') writeHash('ratings');
+      document.querySelectorAll('#rt-seg button').forEach((button) => {
+        button.classList.toggle('on', button.dataset.sub === rt.sub);
+      });
+      RT_SUBS.forEach((id) => $('rt-sub-' + id).classList.toggle('on', id === rt.sub));
+      if (rt.sub === 'overview') {
+        charts.get('rtDaily')?.destroy();
+        charts.delete('rtDaily');
+      }
+      rtRenderSub();
+    }
+    function rtAdopt(state, { keepDraft = false } = {}) {
+      rt.live = state.config;
+      rt.source = state.source;
+      rt.hasPrevious = !!state.hasPrevious;
+      rt.defaults = state.defaults || rt.defaults;
+      rt.limits = state.limits || rt.limits;
+      rt.tags = state.tags || rt.tags;
+      if (!keepDraft || !rt.draft) rt.draft = structuredClone(state.config);
+    }
+    async function loadRatings() {
+      rtShowSub(rt.sub);
+      try {
+        // Coming back to the tab keeps an unsaved draft.
+        rtAdopt(await api('/admin/app-review'), { keepDraft: rtIsDirty() });
+      } catch (error) {
+        setMsg('rt-msg', error.message || 'Could not load the rating settings', false);
+      }
+      if (rt.sub === 'settings') rtRenderSub();
+      void loadRatingStats();
+      void loadRatingList();
+    }
+    async function saveRatings() {
+      setMsg('rt-msg', 'Saving…', true);
+      $('rt-save').disabled = true;
+      try {
+        rtAdopt(await apiPost('/admin/app-review', rt.draft));
+        rtRenderSub();
+        setMsg('rt-msg', 'Saved · live for players within 15 seconds', true);
+        void loadRatingStats();
+      } catch (error) {
+        setMsg('rt-msg', error.message || 'Save failed', false);
+        rtRenderSaveBar();
+      }
+    }
+    async function revertRatings() {
+      const question = 'Put back the rating settings saved before the last ones? They go live within 15 seconds.' +
+        (rtIsDirty() ? ' Your unsaved edits will be dropped.' : '');
+      if (!confirm(question)) return;
+      setMsg('rt-msg', 'Restoring…', true);
+      try {
+        rtAdopt(await apiPost('/admin/app-review/revert', {}));
+        rtRenderSub();
+        setMsg('rt-msg', 'Previous version restored · live within 15 seconds', true);
+      } catch (error) {
+        setMsg('rt-msg', error.message || 'Revert failed', false);
+      }
+    }
+
+    $('rt-seg').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-sub]');
+      if (button) rtShowSub(button.dataset.sub);
+    });
+    $('panel-ratings').addEventListener('input', (event) => {
+      const el = event.target;
+      if (!rt.draft || !el.dataset?.path || el.tagName === 'SELECT' || el.type === 'checkbox') return;
+      setMsg('rt-msg', '', true);
+      rtApplyInput(el);
+      rtRenderSaveBar();
+    });
+    $('panel-ratings').addEventListener('change', (event) => {
+      const el = event.target;
+      const { act, path, filter } = el.dataset || {};
+      if (filter) {
+        rt.filters[filter] = el.type === 'checkbox' ? el.checked : el.value;
+        rt.offset = 0;
+        rt.list = null;
+        rtRenderFeedback();
+        void loadRatingList();
+      } else if (act === 'rt-tag' && rt.draft) {
+        const tags = new Set(rt.draft.feedback.tags);
+        if (el.checked) tags.add(el.dataset.tag);
+        else tags.delete(el.dataset.tag);
+        rt.draft.feedback.tags = rt.tags.filter((tag) => tags.has(tag));
+        rtRenderSaveBar();
+      } else if (path && rt.draft) {
+        setMsg('rt-msg', '', true);
+        rtApplyInput(el);
+        if ('rerender' in el.dataset || el.tagName === 'SELECT') rtRenderSub();
+        else rtRenderSaveBar();
+      }
+    });
+    $('panel-ratings').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-act]');
+      if (!button || button.disabled) return;
+      const { act } = button.dataset;
+      if (act === 'rt-days') {
+        rt.statsDays = Number(button.dataset.days);
+        rt.stats = null;
+        rtRenderOverview();
+        void loadRatingStats();
+      } else if (act === 'rt-page') {
+        rt.offset = Math.max(0, rt.offset + Number(button.dataset.dir) * rt.pageSize);
+        void loadRatingList();
+      } else if (act === 'rt-handled') {
+        void rtSetHandled(Number(button.dataset.id), button.dataset.handled === '1');
+      } else if (act === 'rt-csv') {
+        void rtDownloadCsv();
+      }
+    });
+    $('rt-save').addEventListener('click', () => void saveRatings());
+    $('rt-revert').addEventListener('click', () => void revertRatings());
+    $('rt-discard').addEventListener('click', () => {
+      rt.draft = structuredClone(rt.live);
+      rtRenderSub();
+      setMsg('rt-msg', 'Edits discarded', true);
+    });
+    $('rt-defaults').addEventListener('click', () => {
+      if (!rt.defaults) return;
+      rt.draft = structuredClone(rt.defaults);
+      rtRenderSub();
+      setMsg('rt-msg', 'Defaults loaded into the editor · press Save & publish to make them live', true);
     });
 
     applyTheme();

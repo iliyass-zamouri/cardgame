@@ -151,6 +151,41 @@ const {
 } = require('./push/deeplinks');
 const { POTS } = require('./pots');
 const {
+  DEFAULTS: APP_REVIEW_DEFAULTS,
+  LIMITS: APP_REVIEW_LIMITS,
+  FEEDBACK_TAGS: APP_REVIEW_TAGS,
+  validateConfig: validateAppReviewConfig,
+  clientView: appReviewClientView,
+  createAppReviewStore,
+} = require('./app_review_config');
+const {
+  RATE_MIN_GAP_MS,
+  evaluateEligibility,
+  decideAction,
+  countsAsPrompt,
+  parseClientInfo,
+  parseTrigger,
+  parseRateInput,
+  parseFeedbackInput,
+  runPushTick: runAppReviewPushTick,
+} = require('./app_review');
+const {
+  touchReviewState,
+  recordPromptShown,
+  recordDismiss,
+  recordPushOpened,
+  lastRatedAtMs,
+  insertReview,
+  addReviewFeedback,
+  listReviews,
+  setReviewHandled,
+  exportReviewsCsv,
+  getReviewStats,
+  selectPushCandidates,
+  countPushCandidates,
+  markPushSent,
+} = require('./db/app_reviews');
+const {
   getAdminDashboardStats,
   getPlayersByIds,
   searchAdminPlayers,
@@ -280,6 +315,56 @@ function dbMarketplaceStore() {
   });
 }
 
+const APP_REVIEW_SETTING_KEY = 'app_review';
+const APP_REVIEW_PREVIOUS_KEY = 'app_review_prev';
+const APP_REVIEW_PUSH_TICK_MS = 10 * 60_000;
+
+/** Admin rate-the-app config, stored in app_settings. See server/app_review_config.js. */
+function dbAppReviewStore() {
+  const readKey = (key) => async () => {
+    if (!isDbReady()) return null;
+    const raw = await getSetting(key);
+    if (raw === null) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      console.error(`[app-review] ${key} is not JSON, ignoring it`);
+      return null;
+    }
+  };
+  const writeKey = (key) => (config) => setSetting(key, JSON.stringify(config));
+  return createAppReviewStore({
+    read: readKey(APP_REVIEW_SETTING_KEY),
+    write: writeKey(APP_REVIEW_SETTING_KEY),
+    readPrevious: readKey(APP_REVIEW_PREVIOUS_KEY),
+    writePrevious: writeKey(APP_REVIEW_PREVIOUS_KEY),
+  });
+}
+
+function adminAppReviewBody(state, hasPrevious) {
+  const { source, ...config } = state;
+  return {
+    config,
+    source,
+    hasPrevious,
+    defaults: APP_REVIEW_DEFAULTS,
+    limits: APP_REVIEW_LIMITS,
+    tags: APP_REVIEW_TAGS,
+  };
+}
+
+/** `/app-review/123/feedback` -> 123. */
+function feedbackReviewId(pathname) {
+  const match = pathname.match(/^\/app-review\/(\d{1,18})\/feedback$/);
+  return match ? Number(match[1]) : null;
+}
+
+/** `/admin/app-review/123/handled` -> 123. */
+function adminReviewIdFromPath(pathname) {
+  const match = pathname.match(/^\/admin\/app-review\/(\d{1,18})\/handled$/);
+  return match ? Number(match[1]) : null;
+}
+
 function adminMarketplaceBody(state, hasPrevious, nowMs) {
   const { source, ...config } = state;
   return {
@@ -351,6 +436,7 @@ class GameServer {
     turnTimerStore = dbTurnTimerStore(),
     dailyRewardsStore = dbDailyRewardsStore(),
     marketplaceStore = dbMarketplaceStore(),
+    appReviewStore = dbAppReviewStore(),
     clock = Date.now,
   } = {}) {
     this.port = port;
@@ -361,6 +447,9 @@ class GameServer {
     this.turnTimerStore = turnTimerStore;
     this.dailyRewardsStore = dailyRewardsStore;
     this.marketplaceStore = marketplaceStore;
+    this.appReviewStore = appReviewStore;
+    this.appReviewTimer = null;
+    this.appReviewPushRunning = false;
     // Prices, rates and starting balances read the live shop config.
     useMarketplaceConfig(() => this.marketplaceStore.current());
     this.clock = clock;
@@ -398,6 +487,7 @@ class GameServer {
     await this.turnTimerStore.refresh();
     await this.dailyRewardsStore.refresh();
     await this.marketplaceStore.refresh();
+    await this.appReviewStore.refresh();
 
     this.httpServer = http.createServer((request, response) => {
       this.#handleHttp(request, response).catch((error) => {
@@ -425,6 +515,9 @@ class GameServer {
     const tickMs = Number(process.env.BOT_SOCIAL_TICK_MS) || this.botSocial.options.tickMs;
     this.botSocialTimer = setInterval(() => void this.#botSocialTick(), tickMs);
     if (this.botSocialTimer.unref) this.botSocialTimer.unref();
+
+    this.appReviewTimer = setInterval(() => void this.#appReviewPushTick(), APP_REVIEW_PUSH_TICK_MS);
+    if (this.appReviewTimer.unref) this.appReviewTimer.unref();
 
     await new Promise((resolve, reject) => {
       this.httpServer.once('error', reject);
@@ -462,6 +555,8 @@ class GameServer {
     this.activeBotPlayerIds.clear();
     if (this.botSocialTimer) clearInterval(this.botSocialTimer);
     this.botSocialTimer = null;
+    if (this.appReviewTimer) clearInterval(this.appReviewTimer);
+    this.appReviewTimer = null;
     this.botSocial?.dispose();
     this.botSocial = null;
     for (const timer of this.botHostTimers.values()) clearTimeout(timer);
@@ -984,6 +1079,71 @@ class GameServer {
 
     if (request.method === 'POST' && url.pathname === '/admin/daily-rewards/player/action') {
       await this.#handleAdminDailyRewardsAction(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/app-review/status') {
+      await this.#handleAppReviewStatus(request, response, url);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/app-review/shown') {
+      await this.#handleAppReviewEvent(request, response, 'shown');
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/app-review/dismiss') {
+      await this.#handleAppReviewEvent(request, response, 'dismissed');
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/app-review/push-opened') {
+      await this.#handleAppReviewEvent(request, response, 'push_opened');
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/app-review/rate') {
+      await this.#handleAppReviewRate(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && feedbackReviewId(url.pathname) !== null) {
+      await this.#handleAppReviewFeedback(request, response, feedbackReviewId(url.pathname));
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/app-review') {
+      await this.#handleAdminAppReviewGet(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/admin/app-review') {
+      await this.#handleAdminAppReviewSet(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/admin/app-review/revert') {
+      await this.#handleAdminAppReviewRevert(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/app-review/stats') {
+      await this.#handleAdminAppReviewStats(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/app-review/list') {
+      await this.#handleAdminAppReviewList(request, response, url);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/app-review/export.csv') {
+      await this.#handleAdminAppReviewCsv(request, response, url);
+      return;
+    }
+
+    if (request.method === 'POST' && adminReviewIdFromPath(url.pathname) !== null) {
+      await this.#handleAdminAppReviewHandled(request, response, adminReviewIdFromPath(url.pathname));
       return;
     }
 
@@ -3418,6 +3578,322 @@ class GameServer {
     }
   }
 
+  // ---------------------------------------------------------- app review
+
+  async #handleAppReviewStatus(request, response, url) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    const trigger = parseTrigger(url.searchParams.get('trigger'));
+    if (!trigger) {
+      sendJson(response, 400, { error: 'invalid_value', message: 'Unknown trigger' });
+      return;
+    }
+    const info = parseClientInfo({
+      platform: url.searchParams.get('platform'),
+      appVersion: url.searchParams.get('appVersion'),
+      locale: url.searchParams.get('locale'),
+    });
+    const config = this.appReviewStore.current();
+    const view = appReviewClientView(config, info.platform);
+    if (!isDbReady()) {
+      sendJson(response, 200, { show: false, reason: 'unavailable', config: view });
+      return;
+    }
+    try {
+      const nowMs = this.clock();
+      const context = await touchReviewState(auth.playerId, info, nowMs);
+      if (!context) {
+        sendJson(response, 404, { error: 'player_not_found', message: 'Player not found' });
+        return;
+      }
+      const { show, reason } = evaluateEligibility({ config, trigger, ...context, nowMs });
+      sendJson(response, 200, { show, reason, config: view });
+    } catch (error) {
+      console.error('[app-review/status] failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Could not load rating status' });
+    }
+  }
+
+  /** shown, dismissed and push_opened: bookkeeping the rules and the admin funnel read. */
+  async #handleAppReviewEvent(request, response, kind) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const trigger = kind === 'push_opened' ? 'push' : parseTrigger(body?.trigger);
+    if (!trigger) {
+      sendJson(response, 400, { error: 'invalid_value', message: 'Unknown trigger' });
+      return;
+    }
+    if (!isDbReady()) {
+      sendJson(response, 503, { error: 'db_unavailable', message: 'Database unavailable' });
+      return;
+    }
+    try {
+      const nowMs = this.clock();
+      if (kind === 'shown') {
+        await recordPromptShown(auth.playerId, trigger, countsAsPrompt(trigger), nowMs);
+      } else if (kind === 'dismissed') {
+        await recordDismiss(auth.playerId, trigger, nowMs);
+      } else {
+        await recordPushOpened(auth.playerId, nowMs);
+      }
+      sendJson(response, 200, { ok: true });
+    } catch (error) {
+      console.error(`[app-review/${kind}] failed`, error);
+      sendJson(response, 500, { error: 'server_error', message: 'Could not save' });
+    }
+  }
+
+  async #handleAppReviewRate(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const input = parseRateInput(body);
+    if (input.error) {
+      sendJson(response, 400, { error: input.error, message: input.message });
+      return;
+    }
+    if (!isDbReady()) {
+      sendJson(response, 503, { error: 'db_unavailable', message: 'Database unavailable' });
+      return;
+    }
+    try {
+      const nowMs = this.clock();
+      const lastRated = await lastRatedAtMs(auth.playerId);
+      if (lastRated != null && nowMs - lastRated < RATE_MIN_GAP_MS) {
+        sendJson(response, 429, { error: 'too_soon', message: 'You just rated the app' });
+        return;
+      }
+      const config = this.appReviewStore.current();
+      const action = decideAction(config, input.platform, input.stars);
+      const reviewId = await insertReview({
+        playerId: auth.playerId,
+        ...input,
+        storeRedirected: action === 'store',
+        nowMs,
+      });
+      sendJson(response, 200, {
+        reviewId,
+        action,
+        askReason: action === 'feedback' && config.feedback.askReason,
+      });
+    } catch (error) {
+      console.error('[app-review/rate] failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Could not save your rating' });
+    }
+  }
+
+  async #handleAppReviewFeedback(request, response, reviewId) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const input = parseFeedbackInput(body);
+    if (input.error) {
+      sendJson(response, 400, { error: input.error, message: input.message });
+      return;
+    }
+    if (!isDbReady()) {
+      sendJson(response, 503, { error: 'db_unavailable', message: 'Database unavailable' });
+      return;
+    }
+    try {
+      const saved = await addReviewFeedback({
+        reviewId,
+        playerId: auth.playerId,
+        ...input,
+        nowMs: this.clock(),
+      });
+      if (!saved) {
+        sendJson(response, 404, { error: 'review_not_found', message: 'Rating not found' });
+        return;
+      }
+      sendJson(response, 200, { ok: true });
+    } catch (error) {
+      console.error('[app-review/feedback] failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Could not save your feedback' });
+    }
+  }
+
+  async #appReviewPushTick() {
+    if (!isDbReady() || this.appReviewPushRunning) return;
+    this.appReviewPushRunning = true;
+    try {
+      const result = await runAppReviewPushTick({
+        config: this.appReviewStore.current(),
+        nowMs: this.clock(),
+        selectCandidates: selectPushCandidates,
+        markPushSent,
+        sendToPlayers,
+      });
+      if (result.sent) console.log('[app-review] rating push sent', { players: result.sent });
+    } catch (error) {
+      console.error('[app-review] rating push failed', error);
+    } finally {
+      this.appReviewPushRunning = false;
+    }
+  }
+
+  async #handleAdminAppReviewGet(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    await this.appReviewStore.refresh();
+    sendJson(
+      response,
+      200,
+      adminAppReviewBody(this.appReviewStore.current(), await this.appReviewStore.hasPrevious()),
+    );
+  }
+
+  async #handleAdminAppReviewSet(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    // A save replaces the whole config. The admin tab always sends a full copy.
+    const { config, error, message } = validateAppReviewConfig(body);
+    if (error) {
+      sendJson(response, 400, { error, message });
+      return;
+    }
+    try {
+      const saved = await this.appReviewStore.set(config);
+      console.log('[admin/app-review] saved', {
+        enabled: saved.enabled,
+        storeMinStars: saved.storeMinStars,
+        push: saved.push.enabled,
+      });
+      sendJson(response, 200, adminAppReviewBody(saved, await this.appReviewStore.hasPrevious()));
+    } catch (error) {
+      console.error('[admin/app-review] save failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Rating settings save failed' });
+    }
+  }
+
+  async #handleAdminAppReviewRevert(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    try {
+      const restored = await this.appReviewStore.revert();
+      console.log('[admin/app-review] reverted');
+      sendJson(response, 200, adminAppReviewBody(restored, await this.appReviewStore.hasPrevious()));
+    } catch (error) {
+      if (error.code === 'no_previous') {
+        sendJson(response, 409, { error: error.code, message: error.message });
+        return;
+      }
+      console.error('[admin/app-review] revert failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Rating settings revert failed' });
+    }
+  }
+
+  async #handleAdminAppReviewStats(request, response, url) {
+    if (!assertAdminPushSecret(request, response)) return;
+    if (!isDbReady()) {
+      sendJson(response, 503, { error: 'db_unavailable', message: 'Database unavailable' });
+      return;
+    }
+    try {
+      const config = this.appReviewStore.current();
+      const nowMs = this.clock();
+      const [stats, pushEligibleNow] = await Promise.all([
+        getReviewStats({ days: url.searchParams.get('days'), nowMs, storeMinStars: config.storeMinStars }),
+        countPushCandidates(config, nowMs),
+      ]);
+      sendJson(response, 200, { ...stats, storeMinStars: config.storeMinStars, pushEligibleNow });
+    } catch (error) {
+      console.error('[admin/app-review/stats]', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Could not load rating stats' });
+    }
+  }
+
+  #adminReviewQuery(url) {
+    return {
+      limit: url.searchParams.get('limit'),
+      offset: url.searchParams.get('offset'),
+      stars: url.searchParams.get('stars'),
+      hasComment: url.searchParams.get('hasComment'),
+      platform: url.searchParams.get('platform'),
+      handled: url.searchParams.get('handled'),
+    };
+  }
+
+  async #handleAdminAppReviewList(request, response, url) {
+    if (!assertAdminPushSecret(request, response)) return;
+    if (!isDbReady()) {
+      sendJson(response, 503, { error: 'db_unavailable', message: 'Database unavailable' });
+      return;
+    }
+    try {
+      sendJson(response, 200, await listReviews(this.#adminReviewQuery(url)));
+    } catch (error) {
+      console.error('[admin/app-review/list]', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Could not load ratings' });
+    }
+  }
+
+  async #handleAdminAppReviewCsv(request, response, url) {
+    if (!assertAdminPushSecret(request, response)) return;
+    if (!isDbReady()) {
+      sendJson(response, 503, { error: 'db_unavailable', message: 'Database unavailable' });
+      return;
+    }
+    try {
+      const { csv, count } = await exportReviewsCsv(this.#adminReviewQuery(url));
+      const stamp = new Date(this.clock()).toISOString().slice(0, 10);
+      sendCsv(response, 200, csv, `shadowhand-ratings-${stamp}.csv`);
+      console.log(`[admin/app-review/export.csv] exported ${count} rows`);
+    } catch (error) {
+      console.error('[admin/app-review/export.csv]', error);
+      sendJson(response, 500, { error: 'server_error', message: 'CSV export failed' });
+    }
+  }
+
+  async #handleAdminAppReviewHandled(request, response, reviewId) {
+    if (!assertAdminPushSecret(request, response)) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    if (!isDbReady()) {
+      sendJson(response, 503, { error: 'db_unavailable', message: 'Database unavailable' });
+      return;
+    }
+    try {
+      const updated = await setReviewHandled(reviewId, body?.handled !== false);
+      if (!updated) {
+        sendJson(response, 404, { error: 'review_not_found', message: 'Rating not found' });
+        return;
+      }
+      sendJson(response, 200, { ok: true });
+    } catch (error) {
+      console.error('[admin/app-review/handled]', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Could not update the rating' });
+    }
+  }
+
   async #handleAdminPush(request, response) {
     if (!assertAdminPushSecret(request, response)) return;
     let body;
@@ -3465,7 +3941,8 @@ class GameServer {
       body.minMatchesPlayed != null ||
       body.maxMatchesPlayed != null ||
       body.minWins != null ||
-      body.maxWins != null;
+      body.maxWins != null ||
+      body.notRated === true;
 
     /** @type {string[] | undefined} */
     let platforms;
@@ -3498,6 +3975,7 @@ class GameServer {
       minWins: body.minWins != null ? Number(body.minWins) : undefined,
       maxWins: body.maxWins != null ? Number(body.maxWins) : undefined,
       platforms,
+      notRated: body.notRated === true,
     };
 
     try {

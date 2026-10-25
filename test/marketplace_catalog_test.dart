@@ -229,18 +229,54 @@ void main() {
     expect(find.textContaining('%'), findsNothing);
   });
 
-  testWidgets('the bonus bar shows the extra amount on a store pack', (
+  testWidgets('a pack bonus sits on its buy button, then goes away', (
     tester,
   ) async {
+    var bought = 0;
     final pack = IapPackOffer(
       productId: 'chips_25',
       currency: CurrencyType.chips,
       amount: 25,
       bonusAmount: 5,
-      bonusEndsAt: DateTime.now().add(const Duration(hours: 2)),
+      bonusEndsAt: DateTime.now().add(const Duration(hours: 2, minutes: 30)),
     );
-    await tester.pumpWidget(app(ShopBonusBar(pack: pack), width: 340));
+    await tester.pumpWidget(
+      app(
+        Center(
+          child: ShopPackBuyButton(
+            pack: pack,
+            label: r'$19.99',
+            onPressed: () => bought++,
+          ),
+        ),
+        width: 340,
+      ),
+    );
     expect(find.text('+5 BONUS'), findsOneWidget);
+    expect(find.textContaining('2:29:'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.textContaining(r'$19.99'));
+    expect(bought, 1);
+
+    final ended = IapPackOffer(
+      productId: 'chips_25',
+      currency: CurrencyType.chips,
+      amount: 25,
+      bonusAmount: 5,
+      bonusEndsAt: DateTime.now().subtract(const Duration(minutes: 1)),
+    );
+    await tester.pumpWidget(
+      app(
+        Center(
+          child: ShopPackBuyButton(
+            pack: ended,
+            label: r'$19.99',
+            onPressed: () {},
+          ),
+        ),
+      ),
+    );
+    expect(find.text('+5 BONUS'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 

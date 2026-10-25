@@ -595,9 +595,9 @@ class _IapPackCard extends StatelessWidget {
             ],
           ),
         ),
-        GoldButton(
+        ShopPackBuyButton(
+          pack: pack,
           label: _storePriceLabels[pack.productId] ?? l10n.buy,
-          compact: true,
           onPressed: onBuy,
         ),
       ],
@@ -605,16 +605,7 @@ class _IapPackCard extends StatelessWidget {
     return IvoryCard(
       highlighted: featured,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child:
-          pack.bonusAt(DateTime.now()) > 0
-              ? Column(
-                children: [
-                  row,
-                  const SizedBox(height: 10),
-                  ShopBonusBar(pack: pack),
-                ],
-              )
-              : row,
+      child: row,
     );
   }
 }

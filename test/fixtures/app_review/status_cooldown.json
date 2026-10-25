@@ -1,0 +1,26 @@
+{
+  "show": false,
+  "reason": "cooldown",
+  "config": {
+    "enabled": true,
+    "flow": "native_only",
+    "hasStore": true,
+    "storeMinStars": 4,
+    "iosAppStoreId": "6450001234",
+    "askReason": true,
+    "tags": [
+      "bugs",
+      "ads",
+      "difficulty",
+      "economy",
+      "bots",
+      "other"
+    ],
+    "triggers": {
+      "win": true,
+      "daily": true,
+      "launch": false,
+      "settings": true
+    }
+  }
+}

@@ -75,6 +75,9 @@ async function initDb() {
   const { ensureBoostsSchema } = require('./boosts');
   await ensureBoostsSchema();
 
+  const { ensureAppReviewSchema } = require('./app_reviews');
+  await ensureAppReviewSchema();
+
   return pool;
 }
 

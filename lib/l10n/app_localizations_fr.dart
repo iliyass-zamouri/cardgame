@@ -1881,4 +1881,84 @@ class AppLocalizationsFr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get appReviewRibbon => 'Notez-nous';
+
+  @override
+  String get appReviewQuestion => 'Vous aimez ShadowHand ?';
+
+  @override
+  String get appReviewTapStars => 'Touchez une étoile pour noter';
+
+  @override
+  String appReviewStarLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count étoiles',
+      one: '1 étoile',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get appReviewNotNow => 'Plus tard';
+
+  @override
+  String get appReviewFeedbackTitle => 'Désolé de l’apprendre';
+
+  @override
+  String get appReviewFeedbackBody =>
+      'Qu’est-ce qu’on pourrait améliorer ? Tout est facultatif.';
+
+  @override
+  String get appReviewCommentHint => 'Dites-nous en plus (facultatif)';
+
+  @override
+  String get appReviewSend => 'Envoyer';
+
+  @override
+  String get appReviewSkip => 'Passer';
+
+  @override
+  String get appReviewThanksTitle => 'Merci !';
+
+  @override
+  String get appReviewThanksFeedback =>
+      'Votre avis arrive directement à notre équipe et nous aide à améliorer le jeu.';
+
+  @override
+  String get appReviewThanksHappy =>
+      'Ravi que le jeu vous plaise ! Une note sur le store aide d’autres joueurs à le découvrir.';
+
+  @override
+  String get appReviewRateInStore => 'Noter sur le store';
+
+  @override
+  String get appReviewDone => 'Terminé';
+
+  @override
+  String get appReviewTagBugs => 'Bugs ou plantages';
+
+  @override
+  String get appReviewTagAds => 'Trop de pubs';
+
+  @override
+  String get appReviewTagDifficulty => 'Trop dur ou injuste';
+
+  @override
+  String get appReviewTagEconomy => 'Prix et récompenses';
+
+  @override
+  String get appReviewTagBots => 'Les bots';
+
+  @override
+  String get appReviewTagPerformance => 'Lent ou consomme la batterie';
+
+  @override
+  String get appReviewTagOther => 'Autre chose';
+
+  @override
+  String get settingsRateApp => 'Noter ShadowHand';
 }

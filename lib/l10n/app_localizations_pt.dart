@@ -1876,4 +1876,84 @@ class AppLocalizationsPt extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get appReviewRibbon => 'Avalie-nos';
+
+  @override
+  String get appReviewQuestion => 'Está curtindo o ShadowHand?';
+
+  @override
+  String get appReviewTapStars => 'Toque em uma estrela para avaliar';
+
+  @override
+  String appReviewStarLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count estrelas',
+      one: '1 estrela',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get appReviewNotNow => 'Agora não';
+
+  @override
+  String get appReviewFeedbackTitle => 'Que pena';
+
+  @override
+  String get appReviewFeedbackBody =>
+      'O que podemos melhorar? Tudo aqui é opcional.';
+
+  @override
+  String get appReviewCommentHint => 'Conte mais (opcional)';
+
+  @override
+  String get appReviewSend => 'Enviar';
+
+  @override
+  String get appReviewSkip => 'Pular';
+
+  @override
+  String get appReviewThanksTitle => 'Obrigado!';
+
+  @override
+  String get appReviewThanksFeedback =>
+      'Sua opinião vai direto para a nossa equipe e nos ajuda a melhorar o jogo.';
+
+  @override
+  String get appReviewThanksHappy =>
+      'Que bom que você está curtindo! Uma avaliação na loja ajuda outros jogadores a encontrar o jogo.';
+
+  @override
+  String get appReviewRateInStore => 'Avaliar na loja';
+
+  @override
+  String get appReviewDone => 'Pronto';
+
+  @override
+  String get appReviewTagBugs => 'Bugs ou travamentos';
+
+  @override
+  String get appReviewTagAds => 'Anúncios demais';
+
+  @override
+  String get appReviewTagDifficulty => 'Difícil ou injusto demais';
+
+  @override
+  String get appReviewTagEconomy => 'Preços e recompensas';
+
+  @override
+  String get appReviewTagBots => 'Os bots';
+
+  @override
+  String get appReviewTagPerformance => 'Lento ou gasta bateria';
+
+  @override
+  String get appReviewTagOther => 'Outra coisa';
+
+  @override
+  String get settingsRateApp => 'Avaliar o ShadowHand';
 }

@@ -1869,4 +1869,84 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get appReviewRibbon => 'Rate us';
+
+  @override
+  String get appReviewQuestion => 'Enjoying ShadowHand?';
+
+  @override
+  String get appReviewTapStars => 'Tap a star to rate';
+
+  @override
+  String appReviewStarLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count stars',
+      one: '1 star',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get appReviewNotNow => 'Not now';
+
+  @override
+  String get appReviewFeedbackTitle => 'Sorry to hear that';
+
+  @override
+  String get appReviewFeedbackBody =>
+      'What could be better? Everything here is optional.';
+
+  @override
+  String get appReviewCommentHint => 'Tell us more (optional)';
+
+  @override
+  String get appReviewSend => 'Send';
+
+  @override
+  String get appReviewSkip => 'Skip';
+
+  @override
+  String get appReviewThanksTitle => 'Thank you!';
+
+  @override
+  String get appReviewThanksFeedback =>
+      'Your feedback goes straight to our team and helps us make the game better.';
+
+  @override
+  String get appReviewThanksHappy =>
+      'Glad you’re enjoying it! A rating in the store helps other players find the game.';
+
+  @override
+  String get appReviewRateInStore => 'Rate in the store';
+
+  @override
+  String get appReviewDone => 'Done';
+
+  @override
+  String get appReviewTagBugs => 'Bugs or crashes';
+
+  @override
+  String get appReviewTagAds => 'Too many ads';
+
+  @override
+  String get appReviewTagDifficulty => 'Too hard or unfair';
+
+  @override
+  String get appReviewTagEconomy => 'Prices and rewards';
+
+  @override
+  String get appReviewTagBots => 'Bots';
+
+  @override
+  String get appReviewTagPerformance => 'Slow or drains battery';
+
+  @override
+  String get appReviewTagOther => 'Something else';
+
+  @override
+  String get settingsRateApp => 'Rate ShadowHand';
 }
