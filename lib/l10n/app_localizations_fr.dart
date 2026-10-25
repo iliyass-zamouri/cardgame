@@ -1806,4 +1806,79 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get boostOneAtATime =>
       'Un seul niveau de boost à la fois. Le même niveau ajoute son temps.';
+
+  @override
+  String get shopBadgeNew => 'Nouveau';
+
+  @override
+  String get shopBadgeHot => 'Tendance';
+
+  @override
+  String get shopBadgePopular => 'Populaire';
+
+  @override
+  String get shopBadgeBestValue => 'Meilleure offre';
+
+  @override
+  String get shopBadgeLimited => 'Limité';
+
+  @override
+  String get shopFeatured => 'À la une';
+
+  @override
+  String shopSaleOff(int percent) {
+    return '−$percent %';
+  }
+
+  @override
+  String shopEndsIn(String time) {
+    return 'Fin dans $time';
+  }
+
+  @override
+  String shopPackBonus(int amount) {
+    return '+$amount en bonus';
+  }
+
+  @override
+  String get shopPriceChanged =>
+      'Les prix viennent de changer. Vérifiez le nouveau prix et réessayez.';
+
+  @override
+  String get shopOpen => 'Voir';
+
+  @override
+  String shopDaysHours(int days, int hours) {
+    return '$days j $hours h';
+  }
+
+  @override
+  String shopChipPack(int amount) {
+    final intl.NumberFormat amountNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String amountString = amountNumberFormat.format(amount);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      amount,
+      locale: localeName,
+      other: '$amountString jetons',
+      one: '1 jeton',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String shopCashPack(int amount) {
+    final intl.NumberFormat amountNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String amountString = amountNumberFormat.format(amount);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      amount,
+      locale: localeName,
+      other: '$amountString d’argent',
+      one: '1 d’argent',
+    );
+    return '$_temp0';
+  }
 }

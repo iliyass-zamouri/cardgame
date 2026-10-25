@@ -88,7 +88,17 @@ const {
   claimRewardedAdBonus,
   redeemIapPurchase,
   updatePlayerCosmetics,
+  useMarketplaceConfig,
+  getMarketplaceStats,
 } = require('./db/marketplace');
+const {
+  DEFAULTS: MARKETPLACE_DEFAULTS,
+  LIMITS: MARKETPLACE_LIMITS,
+  createMarketplaceStore,
+  validateConfig: validateMarketplaceConfig,
+  catalogView,
+  knownItems,
+} = require('./marketplace_config');
 const { acquireBotUser, isBotPlayer, listBotUsers } = require('./db/bots');
 const { ServerRobotPlayer } = require('./bot_player');
 const { iqForPot } = require('./bot_difficulty');
@@ -245,6 +255,51 @@ function dbDailyRewardsStore() {
   });
 }
 
+const MARKETPLACE_SETTING_KEY = 'marketplace';
+const MARKETPLACE_PREVIOUS_KEY = 'marketplace_prev';
+
+/** Admin shop config, stored in app_settings. See server/marketplace_config.js. */
+function dbMarketplaceStore() {
+  const readKey = (key) => async () => {
+    if (!isDbReady()) return null;
+    const raw = await getSetting(key);
+    if (raw === null) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      console.error(`[marketplace] ${key} is not JSON, ignoring it`);
+      return null;
+    }
+  };
+  const writeKey = (key) => (config) => setSetting(key, JSON.stringify(config));
+  return createMarketplaceStore({
+    read: readKey(MARKETPLACE_SETTING_KEY),
+    write: writeKey(MARKETPLACE_SETTING_KEY),
+    readPrevious: readKey(MARKETPLACE_PREVIOUS_KEY),
+    writePrevious: writeKey(MARKETPLACE_PREVIOUS_KEY),
+  });
+}
+
+function adminMarketplaceBody(state, hasPrevious, nowMs) {
+  const { source, ...config } = state;
+  return {
+    config,
+    source,
+    hasPrevious,
+    serverTimeMs: nowMs,
+    defaults: MARKETPLACE_DEFAULTS,
+    limits: MARKETPLACE_LIMITS,
+    known: knownItems(),
+  };
+}
+
+/** Shop errors a player can act on. The rest of the marketplace codes stay 400. */
+const MARKETPLACE_CONFLICTS = ['price_changed', 'rate_changed', 'item_unavailable'];
+
+function sendMarketplaceConflict(response, error) {
+  sendJson(response, 409, { error: error.code, message: error.message, ...(error.details || {}) });
+}
+
 function adminTurnTimerBody(state) {
   return {
     enabled: state.enabled,
@@ -295,6 +350,7 @@ class GameServer {
     themeStore = dbThemeStore(),
     turnTimerStore = dbTurnTimerStore(),
     dailyRewardsStore = dbDailyRewardsStore(),
+    marketplaceStore = dbMarketplaceStore(),
     clock = Date.now,
   } = {}) {
     this.port = port;
@@ -304,6 +360,9 @@ class GameServer {
     this.themeStore = themeStore;
     this.turnTimerStore = turnTimerStore;
     this.dailyRewardsStore = dailyRewardsStore;
+    this.marketplaceStore = marketplaceStore;
+    // Prices, rates and starting balances read the live shop config.
+    useMarketplaceConfig(() => this.marketplaceStore.current());
     this.clock = clock;
     this.rooms = new Map();
     this.clients = new Map();
@@ -338,6 +397,7 @@ class GameServer {
     // Load the saved turn limit before the first match can be seated.
     await this.turnTimerStore.refresh();
     await this.dailyRewardsStore.refresh();
+    await this.marketplaceStore.refresh();
 
     this.httpServer = http.createServer((request, response) => {
       this.#handleHttp(request, response).catch((error) => {
@@ -748,6 +808,11 @@ class GameServer {
       return;
     }
 
+    if (request.method === 'GET' && url.pathname === '/marketplace/catalog') {
+      sendJson(response, 200, catalogView(this.marketplaceStore.current(), this.clock()));
+      return;
+    }
+
     if (request.method === 'GET' && url.pathname === '/marketplace/inventory') {
       await this.#handleGetInventory(request, response, url);
       return;
@@ -879,6 +944,26 @@ class GameServer {
 
     if (request.method === 'POST' && url.pathname === '/admin/daily-rewards/revert') {
       await this.#handleAdminDailyRewardsRevert(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/marketplace') {
+      await this.#handleAdminMarketplaceGet(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/admin/marketplace') {
+      await this.#handleAdminMarketplaceSet(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/admin/marketplace/revert') {
+      await this.#handleAdminMarketplaceRevert(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/marketplace/stats') {
+      await this.#handleAdminMarketplaceStats(request, response, url);
       return;
     }
 
@@ -1367,16 +1452,20 @@ class GameServer {
     }
 
     const playerId = auth.playerId;
-    const { direction, amount } = body || {};
+    const { direction, amount, expectedRate } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
     }
 
     try {
-      const result = await exchangeCurrency({ playerId, direction, amount });
+      const result = await exchangeCurrency({ playerId, direction, amount, expectedRate });
       sendJson(response, 200, result);
     } catch (error) {
+      if (MARKETPLACE_CONFLICTS.includes(error.code)) {
+        sendMarketplaceConflict(response, error);
+        return;
+      }
       if (
         error.code === 'player_not_found' ||
         error.code === 'insufficient_funds' ||
@@ -1404,16 +1493,28 @@ class GameServer {
     }
 
     const playerId = auth.playerId;
-    const { itemType, itemId, currency, price } = body || {};
+    // `price` and `currency` from older builds are never charged. See quotePurchase.
+    const { itemType, itemId, expectedPrice, expectedCurrency } = body || {};
     if (!playerId) {
       sendJson(response, 400, { error: 'missing_player_id', message: 'playerId is required' });
       return;
     }
 
     try {
-      const result = await purchaseItem({ playerId, itemType, itemId, currency, price });
+      const result = await purchaseItem({
+        playerId,
+        itemType,
+        itemId,
+        expectedPrice,
+        expectedCurrency,
+        nowMs: this.clock(),
+      });
       sendJson(response, 200, result);
     } catch (error) {
+      if (MARKETPLACE_CONFLICTS.includes(error.code)) {
+        sendMarketplaceConflict(response, error);
+        return;
+      }
       if (
         error.code === 'player_not_found' ||
         error.code === 'already_owned' ||
@@ -1486,7 +1587,12 @@ class GameServer {
     }
 
     try {
-      const result = await redeemIapPurchase({ playerId, productId, transactionId });
+      const result = await redeemIapPurchase({
+        playerId,
+        productId,
+        transactionId,
+        nowMs: this.clock(),
+      });
       sendJson(response, 200, result);
     } catch (error) {
       if (error.code === 'player_not_found') {
@@ -3160,6 +3266,87 @@ class GameServer {
       }
       console.error('[admin/daily-rewards] revert failed', error);
       sendJson(response, 500, { error: 'server_error', message: 'Daily rewards revert failed' });
+    }
+  }
+
+  async #handleAdminMarketplaceGet(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    await this.marketplaceStore.refresh();
+    sendJson(
+      response,
+      200,
+      adminMarketplaceBody(
+        this.marketplaceStore.current(),
+        await this.marketplaceStore.hasPrevious(),
+        this.clock(),
+      ),
+    );
+  }
+
+  async #handleAdminMarketplaceSet(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    // A save replaces the whole config. The admin tab always sends a full copy.
+    const { config, error, message } = validateMarketplaceConfig(body);
+    if (error) {
+      sendJson(response, 400, { error, message });
+      return;
+    }
+    try {
+      const saved = await this.marketplaceStore.set(config);
+      console.log('[admin/marketplace] saved', {
+        moneyPerChip: saved.economy.moneyPerChip,
+        sales: [...saved.avatars, ...saved.decks].filter((item) => item.sale).length,
+        banner: Boolean(saved.promotions.banner?.enabled),
+      });
+      sendJson(
+        response,
+        200,
+        adminMarketplaceBody(saved, await this.marketplaceStore.hasPrevious(), this.clock()),
+      );
+    } catch (error) {
+      console.error('[admin/marketplace] save failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Shop settings save failed' });
+    }
+  }
+
+  async #handleAdminMarketplaceRevert(request, response) {
+    if (!assertAdminPushSecret(request, response)) return;
+    try {
+      const restored = await this.marketplaceStore.revert();
+      console.log('[admin/marketplace] reverted');
+      sendJson(
+        response,
+        200,
+        adminMarketplaceBody(restored, await this.marketplaceStore.hasPrevious(), this.clock()),
+      );
+    } catch (error) {
+      if (error.code === 'no_previous') {
+        sendJson(response, 409, { error: error.code, message: error.message });
+        return;
+      }
+      console.error('[admin/marketplace] revert failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Shop settings revert failed' });
+    }
+  }
+
+  async #handleAdminMarketplaceStats(request, response, url) {
+    if (!assertAdminPushSecret(request, response)) return;
+    if (!isDbReady()) {
+      sendJson(response, 200, { days: 0, items: [] });
+      return;
+    }
+    try {
+      sendJson(response, 200, await getMarketplaceStats({ days: url.searchParams.get('days') }));
+    } catch (error) {
+      console.error('[admin/marketplace/stats]', error);
+      sendJson(response, 500, { error: 'server_error', message: 'Failed to load shop stats' });
     }
   }
 

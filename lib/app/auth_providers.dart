@@ -253,6 +253,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
   Future<void> exchangeCurrency({
     required String direction,
     required int amount,
+    int? expectedRate,
   }) async {
     final current = await future;
     if (current.isEmpty || current.playerId.isEmpty) return;
@@ -262,6 +263,7 @@ class PlayerProfileNotifier extends AsyncNotifier<PlayerProfile> {
       playerId: current.playerId,
       direction: direction,
       amount: amount,
+      expectedRate: expectedRate,
       accessToken: current.accessToken,
     );
 

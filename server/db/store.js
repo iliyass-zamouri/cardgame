@@ -1,6 +1,7 @@
 const { randomUUID } = require('crypto');
 const { getPool } = require('./pool');
 const { generateGuestIdentity } = require('../auth/guest_name');
+const { startingBalances } = require('./marketplace');
 const {
   assertValidGuestDeviceId,
   assertClientIp,
@@ -222,8 +223,8 @@ function mapPlayerRow(row) {
     name: row.display_name,
     username: row.username,
     authType: row.auth_type || 'guest',
-    money: row.money != null ? Number(row.money) : 500,
-    chips: row.chips != null ? Number(row.chips) : 1,
+    money: row.money != null ? Number(row.money) : startingBalances().money,
+    chips: row.chips != null ? Number(row.chips) : startingBalances().chips,
     tutorialDone: Number(row.tutorial_done) === 1,
     tokenVersion:
       row.token_version != null ? Number(row.token_version) : 0,
@@ -452,6 +453,7 @@ async function createGuest({ deviceId, clientIp }) {
   const ip = assertClientIp(clientIp);
   const pool = getPool();
   const playerId = `guest-${randomUUID()}`;
+  const { money, chips } = startingBalances();
 
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const { name, username } = generateGuestIdentity();
@@ -461,15 +463,17 @@ async function createGuest({ deviceId, clientIp }) {
     try {
       await pool.execute(
         `INSERT INTO players
-           (id, display_name, username, device_id, created_ip, last_ip, auth_type)
+           (id, display_name, username, device_id, created_ip, last_ip, auth_type, money, chips)
          VALUES
-           (:playerId, :displayName, :username, :deviceId, :clientIp, :clientIp, 'guest')`,
+           (:playerId, :displayName, :username, :deviceId, :clientIp, :clientIp, 'guest', :money, :chips)`,
         {
           playerId,
           displayName: name,
           username,
           deviceId: safeDeviceId,
           clientIp: ip,
+          money,
+          chips,
         },
       );
       return {
@@ -477,6 +481,8 @@ async function createGuest({ deviceId, clientIp }) {
         display_name: name,
         username,
         auth_type: 'guest',
+        money,
+        chips,
         isNew: true,
       };
     } catch (error) {
@@ -543,6 +549,8 @@ async function findOrCreateGuest({ deviceId, clientIp }) {
       display_name: created.display_name,
       username: created.username,
       auth_type: 'guest',
+      money: created.money,
+      chips: created.chips,
     }),
     isNew: true,
   };
@@ -659,9 +667,9 @@ async function createOAuthPlayer({
     try {
       await pool.execute(
         `INSERT INTO players
-           (id, display_name, username, device_id, created_ip, last_ip, auth_type, ${column}, email)
+           (id, display_name, username, device_id, created_ip, last_ip, auth_type, ${column}, email, money, chips)
          VALUES
-           (:playerId, :displayName, :username, :deviceId, :clientIp, :clientIp, :authType, :sub, :email)`,
+           (:playerId, :displayName, :username, :deviceId, :clientIp, :clientIp, :authType, :sub, :email, :money, :chips)`,
         {
           playerId,
           displayName: name,
@@ -671,6 +679,7 @@ async function createOAuthPlayer({
           authType: provider,
           sub,
           email: safeEmail,
+          ...startingBalances(),
         },
       );
       return {

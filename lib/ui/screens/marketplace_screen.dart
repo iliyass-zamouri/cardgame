@@ -2,13 +2,17 @@ import 'dart:math' as math;
 
 import 'package:cardgame/ads/rewarded_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/marketplace_providers.dart';
+import 'package:cardgame/app/navigation_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/core/monetization/purchases_config.dart';
 import 'package:cardgame/core/monetization/purchases_service.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/decks/deck_catalog.dart';
 import 'package:cardgame/data/marketplace/marketplace_api.dart';
+import 'package:cardgame/data/marketplace/marketplace_catalog.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
+import 'package:cardgame/services/notification_deeplink.dart';
 import 'package:cardgame/services/sfx_service.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/screens/deck_preview_screen.dart';
@@ -17,7 +21,9 @@ import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/deck_showcase_card.dart';
 import 'package:cardgame/ui/widgets/greyed_out.dart';
+import 'package:cardgame/ui/widgets/hud_counter.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
+import 'package:cardgame/ui/widgets/shop_promo.dart';
 import 'package:cardgame/ui/widgets/suit_card_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -54,10 +60,23 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
     );
     // Retries a failed rewarded ad load each time the marketplace opens.
     ref.read(rewardedAdProvider).preload();
-    // Refresh inventory when entering marketplace
+    // Refresh inventory and prices when entering marketplace
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(playerProfileProvider.notifier).refreshInventory();
+      ref.read(marketplaceCatalogProvider.notifier).refresh();
     });
+  }
+
+  /// A banner link to another shop tab switches tabs; anything else leaves
+  /// the shop for that screen.
+  void _openBannerLink(String route) {
+    final nav = resolveNotificationNav({'route': route});
+    if (nav == null) return;
+    if (nav.destination == NotificationDestination.shop) {
+      _tabController.animateTo((nav.shopTab ?? MarketplaceTab.decks).index);
+      return;
+    }
+    ref.read(notificationNavigatorProvider).navigate(nav);
   }
 
   @override
@@ -71,11 +90,20 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
     final l10n = context.l10n;
     final profile =
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
+    final banner = ref.watch(marketplaceCatalogProvider).banner;
 
     return FeltScaffold(
-      title: l10n.marketplace,
+      title: l10n.shop,
+      // The highlighted Shop nav tab already says where you are.
+      showTitle: false,
       // Grids add columns rather than stretch, so they can run wider.
       maxBodyWidth: 1000,
+      trailing: _HeaderBalances(
+        money: profile.money,
+        chips: profile.chips,
+        // The counters' "+" means "get more": that's the Exchange tab.
+        onTap: () => _tabController.animateTo(MarketplaceTab.exchange.index),
+      ),
       tabs: TabBar(
         controller: _tabController,
         tabs: [
@@ -113,9 +141,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
         children: [
           Column(
             children: [
-              _BalancesHeader(money: profile.money, chips: profile.chips),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
                 child: Text(
                   'Virtual currency only. No real-money cash-out.',
                   textAlign: TextAlign.center,
@@ -126,6 +153,31 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
                   ),
                 ),
               ),
+              if (banner != null)
+                ShopTicker(
+                  until: banner.endsAt,
+                  builder:
+                      (context, now) =>
+                          banner.liveAt(now)
+                              ? Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  6,
+                                  16,
+                                  4,
+                                ),
+                                child: ShopBannerCard(
+                                  banner: banner,
+                                  onTap:
+                                      banner.deeplink == null
+                                          ? null
+                                          : () => _openBannerLink(
+                                            banner.deeplink!,
+                                          ),
+                                ),
+                              )
+                              : const SizedBox.shrink(),
+                ),
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
@@ -158,95 +210,36 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
   }
 }
 
-class _BalancesHeader extends StatelessWidget {
-  const _BalancesHeader({required this.money, required this.chips});
+/// Money and chip counters for the header's end, matching the home top bar.
+class _HeaderBalances extends StatelessWidget {
+  const _HeaderBalances({
+    required this.money,
+    required this.chips,
+    required this.onTap,
+  });
 
   final int money;
   final int chips;
+  final VoidCallback onTap;
+
+  static const _counterWidth = 104.0;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: _BalanceTile(
-              icon: const CashIcon(size: 30),
-              label: l10n.money,
-              value: money,
-              color: CasinoColors.text,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _BalanceTile(
-              icon: const ChipIcon(size: 30),
-              label: l10n.chips,
-              value: chips,
-              color: CasinoColors.goldSoft,
-            ),
-          ),
-        ],
+    Widget counter(CurrencyType currency, int value) => SizedBox(
+      width: _counterWidth,
+      child: Pressable(
+        onTap: onTap,
+        child: HudCounter(currency: currency, value: value),
       ),
     );
-  }
-}
-
-class _BalanceTile extends StatelessWidget {
-  const _BalanceTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final Widget icon;
-  final String label;
-  final int value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final locale = Localizations.localeOf(context);
-    return FeltPanel(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          icon,
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  casinoButtonLabel(label, locale),
-                  style: TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: AlignmentDirectional.centerStart,
-                  child: Text(
-                    '$value',
-                    style: TextStyle(
-                      fontFamily: CasinoFonts.display,
-                      color: color,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        counter(CurrencyType.money, money),
+        const SizedBox(width: 6),
+        counter(CurrencyType.chips, chips),
+      ],
     );
   }
 }
@@ -262,7 +255,7 @@ class _ExchangeTab extends ConsumerStatefulWidget {
 }
 
 class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
-  Future<void> _buyIapPack(_IapPackItem pack) async {
+  Future<void> _buyIapPack(IapPackOffer pack, String title) async {
     widget.onBusy(true);
     try {
       final customerInfo = await PurchasesService.instance.purchaseProduct(
@@ -290,7 +283,7 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
 
       SfxService.instance.buy();
       if (mounted) {
-        CasinoToast.show(context, 'Purchased ${pack.title}!');
+        CasinoToast.show(context, 'Purchased $title!');
       }
     } on PlatformException catch (e) {
       final code = PurchasesErrorHelper.getErrorCode(e);
@@ -348,227 +341,212 @@ class _ExchangeTabState extends ConsumerState<_ExchangeTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final catalog = ref.watch(marketplaceCatalogProvider);
+    final packs = catalog.featuredFirst(
+      catalog.packs,
+      'iap',
+      (pack) => pack.productId,
+    );
 
-    return Stack(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
       children: [
-        ListView(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 96),
-          children: [
-            // Rate banner
-            FeltPanel(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const ChipIcon(size: 22),
-                  Text(
-                    '  1  =  ',
-                    style: TextStyle(
-                      fontFamily: CasinoFonts.display,
-                      color: CasinoColors.gold,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const CashIcon(size: 22),
-                  Text(
-                    '  1,000',
-                    style: TextStyle(
-                      fontFamily: CasinoFonts.display,
-                      color: CasinoColors.gold,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Rewarded Ad Free Money Card
-            IvoryCard(
-              suit: SuitShape.hearts,
-              highlighted: true,
-              padding: const EdgeInsets.fromLTRB(26, 14, 16, 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF1E7A45).withValues(alpha: 0.12),
-                      border: Border.all(
-                        color: const Color(0xFF1E7A45).withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: const Center(
-                      child: GameIcon(
-                        icon: AppIcons.playCircle,
-                        color: Color(0xFF1E7A45),
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.watchAdForMoney,
-                          style: const TextStyle(
-                            fontFamily: CasinoFonts.display,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                          ),
+        // Rate banner + exchange action: the rate sits right next to
+        // the button that uses it, instead of a floating button that
+        // covers the pack list.
+        FeltPanel(
+          padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+          child: Row(
+            children: [
+              // The rate scales down beside the button on narrow screens.
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Row(
+                    children: [
+                      const ChipIcon(size: 22),
+                      Text(
+                        '  1  =  ',
+                        style: TextStyle(
+                          fontFamily: CasinoFonts.display,
+                          color: CasinoColors.gold,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
                         ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Text(
-                              '+${widget.profile.adRewardMoney} ',
+                      ),
+                      const CashIcon(size: 22),
+                      Text(
+                        '  ${formatShopAmount(catalog.moneyPerChip)}',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontFamily: CasinoFonts.display,
+                          color: CasinoColors.gold,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GoldButton(
+                label: l10n.exchange,
+                compact: true,
+                leading: const GameIcon(icon: AppIcons.swap, size: 18),
+                onPressed: _showConversionModal,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Rewarded Ad Free Money Card: a daily cap of 0 turns ads off.
+        if (catalog.adDailyCap > 0) ...[
+          IvoryCard(
+            suit: SuitShape.hearts,
+            highlighted: true,
+            padding: const EdgeInsets.fromLTRB(26, 14, 16, 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF1E7A45).withValues(alpha: 0.12),
+                    border: Border.all(
+                      color: const Color(0xFF1E7A45).withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: const Center(
+                    child: GameIcon(
+                      icon: AppIcons.playCircle,
+                      color: Color(0xFF1E7A45),
+                      size: 24,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.watchAdForMoney,
+                        style: const TextStyle(
+                          fontFamily: CasinoFonts.display,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Text(
+                            '+${catalog.adRewardMoney} ',
+                            style: const TextStyle(
+                              color: Color(0xFF5A4A2A),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const CashIcon(size: 14),
+                          Flexible(
+                            child: Text(
+                              ' ${l10n.freeStashBonus}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Color(0xFF5A4A2A),
                                 fontSize: 12,
-                                fontWeight: FontWeight.w800,
                               ),
                             ),
-                            const CashIcon(size: 14),
-                            Flexible(
-                              child: Text(
-                                ' ${l10n.freeStashBonus}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFF5A4A2A),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: ref.watch(rewardedAdProvider).ready,
-                    builder:
-                        (context, ready, _) => GreyedOut(
-                          enabled: ready,
-                          child: GoldButton(
-                            label: l10n.claim,
-                            compact: true,
-                            onPressed: ready ? _watchAdForMoney : null,
                           ),
-                        ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-
-            // Real Money Store Packs
-            const FeltSectionHeader(
-              label: 'Store Packs',
-              suit: SuitShape.diamonds,
-            ),
-            for (final (i, pack) in _iapPacks.indexed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _IapPackCard(
-                  pack: pack,
-                  stack: i + 1,
-                  onBuy: () => _buyIapPack(pack),
                 ),
-              ),
-          ],
-        ),
-        PositionedDirectional(
-          start: 16,
-          end: 16,
-          bottom: 16,
-          child: GoldButton(
-            label: l10n.exchange,
-            leading: const GameIcon(icon: AppIcons.swap),
-            onPressed: _showConversionModal,
+                const SizedBox(width: 8),
+                ValueListenableBuilder<bool>(
+                  valueListenable: ref.watch(rewardedAdProvider).ready,
+                  builder:
+                      (context, ready, _) => GreyedOut(
+                        enabled: ready,
+                        child: GoldButton(
+                          label: l10n.claim,
+                          compact: true,
+                          onPressed: ready ? _watchAdForMoney : null,
+                        ),
+                      ),
+                ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(height: 22),
+        ],
+
+        // Real Money Store Packs
+        const FeltSectionHeader(label: 'Store Packs', suit: SuitShape.diamonds),
+        for (final (i, pack) in packs.indexed)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _IapPackCard(
+              pack: pack,
+              title: _packTitle(context, pack),
+              stack: i + 1,
+              featured:
+                  catalog.featured?.matches('iap', pack.productId) ?? false,
+              onBuy: () => _buyIapPack(pack, _packTitle(context, pack)),
+            ),
+          ),
       ],
     );
   }
 }
 
-class _IapPackItem {
-  const _IapPackItem({
-    required this.productId,
-    required this.title,
-    required this.currency,
-    required this.amount,
-    required this.priceUsd,
-    required this.icon,
-  });
+/// Store price labels for the packs this build knows. A pack the server
+/// adds later shows a plain Buy button.
+const _storePriceLabels = {
+  PurchasesConfig.chips1: '\$0.99',
+  PurchasesConfig.chips5: '\$3.99',
+  PurchasesConfig.chips10: '\$8.99',
+  PurchasesConfig.chips25: '\$19.99',
+  PurchasesConfig.chips50: '\$34.99',
+};
 
-  final String productId;
-  final String title;
-  final CurrencyType currency;
-  final int amount;
-  final String priceUsd;
-  final GameIconData icon;
+String _packTitle(BuildContext context, IapPackOffer pack) {
+  final l10n = context.l10n;
+  return pack.currency == CurrencyType.chips
+      ? l10n.shopChipPack(pack.amount)
+      : l10n.shopCashPack(pack.amount);
 }
 
-const _iapPacks = [
-  _IapPackItem(
-    productId: PurchasesConfig.chips1,
-    title: '1 Chip',
-    currency: CurrencyType.chips,
-    amount: 1,
-    priceUsd: '\$0.99',
-    icon: AppIcons.sparkles,
-  ),
-  _IapPackItem(
-    productId: PurchasesConfig.chips5,
-    title: '5 Chips',
-    currency: CurrencyType.chips,
-    amount: 5,
-    priceUsd: '\$3.99',
-    icon: AppIcons.medal,
-  ),
-  _IapPackItem(
-    productId: PurchasesConfig.chips10,
-    title: '10 Chips',
-    currency: CurrencyType.chips,
-    amount: 10,
-    priceUsd: '\$8.99',
-    icon: AppIcons.diamond,
-  ),
-  _IapPackItem(
-    productId: PurchasesConfig.chips25,
-    title: '25 Chips',
-    currency: CurrencyType.chips,
-    amount: 25,
-    priceUsd: '\$19.99',
-    icon: AppIcons.premium,
-  ),
-  _IapPackItem(
-    productId: PurchasesConfig.chips50,
-    title: '50 Chips',
-    currency: CurrencyType.chips,
-    amount: 50,
-    priceUsd: '\$34.99',
-    icon: AppIcons.shield,
-  ),
-];
+/// "1,000", "25,000".
+String formatShopAmount(int value) {
+  final digits = value.abs().toString();
+  final out = StringBuffer(value < 0 ? '-' : '');
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) out.write(',');
+    out.write(digits[i]);
+  }
+  return out.toString();
+}
 
 class _IapPackCard extends StatelessWidget {
   const _IapPackCard({
     required this.pack,
+    required this.title,
     required this.stack,
     required this.onBuy,
+    this.featured = false,
   });
 
-  final _IapPackItem pack;
+  final IapPackOffer pack;
+  final String title;
+  final bool featured;
 
   /// Chips drawn in the stack; bigger packs show taller stacks.
   final int stack;
@@ -576,44 +554,67 @@ class _IapPackCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IvoryCard(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Row(
-        children: [
-          _ChipStack(count: stack),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  pack.title,
-                  style: const TextStyle(
-                    fontFamily: CasinoFonts.display,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
-                  ),
+    final l10n = context.l10n;
+    final row = Row(
+      children: [
+        _ChipStack(count: stack),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ShopPromoTags(badge: pack.badge, featured: featured),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontFamily: CasinoFonts.display,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      '+${pack.amount} ',
-                      style: const TextStyle(
-                        color: Color(0xFF5A4A2A),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
+              ),
+              const SizedBox(height: 2),
+              ShopTicker(
+                until: pack.bonusEndsAt,
+                builder: (context, now) {
+                  final bonus = pack.bonusAt(now);
+                  return Row(
+                    children: [
+                      Text(
+                        '+${formatShopAmount(pack.amount + bonus)} ',
+                        style: const TextStyle(
+                          color: Color(0xFF5A4A2A),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                    CurrencyIcon(currency: pack.currency, size: 14),
-                  ],
-                ),
-              ],
-            ),
+                      CurrencyIcon(currency: pack.currency, size: 14),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
-          GoldButton(label: pack.priceUsd, compact: true, onPressed: onBuy),
-        ],
-      ),
+        ),
+        GoldButton(
+          label: _storePriceLabels[pack.productId] ?? l10n.buy,
+          compact: true,
+          onPressed: onBuy,
+        ),
+      ],
+    );
+    return IvoryCard(
+      highlighted: featured,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child:
+          pack.bonusAt(DateTime.now()) > 0
+              ? Column(
+                children: [
+                  row,
+                  const SizedBox(height: 10),
+                  ShopBonusBar(pack: pack),
+                ],
+              )
+              : row,
     );
   }
 }
@@ -643,7 +644,7 @@ class _ChipStack extends StatelessWidget {
   }
 }
 
-/// Chips <-> money exchange sheet (1 chip = 1000 money).
+/// Chips <-> money exchange sheet, at the shop's current rate.
 class CurrencyConversionModal extends ConsumerStatefulWidget {
   const CurrencyConversionModal({
     super.key,
@@ -683,8 +684,26 @@ class _CurrencyConversionModalState
   late int _chipsToConvert = math.max(1, widget.initialChipsToConvert);
   int _moneyChipsToBuy = 1;
 
+  int get _rate => ref.read(marketplaceCatalogProvider).moneyPerChip;
+
+  /// A refused exchange because the rate moved: show the new rate.
+  void _showExchangeError(Object e) {
+    final l10n = context.l10n;
+    if (isShopChangedError(e)) {
+      ref.read(marketplaceCatalogProvider.notifier).refresh();
+      CasinoToast.show(context, l10n.shopPriceChanged, success: false);
+      return;
+    }
+    CasinoToast.show(
+      context,
+      e is MarketplaceApiException ? e.message : l10n.exchangeFailed,
+      success: false,
+    );
+  }
+
   Future<void> _convertChipsToMoney(PlayerProfile profile) async {
     final l10n = context.l10n;
+    final rate = _rate;
     if (profile.chips < _chipsToConvert) {
       CasinoToast.show(context, l10n.insufficientChips, success: false);
       return;
@@ -697,22 +716,17 @@ class _CurrencyConversionModalState
           .exchangeCurrency(
             direction: 'chips_to_money',
             amount: _chipsToConvert,
+            expectedRate: rate,
           );
       if (mounted) {
         Navigator.of(context).pop();
         CasinoToast.show(
           context,
-          '${l10n.exchangedSuccess}: +${_chipsToConvert * 1000} 💵',
+          '${l10n.exchangedSuccess}: +${_chipsToConvert * rate} 💵',
         );
       }
     } catch (e) {
-      if (mounted) {
-        CasinoToast.show(
-          context,
-          e is MarketplaceApiException ? e.message : l10n.exchangeFailed,
-          success: false,
-        );
-      }
+      if (mounted) _showExchangeError(e);
     } finally {
       if (mounted) widget.onBusy?.call(false);
     }
@@ -720,7 +734,8 @@ class _CurrencyConversionModalState
 
   Future<void> _convertMoneyToChips(PlayerProfile profile) async {
     final l10n = context.l10n;
-    final cost = _moneyChipsToBuy * 1000;
+    final rate = _rate;
+    final cost = _moneyChipsToBuy * rate;
     if (profile.money < cost) {
       CasinoToast.show(context, l10n.insufficientMoney, success: false);
       return;
@@ -733,6 +748,7 @@ class _CurrencyConversionModalState
           .exchangeCurrency(
             direction: 'money_to_chips',
             amount: _moneyChipsToBuy,
+            expectedRate: rate,
           );
       if (mounted) {
         Navigator.of(context).pop();
@@ -742,13 +758,7 @@ class _CurrencyConversionModalState
         );
       }
     } catch (e) {
-      if (mounted) {
-        CasinoToast.show(
-          context,
-          e is MarketplaceApiException ? e.message : l10n.exchangeFailed,
-          success: false,
-        );
-      }
+      if (mounted) _showExchangeError(e);
     } finally {
       if (mounted) widget.onBusy?.call(false);
     }
@@ -759,6 +769,7 @@ class _CurrencyConversionModalState
     final l10n = context.l10n;
     final profile =
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
+    final rate = ref.watch(marketplaceCatalogProvider).moneyPerChip;
 
     return Container(
       padding: EdgeInsets.only(
@@ -879,7 +890,7 @@ class _CurrencyConversionModalState
                 sourceCurrency: CurrencyType.chips,
                 targetCurrency: CurrencyType.money,
                 amount: _chipsToConvert,
-                targetAmount: _chipsToConvert * 1000,
+                targetAmount: _chipsToConvert * rate,
                 onDecrement: () {
                   if (_chipsToConvert > 1) {
                     setState(() => _chipsToConvert--);
@@ -899,7 +910,7 @@ class _CurrencyConversionModalState
                 title: l10n.moneyToChips,
                 sourceCurrency: CurrencyType.money,
                 targetCurrency: CurrencyType.chips,
-                amount: _moneyChipsToBuy * 1000,
+                amount: _moneyChipsToBuy * rate,
                 targetAmount: _moneyChipsToBuy,
                 onDecrement: () {
                   if (_moneyChipsToBuy > 1) {
@@ -911,7 +922,7 @@ class _CurrencyConversionModalState
                 },
                 onAction: () => _convertMoneyToChips(profile),
                 actionLabel: l10n.convert,
-                canAfford: profile.money >= (_moneyChipsToBuy * 1000),
+                canAfford: profile.money >= (_moneyChipsToBuy * rate),
               ),
             ],
           ),
@@ -1017,6 +1028,17 @@ class _ExchangeCard extends StatelessWidget {
   }
 }
 
+/// The toast for a refused purchase. When the shop changed under the
+/// player, the new prices are fetched so the next tap is right.
+String _purchaseErrorText(BuildContext context, WidgetRef ref, Object e) {
+  final l10n = context.l10n;
+  if (isShopChangedError(e)) {
+    ref.read(marketplaceCatalogProvider.notifier).refresh();
+    return l10n.shopPriceChanged;
+  }
+  return e is MarketplaceApiException ? e.message : l10n.purchaseFailed;
+}
+
 class _AvatarsTab extends ConsumerWidget {
   const _AvatarsTab({required this.profile, required this.onBusy});
 
@@ -1026,13 +1048,15 @@ class _AvatarsTab extends ConsumerWidget {
   Future<void> _buyAvatar(
     BuildContext context,
     WidgetRef ref,
-    AvatarItem avatar,
+    ShopAvatar entry,
   ) async {
     final l10n = context.l10n;
+    final avatar = entry.item;
+    final price = entry.price.priceAt(DateTime.now());
     final canAfford =
         avatar.currency == CurrencyType.money
-            ? profile.money >= avatar.price
-            : profile.chips >= avatar.price;
+            ? profile.money >= price
+            : profile.chips >= price;
 
     if (!canAfford) {
       CasinoToast.show(
@@ -1053,7 +1077,7 @@ class _AvatarsTab extends ConsumerWidget {
             itemType: 'avatar',
             itemId: avatar.id,
             currency: avatar.currency.name,
-            price: avatar.price,
+            price: price,
           );
       SfxService.instance.buy();
       if (context.mounted) {
@@ -1066,7 +1090,7 @@ class _AvatarsTab extends ConsumerWidget {
       if (context.mounted) {
         CasinoToast.show(
           context,
-          e is MarketplaceApiException ? e.message : l10n.purchaseFailed,
+          _purchaseErrorText(context, ref, e),
           success: false,
         );
       }
@@ -1090,7 +1114,21 @@ class _AvatarsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final avatars = AvatarCatalog.all;
+    final catalog = ref.watch(marketplaceCatalogProvider);
+    final avatars = [
+      ...catalog.featuredFirst(catalog.avatars, 'avatar', (a) => a.item.id),
+      // Owned avatars that left the shop can still be equipped here.
+      for (final avatar in AvatarCatalog.all)
+        if (profile.ownsAvatar(avatar.id) && catalog.avatar(avatar.id) == null)
+          ShopAvatar(
+            item: avatar,
+            price: ShopPrice(
+              basePrice: avatar.price,
+              currency: avatar.currency,
+            ),
+          ),
+    ];
+    final now = DateTime.now();
 
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
@@ -1103,9 +1141,12 @@ class _AvatarsTab extends ConsumerWidget {
       ),
       itemCount: avatars.length,
       itemBuilder: (context, index) {
-        final avatar = avatars[index];
+        final entry = avatars[index];
+        final avatar = entry.item;
         final isOwned = profile.ownsAvatar(avatar.id);
         final isEquipped = profile.avatarId == avatar.id;
+        final isFeatured =
+            catalog.featured?.matches('avatar', avatar.id) ?? false;
         final name = l10n.avatarName(avatar);
 
         final Widget action;
@@ -1117,70 +1158,113 @@ class _AvatarsTab extends ConsumerWidget {
             onPressed: () => _equipAvatar(context, ref, avatar),
           );
         } else {
-          action = GoldButton(
-            label: '${avatar.price} · ${l10n.buy}',
+          final buy = GoldButton(
+            label: '${entry.price.priceAt(now)} · ${l10n.buy}',
             compact: true,
             leading: CurrencyIcon(currency: avatar.currency, size: 14),
-            onPressed: () => _buyAvatar(context, ref, avatar),
+            onPressed: () => _buyAvatar(context, ref, entry),
           );
+          action =
+              entry.price.onSaleAt(now)
+                  ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ShopSaleBar(
+                        price: entry.price,
+                        currencyIcon: CurrencyIcon(
+                          currency: avatar.currency,
+                          size: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      buy,
+                    ],
+                  )
+                  : buy;
         }
 
-        return IvoryCard(
-          highlighted: isEquipped,
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  _CardBadge(
-                    label:
-                        avatar.requiredLevel <= 1
-                            ? 'FREE'
-                            : 'LV. ${avatar.requiredLevel}',
-                    color: const Color(0xFF5A4A2A),
-                  ),
-                  const Spacer(),
-                  if (isEquipped)
-                    const _CardBadge(label: 'ACTIVE', color: Color(0xFF9A7414))
-                  else if (isOwned)
-                    const _CardBadge(label: 'OWNED', color: Color(0xFF1E7A45))
-                  else if (avatar.isPremium)
-                    const _CardBadge(label: 'CHIPS', color: CardInk.red),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Expanded(
-                child: Center(
-                  child: LayoutBuilder(
-                    builder:
-                        (context, c) => PlayerAvatar(
-                          avatarId: avatar.id,
-                          size: c.biggest.shortestSide.clamp(60.0, 124.0),
-                          borderWidth: isEquipped ? 2.4 : 1.6,
-                          borderColor:
-                              isEquipped ? CasinoColors.gold : CardInk.goldLine,
-                          showGlow: isEquipped,
-                          glowColor: CasinoColors.gold.withValues(alpha: 0.35),
+        final badge = isOwned ? null : entry.price.badge;
+        return ShopSaleGlow(
+          price: isOwned ? null : entry.price,
+          child: IvoryCard(
+            highlighted: isEquipped || (isFeatured && !isOwned),
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    _CardBadge(
+                      label:
+                          avatar.requiredLevel <= 1
+                              ? 'FREE'
+                              : 'LV. ${avatar.requiredLevel}',
+                      color: const Color(0xFF5A4A2A),
+                    ),
+                    const Spacer(),
+                    if (isEquipped)
+                      const _CardBadge(label: 'ACTIVE', color: Color(0xFF9A7414))
+                    else if (isOwned)
+                      const _CardBadge(label: 'OWNED', color: Color(0xFF1E7A45))
+                    else if (badge != null)
+                      Flexible(flex: 6, child: ShopBadgePill(badge: badge))
+                    else if (avatar.isPremium)
+                      const _CardBadge(label: 'CHIPS', color: CardInk.red),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Center(
+                        child: LayoutBuilder(
+                          builder:
+                              (context, c) => PlayerAvatar(
+                                avatarId: avatar.id,
+                                size: c.biggest.shortestSide.clamp(60.0, 124.0),
+                                borderWidth: isEquipped ? 2.4 : 1.6,
+                                borderColor:
+                                    isEquipped
+                                        ? CasinoColors.gold
+                                        : CardInk.goldLine,
+                                showGlow: isEquipped,
+                                glowColor: CasinoColors.gold.withValues(
+                                  alpha: 0.35,
+                                ),
+                              ),
                         ),
+                      ),
+                      if (isFeatured && !isOwned)
+                        const Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: ShopPromoTags(
+                            featured: true,
+                            alignment: MainAxisAlignment.center,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: CasinoFonts.displayOf(context),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
+                const SizedBox(height: 8),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: CasinoFonts.displayOf(context),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              action,
-            ],
+                const SizedBox(height: 8),
+                action,
+              ],
+            ),
           ),
         );
       },
@@ -1320,10 +1404,12 @@ class _DecksTab extends ConsumerWidget {
   Future<void> _buyDeck(
     BuildContext context,
     WidgetRef ref,
-    DeckItem deck,
+    ShopDeck entry,
   ) async {
     final l10n = context.l10n;
-    if (profile.chips < deck.chipPrice) {
+    final deck = entry.item;
+    final price = entry.price.priceAt(DateTime.now());
+    if (profile.chips < price) {
       CasinoToast.show(context, l10n.insufficientChips, success: false);
       return;
     }
@@ -1336,7 +1422,7 @@ class _DecksTab extends ConsumerWidget {
             itemType: 'deck',
             itemId: deck.id,
             currency: 'chips',
-            price: deck.chipPrice,
+            price: price,
           );
       SfxService.instance.buy();
       if (context.mounted) {
@@ -1346,7 +1432,7 @@ class _DecksTab extends ConsumerWidget {
       if (context.mounted) {
         CasinoToast.show(
           context,
-          e is MarketplaceApiException ? e.message : l10n.purchaseFailed,
+          _purchaseErrorText(context, ref, e),
           success: false,
         );
       }
@@ -1358,7 +1444,21 @@ class _DecksTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final decks = DeckCatalog.all;
+    final catalog = ref.watch(marketplaceCatalogProvider);
+    final decks = [
+      ...catalog.featuredFirst(catalog.decks, 'deck', (d) => d.item.id),
+      // Owned decks that left the shop can still be equipped here.
+      for (final deck in DeckCatalog.all)
+        if (profile.ownsDeck(deck.id) && catalog.deck(deck.id) == null)
+          ShopDeck(
+            item: deck,
+            price: ShopPrice(
+              basePrice: deck.chipPrice,
+              currency: CurrencyType.chips,
+            ),
+          ),
+    ];
+    final now = DateTime.now();
 
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
@@ -1371,9 +1471,11 @@ class _DecksTab extends ConsumerWidget {
       ),
       itemCount: decks.length,
       itemBuilder: (context, index) {
-        final deck = decks[index];
+        final entry = decks[index];
+        final deck = entry.item;
         final isOwned = profile.ownsDeck(deck.id);
         final isEquipped = profile.deckId == deck.id;
+        final isFeatured = catalog.featured?.matches('deck', deck.id) ?? false;
 
         final Widget action;
         if (isEquipped) {
@@ -1389,30 +1491,57 @@ class _DecksTab extends ConsumerWidget {
             onPressed: () => _equipDeck(context, ref, deck),
           );
         } else {
-          action = GoldButton(
-            label: '${deck.chipPrice} · ${l10n.buy}',
+          final buy = GoldButton(
+            label: '${entry.price.priceAt(now)} · ${l10n.buy}',
             compact: true,
             leading: const ChipIcon(size: 16),
-            onPressed: () => _buyDeck(context, ref, deck),
+            onPressed: () => _buyDeck(context, ref, entry),
           );
+          action =
+              entry.price.onSaleAt(now)
+                  ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ShopSaleBar(
+                        price: entry.price,
+                        currencyIcon: const ChipIcon(size: 12),
+                      ),
+                      const SizedBox(height: 5),
+                      buy,
+                    ],
+                  )
+                  : buy;
         }
 
-        return DeckShowcaseCard(
-          key: ValueKey('shop-deck-${deck.id}'),
-          deck: deck,
-          owned: isOwned,
-          equipped: isEquipped,
-          action: action,
-          onPreview:
-              () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder:
-                      (context) => DeckPreviewScreen(
-                        title: l10n.deckName(deck),
-                        backSkinId: deck.skinId,
-                      ),
+        return ShopSaleGlow(
+          price: isOwned ? null : entry.price,
+          radius: 20,
+          child: DeckShowcaseCard(
+            key: ValueKey('shop-deck-${deck.id}'),
+            deck: deck,
+            owned: isOwned,
+            equipped: isEquipped,
+            action: action,
+            showcaseTag:
+                isOwned
+                    ? null
+                    : ShopPromoTags(
+                      badge: entry.price.badge,
+                      featured: isFeatured,
+                      alignment: MainAxisAlignment.center,
+                    ),
+            onPreview:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder:
+                        (context) => DeckPreviewScreen(
+                          title: l10n.deckName(deck),
+                          backSkinId: deck.skinId,
+                        ),
+                  ),
                 ),
-              ),
+          ),
         );
       },
     );

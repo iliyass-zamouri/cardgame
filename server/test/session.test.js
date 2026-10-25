@@ -7,14 +7,8 @@ const {
   assertSessionSecret,
   DEV_SECRET,
 } = require('../auth/session');
-const {
-  resolveCatalogPrice,
-  AD_DAILY_CAP,
-  AD_COOLDOWN_MS,
-  AD_REWARD_DAILY_CAP,
-  AD_REWARD_COOLDOWN_MS,
-  AVATAR_CATALOG,
-} = require('../db/marketplace');
+const { quotePurchase } = require('../db/marketplace');
+const { DEFAULTS } = require('../marketplace_config');
 
 test('assertSessionSecret defaults in non-production', () => {
   const prev = process.env.SESSION_SECRET;
@@ -52,23 +46,21 @@ test('verifySession rejects garbage token', async () => {
   );
 });
 
-test('resolveCatalogPrice uses avatar catalog ignoring client price', () => {
-  const blue = resolveCatalogPrice('avatar', 'blue');
+test('quotePurchase uses the avatar catalog, ignoring the client price', () => {
+  const quote = (itemId) => quotePurchase(DEFAULTS, { itemType: 'avatar', itemId }, Date.now());
+  const blue = quote('blue');
   assert.equal(blue.price, 200);
   assert.equal(blue.currency, 'money');
-  const gold = resolveCatalogPrice('avatar', 'golden-king');
+  const gold = quote('golden-king');
   assert.equal(gold.price, 5);
   assert.equal(gold.currency, 'chips');
   assert.throws(
-    () => resolveCatalogPrice('avatar', 'nope'),
+    () => quote('nope'),
     (err) => err.code === 'invalid_item_id',
   );
 });
 
-test('ad reward cap constants', () => {
-  assert.equal(AD_DAILY_CAP, 5);
-  assert.equal(AD_COOLDOWN_MS, 60_000);
-  assert.equal(AD_REWARD_DAILY_CAP, 5);
-  assert.equal(AD_REWARD_COOLDOWN_MS, 60_000);
-  assert.ok(AVATAR_CATALOG.length >= 10);
+test('ad reward cap defaults', () => {
+  assert.equal(DEFAULTS.ads.dailyCap, 5);
+  assert.equal(DEFAULTS.ads.cooldownSeconds, 60);
 });

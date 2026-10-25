@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { AVATAR_CATALOG, DECK_CATALOG } = require('./marketplace');
+const { KNOWN_IDS } = require('../marketplace_config');
 const { rollChest } = require('../daily_rewards');
 const { grantBoostItem } = require('./boosts');
 
@@ -27,10 +27,11 @@ async function ownsItem(conn, playerId, itemType, itemId) {
 
 /** Avatars and decks. A duplicate or unknown id converts to its currency fallback. */
 async function grantItem(conn, playerId, reward, ctx) {
-  const catalog = reward.type === 'avatar' ? AVATAR_CATALOG : DECK_CATALOG;
+  // Hidden shop items can still be won.
+  const knownIds = reward.type === 'avatar' ? KNOWN_IDS.avatars : KNOWN_IDS.decks;
   const entry = { type: reward.type, itemId: reward.itemId };
 
-  if (!catalog.some((item) => item.id === reward.itemId)) {
+  if (!knownIds.includes(reward.itemId)) {
     return { ...entry, unknown: true, converted: grantCurrency(reward.fallback, ctx) };
   }
   // Starter items are always owned, so they convert too.

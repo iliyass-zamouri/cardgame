@@ -1,4 +1,5 @@
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/marketplace_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/marketplace/marketplace_api.dart';
@@ -151,7 +152,7 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
                 )
               else
                 LeatherButton(
-                  label: l10n.marketplace,
+                  label: l10n.shop,
                   compact: true,
                   leading: const GameIcon(icon: AppIcons.shop),
                   onPressed: () {
@@ -189,9 +190,17 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
       } catch (e) {
         if (mounted) {
           setState(() => _isSaving = false);
+          final shopChanged = isShopChangedError(e);
+          if (shopChanged) {
+            ref.read(marketplaceCatalogProvider.notifier).refresh();
+          }
           CasinoToast.show(
             context,
-            e is MarketplaceApiException ? e.message : l10n.purchaseFailed,
+            shopChanged
+                ? l10n.shopPriceChanged
+                : e is MarketplaceApiException
+                ? e.message
+                : l10n.purchaseFailed,
             success: false,
           );
         }
@@ -204,7 +213,17 @@ class _AvatarSelectionModalState extends ConsumerState<AvatarSelectionModal> {
     final l10n = AppLocalizations.of(context);
     final profile =
         ref.watch(playerProfileProvider).value ?? PlayerProfile.empty;
-    final avatars = AvatarCatalog.all;
+    final catalog = ref.watch(marketplaceCatalogProvider);
+    final now = DateTime.now();
+    // Shop prices (sale included) and levels. An avatar the shop no longer
+    // sells stays listed only for players who own it.
+    final avatars = [
+      for (final avatar in AvatarCatalog.all)
+        if (catalog.avatar(avatar.id) case final entry?)
+          entry.item.copyWith(price: entry.price.priceAt(now))
+        else if (profile.ownsAvatar(avatar.id))
+          avatar,
+    ];
 
     return Container(
       decoration: BoxDecoration(

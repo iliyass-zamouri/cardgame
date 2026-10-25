@@ -47,37 +47,48 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
       tabs: TabBar(
         controller: _tabController,
         tabs: [
-          Tab(text: l10n.friends),
           Tab(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(l10n.requests),
-                if (incomingCount > 0) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: CasinoColors.raise,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '$incomingCount',
-                      style: TextStyle(
-                        color: CasinoColors.text,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+            height: 40,
+            child: _FriendsTabLabel(
+              icon: AppIcons.friends,
+              label: l10n.friends,
             ),
           ),
-          Tab(text: l10n.addFriend),
+          Tab(
+            height: 40,
+            child: _FriendsTabLabel(
+              icon: AppIcons.mail,
+              label: l10n.requests,
+              badge:
+                  incomingCount > 0
+                      ? Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: CasinoColors.raise,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$incomingCount',
+                          style: TextStyle(
+                            color: CasinoColors.text,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      )
+                      : null,
+            ),
+          ),
+          Tab(
+            height: 40,
+            child: _FriendsTabLabel(
+              icon: AppIcons.personAdd,
+              label: l10n.addFriend,
+            ),
+          ),
         ],
       ),
       body: TabBarView(
@@ -86,6 +97,32 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
           _FriendsListTab(onGoToAdd: () => _tabController.animateTo(2)),
           const _FriendRequestsTab(),
           const _SearchPlayersTab(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Icon + label for a friends tab; scales down rather than clipping on
+/// narrow phones or long translations.
+class _FriendsTabLabel extends StatelessWidget {
+  const _FriendsTabLabel({required this.icon, required this.label, this.badge});
+
+  final GameIconData icon;
+  final String label;
+  final Widget? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GameIcon(icon: icon, size: 16),
+          const SizedBox(width: 6),
+          Text(label),
+          if (badge != null) ...[const SizedBox(width: 6), badge!],
         ],
       ),
     );
@@ -314,9 +351,7 @@ class _FriendCard extends ConsumerWidget {
                             ),
                             content: Text(
                               l10n.removeFriendConfirm(friend.displayName),
-                              style: TextStyle(
-                                color: CasinoColors.textMuted,
-                              ),
+                              style: TextStyle(color: CasinoColors.textMuted),
                             ),
                             actions: [
                               TextButton(
@@ -332,9 +367,7 @@ class _FriendCard extends ConsumerWidget {
                                 onPressed: () => Navigator.of(ctx).pop(true),
                                 child: Text(
                                   l10n.removeFriend,
-                                  style: TextStyle(
-                                    color: CasinoColors.foldHi,
-                                  ),
+                                  style: TextStyle(color: CasinoColors.foldHi),
                                 ),
                               ),
                             ],
@@ -364,9 +397,7 @@ class _FriendCard extends ConsumerWidget {
                             ),
                             content: Text(
                               'Block ${friend.displayName}? They will no longer be able to interact with you.',
-                              style: TextStyle(
-                                color: CasinoColors.textMuted,
-                              ),
+                              style: TextStyle(color: CasinoColors.textMuted),
                             ),
                             actions: [
                               TextButton(
@@ -607,10 +638,7 @@ class _IncomingRequestCard extends ConsumerWidget {
                 ),
                 Text(
                   '@${request.username}',
-                  style: TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: CasinoColors.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -681,10 +709,7 @@ class _OutgoingRequestCard extends ConsumerWidget {
                 ),
                 Text(
                   '@${request.username}',
-                  style: TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: CasinoColors.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -766,10 +791,7 @@ class _SearchPlayersTabState extends ConsumerState<_SearchPlayersTab> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: CasinoColors.gold,
-                  width: 1.5,
-                ),
+                borderSide: BorderSide(color: CasinoColors.gold, width: 1.5),
               ),
             ),
             onChanged: (val) {
@@ -980,10 +1002,7 @@ class _SearchResultCard extends ConsumerWidget {
                 ),
                 Text(
                   '@${player.username}',
-                  style: TextStyle(
-                    color: CasinoColors.textMuted,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: CasinoColors.textMuted, fontSize: 12),
                 ),
               ],
             ),

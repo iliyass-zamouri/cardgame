@@ -1,4 +1,5 @@
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/marketplace_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/decks/deck_catalog.dart';
@@ -361,6 +362,8 @@ class _DecksGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final decks = _ownedFirst(DeckCatalog.all, (d) => profile.ownsDeck(d.id));
+    final catalog = ref.watch(marketplaceCatalogProvider);
+    final now = DateTime.now();
 
     return _CollectionGrid(
       onShop: onShop,
@@ -388,7 +391,8 @@ class _DecksGrid extends ConsumerWidget {
           );
         } else {
           action = GoldButton(
-            label: '${deck.chipPrice}',
+            label:
+                '${catalog.deck(deck.id)?.price.priceAt(now) ?? deck.chipPrice}',
             compact: true,
             leading: const ChipIcon(size: 16),
             onPressed: onShop,
@@ -445,6 +449,8 @@ class _AvatarsGrid extends ConsumerWidget {
       AvatarCatalog.all,
       (a) => profile.ownsAvatar(a.id),
     );
+    final catalog = ref.watch(marketplaceCatalogProvider);
+    final now = DateTime.now();
 
     return _CollectionGrid(
       onShop: onShop,
@@ -470,10 +476,14 @@ class _AvatarsGrid extends ConsumerWidget {
             onPressed: () => _equip(context, ref, avatar),
           );
         } else {
+          final shop = catalog.avatar(avatar.id);
           action = GoldButton(
-            label: '${avatar.price}',
+            label: '${shop?.price.priceAt(now) ?? avatar.price}',
             compact: true,
-            leading: CurrencyIcon(currency: avatar.currency, size: 14),
+            leading: CurrencyIcon(
+              currency: shop?.price.currency ?? avatar.currency,
+              size: 14,
+            ),
             onPressed: onShop,
           );
         }

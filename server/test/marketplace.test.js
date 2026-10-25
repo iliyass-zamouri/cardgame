@@ -1,28 +1,19 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  STARTING_MONEY,
-  STARTING_CHIPS,
-  MONEY_PER_CHIP,
-  AD_REWARD_MONEY,
-  AVATAR_CATALOG,
-  DECK_CATALOG,
-  IAP_CATALOG,
-  getAdRewardMoney,
-} = require('../db/marketplace');
+const { STARTING_MONEY, STARTING_CHIPS, LEGACY_IAP_PRODUCTS, iapGrant } = require('../db/marketplace');
+const { DEFAULTS, AVATARS, DECKS } = require('../marketplace_config');
 const { GameRoom } = require('../game_room');
 
-test('marketplace constants have expected economy values', () => {
+test('marketplace defaults keep the economy values from before the config', () => {
   assert.equal(STARTING_MONEY, 500);
   assert.equal(STARTING_CHIPS, 1);
-  assert.equal(MONEY_PER_CHIP, 1000);
-  assert.equal(AD_REWARD_MONEY, 50);
-  assert.equal(getAdRewardMoney(), 50);
+  assert.deepEqual(DEFAULTS.economy, { moneyPerChip: 1000, startingMoney: 500, startingChips: 1 });
+  assert.deepEqual(DEFAULTS.ads, { rewardMoney: 50, dailyCap: 5, cooldownSeconds: 60 });
 });
 
 test('marketplace avatar catalog contains all 10 app avatars', () => {
-  assert.equal(AVATAR_CATALOG.length, 10);
-  const ids = AVATAR_CATALOG.map((a) => a.id);
+  assert.equal(AVATARS.length, 10);
+  const ids = AVATARS.map((a) => a.id);
   assert.deepEqual(ids, [
     'default',
     'blue',
@@ -37,26 +28,24 @@ test('marketplace avatar catalog contains all 10 app avatars', () => {
   ]);
 });
 
-test('marketplace IAP catalog contains expected consumable and subscription SKUs', () => {
-  assert.equal(IAP_CATALOG.chips_1.type, 'chips');
-  assert.equal(IAP_CATALOG.chips_1.amount, 1);
-  assert.equal(IAP_CATALOG.chips_5.type, 'chips');
-  assert.equal(IAP_CATALOG.chips_5.amount, 5);
-  assert.equal(IAP_CATALOG.chips_10.type, 'chips');
-  assert.equal(IAP_CATALOG.chips_10.amount, 10);
-  assert.equal(IAP_CATALOG.chips_25.type, 'chips');
-  assert.equal(IAP_CATALOG.chips_25.amount, 25);
-  assert.equal(IAP_CATALOG.cash_1000.type, 'money');
-  assert.equal(IAP_CATALOG.cash_1000.amount, 1000);
-  assert.equal(IAP_CATALOG.cash_5000.type, 'money');
-  assert.equal(IAP_CATALOG.cash_5000.amount, 5000);
-  assert.equal(IAP_CATALOG.cash_10000.type, 'money');
-  assert.equal(IAP_CATALOG.cash_10000.amount, 10000);
-  assert.equal(IAP_CATALOG.pro_monthly.type, 'pro');
+test('marketplace IAP products grant their default amounts, legacy ids included', () => {
+  const grant = (productId) => iapGrant(DEFAULTS, productId, Date.now());
+  assert.deepEqual(grant('chips_1'), { type: 'chips', amount: 1, bonus: 0 });
+  assert.deepEqual(grant('chips_5'), { type: 'chips', amount: 5, bonus: 0 });
+  assert.deepEqual(grant('chips_10'), { type: 'chips', amount: 10, bonus: 0 });
+  assert.deepEqual(grant('chips_25'), { type: 'chips', amount: 25, bonus: 0 });
+  assert.deepEqual(grant('chips_50'), { type: 'chips', amount: 50, bonus: 0 });
+  assert.deepEqual(grant('cash_1000'), { type: 'money', amount: 1000, bonus: 0 });
+  assert.deepEqual(grant('cash_5000'), { type: 'money', amount: 5000, bonus: 0 });
+  assert.deepEqual(grant('cash_10000'), { type: 'money', amount: 10000, bonus: 0 });
+  assert.deepEqual(grant('cash_25000'), { type: 'money', amount: 25000, bonus: 0 });
+  assert.equal(grant('gems_100').amount, 100);
+  assert.equal(LEGACY_IAP_PRODUCTS.pro_monthly.type, 'pro');
+  assert.equal(grant('nope'), null);
 });
 
 test('marketplace deck catalog lists every deck the app sells, priced in chips', () => {
-  const ids = DECK_CATALOG.map((d) => d.id);
+  const ids = DECKS.map((d) => d.id);
   assert.deepEqual(ids, [
     'default',
     'sapphire_frost',
@@ -66,7 +55,7 @@ test('marketplace deck catalog lists every deck the app sells, priced in chips',
     'black_onyx',
     'gilded_gold',
   ]);
-  const prices = Object.fromEntries(DECK_CATALOG.map((d) => [d.id, d.price]));
+  const prices = Object.fromEntries(DECKS.map((d) => [d.id, d.price]));
   assert.deepEqual(prices, {
     default: 0,
     sapphire_frost: 6,
@@ -76,7 +65,7 @@ test('marketplace deck catalog lists every deck the app sells, priced in chips',
     black_onyx: 20,
     gilded_gold: 35,
   });
-  assert.ok(DECK_CATALOG.every((d) => d.currency === 'chips'));
+  assert.ok(DECKS.every((d) => d.currency === 'chips'));
 });
 
 test('GameRoom snapshot includes stakePool, stakePerPlayer, potAmount, avatarId, and deckId', () => {

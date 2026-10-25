@@ -421,7 +421,7 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen>
       child: _BalanceStrip(
         playerMoney: playerMoney,
         playerChips: playerChips,
-        marketplaceLabel: l10n.marketplace,
+        marketplaceLabel: l10n.shop,
         onMarketplace: _openMarketplace,
       ),
     );

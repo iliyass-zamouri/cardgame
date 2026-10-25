@@ -74,6 +74,22 @@ class _HowToPlayScreenState extends ConsumerState<HowToPlayScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
+            FeltTileGroup(
+              children: [
+                FeltTile(
+                  icon: AppIcons.rules,
+                  title: l10n.tutQuickRules,
+                  subtitle: l10n.tutQuickRulesSubtitle,
+                  onTap:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const QuickRulesScreen(),
+                        ),
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
             IvoryCard(
               radius: 18,
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -115,22 +131,6 @@ class _HowToPlayScreenState extends ConsumerState<HowToPlayScreen> {
                     title: _lessons[i].title(l10n),
                     onTap: () => _play(i),
                   ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            FeltTileGroup(
-              children: [
-                FeltTile(
-                  icon: AppIcons.rules,
-                  title: l10n.tutQuickRules,
-                  subtitle: l10n.tutQuickRulesSubtitle,
-                  onTap:
-                      () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const QuickRulesScreen(),
-                        ),
-                      ),
-                ),
               ],
             ),
           ],

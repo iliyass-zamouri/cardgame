@@ -9,6 +9,7 @@ import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/home_menu_providers.dart';
 import 'package:cardgame/app/locale_provider.dart';
 import 'package:cardgame/app/locale_repository.dart';
+import 'package:cardgame/app/marketplace_providers.dart';
 import 'package:cardgame/app/navigation_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/push_providers.dart';
@@ -146,6 +147,7 @@ Future<void> main() async {
       final tutorialProgressRepo = await TutorialProgressRepository.open();
       final tableSocialPrefsRepo = await TableSocialPrefsRepository.open();
       final homeMenuRepo = await HomeMenuRepository.open();
+      final marketplaceCatalogRepo = await MarketplaceCatalogRepository.open();
       final themeRepo = await ThemeRepository.open();
       AppTheme.activate(initialTheme(themeRepo));
 
@@ -166,6 +168,9 @@ Future<void> main() async {
               tableSocialPrefsRepo,
             ),
             homeMenuRepositoryProvider.overrideWithValue(homeMenuRepo),
+            marketplaceCatalogRepositoryProvider.overrideWithValue(
+              marketplaceCatalogRepo,
+            ),
             themeRepositoryProvider.overrideWithValue(themeRepo),
           ],
           child: const MyApp(),

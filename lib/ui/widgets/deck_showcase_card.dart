@@ -20,6 +20,7 @@ class DeckShowcaseCard extends StatelessWidget {
     required this.action,
     required this.onPreview,
     this.locked = false,
+    this.showcaseTag,
   });
 
   final DeckItem deck;
@@ -30,6 +31,9 @@ class DeckShowcaseCard extends StatelessWidget {
 
   /// Collection view of a deck not owned yet: dimmed art behind a lock.
   final bool locked;
+
+  /// Shop badges, centred along the bottom of the showcase.
+  final Widget? showcaseTag;
 
   /// Standard decks get an antique-gold frame.
   static const _standardFrame = Color(0xFFB08A3E);
@@ -120,6 +124,13 @@ class DeckShowcaseCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (showcaseTag != null)
+                        PositionedDirectional(
+                          bottom: 6,
+                          start: 8,
+                          end: 8,
+                          child: showcaseTag!,
+                        ),
                       if (rarity != null)
                         PositionedDirectional(
                           top: 8,

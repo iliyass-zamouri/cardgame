@@ -15,8 +15,16 @@ const AT_RISK_STREAK = 3;
 const CACHE_MS = 15_000;
 
 const { TIERS, MAX_PRESETS, presetView } = require('./boosts');
+const {
+  ConfigError,
+  invalid,
+  isPlainObject,
+  requireObject,
+  intIn,
+  boolIn,
+  localizedText,
+} = require('./config_validation');
 
-const LANGUAGES = ['en', 'fr', 'es', 'pt', 'ar'];
 const BOOSTER_IDS = ['coin_boost', 'streak_freeze'];
 const CHOICES = ['rescue', 'restart'];
 const CONFIG_KEYS = [
@@ -491,35 +499,6 @@ function selectReminderRecipients(rows, nowMs, config) {
 
 // ---------------------------------------------------------------- validation
 
-class ConfigError extends Error {}
-
-function invalid(message) {
-  throw new ConfigError(message);
-}
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function requireObject(value, label, allowedKeys) {
-  if (!isPlainObject(value)) invalid(`${label} must be an object`);
-  const unknown = Object.keys(value).filter((key) => !allowedKeys.includes(key));
-  if (unknown.length > 0) invalid(`${label} has unknown field: ${unknown.join(', ')}`);
-  return value;
-}
-
-function intIn(value, [min, max], label) {
-  if (!Number.isInteger(value) || value < min || value > max) {
-    invalid(`${label} must be a whole number from ${min} to ${max}`);
-  }
-  return value;
-}
-
-function boolIn(value, label) {
-  if (typeof value !== 'boolean') invalid(`${label} must be true or false`);
-  return value;
-}
-
 function idIn(value, label, pattern) {
   if (typeof value !== 'string' || !pattern.test(value)) {
     invalid(`${label} must be lowercase letters, digits or dashes`);
@@ -535,20 +514,6 @@ function dateIn(value, label) {
     localDateOf(Date.parse(`${value}T00:00:00Z`), 0) === value;
   if (!valid) invalid(`${label} must be a date as YYYY-MM-DD`);
   return value;
-}
-
-function localizedText(value, label, maxLength) {
-  requireObject(value, label, LANGUAGES);
-  if (typeof value.en !== 'string' || value.en.trim() === '') invalid(`${label}.en is required`);
-  const out = {};
-  for (const language of LANGUAGES) {
-    if (value[language] === undefined) continue;
-    if (typeof value[language] !== 'string' || value[language].length > maxLength) {
-      invalid(`${label}.${language} must be text up to ${maxLength} characters`);
-    }
-    out[language] = value[language].trim();
-  }
-  return out;
 }
 
 const CURRENCY_LIMITS = { money: LIMITS.maxMoney, chips: LIMITS.maxChips };

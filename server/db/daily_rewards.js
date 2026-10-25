@@ -1,14 +1,7 @@
 const crypto = require('crypto');
 const { getPool } = require('./pool');
-const {
-  getPlayerInventory,
-  getAdRewardMoney,
-  AVATAR_CATALOG,
-  DECK_CATALOG,
-  MONEY_PER_CHIP,
-  STARTING_MONEY,
-  AD_REWARD_DAILY_CAP,
-} = require('./marketplace');
+const { getPlayerInventory, currentConfig } = require('./marketplace');
+const { AVATARS, DECKS, KNOWN_IDS } = require('../marketplace_config');
 const { grantRewards, applyBalances } = require('./rewards');
 const {
   BOOSTER_IDS,
@@ -48,24 +41,32 @@ function parseJson(value) {
 /** The ids the admin may reference, from the same catalog the shop sells from. */
 function rewardCatalog() {
   return {
-    avatarIds: new Set(AVATAR_CATALOG.map((item) => item.id)),
-    deckIds: new Set(DECK_CATALOG.map((item) => item.id)),
+    avatarIds: new Set(KNOWN_IDS.avatars),
+    deckIds: new Set(KNOWN_IDS.decks),
   };
 }
 
-/** Read-only catalog for the admin tab's pickers and its economy estimate. */
-function rewardCatalogBody() {
-  const pick = ({ id, name, price, currency }) => ({ id, name, price, currency });
+/**
+ * Read-only catalog for the admin tab's pickers and its economy estimate.
+ * Prices and economy values are the live Shop tab settings.
+ */
+function rewardCatalogBody(config = currentConfig()) {
+  const pick = (names, currencyOf) => (item) => ({
+    id: item.id,
+    name: names.find((entry) => entry.id === item.id)?.name ?? item.id,
+    price: item.price,
+    currency: currencyOf(item),
+  });
   return {
     currencies: ['money', 'chips'],
-    avatars: AVATAR_CATALOG.map(pick),
-    decks: DECK_CATALOG.map(pick),
+    avatars: config.avatars.map(pick(AVATARS, (item) => item.currency)),
+    decks: config.decks.map(pick(DECKS, () => 'chips')),
     boosters: BOOSTER_IDS,
     limits: LIMITS,
-    moneyPerChip: MONEY_PER_CHIP,
-    startingMoney: STARTING_MONEY,
-    adRewardMoney: getAdRewardMoney(),
-    adDailyCap: AD_REWARD_DAILY_CAP,
+    moneyPerChip: config.economy.moneyPerChip,
+    startingMoney: config.economy.startingMoney,
+    adRewardMoney: config.ads.rewardMoney,
+    adDailyCap: config.ads.dailyCap,
   };
 }
 

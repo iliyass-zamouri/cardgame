@@ -1782,4 +1782,79 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get boostOneAtATime =>
       'يعمل مستوى معزز واحد في كل مرة. المستوى نفسه يضيف وقته.';
+
+  @override
+  String get shopBadgeNew => 'جديد';
+
+  @override
+  String get shopBadgeHot => 'رائج';
+
+  @override
+  String get shopBadgePopular => 'شائع';
+
+  @override
+  String get shopBadgeBestValue => 'أفضل قيمة';
+
+  @override
+  String get shopBadgeLimited => 'محدود';
+
+  @override
+  String get shopFeatured => 'مميّز';
+
+  @override
+  String shopSaleOff(int percent) {
+    return '−$percent٪';
+  }
+
+  @override
+  String shopEndsIn(String time) {
+    return 'ينتهي خلال $time';
+  }
+
+  @override
+  String shopPackBonus(int amount) {
+    return '+$amount مكافأة';
+  }
+
+  @override
+  String get shopPriceChanged =>
+      'تغيّرت الأسعار للتو. راجع السعر الجديد وحاول مرة أخرى.';
+
+  @override
+  String get shopOpen => 'افتح';
+
+  @override
+  String shopDaysHours(int days, int hours) {
+    return '$days ي $hours س';
+  }
+
+  @override
+  String shopChipPack(int amount) {
+    final intl.NumberFormat amountNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String amountString = amountNumberFormat.format(amount);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      amount,
+      locale: localeName,
+      other: '$amountString رقاقة',
+      one: 'رقاقة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String shopCashPack(int amount) {
+    final intl.NumberFormat amountNumberFormat = intl
+        .NumberFormat.decimalPattern(localeName);
+    final String amountString = amountNumberFormat.format(amount);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      amount,
+      locale: localeName,
+      other: '$amountString نقود',
+      one: '1 نقود',
+    );
+    return '$_temp0';
+  }
 }

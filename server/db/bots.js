@@ -1,11 +1,10 @@
 const { randomUUID } = require('crypto');
 const { getPool } = require('./pool');
 const { generateGuestIdentity } = require('../auth/guest_name');
-const { AVATAR_CATALOG } = require('./marketplace');
+const { KNOWN_IDS } = require('../marketplace_config');
 
-const BOT_AVATAR_IDS = AVATAR_CATALOG && AVATAR_CATALOG.length > 0
-  ? AVATAR_CATALOG.map((a) => a.id)
-  : ['default', 'blue', 'red', 'bronze', 'silver', 'joker-girl', 'violet-joker-girl', 'violet-queen', 'queen-of-heart', 'golden-king'];
+// Bots wear any avatar, including ones hidden from the shop.
+const BOT_AVATAR_IDS = KNOWN_IDS.avatars;
 
 const BOT_COUNTRIES = [
   'US', 'GB', 'FR', 'ES', 'PT', 'DE', 'IT', 'BR', 'MX', 'AR', 'CA', 'MA',

@@ -28,6 +28,19 @@ class DeckItem {
   final DeckRarity rarity;
   final String skinId;
   final bool isDefault;
+
+  /// This deck at the shop's current price and rarity.
+  DeckItem copyWith({int? chipPrice, DeckRarity? rarity}) {
+    return DeckItem(
+      id: id,
+      nameKey: nameKey,
+      descriptionKey: descriptionKey,
+      chipPrice: chipPrice ?? this.chipPrice,
+      rarity: rarity ?? this.rarity,
+      skinId: skinId,
+      isDefault: isDefault,
+    );
+  }
 }
 
 class DeckCatalog {

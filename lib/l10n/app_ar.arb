@@ -565,5 +565,19 @@
   "boostPayout": "معزز +{percent}%",
   "boostMoneyOnly": "مباريات المال فقط",
   "boostActiveSemantics": "معزز +{percent}% نشط، متبقٍ {time}",
-  "boostOneAtATime": "يعمل مستوى معزز واحد في كل مرة. المستوى نفسه يضيف وقته."
+  "boostOneAtATime": "يعمل مستوى معزز واحد في كل مرة. المستوى نفسه يضيف وقته.",
+  "shopBadgeNew": "جديد",
+  "shopBadgeHot": "رائج",
+  "shopBadgePopular": "شائع",
+  "shopBadgeBestValue": "أفضل قيمة",
+  "shopBadgeLimited": "محدود",
+  "shopFeatured": "مميّز",
+  "shopSaleOff": "−{percent}٪",
+  "shopEndsIn": "ينتهي خلال {time}",
+  "shopPackBonus": "+{amount} مكافأة",
+  "shopPriceChanged": "تغيّرت الأسعار للتو. راجع السعر الجديد وحاول مرة أخرى.",
+  "shopOpen": "افتح",
+  "shopDaysHours": "{days} ي {hours} س",
+  "shopChipPack": "{amount, plural, =1{رقاقة واحدة} other{{amount} رقاقة}}",
+  "shopCashPack": "{amount, plural, =1{1 نقود} other{{amount} نقود}}"
 }

@@ -542,5 +542,19 @@
   "boostPayout": "Impulso +{percent}%",
   "boostMoneyOnly": "Solo partidas con dinero",
   "boostActiveSemantics": "Impulso +{percent}% activo, quedan {time}",
-  "boostOneAtATime": "Solo un nivel de impulso a la vez. El mismo nivel suma su tiempo."
+  "boostOneAtATime": "Solo un nivel de impulso a la vez. El mismo nivel suma su tiempo.",
+  "shopBadgeNew": "Nuevo",
+  "shopBadgeHot": "En tendencia",
+  "shopBadgePopular": "Popular",
+  "shopBadgeBestValue": "Mejor oferta",
+  "shopBadgeLimited": "Limitado",
+  "shopFeatured": "Destacado",
+  "shopSaleOff": "−{percent} %",
+  "shopEndsIn": "Termina en {time}",
+  "shopPackBonus": "+{amount} de regalo",
+  "shopPriceChanged": "Los precios acaban de cambiar. Revisa el nuevo precio y vuelve a intentarlo.",
+  "shopOpen": "Ver",
+  "shopDaysHours": "{days} d {hours} h",
+  "shopChipPack": "{amount, plural, =1{1 ficha} other{{amount} fichas}}",
+  "shopCashPack": "{amount, plural, =1{1 de dinero} other{{amount} de dinero}}"
 }

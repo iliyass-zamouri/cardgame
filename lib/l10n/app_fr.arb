@@ -565,5 +565,19 @@
   "boostPayout": "Boost +{percent}%",
   "boostMoneyOnly": "Parties d'argent uniquement",
   "boostActiveSemantics": "Boost +{percent}% actif, encore {time}",
-  "boostOneAtATime": "Un seul niveau de boost à la fois. Le même niveau ajoute son temps."
+  "boostOneAtATime": "Un seul niveau de boost à la fois. Le même niveau ajoute son temps.",
+  "shopBadgeNew": "Nouveau",
+  "shopBadgeHot": "Tendance",
+  "shopBadgePopular": "Populaire",
+  "shopBadgeBestValue": "Meilleure offre",
+  "shopBadgeLimited": "Limité",
+  "shopFeatured": "À la une",
+  "shopSaleOff": "−{percent} %",
+  "shopEndsIn": "Fin dans {time}",
+  "shopPackBonus": "+{amount} en bonus",
+  "shopPriceChanged": "Les prix viennent de changer. Vérifiez le nouveau prix et réessayez.",
+  "shopOpen": "Voir",
+  "shopDaysHours": "{days} j {hours} h",
+  "shopChipPack": "{amount, plural, =1{1 jeton} other{{amount} jetons}}",
+  "shopCashPack": "{amount, plural, =1{1 d’argent} other{{amount} d’argent}}"
 }

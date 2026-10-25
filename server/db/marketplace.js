@@ -1,41 +1,50 @@
 const { randomUUID } = require('crypto');
 const { getPool } = require('./pool');
+const {
+  DEFAULTS,
+  KNOWN_IDS,
+  findItem,
+  effectivePrice,
+  bundledPrice,
+  findPack,
+  productType,
+  activeBonus,
+} = require('../marketplace_config');
 
-const STARTING_MONEY = 500;
-const STARTING_CHIPS = 1;
-const MONEY_PER_CHIP = 1000;
+// Column defaults for players created before the config existed. New players
+// get the configured starting balances (see startingBalances).
+const STARTING_MONEY = DEFAULTS.economy.startingMoney;
+const STARTING_CHIPS = DEFAULTS.economy.startingChips;
 
-function getAdRewardMoney() {
-  const envVal = Number.parseInt(process.env.AD_REWARD_MONEY, 10);
-  return Number.isNaN(envVal) || envVal < 0 ? 50 : envVal;
+/** Old store product ids that still redeem. They are not listed in the shop. */
+const LEGACY_IAP_PRODUCTS = Object.freeze({
+  gems_100: { type: 'chips', amount: 100 },
+  gems_500: { type: 'chips', amount: 500 },
+  gems_1200: { type: 'chips', amount: 1200 },
+  coins_1000: { type: 'money', amount: 1000 },
+  coins_5000: { type: 'money', amount: 5000 },
+  pro_monthly: { type: 'pro', amount: 0 },
+});
+
+let configSource = () => DEFAULTS;
+
+/** GameServer points this at its live store, so every caller sees admin edits. */
+function useMarketplaceConfig(source) {
+  configSource = source;
 }
 
-const AD_REWARD_MONEY = getAdRewardMoney();
-const AD_DAILY_CAP = 5;
-const AD_COOLDOWN_MS = 60_000;
+function currentConfig() {
+  return configSource();
+}
 
-const AVATAR_CATALOG = [
-  { id: 'default', name: 'Default', price: 0, currency: 'money', requiredLevel: 1 },
-  { id: 'blue', name: 'Sapphire', price: 200, currency: 'money', requiredLevel: 2 },
-  { id: 'red', name: 'Ruby', price: 400, currency: 'money', requiredLevel: 4 },
-  { id: 'bronze', name: 'Bronze', price: 600, currency: 'money', requiredLevel: 6 },
-  { id: 'silver', name: 'Silver', price: 1, currency: 'chips', requiredLevel: 8 },
-  { id: 'joker-girl', name: 'Joker Girl', price: 2, currency: 'chips', requiredLevel: 10 },
-  { id: 'violet-joker-girl', name: 'Violet Joker', price: 2, currency: 'chips', requiredLevel: 12 },
-  { id: 'violet-queen', name: 'Violet Queen', price: 3, currency: 'chips', requiredLevel: 15 },
-  { id: 'queen-of-heart', name: 'Queen of Hearts', price: 4, currency: 'chips', requiredLevel: 18 },
-  { id: 'golden-king', name: 'Golden King', price: 5, currency: 'chips', requiredLevel: 20 },
-];
+/** Money and chips a new player starts with. */
+function startingBalances(config = currentConfig()) {
+  return { money: config.economy.startingMoney, chips: config.economy.startingChips };
+}
 
-const DECK_CATALOG = [
-  { id: 'default', name: 'Classic Blue', price: 0, currency: 'chips' },
-  { id: 'sapphire_frost', name: 'Sapphire Dragon', price: 6, currency: 'chips' },
-  { id: 'imperial_jade', name: 'High Victorian', price: 8, currency: 'chips' },
-  { id: 'royal_crimson', name: 'Royal Crimson', price: 12, currency: 'chips' },
-  { id: 'neon_nights', name: 'Neon Nights', price: 15, currency: 'chips' },
-  { id: 'black_onyx', name: 'Onyx Black', price: 20, currency: 'chips' },
-  { id: 'gilded_gold', name: '24K Gold', price: 35, currency: 'chips' },
-];
+function withCode(code, message, details) {
+  return Object.assign(new Error(message), { code }, details ? { details } : {});
+}
 
 async function addColumnIfMissing(conn, table, column, definition) {
   const [rows] = await conn.query(
@@ -144,26 +153,60 @@ async function ensureMarketplaceSchema() {
         CONSTRAINT fk_ad_claim_player FOREIGN KEY (player_id) REFERENCES players (id) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // One row per shop sale, so the Shop tab can show what a promo sold.
+    // Store packs log the amount granted; their real-money price is unknown here.
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS marketplace_purchases (
+        id VARCHAR(64) NOT NULL PRIMARY KEY,
+        player_id VARCHAR(64) NOT NULL,
+        item_type VARCHAR(8) NOT NULL,
+        item_id VARCHAR(64) NOT NULL,
+        currency VARCHAR(8) NOT NULL,
+        price_paid INT NOT NULL DEFAULT 0,
+        base_price INT NOT NULL DEFAULT 0,
+        amount INT NOT NULL DEFAULT 0,
+        bonus INT NOT NULL DEFAULT 0,
+        on_sale TINYINT(1) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_mp_time (created_at),
+        KEY idx_mp_item (item_type, item_id, created_at),
+        CONSTRAINT fk_mkt_purchase_player FOREIGN KEY (player_id) REFERENCES players (id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
   } finally {
     conn.release();
   }
 }
 
 /**
- * Resolve catalog price for an avatar or deck (ignores client price).
- * @param {'avatar'|'deck'} itemType
- * @param {string} itemId
- * @returns {{ currency: string, price: number }}
+ * What buying `itemId` costs right now. The client's price is never charged:
+ * - A build that sends `expectedPrice` gets `price_changed` when it is stale,
+ *   so a player never pays a price they weren't shown.
+ * - An older build shows its bundled price, so it pays the lower of that and
+ *   the configured price, and can't buy an item whose currency changed.
+ * @returns {{ currency: 'money'|'chips', price: number, basePrice: number, onSale: boolean }}
  */
-function resolveCatalogPrice(itemType, itemId) {
-  const catalog = itemType === 'deck' ? DECK_CATALOG : AVATAR_CATALOG;
-  const catalogItem = catalog.find((item) => item.id === itemId);
-  if (!catalogItem) {
-    const error = new Error(`Unknown ${itemType}`);
-    error.code = 'invalid_item_id';
-    throw error;
+function quotePurchase(config, { itemType, itemId, expectedPrice, expectedCurrency }, nowMs) {
+  const item = findItem(config, itemType, itemId);
+  if (!item) throw withCode('invalid_item_id', `Unknown ${itemType}`);
+  if (!item.visible) throw withCode('item_unavailable', 'This item is not for sale right now');
+  const quote = effectivePrice(itemType, item, nowMs);
+  const current = { currency: quote.currency, price: quote.price, basePrice: quote.basePrice };
+
+  if (expectedPrice != null) {
+    const sameCurrency = (expectedCurrency ?? quote.currency) === quote.currency;
+    if (!sameCurrency || Number(expectedPrice) !== quote.price) {
+      throw withCode('price_changed', 'The price changed. Check it and try again.', current);
+    }
+    return quote;
   }
-  return { currency: catalogItem.currency, price: catalogItem.price };
+
+  const bundled = bundledPrice(itemType, itemId);
+  if (!bundled || bundled.currency !== quote.currency) {
+    throw withCode('price_changed', 'Update the app to buy this item.', current);
+  }
+  return { ...quote, price: Math.min(quote.price, bundled.price) };
 }
 
 /**
@@ -178,7 +221,7 @@ async function updatePlayerCosmetics({ playerId, avatarId, deckId }) {
 
   if (typeof avatarId === 'string' && avatarId.trim()) {
     const id = avatarId.trim().slice(0, 64);
-    const known = AVATAR_CATALOG.some((a) => a.id === id);
+    const known = KNOWN_IDS.avatars.includes(id);
     if (known) {
       if (id !== 'default') {
         const [owned] = await pool.execute(
@@ -199,7 +242,7 @@ async function updatePlayerCosmetics({ playerId, avatarId, deckId }) {
   }
   if (typeof deckId === 'string' && deckId.trim()) {
     const id = deckId.trim().slice(0, 64);
-    const known = DECK_CATALOG.some((d) => d.id === id);
+    const known = KNOWN_IDS.decks.includes(id);
     if (known) {
       if (id !== 'default') {
         const [owned] = await pool.execute(
@@ -230,7 +273,7 @@ async function updatePlayerCosmetics({ playerId, avatarId, deckId }) {
 /**
  * Get balances and owned items for a player.
  */
-async function getPlayerInventory(playerId) {
+async function getPlayerInventory(playerId, config = currentConfig()) {
   if (!playerId) {
     const error = new Error('playerId is required');
     error.code = 'invalid_player_id';
@@ -270,7 +313,7 @@ async function getPlayerInventory(playerId) {
     playerId: player.id,
     money: Number(player.money) || 0,
     chips: Number(player.chips) || 0,
-    adRewardMoney: getAdRewardMoney(),
+    adRewardMoney: config.ads.rewardMoney,
     ownedAvatars: Array.from(ownedAvatars),
     ownedDecks: Array.from(ownedDecks),
   };
@@ -280,8 +323,9 @@ async function getPlayerInventory(playerId) {
  * Convert chips <-> money.
  * direction: 'chips_to_money' | 'money_to_chips'
  * amount: number of chips to sell (for chips_to_money) or number of chips to buy (for money_to_chips)
+ * expectedRate: the money-per-chip rate the app showed. Older builds don't send it.
  */
-async function exchangeCurrency({ playerId, direction, amount }) {
+async function exchangeCurrency({ playerId, direction, amount, expectedRate, config = currentConfig() }) {
   if (!playerId) {
     const error = new Error('playerId is required');
     error.code = 'invalid_player_id';
@@ -293,6 +337,13 @@ async function exchangeCurrency({ playerId, direction, amount }) {
     const error = new Error('Invalid exchange amount');
     error.code = 'invalid_amount';
     throw error;
+  }
+
+  const moneyPerChip = config.economy.moneyPerChip;
+  if (expectedRate != null && Number(expectedRate) !== moneyPerChip) {
+    throw withCode('rate_changed', 'The exchange rate changed. Check it and try again.', {
+      moneyPerChip,
+    });
   }
 
   const pool = getPool();
@@ -320,7 +371,7 @@ async function exchangeCurrency({ playerId, direction, amount }) {
     let newChips = currentChips;
 
     if (direction === 'chips_to_money') {
-      // Selling `amount` chips to receive `amount * MONEY_PER_CHIP` money
+      // Selling `amount` chips to receive `amount * moneyPerChip` money
       if (currentChips < parsedAmount) {
         await conn.rollback();
         const error = new Error('Insufficient chips');
@@ -328,10 +379,10 @@ async function exchangeCurrency({ playerId, direction, amount }) {
         throw error;
       }
       newChips = currentChips - parsedAmount;
-      newMoney = currentMoney + parsedAmount * MONEY_PER_CHIP;
+      newMoney = currentMoney + parsedAmount * moneyPerChip;
     } else if (direction === 'money_to_chips') {
-      // Buying `amount` chips which costs `amount * MONEY_PER_CHIP` money
-      const costInMoney = parsedAmount * MONEY_PER_CHIP;
+      // Buying `amount` chips which costs `amount * moneyPerChip` money
+      const costInMoney = parsedAmount * moneyPerChip;
       if (currentMoney < costInMoney) {
         await conn.rollback();
         const error = new Error('Insufficient money');
@@ -360,6 +411,7 @@ async function exchangeCurrency({ playerId, direction, amount }) {
       chips: newChips,
       exchangedAmount: parsedAmount,
       direction,
+      moneyPerChip,
     };
   } catch (error) {
     await conn.rollback().catch(() => {});
@@ -370,9 +422,18 @@ async function exchangeCurrency({ playerId, direction, amount }) {
 }
 
 /**
- * Purchase an avatar or deck from the marketplace.
+ * Purchase an avatar or deck from the marketplace at its configured price.
+ * See quotePurchase for how the client's expected price is checked.
  */
-async function purchaseItem({ playerId, itemType, itemId, currency, price }) {
+async function purchaseItem({
+  playerId,
+  itemType,
+  itemId,
+  expectedPrice,
+  expectedCurrency,
+  config = currentConfig(),
+  nowMs = Date.now(),
+}) {
   if (!playerId) {
     const error = new Error('playerId is required');
     error.code = 'invalid_player_id';
@@ -391,40 +452,9 @@ async function purchaseItem({ playerId, itemType, itemId, currency, price }) {
     throw error;
   }
 
-  let resolvedCurrency = currency;
-  let parsedPrice = Number.parseInt(price, 10);
-
-  if (itemType === 'deck') {
-    const catalogItem = DECK_CATALOG.find((deck) => deck.id === itemId);
-    if (!catalogItem) {
-      const error = new Error('Unknown deck');
-      error.code = 'invalid_item_id';
-      throw error;
-    }
-    resolvedCurrency = catalogItem.currency;
-    parsedPrice = catalogItem.price;
-  } else if (itemType === 'avatar') {
-    const catalogItem = AVATAR_CATALOG.find((avatar) => avatar.id === itemId);
-    if (!catalogItem) {
-      const error = new Error('Unknown avatar');
-      error.code = 'invalid_item_id';
-      throw error;
-    }
-    resolvedCurrency = catalogItem.currency;
-    parsedPrice = catalogItem.price;
-  } else {
-    if (!['money', 'chips'].includes(currency)) {
-      const error = new Error('Invalid currency');
-      error.code = 'invalid_currency';
-      throw error;
-    }
-
-    if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
-      const error = new Error('Invalid price');
-      error.code = 'invalid_price';
-      throw error;
-    }
-  }
+  const quote = quotePurchase(config, { itemType, itemId, expectedPrice, expectedCurrency }, nowMs);
+  const resolvedCurrency = quote.currency;
+  const parsedPrice = quote.price;
 
   const pool = getPool();
   const conn = await pool.getConnection();
@@ -491,6 +521,15 @@ async function purchaseItem({ playerId, itemType, itemId, currency, price }) {
        VALUES (:id, :playerId, :itemType, :itemId)`,
       { id, playerId, itemType, itemId },
     );
+    await logPurchase(conn, {
+      playerId,
+      itemType,
+      itemId,
+      currency: resolvedCurrency,
+      pricePaid: parsedPrice,
+      basePrice: quote.basePrice,
+      onSale: parsedPrice < quote.basePrice,
+    });
 
     await conn.commit();
 
@@ -498,6 +537,8 @@ async function purchaseItem({ playerId, itemType, itemId, currency, price }) {
       playerId,
       itemType,
       itemId,
+      currency: resolvedCurrency,
+      price: parsedPrice,
       money: newMoney,
       chips: newChips,
     };
@@ -509,13 +550,11 @@ async function purchaseItem({ playerId, itemType, itemId, currency, price }) {
   }
 }
 
-const AD_REWARD_DAILY_CAP = 5;
-const AD_REWARD_COOLDOWN_MS = 60_000;
-
 /**
- * Claim rewarded ad bonus with daily cap + cooldown.
+ * Claim rewarded ad bonus with the configured daily cap + cooldown.
  */
-async function claimRewardedAdBonus(playerId) {
+async function claimRewardedAdBonus(playerId, config = currentConfig()) {
+  const { rewardMoney, dailyCap, cooldownSeconds } = config.ads;
   if (!playerId) {
     const error = new Error('playerId is required');
     error.code = 'invalid_player_id';
@@ -549,7 +588,7 @@ async function claimRewardedAdBonus(playerId) {
     );
     if (recent.length > 0) {
       const last = new Date(recent[0].claimed_at).getTime();
-      if (Date.now() - last < AD_REWARD_COOLDOWN_MS) {
+      if (Date.now() - last < cooldownSeconds * 1000) {
         await conn.rollback();
         const error = new Error('Ad reward cooldown active');
         error.code = 'ad_cooldown';
@@ -564,14 +603,14 @@ async function claimRewardedAdBonus(playerId) {
       { playerId },
     );
     const dayCount = Number(dayCountRows[0]?.cnt) || 0;
-    if (dayCount >= AD_REWARD_DAILY_CAP) {
+    if (dayCount >= dailyCap) {
       await conn.rollback();
       const error = new Error('Daily ad reward cap reached');
       error.code = 'ad_daily_cap';
       throw error;
     }
 
-    const rewardAmount = getAdRewardMoney();
+    const rewardAmount = rewardMoney;
     const currentMoney = Number(rows[0].money) || 0;
     const currentChips = Number(rows[0].chips) || 0;
     const newMoney = currentMoney + rewardAmount;
@@ -593,7 +632,7 @@ async function claimRewardedAdBonus(playerId) {
       chips: currentChips,
       reward: rewardAmount,
       claimsToday: dayCount + 1,
-      dailyCap: AD_REWARD_DAILY_CAP,
+      dailyCap,
     };
   } catch (error) {
     await conn.rollback().catch(() => {});
@@ -603,24 +642,37 @@ async function claimRewardedAdBonus(playerId) {
   }
 }
 
-const IAP_CATALOG = {
-  chips_1: { type: 'chips', amount: 1 },
-  chips_5: { type: 'chips', amount: 5 },
-  chips_10: { type: 'chips', amount: 10 },
-  chips_25: { type: 'chips', amount: 25 },
-  chips_50: { type: 'chips', amount: 50 },
-  cash_1000: { type: 'money', amount: 1000 },
-  cash_5000: { type: 'money', amount: 5000 },
-  cash_10000: { type: 'money', amount: 10000 },
-  cash_25000: { type: 'money', amount: 25000 },
-  // Legacy aliases
-  gems_100: { type: 'chips', amount: 100 },
-  gems_500: { type: 'chips', amount: 500 },
-  gems_1200: { type: 'chips', amount: 1200 },
-  coins_1000: { type: 'money', amount: 1000 },
-  coins_5000: { type: 'money', amount: 5000 },
-  pro_monthly: { type: 'pro', amount: 0 },
-};
+/** What a store product grants now: its configured amount plus any live bonus. */
+function iapGrant(config, productId, nowMs) {
+  const pack = findPack(config, productId);
+  if (pack) {
+    const bonus = activeBonus(pack, nowMs);
+    return { type: productType(productId), amount: pack.amount + bonus, bonus };
+  }
+  const legacy = LEGACY_IAP_PRODUCTS[productId];
+  return legacy ? { ...legacy, bonus: 0 } : null;
+}
+
+/** Writes one marketplace_purchases row inside the caller's transaction. */
+async function logPurchase(conn, { playerId, itemType, itemId, currency, pricePaid = 0, basePrice = 0, amount = 0, bonus = 0, onSale }) {
+  await conn.execute(
+    `INSERT INTO marketplace_purchases
+       (id, player_id, item_type, item_id, currency, price_paid, base_price, amount, bonus, on_sale)
+     VALUES (:id, :playerId, :itemType, :itemId, :currency, :pricePaid, :basePrice, :amount, :bonus, :onSale)`,
+    {
+      id: `buy-${randomUUID()}`,
+      playerId,
+      itemType,
+      itemId,
+      currency,
+      pricePaid,
+      basePrice,
+      amount,
+      bonus,
+      onSale: onSale ? 1 : 0,
+    },
+  );
+}
 
 /**
  * Verify purchase appears on RevenueCat subscriber when secret configured.
@@ -692,7 +744,13 @@ async function verifyRevenueCatPurchase({ playerId, productId, transactionId }) 
 /**
  * Redeem an IAP purchase idempotently based on store transactionId.
  */
-async function redeemIapPurchase({ playerId, productId, transactionId }) {
+async function redeemIapPurchase({
+  playerId,
+  productId,
+  transactionId,
+  config = currentConfig(),
+  nowMs = Date.now(),
+}) {
   if (!playerId) {
     const error = new Error('playerId is required');
     error.code = 'invalid_player_id';
@@ -709,7 +767,7 @@ async function redeemIapPurchase({ playerId, productId, transactionId }) {
     throw error;
   }
 
-  const catalogEntry = IAP_CATALOG[productId];
+  const catalogEntry = iapGrant(config, productId, nowMs);
   if (!catalogEntry) {
     const error = new Error(`Unknown product: ${productId}`);
     error.code = 'invalid_product_id';
@@ -781,6 +839,17 @@ async function redeemIapPurchase({ playerId, productId, transactionId }) {
        VALUES (:transactionId, :playerId, :productId)`,
       { transactionId, playerId, productId },
     );
+    if (catalogEntry.type === 'chips' || catalogEntry.type === 'money') {
+      await logPurchase(conn, {
+        playerId,
+        itemType: 'iap',
+        itemId: productId,
+        currency: catalogEntry.type,
+        amount: catalogEntry.amount,
+        bonus: catalogEntry.bonus,
+        onSale: catalogEntry.bonus > 0,
+      });
+    }
 
     await conn.commit();
 
@@ -801,20 +870,46 @@ async function redeemIapPurchase({ playerId, productId, transactionId }) {
   }
 }
 
+/**
+ * Shop sales over the last `days` days, one row per item, split into sale and
+ * full price. Revenue is in the currency the item was priced in.
+ */
+async function getMarketplaceStats({ days = 30 } = {}) {
+  const window = Math.min(Math.max(Number.parseInt(days, 10) || 30, 1), 365);
+  const [rows] = await getPool().execute(
+    `SELECT item_type, item_id, currency, on_sale,
+            COUNT(*) AS units, SUM(price_paid) AS revenue, SUM(amount) AS amount, SUM(bonus) AS bonus,
+            COUNT(DISTINCT player_id) AS buyers
+     FROM marketplace_purchases
+     WHERE created_at >= UTC_TIMESTAMP() - INTERVAL ${window} DAY
+     GROUP BY item_type, item_id, currency, on_sale
+     ORDER BY item_type, item_id, on_sale`,
+  );
+  return {
+    days: window,
+    items: rows.map((row) => ({
+      itemType: row.item_type,
+      itemId: row.item_id,
+      currency: row.currency,
+      onSale: Boolean(row.on_sale),
+      units: Number(row.units) || 0,
+      buyers: Number(row.buyers) || 0,
+      revenue: Number(row.revenue) || 0,
+      amount: Number(row.amount) || 0,
+      bonus: Number(row.bonus) || 0,
+    })),
+  };
+}
+
 module.exports = {
   STARTING_MONEY,
   STARTING_CHIPS,
-  MONEY_PER_CHIP,
-  AD_REWARD_MONEY,
-  AD_DAILY_CAP,
-  AD_COOLDOWN_MS,
-  AD_REWARD_DAILY_CAP,
-  AD_REWARD_COOLDOWN_MS,
-  AVATAR_CATALOG,
-  DECK_CATALOG,
-  IAP_CATALOG,
-  getAdRewardMoney,
-  resolveCatalogPrice,
+  LEGACY_IAP_PRODUCTS,
+  useMarketplaceConfig,
+  currentConfig,
+  startingBalances,
+  quotePurchase,
+  iapGrant,
   ensureMarketplaceSchema,
   getPlayerInventory,
   exchangeCurrency,
@@ -823,4 +918,5 @@ module.exports = {
   redeemIapPurchase,
   updatePlayerCosmetics,
   verifyRevenueCatPurchase,
+  getMarketplaceStats,
 };

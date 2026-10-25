@@ -26,6 +26,19 @@ class AvatarItem {
 
   bool get isPremium => currency == CurrencyType.chips;
 
+  /// This avatar at the shop's current price and level.
+  AvatarItem copyWith({int? price, CurrencyType? currency, int? requiredLevel}) {
+    return AvatarItem(
+      id: id,
+      assetPath: assetPath,
+      nameKey: nameKey,
+      requiredLevel: requiredLevel ?? this.requiredLevel,
+      isDefault: isDefault,
+      currency: currency ?? this.currency,
+      price: price ?? this.price,
+    );
+  }
+
   bool isUnlocked(int playerLevel) {
     if (isDefault || requiredLevel <= 1) return true;
     return playerLevel >= requiredLevel;

@@ -230,7 +230,7 @@
     .savebar .msg:empty { display: none; }
     @media (max-width: 640px) {
       .savebar { padding: 8px 10px; gap: 6px; }
-      .savebar #dr-live, .savebar .spacer { display: none; }
+      .savebar #dr-live, .savebar #sh-live, .savebar .spacer { display: none; }
       .savebar .state { flex-basis: 100%; }
       .savebar button { flex: 1 1 auto; padding: 7px 10px; font-size: 12px; }
     }
@@ -245,6 +245,23 @@
     .bar-row .bar { height: 8px; background: var(--bg-2); border-radius: 999px; overflow: hidden; }
     .bar-row .bar span { display: block; height: 100%; background: var(--ink); border-radius: 999px; }
     .bar-row .num { text-align: right; font: 600 11.5px/1 var(--mono); color: var(--muted); }
+
+    /* Shop tab */
+    .sh-table { min-width: 980px; }
+    .sh-table td { vertical-align: middle; }
+    .sh-table tr.sh-hidden td:not(:nth-last-child(-n+3)) { opacity: 0.5; }
+    .sh-table input[type="datetime-local"], .sh-field input[type="datetime-local"] {
+      background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font-size: 12px;
+    }
+    .sh-window { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .sh-window .icon-btn { margin-left: 0; }
+    .sh-banner {
+      border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+      font-family: "Cinzel", serif; border: 1px solid var(--line);
+    }
+    .sh-banner .t { font-weight: 700; font-size: 16px; }
+    .sh-banner .s { font: 500 12px/1.4 var(--sans); opacity: 0.85; }
+    .sh-banner .go { margin-left: auto; font: 700 11px/1 var(--sans); padding: 7px 10px; border-radius: 999px; background: rgba(0, 0, 0, 0.25); }
 
     /* Push tab */
     .field .label-row { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
@@ -385,6 +402,7 @@
       <button type="button" data-tab="theme" role="tab">Theme</button>
       <button type="button" data-tab="gameplay" role="tab">Gameplay</button>
       <button type="button" data-tab="daily" role="tab">Daily rewards</button>
+      <button type="button" data-tab="shop" role="tab">Shop</button>
     </nav>
 
     <div id="panel-overview" class="panel on" role="tabpanel">
@@ -759,6 +777,40 @@
         <span class="msg" id="dr-msg"></span>
       </div>
     </div>
+
+    <div id="panel-shop" class="panel" role="tabpanel">
+      <div class="dr-note">
+        <strong>Partly in the app.</strong>
+        <span>Prices, hidden items, the exchange rate, ad rewards, pack amounts and starting balances apply to every app within 15 seconds.
+          Sale tags, badges, the banner, the featured item and pack bonuses show once players update.
+          Older apps keep showing their built-in prices and are never charged more than that.</span>
+      </div>
+      <nav class="seg" id="sh-seg" aria-label="Shop sections">
+        <button type="button" data-sub="avatars" class="on">Avatars<span class="dirty-dot" hidden></span></button>
+        <button type="button" data-sub="decks">Card decks<span class="dirty-dot" hidden></span></button>
+        <button type="button" data-sub="packs">Store packs<span class="dirty-dot" hidden></span></button>
+        <button type="button" data-sub="promotions">Promotions<span class="dirty-dot" hidden></span></button>
+        <button type="button" data-sub="economy">Economy<span class="dirty-dot" hidden></span></button>
+        <button type="button" data-sub="performance">Performance</button>
+      </nav>
+      <div class="empty" id="sh-loading">Loading…</div>
+      <div id="sh-sub-avatars" class="dr-sub"></div>
+      <div id="sh-sub-decks" class="dr-sub"></div>
+      <div id="sh-sub-packs" class="dr-sub"></div>
+      <div id="sh-sub-promotions" class="dr-sub"></div>
+      <div id="sh-sub-economy" class="dr-sub"></div>
+      <div id="sh-sub-performance" class="dr-sub"></div>
+      <div class="savebar" id="sh-savebar" style="display:none">
+        <span class="state"><span class="dot"></span><span id="sh-state">All changes saved</span></span>
+        <span class="cap" id="sh-live" style="margin:0">—</span>
+        <span class="spacer"></span>
+        <button class="btn-muted" type="button" id="sh-discard">Discard</button>
+        <button class="btn-muted" type="button" id="sh-defaults">Load defaults</button>
+        <button class="btn-muted" type="button" id="sh-revert">Revert last save</button>
+        <button class="btn-primary" type="button" id="sh-save">Save &amp; publish</button>
+        <span class="msg" id="sh-msg"></span>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -766,7 +818,7 @@
     const STORAGE_KEY = 'shadowhand.adminSecret';
     const TAB_KEY = 'shadowhand.adminTab';
     const THEME_KEY = 'shadowhand.adminTheme';
-    const TABS = ['overview', 'live', 'matches', 'players', 'data', 'push', 'theme', 'gameplay', 'daily'];
+    const TABS = ['overview', 'live', 'matches', 'players', 'data', 'push', 'theme', 'gameplay', 'daily', 'shop'];
     const THEMES = ['auto', 'light', 'dark'];
     // One slot per pot in app order: a categorical order checked for
     // colour-blind separation on both card surfaces. The pot table beside the
@@ -798,13 +850,13 @@
 
     const $ = (id) => document.getElementById(id);
 
-    /** `#push` or `#daily/rules`: the tab, and the daily-rewards section. */
+    /** `#push`, `#daily/rules` or `#shop/decks`: the tab, and its section. */
     function parseHash() {
       const [tab, sub] = location.hash.replace(/^#/, '').split('/');
       return { tab: TABS.includes(tab) ? tab : null, sub: sub || null };
     }
     function writeHash(tab, replace) {
-      const next = '#' + tab + (tab === 'daily' ? '/' + dr.sub : '');
+      const next = '#' + tab + (tab === 'daily' ? '/' + dr.sub : tab === 'shop' ? '/' + sh.sub : '');
       if (location.hash === next) return;
       if (replace) history.replaceState(null, '', next);
       else location.hash = next;
@@ -957,6 +1009,7 @@
       if (tab === 'theme' && secret) void loadTheme();
       if (tab === 'gameplay' && secret) void loadTurnTimer();
       if (tab === 'daily' && secret) void loadDaily();
+      if (tab === 'shop' && secret) void loadShop();
       if (tab === 'push' && secret) void loadPushTab();
     }
 
@@ -2962,9 +3015,12 @@
       if (!secret || !tab) return;
       if (tab !== activeTab) {
         if (tab === 'daily' && sub) dr.sub = sub;
+        if (tab === 'shop' && sub) sh.sub = sub;
         switchTab(tab);
       } else if (tab === 'daily' && sub && sub !== dr.sub) {
         drShowSub(sub);
+      } else if (tab === 'shop' && sub && sub !== sh.sub) {
+        shShowSub(sub);
       }
     });
 
@@ -3046,9 +3102,596 @@
       setMsg('dr-msg', 'Defaults loaded into the editor · press Save & publish to make them live', true);
     });
     window.addEventListener('beforeunload', (event) => {
-      if (!drIsDirty()) return;
+      if (!drIsDirty() && !shIsDirty()) return;
       event.preventDefault();
       event.returnValue = '';
+    });
+
+    // ---------------------------------------------------------------- Shop tab
+    const SH_SUB_KEY = 'shadowhand.adminShopSub';
+    const SH_SUBS = ['avatars', 'decks', 'packs', 'promotions', 'economy', 'performance'];
+    // Which config keys each editing section owns, for its unsaved-changes dot.
+    const SH_SECTIONS = {
+      avatars: ['avatars'],
+      decks: ['decks'],
+      packs: ['iapPacks'],
+      promotions: ['promotions'],
+      economy: ['economy', 'ads'],
+    };
+    const SH_CURRENCIES = { money: 'Money', chips: 'Chips' };
+    const SH_BADGES = { new: 'New', hot: 'Hot', popular: 'Popular', best_value: 'Best value', limited: 'Limited' };
+    const SH_RARITIES = { standard: 'Standard', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+    const SH_STYLES = { gold: 'Gold', ruby: 'Ruby', emerald: 'Emerald', sapphire: 'Sapphire' };
+    // Banner preview only: the app draws the real banner in its own art.
+    const SH_STYLE_COLORS = {
+      gold: ['#3b2a06', '#f5c542'],
+      ruby: ['#3d0a14', '#ff9aa8'],
+      emerald: ['#06301f', '#7ee2b8'],
+      sapphire: ['#0b1f45', '#a9c8ff'],
+    };
+    const SH_DAY_MS = 86_400_000;
+    const sh = {
+      live: null,
+      draft: null,
+      defaults: null,
+      limits: null,
+      known: null,
+      source: 'default',
+      hasPrevious: false,
+      clockSkewMs: 0,
+      sub: (parseHash().tab === 'shop' && parseHash().sub) || sessionStorage.getItem(SH_SUB_KEY) || 'avatars',
+      stats: null,
+      statsDays: 30,
+      sold: null,
+      links: null,
+    };
+
+    function shGet(path) {
+      return drKeys(path).reduce((node, key) => (node == null ? undefined : node[key]), sh.draft);
+    }
+    function shSet(path, value) {
+      const keys = drKeys(path);
+      const last = keys.pop();
+      const parent = keys.reduce((node, key) => node[key], sh.draft);
+      if (value === undefined) delete parent[last];
+      else parent[last] = value;
+    }
+    function shIsDirty() {
+      return !!sh.draft && !drSame(sh.draft, sh.live);
+    }
+    function shSectionDirty(sub) {
+      return !!sh.draft && SH_SECTIONS[sub].some((key) => !drSame(sh.draft[key], sh.live?.[key]));
+    }
+    /** Server time, so sale states match what players see. */
+    function shNow() {
+      return Date.now() + sh.clockSkewMs;
+    }
+    function shName(type, id) {
+      const list = type === 'avatar' ? sh.known.avatars : type === 'deck' ? sh.known.decks : sh.known.iapProducts;
+      const entry = list.find((item) => (item.productId || item.id) === id);
+      return entry ? entry.name : id;
+    }
+    function shProductType(productId) {
+      return sh.known.iapProducts.find((item) => item.productId === productId)?.type || 'chips';
+    }
+    /** `datetime-local` works in the browser's zone; the config stores UTC ms. */
+    function shLocalInput(ms) {
+      if (ms == null) return '';
+      const d = new Date(ms);
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    function shSpan(ms) {
+      const minutes = Math.max(1, Math.round(ms / 60000));
+      if (minutes < 60) return minutes + 'm';
+      const hours = Math.round(minutes / 60);
+      if (hours < 48) return hours + 'h';
+      return Math.round(hours / 24) + 'd';
+    }
+    function shWindowChip(window) {
+      if (!window || !Number.isFinite(window.startsAt) || !Number.isFinite(window.endsAt)) {
+        return '<span class="chip warn">Set both times</span>';
+      }
+      if (window.endsAt <= window.startsAt) return '<span class="chip bad">Ends before it starts</span>';
+      const now = shNow();
+      if (now < window.startsAt) return `<span class="chip info">Starts in ${shSpan(window.startsAt - now)}</span>`;
+      if (now < window.endsAt) return `<span class="chip good">On now · ${shSpan(window.endsAt - now)} left</span>`;
+      return '<span class="chip bad">Ended</span>';
+    }
+    function shSelect(path, value, options, { none = null, rerender = false, label = '' } = {}) {
+      const opts = (none != null ? [['', none]] : []).concat(Object.entries(options));
+      return `<select class="dr-select" data-path="${esc(path)}" data-type="${none != null ? 'opt' : 'text'}"` +
+        `${rerender ? ' data-rerender' : ''} aria-label="${esc(label)}">` +
+        opts.map(([key, text]) => `<option value="${esc(key)}"${(value ?? '') === key ? ' selected' : ''}>${esc(text)}</option>`).join('') +
+        '</select>';
+    }
+    function shToggle(path, value, text) {
+      return `<label class="inline-group"><input type="checkbox" data-path="${esc(path)}" data-type="bool"${value ? ' checked' : ''} /> ${esc(text)}</label>`;
+    }
+    function shTime(path, value, label) {
+      return `<input type="datetime-local" data-path="${esc(path)}" data-type="time" value="${shLocalInput(value)}"` +
+        ` aria-label="${esc(label)}" title="${esc(label)} · your local time" />`;
+    }
+    function shSoldCell(type, id) {
+      if (!sh.sold) return '<span class="sub">—</span>';
+      const row = sh.sold.get(type + ':' + id);
+      if (!row) return '<span class="sub">0</span>';
+      return `${drFmt(row.units)}${row.saleUnits ? `<div class="sub">${drFmt(row.saleUnits)} on promo</div>` : ''}`;
+    }
+    function shOff(path) {
+      const window = shGet(path);
+      const base = shGet(path.replace(/\.(sale|bonus)$/, '.' + (path.endsWith('.bonus') ? 'amount' : 'price')));
+      if (!window || !base) return '';
+      if (path.endsWith('.bonus')) return `+${Math.round((window.amount / base) * 100)}% extra`;
+      return `−${Math.round((1 - window.price / base) * 100)}%`;
+    }
+    function shWindowCell(path, kind) {
+      const window = shGet(path);
+      if (!window) {
+        return `<button type="button" class="link-btn" data-act="add-window" data-path="${esc(path)}" data-kind="${kind}">+ ${kind === 'sale' ? 'Sale' : 'Bonus'}</button>`;
+      }
+      const isSale = kind === 'sale';
+      const valuePath = path + (isSale ? '.price' : '.amount');
+      const parentPath = path.replace(/\.(sale|bonus)$/, '');
+      const parent = shGet(parentPath);
+      const currency = isSale ? (parent.currency || 'chips') : shProductType(parent.productId);
+      const [, max] = isSale ? sh.limits.price[currency] : sh.limits.iapAmount[currency];
+      return `<div class="sh-window">
+          <span class="inline-group">${drNum(valuePath, window[isSale ? 'price' : 'amount'], isSale ? 0 : 1, isSale ? Math.max(0, parent.price - 1) : max, isSale ? 'Sale price' : 'Bonus amount')}
+            <span class="sub" data-off="${esc(path)}">${shOff(path)}</span></span>
+          ${shTime(path + '.startsAt', window.startsAt, 'Starts')}
+          ${shTime(path + '.endsAt', window.endsAt, 'Ends')}
+          <span data-window-chip="${esc(path)}">${shWindowChip(window)}</span>
+          <button type="button" class="icon-btn" data-act="remove-window" data-path="${esc(path)}" title="Remove" aria-label="Remove ${kind}">×</button>
+        </div>`;
+    }
+
+    // ---- Sections
+    function shItemsTable(kind) {
+      const isAvatar = kind === 'avatars';
+      const type = isAvatar ? 'avatar' : 'deck';
+      const rows = sh.draft[kind].map((item, index) => {
+        const base = `${kind}.${index}`;
+        const starter = item.id === 'default';
+        const name = shName(type, item.id);
+        const currency = isAvatar ? item.currency : 'chips';
+        const [min, max] = sh.limits.price[currency];
+        return `<tr class="${item.visible ? '' : 'sh-hidden'}">
+          <td><div class="name">${esc(name)}</div><div class="sub">${esc(item.id)}</div></td>
+          <td>${starter ? '<span class="sub">Free starter</span>' : drNum(base + '.price', item.price, min, max, name + ' price')}</td>
+          ${isAvatar
+            ? `<td>${starter ? '—' : shSelect(base + '.currency', item.currency, SH_CURRENCIES, { rerender: true, label: name + ' currency' })}</td>
+               <td>${drNum(base + '.requiredLevel', item.requiredLevel, ...sh.limits.requiredLevel, name + ' level')}</td>`
+            : `<td>${shSelect(base + '.rarity', item.rarity, SH_RARITIES, { label: name + ' rarity' })}</td>`}
+          <td>${shSelect(base + '.badge', item.badge, SH_BADGES, { none: '—', label: name + ' badge' })}</td>
+          <td>${drNum(base + '.order', item.order, ...sh.limits.order, name + ' order')}</td>
+          <td>${starter ? '<span class="sub">Always</span>' : shToggle(base + '.visible', item.visible, 'Listed')}</td>
+          <td>${starter ? '—' : shWindowCell(base + '.sale', 'sale')}</td>
+          <td class="num-cell">${shSoldCell(type, item.id)}</td>
+        </tr>`;
+      }).join('');
+      return `<div class="table-wrap" style="max-height:none"><table class="dr-table sh-table">
+          <thead><tr><th>Item</th><th>Price</th>${isAvatar ? '<th>Currency</th><th>Level</th>' : '<th>Rarity</th>'}
+            <th>Badge</th><th>Order</th><th>In shop</th><th>Sale</th><th class="num-cell">Sold · 30d</th></tr></thead>
+          <tbody>${rows}</tbody></table></div>`;
+    }
+    function shRenderItems(kind) {
+      const isAvatar = kind === 'avatars';
+      $('sh-sub-' + kind).innerHTML = `<section class="card">
+          <div class="card-head"><h2>${isAvatar ? 'Avatars' : 'Card decks'}</h2>
+            <span class="cap">${sh.draft[kind].filter((item) => item.visible).length} of ${sh.draft[kind].length} in the shop</span></div>
+          <p class="lead">${isAvatar
+            ? 'Price, currency and the level that unlocks each avatar. Lower order shows first.'
+            : 'Decks are always sold for chips. Rarity sets the glow and badge colour in the app. Lower order shows first.'}
+            A hidden item can't be bought, but players who own it keep it, and it can still be a daily reward.
+            A sale price must be below the normal price; times are in your local time zone.</p>
+          ${shItemsTable(kind)}
+        </section>`;
+    }
+    function shRenderPacks() {
+      const rows = sh.draft.iapPacks.map((pack, index) => {
+        const base = `iapPacks.${index}`;
+        const type = shProductType(pack.productId);
+        const name = shName('iap', pack.productId);
+        return `<tr class="${pack.visible ? '' : 'sh-hidden'}">
+          <td><div class="name">${esc(name)}</div><div class="sub">${esc(pack.productId)}</div></td>
+          <td><span class="chip">${type === 'chips' ? 'Chips' : 'Money'}</span></td>
+          <td>${drNum(base + '.amount', pack.amount, ...sh.limits.iapAmount[type], name + ' amount')}</td>
+          <td>${shSelect(base + '.badge', pack.badge, SH_BADGES, { none: '—', label: name + ' badge' })}</td>
+          <td>${drNum(base + '.order', pack.order, ...sh.limits.order, name + ' order')}</td>
+          <td>${shToggle(base + '.visible', pack.visible, 'Listed')}</td>
+          <td>${shWindowCell(base + '.bonus', 'bonus')}</td>
+          <td class="num-cell">${shSoldCell('iap', pack.productId)}</td>
+        </tr>`;
+      }).join('');
+      $('sh-sub-packs').innerHTML = `<section class="card">
+          <div class="card-head"><h2>Store packs</h2></div>
+          <p class="lead">What each App Store / Google Play product gives. The real-money price is set in the stores, not here.
+            A bonus adds extra chips or cash for a limited time; purchases verified up to 10 minutes after it ends still get it.
+            Hidden packs leave the shop but purchases already made still redeem.</p>
+          <div class="table-wrap" style="max-height:none"><table class="dr-table sh-table">
+            <thead><tr><th>Pack</th><th>Gives</th><th>Amount</th><th>Badge</th><th>Order</th><th>In shop</th><th>Limited-time bonus</th><th class="num-cell">Sold · 30d</th></tr></thead>
+            <tbody>${rows}</tbody></table></div>
+        </section>`;
+    }
+    function shBannerPreview(banner) {
+      if (!banner) return '';
+      const [bg, fg] = SH_STYLE_COLORS[banner.style] || SH_STYLE_COLORS.gold;
+      const title = banner.title?.en || 'Banner title';
+      return `<div class="sh-banner" style="background:${bg};color:${fg}">
+          <div><div class="t">${esc(title)}</div>${banner.subtitle?.en ? `<div class="s">${esc(banner.subtitle.en)}</div>` : ''}</div>
+          ${banner.deeplink ? '<span class="go">Open ›</span>' : ''}
+        </div>`;
+    }
+    function shLocFields(path, value, max, required) {
+      return `<div class="field-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">${DR_LANGS.map(([code, name]) => `
+          <div class="field"><label>${esc(name)}${code === 'en' && required ? ' · required' : ''}</label>
+            <input type="text" maxlength="${max}" dir="${code === 'ar' ? 'rtl' : 'auto'}" data-path="${esc(path + '.' + code)}" data-type="loc"
+              value="${esc(value?.[code] || '')}" /></div>`).join('')}</div>`;
+    }
+    function shBannerCard() {
+      const banner = sh.draft.promotions.banner;
+      if (!banner) {
+        return `<section class="card" style="margin-bottom:12px"><div class="card-head"><h2>Promo banner</h2></div>
+            <p class="lead">A banner across the top of the shop, with an optional link. Use it to announce a sale or point at a pack.</p>
+            <button type="button" class="btn-muted" data-act="add-banner">Add a banner</button></section>`;
+      }
+      const links = (sh.links || []).map((link) => [link.route, link.label.startsWith(link.group) ? link.label : `${link.group} · ${link.label}`]);
+      if (banner.deeplink && !links.some(([route]) => route === banner.deeplink)) links.unshift([banner.deeplink, banner.deeplink]);
+      const scheduled = banner.startsAt != null || banner.endsAt != null;
+      return `<section class="card" style="margin-bottom:12px">
+          <div class="card-head"><h2>Promo banner</h2>
+            <span class="push">${banner.enabled ? (scheduled ? `<span data-window-chip="promotions.banner">${shWindowChip(banner)}</span>` : '<span class="chip good">On</span>') : '<span class="chip">Off</span>'}
+              <button type="button" class="btn-danger" data-act="remove-banner">Remove</button></span></div>
+          <div class="field-grid">
+            <div class="field"><label class="toggle"><input type="checkbox" data-path="promotions.banner.enabled" data-type="bool" data-rerender${banner.enabled ? ' checked' : ''} /> Show the banner</label></div>
+            <div class="field"><label>Style</label>${shSelect('promotions.banner.style', banner.style, SH_STYLES, { label: 'Banner style' })}</div>
+            <div class="field span-2"><label>Opens when tapped</label>
+              <select class="dr-select" data-path="promotions.banner.deeplink" data-type="opt" aria-label="Banner link">
+                <option value="">Nothing (just a banner)</option>
+                ${links.map(([route, label]) => `<option value="${esc(route)}"${banner.deeplink === route ? ' selected' : ''}>${esc(label)}</option>`).join('')}
+              </select></div>
+          </div>
+          <h3 class="cap" style="margin:14px 0 6px">Title · up to ${sh.limits.bannerTitle} characters</h3>
+          ${shLocFields('promotions.banner.title', banner.title, sh.limits.bannerTitle, true)}
+          <h3 class="cap" style="margin:14px 0 6px">Subtitle (optional) · up to ${sh.limits.bannerSubtitle} characters</h3>
+          ${shLocFields('promotions.banner.subtitle', banner.subtitle, sh.limits.bannerSubtitle, false)}
+          <div class="field" style="margin-top:12px"><label class="toggle"><input type="checkbox" data-act="banner-schedule"${scheduled ? ' checked' : ''} /> Only show between two times</label></div>
+          ${scheduled ? `<div class="sh-window sh-field" style="margin-top:6px">${shTime('promotions.banner.startsAt', banner.startsAt, 'Banner starts')} → ${shTime('promotions.banner.endsAt', banner.endsAt, 'Banner ends')}</div>` : ''}
+          <h3 class="cap" style="margin:14px 0 6px">Preview</h3>
+          <div id="sh-banner-preview">${shBannerPreview(banner)}</div>
+        </section>`;
+    }
+    function shFeaturedCard() {
+      const featured = sh.draft.promotions.featured;
+      const value = featured ? featured.type + ':' + featured.id : '';
+      const group = (label, type, list, idKey) => `<optgroup label="${label}">${list.filter((item) => item.visible).map((item) => {
+        const key = type + ':' + item[idKey];
+        return `<option value="${esc(key)}"${key === value ? ' selected' : ''}>${esc(shName(type, item[idKey]))}</option>`;
+      }).join('')}</optgroup>`;
+      return `<section class="card">
+          <div class="card-head"><h2>Featured item</h2></div>
+          <p class="lead">Pinned first in its shop tab with a highlight. Only items listed in the shop can be featured.</p>
+          <select class="dr-select" data-act="featured" aria-label="Featured item" style="min-width:260px">
+            <option value="">None</option>
+            ${group('Avatars', 'avatar', sh.draft.avatars, 'id')}
+            ${group('Card decks', 'deck', sh.draft.decks, 'id')}
+            ${group('Store packs', 'iap', sh.draft.iapPacks, 'productId')}
+          </select>
+        </section>`;
+    }
+    function shRenderPromotions() {
+      $('sh-sub-promotions').innerHTML = shBannerCard() + shFeaturedCard();
+    }
+    function shEconomyHint() {
+      const rate = sh.draft.economy.moneyPerChip;
+      const live = sh.live.economy.moneyPerChip;
+      return `1 chip = ${drFmt(rate)} money` + (rate !== live
+        ? ` · <strong>was ${drFmt(live)}</strong>. Apps from before the next update still show ${drFmt(1000)} but exchange at the new rate.`
+        : '');
+    }
+    function shRenderEconomy() {
+      const { economy, ads } = sh.draft;
+      const L = sh.limits;
+      const num = (path, value, range, label) => `<div class="field"><label>${esc(label)}</label>${drNum(path, value, range[0], range[1], label)}</div>`;
+      $('sh-sub-economy').innerHTML = `<section class="card" style="margin-bottom:12px">
+          <div class="card-head"><h2>Currencies</h2></div>
+          <p class="lead">The chips ↔ money exchange rate, and what a brand-new player starts with. Existing balances never change.</p>
+          <div class="field-grid">
+            ${num('economy.moneyPerChip', economy.moneyPerChip, L.moneyPerChip, 'Money per chip')}
+            <div class="field"><label>&nbsp;</label><div class="hint-line" id="sh-rate-hint">${shEconomyHint()}</div></div>
+            ${num('economy.startingMoney', economy.startingMoney, L.startingMoney, 'Starting money')}
+            ${num('economy.startingChips', economy.startingChips, L.startingChips, 'Starting chips')}
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-head"><h2>Rewarded ads</h2></div>
+          <p class="lead">Money paid for watching an ad in the shop. A daily cap of 0 turns ad rewards off. The day resets at midnight UTC.</p>
+          <div class="field-grid">
+            ${num('ads.rewardMoney', ads.rewardMoney, L.rewardMoney, 'Money per ad')}
+            ${num('ads.dailyCap', ads.dailyCap, L.dailyCap, 'Ads per player per day')}
+            ${num('ads.cooldownSeconds', ads.cooldownSeconds, L.cooldownSeconds, 'Seconds between ads')}
+          </div>
+        </section>`;
+    }
+    function shRenderPerformance() {
+      const stats = sh.stats;
+      const days = [7, 30, 90].map((n) => `<button type="button" data-act="stats-days" data-days="${n}" class="${sh.statsDays === n ? 'on' : ''}">${n} days</button>`).join('');
+      if (!stats) {
+        $('sh-sub-performance').innerHTML = `<nav class="seg">${days}</nav><div class="empty">Loading…</div>`;
+        return;
+      }
+      const items = stats.items;
+      const sum = (rows, key) => rows.reduce((total, row) => total + row[key], 0);
+      const shopRows = items.filter((row) => row.itemType !== 'iap');
+      const promoUnits = sum(items.filter((row) => row.onSale), 'units');
+      const units = sum(items, 'units');
+      const grouped = new Map();
+      for (const row of items) {
+        const key = row.itemType + ':' + row.itemId;
+        const entry = grouped.get(key) || { ...row, units: 0, saleUnits: 0, revenue: 0, amount: 0, bonus: 0, buyers: 0 };
+        entry.units += row.units;
+        entry.saleUnits += row.onSale ? row.units : 0;
+        entry.revenue += row.revenue;
+        entry.amount += row.amount;
+        entry.bonus += row.bonus;
+        entry.buyers += row.buyers;
+        grouped.set(key, entry);
+      }
+      const rows = [...grouped.values()].sort((a, b) => b.units - a.units);
+      const typeLabel = { avatar: 'Avatar', deck: 'Deck', iap: 'Store pack' };
+      $('sh-sub-performance').innerHTML = `<nav class="seg">${days}</nav>
+        <section class="kpis">${kpiHtml([
+          { l: 'Items sold', v: drFmt(units), s: `last ${stats.days} days` },
+          { l: 'On promo', v: units ? Math.round((promoUnits / units) * 100) + '%' : '—', s: `${drFmt(promoUnits)} at a sale price or with a bonus` },
+          { l: 'Money spent', v: drCompact(sum(shopRows.filter((row) => row.currency === 'money'), 'revenue')), s: 'on avatars' },
+          { l: 'Chips spent', v: drFmt(sum(shopRows.filter((row) => row.currency === 'chips'), 'revenue')), s: 'on avatars and decks' },
+          { l: 'Store packs', v: drFmt(sum(items.filter((row) => row.itemType === 'iap'), 'units')), s: `${drFmt(sum(items, 'bonus'))} given as bonus` },
+        ])}</section>
+        <section class="card"><div class="table-wrap" style="max-height:none">${rows.length ? `<table>
+          <thead><tr><th>Item</th><th class="num-cell">Sold</th><th class="num-cell">On promo</th><th class="num-cell">Spent</th><th class="num-cell">Granted</th></tr></thead>
+          <tbody>${rows.map((row) => `<tr>
+            <td><div class="name">${esc(shName(row.itemType, row.itemId))}</div><div class="sub">${typeLabel[row.itemType] || row.itemType}</div></td>
+            <td class="num-cell">${drFmt(row.units)}</td>
+            <td class="num-cell">${drFmt(row.saleUnits)}</td>
+            <td class="num-cell">${row.itemType === 'iap' ? '—' : drFmt(row.revenue) + ' ' + esc(row.currency)}</td>
+            <td class="num-cell">${row.itemType === 'iap' ? drFmt(row.amount) + ' ' + esc(row.currency) + (row.bonus ? `<div class="sub">${drFmt(row.bonus)} bonus</div>` : '') : '—'}</td>
+          </tr>`).join('')}</tbody></table>` : '<div class="empty">No shop sales in this period.</div>'}</div>
+          <p class="cap">Counts purchases made since the shop started logging them. Store pack money is in the App Store and Play consoles.</p>
+        </section>`;
+    }
+
+    // ---- State, rendering and saving
+    function shRenderSaveBar() {
+      const dirty = shIsDirty();
+      $('sh-savebar').style.display = sh.draft && SH_SECTIONS[sh.sub] ? '' : 'none';
+      $('sh-savebar').classList.toggle('dirty', dirty);
+      $('sh-state').textContent = dirty ? 'Unsaved changes' : 'All changes saved';
+      $('sh-discard').hidden = !dirty;
+      $('sh-save').hidden = !dirty;
+      $('sh-save').disabled = false;
+      $('sh-revert').disabled = !sh.hasPrevious;
+      if (sh.live) {
+        const sales = [...sh.live.avatars, ...sh.live.decks].filter((item) => item.sale).length;
+        $('sh-live').textContent = `Live: ${sh.source === 'admin' ? 'saved in admin' : 'code defaults'} · ${sales} sale${sales === 1 ? '' : 's'} set up`;
+      }
+      document.querySelectorAll('#sh-seg button').forEach((button) => {
+        const dot = button.querySelector('.dirty-dot');
+        if (dot) dot.hidden = !shSectionDirty(button.dataset.sub);
+      });
+    }
+    function shRefreshDerived() {
+      if (!sh.draft) return;
+      const panel = $('panel-shop');
+      panel.querySelectorAll('[data-window-chip]').forEach((el) => {
+        el.innerHTML = shWindowChip(shGet(el.dataset.windowChip));
+      });
+      panel.querySelectorAll('[data-off]').forEach((el) => {
+        el.textContent = shOff(el.dataset.off);
+      });
+      if ($('sh-banner-preview')) $('sh-banner-preview').innerHTML = shBannerPreview(sh.draft.promotions.banner);
+      if ($('sh-rate-hint')) $('sh-rate-hint').innerHTML = shEconomyHint();
+      shRenderSaveBar();
+    }
+    function shRenderSub() {
+      if (sh.draft) {
+        if (sh.sub === 'avatars' || sh.sub === 'decks') shRenderItems(sh.sub);
+        else if (sh.sub === 'packs') shRenderPacks();
+        else if (sh.sub === 'promotions') shRenderPromotions();
+        else if (sh.sub === 'economy') shRenderEconomy();
+      }
+      if (sh.sub === 'performance') shRenderPerformance();
+      shRenderSaveBar();
+    }
+    function shShowSub(sub) {
+      sh.sub = SH_SUBS.includes(sub) ? sub : 'avatars';
+      sessionStorage.setItem(SH_SUB_KEY, sh.sub);
+      if (activeTab === 'shop') writeHash('shop');
+      document.querySelectorAll('#sh-seg button').forEach((button) => {
+        button.classList.toggle('on', button.dataset.sub === sh.sub);
+      });
+      SH_SUBS.forEach((id) => $('sh-sub-' + id).classList.toggle('on', id === sh.sub));
+      shRenderSub();
+      if (sh.sub === 'performance') void loadShopStats();
+    }
+    function shAdopt(state, { keepDraft = false } = {}) {
+      sh.live = state.config;
+      sh.source = state.source;
+      sh.hasPrevious = !!state.hasPrevious;
+      sh.defaults = state.defaults || sh.defaults;
+      sh.limits = state.limits || sh.limits;
+      sh.known = state.known || sh.known;
+      if (state.serverTimeMs) sh.clockSkewMs = state.serverTimeMs - Date.now();
+      if (!keepDraft || !sh.draft) sh.draft = structuredClone(state.config);
+    }
+    async function loadShopStats() {
+      try {
+        sh.stats = await api('/admin/marketplace/stats?days=' + sh.statsDays);
+        if (sh.statsDays === 30) shIndexSold(sh.stats);
+      } catch (error) {
+        sh.stats = { days: sh.statsDays, items: [] };
+        setMsg('sh-msg', error.message || 'Could not load shop stats', false);
+      }
+      if (sh.sub === 'performance') shRenderPerformance();
+    }
+    /** The "Sold · 30d" column, from the 30-day stats. */
+    function shIndexSold(stats) {
+      sh.sold = new Map();
+      for (const row of stats.items) {
+        const key = row.itemType + ':' + row.itemId;
+        const entry = sh.sold.get(key) || { units: 0, saleUnits: 0 };
+        entry.units += row.units;
+        if (row.onSale) entry.saleUnits += row.units;
+        sh.sold.set(key, entry);
+      }
+    }
+    async function loadShop() {
+      try {
+        const [state, routes] = await Promise.all([
+          api('/admin/marketplace'),
+          sh.links ? Promise.resolve(null) : api('/admin/push/routes').catch(() => null),
+        ]);
+        if (routes) sh.links = routes.links.filter((link) => link.route !== '/join');
+        // Coming back to the tab keeps an unsaved draft.
+        shAdopt(state, { keepDraft: shIsDirty() });
+        $('sh-loading').style.display = 'none';
+      } catch (error) {
+        $('sh-loading').textContent = error.message || 'Could not load the shop settings';
+      }
+      shShowSub(sh.sub);
+      if (!sh.sold) {
+        api('/admin/marketplace/stats?days=30').then((stats) => {
+          shIndexSold(stats);
+          if (sh.sub !== 'performance') shRenderSub();
+        }).catch(() => {});
+      }
+    }
+    async function saveShop() {
+      setMsg('sh-msg', 'Saving…', true);
+      $('sh-save').disabled = true;
+      try {
+        shAdopt(await apiPost('/admin/marketplace', sh.draft));
+        shRenderSub();
+        setMsg('sh-msg', 'Saved · live for players within 15 seconds', true);
+      } catch (error) {
+        setMsg('sh-msg', error.message || 'Save failed', false);
+        shRenderSaveBar();
+      }
+    }
+    async function revertShop() {
+      const question = 'Put back the shop settings saved before the last ones? They go live within 15 seconds.' +
+        (shIsDirty() ? ' Your unsaved edits will be dropped.' : '');
+      if (!confirm(question)) return;
+      setMsg('sh-msg', 'Restoring…', true);
+      try {
+        shAdopt(await apiPost('/admin/marketplace/revert', {}));
+        shRenderSub();
+        setMsg('sh-msg', 'Previous version restored · live within 15 seconds', true);
+      } catch (error) {
+        setMsg('sh-msg', error.message || 'Revert failed', false);
+      }
+    }
+    function shApplyInput(el) {
+      const { path, type } = el.dataset;
+      if (type === 'bool') shSet(path, el.checked);
+      else if (type === 'int') shSet(path, el.value.trim() === '' ? null : Number(el.value));
+      else if (type === 'opt') shSet(path, el.value === '' ? null : el.value);
+      else if (type === 'time') {
+        const ms = el.value ? new Date(el.value).getTime() : NaN;
+        shSet(path, Number.isFinite(ms) ? ms : null);
+      } else if (type === 'loc') {
+        // An empty translation falls back to English in the app.
+        const keys = path.split('.');
+        const lang = keys.pop();
+        const objectPath = keys.join('.');
+        const text = { ...(shGet(objectPath) || {}) };
+        if (el.value.trim() === '') delete text[lang];
+        else text[lang] = el.value;
+        const optional = objectPath.endsWith('.subtitle');
+        shSet(objectPath, optional && Object.keys(text).length === 0 ? null : text);
+      } else shSet(path, el.value);
+    }
+    /** A starting point for a new sale or bonus: 20% off / extra, from now for 3 days. */
+    function shNewWindow(path, kind) {
+      const parent = shGet(path.replace(/\.(sale|bonus)$/, ''));
+      const startsAt = Math.floor(shNow() / 60000) * 60000;
+      const endsAt = startsAt + 3 * SH_DAY_MS;
+      if (kind === 'sale') return { price: Math.max(0, Math.min(parent.price - 1, Math.round(parent.price * 0.8))), startsAt, endsAt };
+      return { amount: Math.max(1, Math.round(parent.amount * 0.2)), startsAt, endsAt };
+    }
+    function shAction(el) {
+      const { act, path } = el.dataset;
+      setMsg('sh-msg', '', true);
+      if (act === 'add-window') shSet(path, shNewWindow(path, el.dataset.kind));
+      else if (act === 'remove-window') shSet(path, null);
+      else if (act === 'add-banner') {
+        sh.draft.promotions.banner = {
+          enabled: true,
+          style: 'gold',
+          title: { en: '' },
+          subtitle: null,
+          deeplink: '/shop?tab=decks',
+          startsAt: null,
+          endsAt: null,
+        };
+      } else if (act === 'remove-banner') sh.draft.promotions.banner = null;
+      else if (act === 'stats-days') {
+        sh.statsDays = Number(el.dataset.days);
+        sh.stats = null;
+        shRenderPerformance();
+        void loadShopStats();
+        return;
+      } else return;
+      shRenderSub();
+    }
+
+    $('sh-seg').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-sub]');
+      if (button) shShowSub(button.dataset.sub);
+    });
+    $('panel-shop').addEventListener('input', (event) => {
+      const el = event.target;
+      if (!sh.draft || !el.dataset?.path || el.tagName === 'SELECT' || el.type === 'checkbox') return;
+      setMsg('sh-msg', '', true);
+      shApplyInput(el);
+      shRefreshDerived();
+    });
+    $('panel-shop').addEventListener('change', (event) => {
+      const el = event.target;
+      if (!sh.draft) return;
+      const { act, path } = el.dataset || {};
+      if (act === 'featured') {
+        const [type, ...rest] = el.value.split(':');
+        sh.draft.promotions.featured = el.value ? { type, id: rest.join(':') } : null;
+        shRefreshDerived();
+      } else if (act === 'banner-schedule') {
+        const banner = sh.draft.promotions.banner;
+        const startsAt = Math.floor(shNow() / 60000) * 60000;
+        banner.startsAt = el.checked ? startsAt : null;
+        banner.endsAt = el.checked ? startsAt + 7 * SH_DAY_MS : null;
+        shRenderSub();
+      } else if (path) {
+        shApplyInput(el);
+        if ('rerender' in el.dataset || el.type === 'checkbox') shRenderSub();
+        else shRefreshDerived();
+      }
+    });
+    $('panel-shop').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-act]');
+      if (button && !button.disabled) shAction(button);
+    });
+    $('sh-save').addEventListener('click', () => void saveShop());
+    $('sh-revert').addEventListener('click', () => void revertShop());
+    $('sh-discard').addEventListener('click', () => {
+      sh.draft = structuredClone(sh.live);
+      shRenderSub();
+      setMsg('sh-msg', 'Edits discarded', true);
+    });
+    $('sh-defaults').addEventListener('click', () => {
+      if (!sh.defaults) return;
+      sh.draft = structuredClone(sh.defaults);
+      shRenderSub();
+      setMsg('sh-msg', 'Defaults loaded into the editor · press Save & publish to make them live', true);
     });
 
     applyTheme();

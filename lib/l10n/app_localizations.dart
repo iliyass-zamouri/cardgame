@@ -3271,6 +3271,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'One boost value runs at a time. The same value adds its time.'**
   String get boostOneAtATime;
+
+  /// No description provided for @shopBadgeNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get shopBadgeNew;
+
+  /// No description provided for @shopBadgeHot.
+  ///
+  /// In en, this message translates to:
+  /// **'Hot'**
+  String get shopBadgeHot;
+
+  /// No description provided for @shopBadgePopular.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular'**
+  String get shopBadgePopular;
+
+  /// No description provided for @shopBadgeBestValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Best value'**
+  String get shopBadgeBestValue;
+
+  /// No description provided for @shopBadgeLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Limited'**
+  String get shopBadgeLimited;
+
+  /// No description provided for @shopFeatured.
+  ///
+  /// In en, this message translates to:
+  /// **'Featured'**
+  String get shopFeatured;
+
+  /// No description provided for @shopSaleOff.
+  ///
+  /// In en, this message translates to:
+  /// **'−{percent}%'**
+  String shopSaleOff(int percent);
+
+  /// No description provided for @shopEndsIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends in {time}'**
+  String shopEndsIn(String time);
+
+  /// No description provided for @shopPackBonus.
+  ///
+  /// In en, this message translates to:
+  /// **'+{amount} bonus'**
+  String shopPackBonus(int amount);
+
+  /// No description provided for @shopPriceChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices just changed. Check the new price and try again.'**
+  String get shopPriceChanged;
+
+  /// No description provided for @shopOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get shopOpen;
+
+  /// No description provided for @shopDaysHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{days}d {hours}h'**
+  String shopDaysHours(int days, int hours);
+
+  /// No description provided for @shopChipPack.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount, plural, =1{1 Chip} other{{amount} Chips}}'**
+  String shopChipPack(int amount);
+
+  /// No description provided for @shopCashPack.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount, plural, =1{1 Cash} other{{amount} Cash}}'**
+  String shopCashPack(int amount);
 }
 
 class _AppLocalizationsDelegate

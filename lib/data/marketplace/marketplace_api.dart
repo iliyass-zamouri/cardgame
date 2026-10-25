@@ -71,10 +71,20 @@ class MarketplaceApi {
     return PlayerInventory.fromJson(body);
   }
 
+  /// The shop's prices and promotions. Public: no sign-in needed.
+  Future<Map<String, dynamic>> getCatalog() async {
+    final uri = Uri.parse('$baseUrl/marketplace/catalog');
+    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    return _decodeMap(response);
+  }
+
+  /// [expectedRate] is the money-per-chip rate the player saw. The server
+  /// refuses with `rate_changed` when it has moved since.
   Future<Map<String, dynamic>> exchange({
     required String playerId,
     required String direction,
     required int amount,
+    int? expectedRate,
     String? accessToken,
   }) async {
     final uri = Uri.parse('$baseUrl/marketplace/exchange');
@@ -86,12 +96,15 @@ class MarketplaceApi {
             'playerId': playerId,
             'direction': direction,
             'amount': amount,
+            if (expectedRate != null) 'expectedRate': expectedRate,
           }),
         )
         .timeout(const Duration(seconds: 8));
     return _decodeMap(response);
   }
 
+  /// Charges the server's price. It refuses with `price_changed` when
+  /// [price] in [currency] is no longer what the item costs.
   Future<Map<String, dynamic>> buyItem({
     required String playerId,
     required String itemType,
@@ -109,8 +122,8 @@ class MarketplaceApi {
             'playerId': playerId,
             'itemType': itemType,
             'itemId': itemId,
-            'currency': currency,
-            'price': price,
+            'expectedCurrency': currency,
+            'expectedPrice': price,
           }),
         )
         .timeout(const Duration(seconds: 8));

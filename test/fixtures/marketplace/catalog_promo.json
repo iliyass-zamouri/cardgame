@@ -1,0 +1,216 @@
+{
+  "version": "e32efde651a3",
+  "serverTimeMs": 1792890508469,
+  "economy": {
+    "moneyPerChip": 1000
+  },
+  "ads": {
+    "rewardMoney": 50,
+    "dailyCap": 5,
+    "cooldownSeconds": 60
+  },
+  "avatars": [
+    {
+      "id": "default",
+      "price": 0,
+      "basePrice": 0,
+      "currency": "money",
+      "badge": null,
+      "sale": null,
+      "requiredLevel": 1
+    },
+    {
+      "id": "blue",
+      "price": 175,
+      "basePrice": 250,
+      "currency": "money",
+      "badge": "hot",
+      "sale": {
+        "price": 175,
+        "endsAtMs": 1793148900000
+      },
+      "requiredLevel": 2
+    },
+    {
+      "id": "red",
+      "price": 400,
+      "basePrice": 400,
+      "currency": "money",
+      "badge": null,
+      "sale": null,
+      "requiredLevel": 4
+    },
+    {
+      "id": "bronze",
+      "price": 600,
+      "basePrice": 600,
+      "currency": "money",
+      "badge": null,
+      "sale": null,
+      "requiredLevel": 6
+    },
+    {
+      "id": "silver",
+      "price": 1,
+      "basePrice": 1,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "requiredLevel": 8
+    },
+    {
+      "id": "joker-girl",
+      "price": 2,
+      "basePrice": 2,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "requiredLevel": 10
+    },
+    {
+      "id": "violet-joker-girl",
+      "price": 2,
+      "basePrice": 2,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "requiredLevel": 12
+    },
+    {
+      "id": "violet-queen",
+      "price": 3,
+      "basePrice": 3,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "requiredLevel": 15
+    },
+    {
+      "id": "queen-of-heart",
+      "price": 4,
+      "basePrice": 4,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "requiredLevel": 18
+    },
+    {
+      "id": "golden-king",
+      "price": 5,
+      "basePrice": 5,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "requiredLevel": 20
+    }
+  ],
+  "decks": [
+    {
+      "id": "default",
+      "price": 0,
+      "basePrice": 0,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "rarity": "standard"
+    },
+    {
+      "id": "sapphire_frost",
+      "price": 6,
+      "basePrice": 6,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "rarity": "rare"
+    },
+    {
+      "id": "imperial_jade",
+      "price": 8,
+      "basePrice": 8,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "rarity": "rare"
+    },
+    {
+      "id": "royal_crimson",
+      "price": 12,
+      "basePrice": 12,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "rarity": "epic"
+    },
+    {
+      "id": "black_onyx",
+      "price": 20,
+      "basePrice": 20,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "rarity": "legendary"
+    },
+    {
+      "id": "gilded_gold",
+      "price": 35,
+      "basePrice": 35,
+      "currency": "chips",
+      "badge": null,
+      "sale": null,
+      "rarity": "legendary"
+    }
+  ],
+  "iapPacks": [
+    {
+      "productId": "chips_1",
+      "type": "chips",
+      "amount": 1,
+      "badge": null,
+      "bonus": null
+    },
+    {
+      "productId": "chips_5",
+      "type": "chips",
+      "amount": 5,
+      "badge": null,
+      "bonus": null
+    },
+    {
+      "productId": "chips_10",
+      "type": "chips",
+      "amount": 10,
+      "badge": null,
+      "bonus": null
+    },
+    {
+      "productId": "chips_25",
+      "type": "chips",
+      "amount": 25,
+      "badge": null,
+      "bonus": null
+    },
+    {
+      "productId": "chips_50",
+      "type": "chips",
+      "amount": 50,
+      "badge": null,
+      "bonus": null
+    }
+  ],
+  "banner": {
+    "style": "ruby",
+    "title": {
+      "en": "Weekend deck sale"
+    },
+    "subtitle": {
+      "en": "Up to 30% off"
+    },
+    "deeplink": "/shop?tab=decks",
+    "endsAtMs": 1793494500000
+  },
+  "featured": {
+    "type": "deck",
+    "id": "gilded_gold"
+  },
+  "nextChangeAtMs": 1793148900000
+}

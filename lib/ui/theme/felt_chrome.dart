@@ -22,6 +22,8 @@ class FeltScaffold extends StatelessWidget {
     required this.body,
     this.actions = const [],
     this.tabs,
+    this.trailing,
+    this.showTitle = true,
     this.floatingActionButton,
     this.showBack = true,
     this.maxBodyWidth = WideLayout.readableMaxWidth,
@@ -31,6 +33,12 @@ class FeltScaffold extends StatelessWidget {
   final Widget body;
   final List<Widget> actions;
   final TabBar? tabs;
+
+  /// See [FeltAppBar.trailing].
+  final Widget? trailing;
+
+  /// See [FeltAppBar.showTitle].
+  final bool showTitle;
   final Widget? floatingActionButton;
   final bool showBack;
 
@@ -46,6 +54,8 @@ class FeltScaffold extends StatelessWidget {
           title: title,
           actions: actions,
           tabs: tabs,
+          trailing: trailing,
+          showTitle: showTitle,
           showBack: showBack,
         ),
         floatingActionButton: floatingActionButton,
@@ -65,12 +75,22 @@ class FeltAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.title,
     this.actions = const [],
     this.tabs,
+    this.trailing,
+    this.showTitle = true,
     this.showBack = true,
   });
 
   final String title;
   final List<Widget> actions;
   final TabBar? tabs;
+
+  /// A wider end-of-bar widget (e.g. balance counters). When set, the title
+  /// leans to the start instead of centering, and [actions] are ignored.
+  final Widget? trailing;
+
+  /// False hides the title text next to a [trailing] widget, for screens
+  /// whose nav tab already names them. It stays the page's semantic header.
+  final bool showTitle;
   final bool showBack;
 
   static const _barHeight = 60.0;
@@ -119,72 +139,10 @@ class FeltAppBar extends StatelessWidget implements PreferredSizeWidget {
                 height: _barHeight,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 44 + (actions.length > 1 ? 44.0 : 0),
-                        child: Align(
-                          alignment: AlignmentDirectional.centerStart,
-                          child:
-                              canPop
-                                  ? FeltIconButton(
-                                    icon: AppIcons.arrowBack,
-                                    mirrorInRtl: true,
-                                    tooltip:
-                                        MaterialLocalizations.of(
-                                          context,
-                                        ).backButtonTooltip,
-                                    onTap:
-                                        () => Navigator.of(context).maybePop(),
-                                  )
-                                  : null,
-                        ),
-                      ),
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SuitGlyph(
-                              suit: SuitShape.spades,
-                              size: 11,
-                              color: CasinoColors.gold.withValues(alpha: 0.7),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  casinoButtonLabel(title, locale),
-                                  maxLines: 1,
-                                  style: TextStyle(
-                                    fontFamily: CasinoFonts.displayFor(locale),
-                                    color: CasinoColors.gold,
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing:
-                                        locale.languageCode == 'ar' ? 0 : 1.4,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SuitGlyph(
-                              suit: SuitShape.hearts,
-                              size: 11,
-                              color: CasinoColors.gold.withValues(alpha: 0.7),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        width: 44 + (actions.length > 1 ? 44.0 : 0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: actions,
-                        ),
-                      ),
-                    ],
-                  ),
+                  child:
+                      trailing == null
+                          ? _centeredRow(context, locale, canPop)
+                          : _leadingRow(context, locale, canPop),
                 ),
               ),
               if (tabs != null)
@@ -211,6 +169,104 @@ class FeltAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _backButton(BuildContext context) => FeltIconButton(
+    icon: AppIcons.arrowBack,
+    mirrorInRtl: true,
+    tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+    onTap: () => Navigator.of(context).maybePop(),
+  );
+
+  Widget _title(Locale locale, {required double size}) => Text(
+    casinoButtonLabel(title, locale),
+    maxLines: 1,
+    style: TextStyle(
+      fontFamily: CasinoFonts.displayFor(locale),
+      color: CasinoColors.gold,
+      fontSize: size,
+      fontWeight: FontWeight.w800,
+      letterSpacing: locale.languageCode == 'ar' ? 0 : 1.4,
+    ),
+  );
+
+  Widget _suit(SuitShape suit) => SuitGlyph(
+    suit: suit,
+    size: 11,
+    color: CasinoColors.gold.withValues(alpha: 0.7),
+  );
+
+  /// Back · centered suited title · actions.
+  Widget _centeredRow(BuildContext context, Locale locale, bool canPop) {
+    final sideWidth = 44.0 + (actions.length > 1 ? 44.0 : 0);
+    return Row(
+      children: [
+        SizedBox(
+          width: sideWidth,
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: canPop ? _backButton(context) : null,
+          ),
+        ),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _suit(SuitShape.spades),
+              const SizedBox(width: 8),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: _title(locale, size: 19),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _suit(SuitShape.hearts),
+            ],
+          ),
+        ),
+        SizedBox(
+          width: sideWidth,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: actions,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Back · start-aligned suited title · [trailing].
+  Widget _leadingRow(BuildContext context, Locale locale, bool canPop) {
+    return Row(
+      children: [
+        if (canPop) ...[
+          _backButton(context),
+          const SizedBox(width: 4),
+        ] else
+          const SizedBox(width: 6),
+        if (showTitle) ...[
+          _suit(SuitShape.spades),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerStart,
+              child: _title(locale, size: 18),
+            ),
+          ),
+          const SizedBox(width: 10),
+        ] else
+          Expanded(
+            child: Semantics(
+              header: true,
+              label: casinoButtonLabel(title, locale),
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        trailing!,
+      ],
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/marketplace_providers.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
@@ -9,9 +10,6 @@ import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-/// Money per chip on the server exchange (`MONEY_PER_CHIP`).
-const _moneyPerChip = 1000;
 
 /// Shown when the player can't cover a stake (e.g. a rematch). A money
 /// stake offers to exchange chips for money or open the store; a chip stake
@@ -55,7 +53,8 @@ class InsufficientFundsSheet extends ConsumerWidget {
     final inChips = currency == CurrencyType.chips;
     final balance = inChips ? chips : money;
     final shortfall = (required - money).clamp(0, required);
-    final chipsNeeded = (shortfall / _moneyPerChip).ceil().clamp(1, 1 << 30);
+    final moneyPerChip = ref.watch(marketplaceCatalogProvider).moneyPerChip;
+    final chipsNeeded = (shortfall / moneyPerChip).ceil().clamp(1, 1 << 30);
     final covered = balance >= required;
 
     return Container(
