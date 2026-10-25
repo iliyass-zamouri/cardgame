@@ -31,6 +31,19 @@ async function columnExists(conn, table, column) {
   return rows.length > 0;
 }
 
+async function indexExists(conn, table, index) {
+  const [rows] = await conn.query(
+    `SELECT 1 AS ok
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = :table
+       AND INDEX_NAME = :index
+     LIMIT 1`,
+    { table, index },
+  );
+  return rows.length > 0;
+}
+
 async function ensurePushSchema() {
   const pool = getPool();
   const conn = await pool.getConnection();
@@ -78,6 +91,14 @@ async function ensurePushSchema() {
           `ALTER TABLE players ADD COLUMN ${col} TINYINT(1) NOT NULL DEFAULT 1`,
         );
       }
+    }
+
+    // Push history scans marketing rows by date.
+    if (!(await indexExists(conn, 'player_notifications', 'idx_player_notifications_category_created'))) {
+      await conn.query(
+        `ALTER TABLE player_notifications
+         ADD KEY idx_player_notifications_category_created (category, created_at)`,
+      );
     }
   } finally {
     conn.release();
@@ -567,8 +588,49 @@ async function markPlayerNotificationsRead({ playerId, ids, all = false }) {
   };
 }
 
+/**
+ * Recent marketing sends, one row per campaign. A send stamps its rows with
+ * data.campaignId; rows from before that are grouped by title and minute.
+ */
+async function listMarketingCampaigns({ limit = 20, days = 90 } = {}) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+  const safeDays = Math.min(Math.max(Number(days) || 90, 1), 365);
+  const [rows] = await getPool().execute(
+    `SELECT
+       COALESCE(
+         JSON_UNQUOTE(JSON_EXTRACT(data_json, '$.campaignId')),
+         CONCAT('legacy:', DATE_FORMAT(created_at, '%Y-%m-%d %H:%i'), ':', title)
+       ) AS campaign,
+       MIN(created_at) AS sentAt,
+       MIN(title) AS title,
+       MIN(body) AS body,
+       MIN(JSON_UNQUOTE(JSON_EXTRACT(data_json, '$.route'))) AS route,
+       MAX(CASE WHEN JSON_UNQUOTE(JSON_EXTRACT(data_json, '$.test')) = '1' THEN 1 ELSE 0 END) AS isTest,
+       COUNT(*) AS recipients,
+       SUM(CASE WHEN read_at IS NULL THEN 0 ELSE 1 END) AS readCount
+     FROM player_notifications
+     WHERE category = 'marketing'
+       AND created_at >= NOW() - INTERVAL ${safeDays} DAY
+     GROUP BY campaign
+     ORDER BY sentAt DESC
+     LIMIT ${safeLimit}`,
+  );
+  return rows.map((row) => ({
+    campaignId: row.campaign,
+    sentAt:
+      row.sentAt instanceof Date ? row.sentAt.toISOString() : String(row.sentAt),
+    title: row.title,
+    body: row.body,
+    route: row.route || null,
+    test: Number(row.isTest) === 1,
+    recipients: Number(row.recipients) || 0,
+    readCount: Number(row.readCount) || 0,
+  }));
+}
+
 module.exports = {
   ensurePushSchema,
+  listMarketingCampaigns,
   playerExists,
   upsertDeviceToken,
   removeDeviceToken,

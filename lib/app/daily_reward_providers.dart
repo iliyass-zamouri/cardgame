@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/boost_providers.dart';
 import 'package:cardgame/data/auth/auth_config.dart';
 import 'package:cardgame/data/daily_reward/daily_reward_api.dart';
 import 'package:cardgame/data/daily_reward/daily_reward_models.dart';
@@ -111,6 +112,8 @@ class DailyRewardController extends AsyncNotifier<DailyRewardView?> {
   }
 
   void _adopt(DailyRewardStatus? status) {
+    // A claim may have added a boost to the player's boosts.
+    unawaited(ref.read(boostProvider.notifier).refresh());
     if (status == null || !ref.mounted) return;
     _lastFetch = dailyRewardClock();
     state = AsyncData(DailyRewardView(status, dailyRewardClock()));

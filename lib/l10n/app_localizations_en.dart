@@ -1702,4 +1702,96 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dailyEntryComeback => 'A welcome-back gift is waiting';
+
+  @override
+  String get boostsTitle => 'Boosts';
+
+  @override
+  String boostReady(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count boosts ready',
+      one: '1 boost ready',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String boostWinsPay(int percent, String max) {
+    return 'Money wins pay +$percent% (up to $max)';
+  }
+
+  @override
+  String boostTimeLeft(String time) {
+    return '$time left';
+  }
+
+  @override
+  String get boostActive => 'Active';
+
+  @override
+  String get boostActivate => 'Activate';
+
+  @override
+  String boostAddTime(String time) {
+    return 'Add $time';
+  }
+
+  @override
+  String boostWaitsFor(int percent) {
+    return 'Available when your +$percent% ends';
+  }
+
+  @override
+  String get boostNoneActive => 'No boost running';
+
+  @override
+  String get boostNoneActiveBody =>
+      'Activate one to win more from every money match.';
+
+  @override
+  String get boostInventoryEmpty =>
+      'No boosts waiting. Your daily streak hands them out.';
+
+  @override
+  String boostStarted(int percent) {
+    return '+$percent% boost is on!';
+  }
+
+  @override
+  String boostExtended(String time) {
+    return 'Boost extended by $time';
+  }
+
+  @override
+  String get boostActivateFailed => 'Couldn\'t activate the boost. Try again.';
+
+  @override
+  String get boostActivateNow => 'Activate now';
+
+  @override
+  String get boostInYourBoosts => 'Saved to your boosts';
+
+  @override
+  String boostUpTo(String amount) {
+    return 'up to +$amount';
+  }
+
+  @override
+  String boostPayout(int percent) {
+    return 'Boost +$percent%';
+  }
+
+  @override
+  String get boostMoneyOnly => 'Money matches only';
+
+  @override
+  String boostActiveSemantics(int percent, String time) {
+    return 'Coin Boost +$percent% active, $time left';
+  }
+
+  @override
+  String get boostOneAtATime =>
+      'One boost value runs at a time. The same value adds its time.';
 }

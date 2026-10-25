@@ -14,6 +14,8 @@ const OFFSET_JUMP_LOCK_MS = 7 * DAY_MS;
 const AT_RISK_STREAK = 3;
 const CACHE_MS = 15_000;
 
+const { TIERS, MAX_PRESETS, presetView } = require('./boosts');
+
 const LANGUAGES = ['en', 'fr', 'es', 'pt', 'ar'];
 const BOOSTER_IDS = ['coin_boost', 'streak_freeze'];
 const CHOICES = ['rescue', 'restart'];
@@ -36,6 +38,9 @@ const LIMITS = Object.freeze({
   maxMoney: 1_000_000,
   maxChips: 1_000,
   maxBoostMinutes: 7 * 24 * 60,
+  maxBoostPercent: 100,
+  maxBoostBonus: 100_000,
+  maxBoostPresets: MAX_PRESETS,
   maxFreezeQuantity: 5,
   maxRewardsPerDay: 3,
   maxEvents: 12,
@@ -70,7 +75,26 @@ const DEFAULTS = deepFreeze({
   minClaimGapHours: 6,
   rescue: { enabled: true, chipCost: 3, windowDays: 3 },
   adBoost: { enabled: true, multiplier: 2 },
-  boosters: { coin_boost: { percent: 25, maxBonus: 2000 } },
+  boosters: {
+    coin_boost: {
+      presets: [
+        {
+          id: 'standard',
+          name: { en: 'Coin Boost', fr: 'Boost de pièces', es: 'Impulso de monedas', pt: 'Turbo de moedas', ar: 'معزز العملات' },
+          percent: 25,
+          maxBonus: 2000,
+          tier: 'silver',
+        },
+        {
+          id: 'gold',
+          name: { en: 'Gold Boost', fr: 'Boost doré', es: 'Impulso dorado', pt: 'Turbo dourado', ar: 'المعزز الذهبي' },
+          percent: 50,
+          maxBonus: 5000,
+          tier: 'gold',
+        },
+      ],
+    },
+  },
   comeback: {
     enabled: true,
     absentDays: 7,
@@ -85,7 +109,7 @@ const DEFAULTS = deepFreeze({
     id: 'default',
     days: [
       { day: 1, rewards: [{ type: 'money', amount: 200 }] },
-      { day: 2, rewards: [{ type: 'booster', boosterId: 'coin_boost', minutes: 60 }] },
+      { day: 2, rewards: [{ type: 'booster', boosterId: 'coin_boost', presetId: 'standard', minutes: 60 }] },
       { day: 3, rewards: [{ type: 'chips', amount: 1 }] },
       {
         day: 4,
@@ -98,7 +122,7 @@ const DEFAULTS = deepFreeze({
         day: 5,
         rewards: [
           { type: 'money', amount: 300 },
-          { type: 'booster', boosterId: 'coin_boost', minutes: 240 },
+          { type: 'booster', boosterId: 'coin_boost', presetId: 'standard', minutes: 240 },
         ],
       },
       { day: 6, rewards: [{ type: 'chips', amount: 2 }] },
@@ -382,8 +406,14 @@ function chestsFor(config, rewardLists) {
   return chests;
 }
 
+/** Every preset by id, so the app can name and colour a boost reward. */
+function boostPresetsFor(config) {
+  return Object.fromEntries(config.boosters.coin_boost.presets.map((preset) => [preset.id, presetView(preset)]));
+}
+
 /** The payload for GET /daily-reward. Times are seconds from now, never wall clocks. */
-function buildDailyStatus({ streak, calendar, config, nowMs, offsetMinutes, coinBoostUntilMs, comeback }) {
+function buildDailyStatus({ streak, calendar, config, nowMs, offsetMinutes, activeBoost = null, comeback }) {
+  const fallbackPreset = config.boosters.coin_boost.presets[0];
   return {
     enabled: true,
     state: streak.state,
@@ -413,11 +443,13 @@ function buildDailyStatus({ streak, calendar, config, nowMs, offsetMinutes, coin
       lastDate: streak.rescue.lastDate,
     },
     adBoost: { enabled: config.adBoost.enabled, multiplier: config.adBoost.multiplier },
+    // The running boost, in the shape app builds before boost presets read.
     coinBoost: {
-      remainingSeconds: ceilSeconds(coinBoostUntilMs ?? 0, nowMs),
-      percent: config.boosters.coin_boost.percent,
-      maxBonus: config.boosters.coin_boost.maxBonus,
+      remainingSeconds: ceilSeconds(activeBoost?.untilMs ?? 0, nowMs),
+      percent: activeBoost?.percent ?? fallbackPreset.percent,
+      maxBonus: activeBoost?.maxBonus ?? fallbackPreset.maxBonus,
     },
+    boostPresets: boostPresetsFor(config),
     comeback: {
       available: comeback.available,
       rewards: comeback.rewards,
@@ -544,12 +576,16 @@ function parseItem(value, label, ctx) {
   };
 }
 
-function parseBooster(value, label) {
+function parseBooster(value, label, ctx) {
   if (value.boosterId === 'coin_boost') {
-    requireObject(value, label, ['type', 'boosterId', 'minutes']);
+    requireObject(value, label, ['type', 'boosterId', 'presetId', 'minutes']);
+    // Rewards saved before presets existed run at the first preset.
+    const presetId = value.presetId ?? ctx.boostPresetIds[0];
+    if (!ctx.boostPresetIds.includes(presetId)) invalid(`${label}.presetId "${presetId}" is not a boost preset`);
     return {
       type: 'booster',
       boosterId: 'coin_boost',
+      presetId,
       minutes: intIn(value.minutes, [1, LIMITS.maxBoostMinutes], `${label}.minutes`),
     };
   }
@@ -575,7 +611,7 @@ function parseReward(value, label, ctx, { allowChest }) {
     case 'deck':
       return parseItem(value, label, ctx);
     case 'booster':
-      return parseBooster(value, label);
+      return parseBooster(value, label, ctx);
     case 'chest':
       if (!allowChest) invalid(`${label}: a chest cannot hold another chest`);
       requireObject(value, label, ['type', 'chestId']);
@@ -661,15 +697,57 @@ function parseChests(value, ctx) {
   return chests;
 }
 
+/**
+ * Coin Boost presets. The config saved before presets existed held one
+ * { percent, maxBonus }. That becomes a single "standard" preset.
+ */
+function parseBoostPresets(value) {
+  requireObject(value, 'boosters.coin_boost', ['presets', 'percent', 'maxBonus']);
+  if (value.presets === undefined && value.percent !== undefined) {
+    const [standard] = DEFAULTS.boosters.coin_boost.presets;
+    return parseBoostPresets({
+      presets: [{ ...standard, percent: value.percent, maxBonus: value.maxBonus }],
+    });
+  }
+  if (value.percent !== undefined || value.maxBonus !== undefined) {
+    invalid('boosters.coin_boost sets its value on each preset');
+  }
+  const list = value.presets;
+  if (!Array.isArray(list) || list.length < 1 || list.length > MAX_PRESETS) {
+    invalid(`Coin Boost needs 1 to ${MAX_PRESETS} presets`);
+  }
+  const presets = list.map((entry, index) => {
+    const label = `Boost preset ${index + 1}`;
+    requireObject(entry, label, ['id', 'name', 'percent', 'maxBonus', 'tier']);
+    if (!TIERS.includes(entry.tier)) invalid(`${label}.tier must be one of ${TIERS.join(', ')}`);
+    return {
+      id: idIn(entry.id, `${label}.id`, /^[a-z0-9-]{1,32}$/),
+      name: localizedText(entry.name, `${label}.name`, 30),
+      percent: intIn(entry.percent, [1, LIMITS.maxBoostPercent], `${label}.percent`),
+      maxBonus: intIn(entry.maxBonus, [0, LIMITS.maxBoostBonus], `${label}.maxBonus`),
+      tier: entry.tier,
+    };
+  });
+  if (new Set(presets.map((preset) => preset.id)).size !== presets.length) {
+    invalid('Boost preset ids must be unique');
+  }
+  // One value runs at a time, and the value is what tells two boosts apart.
+  if (new Set(presets.map((preset) => preset.percent)).size !== presets.length) {
+    invalid('Two boost presets give the same percent. Each preset needs its own percent.');
+  }
+  return presets;
+}
+
 function buildConfig(input, catalog) {
   requireObject(input, 'config', CONFIG_KEYS);
-  const chests = parseChests(input.chests, { catalog, chestIds: new Set() });
-  const ctx = { catalog, chestIds: new Set(Object.keys(chests)) };
+  requireObject(input.boosters, 'boosters', ['coin_boost']);
+  const presets = parseBoostPresets(input.boosters.coin_boost);
+  const boostPresetIds = presets.map((preset) => preset.id);
+  const chests = parseChests(input.chests, { catalog, chestIds: new Set(), boostPresetIds });
+  const ctx = { catalog, chestIds: new Set(Object.keys(chests)), boostPresetIds };
 
   requireObject(input.rescue, 'rescue', ['enabled', 'chipCost', 'windowDays']);
   requireObject(input.adBoost, 'adBoost', ['enabled', 'multiplier']);
-  requireObject(input.boosters, 'boosters', ['coin_boost']);
-  requireObject(input.boosters.coin_boost, 'boosters.coin_boost', ['percent', 'maxBonus']);
   requireObject(input.comeback, 'comeback', ['enabled', 'absentDays', 'cooldownDays', 'rewards']);
   requireObject(input.reminder, 'reminder', ['enabled', 'localHour', 'atRiskHour']);
   requireObject(input.calendar, 'calendar', ['id', 'days']);
@@ -687,12 +765,7 @@ function buildConfig(input, catalog) {
       enabled: boolIn(input.adBoost.enabled, 'adBoost.enabled'),
       multiplier: intIn(input.adBoost.multiplier, [2, 5], 'adBoost.multiplier'),
     },
-    boosters: {
-      coin_boost: {
-        percent: intIn(input.boosters.coin_boost.percent, [1, 50], 'boosters.coin_boost.percent'),
-        maxBonus: intIn(input.boosters.coin_boost.maxBonus, [0, 100_000], 'boosters.coin_boost.maxBonus'),
-      },
-    },
+    boosters: { coin_boost: { presets } },
     comeback: {
       enabled: boolIn(input.comeback.enabled, 'comeback.enabled'),
       absentDays: intIn(input.comeback.absentDays, [1, 90], 'comeback.absentDays'),
@@ -745,9 +818,9 @@ function normalizeConfig(raw) {
 
 // ---------------------------------------------------------------- support tools
 
-const SUPPORT_ACTIONS = ['restore', 'gift_freeze', 'shift_days', 'reset'];
+const SUPPORT_ACTIONS = ['restore', 'gift_freeze', 'gift_boost', 'shift_days', 'reset'];
 // These rewrite a player's history, so they only run with DAILY_REWARDS_DEBUG=1.
-const DEBUG_ACTIONS = ['shift_days', 'reset'];
+const DEBUG_ACTIONS = ['gift_boost', 'shift_days', 'reset'];
 const MAX_SHIFT_DAYS = 30;
 
 /**
@@ -769,7 +842,7 @@ function planRestore(streak, nowMs, offsetMinutes, config) {
 
 /**
  * Validates POST /admin/daily-rewards/player/action.
- * Returns { action, playerId, quantity? , days? } or { error, message }.
+ * Returns { action, playerId, quantity?, days?, presetId?, minutes? } or { error, message }.
  */
 function parseSupportAction(body, { debug = false } = {}) {
   if (!isPlainObject(body)) return { error: 'invalid_action', message: 'Expected a JSON object' };
@@ -798,6 +871,19 @@ function parseSupportAction(body, { debug = false } = {}) {
       return { error: 'invalid_value', message: `days must be a whole number from 1 to ${MAX_SHIFT_DAYS}` };
     }
     return { action, playerId, days };
+  }
+  if (action === 'gift_boost') {
+    const { presetId, minutes } = body;
+    if (typeof presetId !== 'string' || presetId === '') {
+      return { error: 'invalid_value', message: 'presetId is required' };
+    }
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > LIMITS.maxBoostMinutes) {
+      return {
+        error: 'invalid_value',
+        message: `minutes must be a whole number from 1 to ${LIMITS.maxBoostMinutes}`,
+      };
+    }
+    return { action, playerId, presetId, minutes };
   }
   return { action, playerId };
 }

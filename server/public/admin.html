@@ -10,12 +10,45 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
   <style>
     :root {
+      color-scheme: light;
       --bg: #f3f4f6; --bg-2: #eef0f3; --card: #ffffff; --line: #e5e7eb;
-      --text: #111827; --muted: #6b7280; --ink: #0a0a0a; --accent: #111827;
+      --text: #111827; --muted: #6b7280; --ink: #0a0a0a; --on-ink: #ffffff; --accent: #111827;
       --up: #16a34a; --down: #e11d48; --warn: #d97706; --info: #2563eb;
+      --good-bg: #dcfce7; --good-fg: #15803d; --warn-bg: #fef3c7; --warn-fg: #b45309;
+      --info-bg: #dbeafe; --info-fg: #1d4ed8; --bad-bg: #ffe4e6; --bad-fg: #be123c;
+      --note-bg: #fffbeb; --note-line: #fde68a; --note-fg: #92400e;
+      --danger-line: #fecaca; --dash: #d1d5db; --shadow: rgba(17, 24, 39, 0.08);
+      --glass: rgba(255, 255, 255, 0.92);
+      --chart-tick: #6b7280; --chart-grid: #f3f4f6; --chart-fill: rgba(17, 24, 39, 0.08);
       --radius: 8px;
       --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       --sans: "Inter", "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --bg: #0f1012; --bg-2: #1d1f23; --card: #16171a; --line: #2a2c31;
+        --text: #e8e9ec; --muted: #9a9ca3; --ink: #f3f4f6; --on-ink: #111214; --accent: #f3f4f6;
+        --up: #22c55e; --down: #fb7185; --warn: #f59e0b; --info: #60a5fa;
+        --good-bg: rgba(34, 197, 94, 0.16); --good-fg: #4ade80; --warn-bg: rgba(245, 158, 11, 0.16); --warn-fg: #fbbf24;
+        --info-bg: rgba(96, 165, 250, 0.16); --info-fg: #93c5fd; --bad-bg: rgba(251, 113, 133, 0.16); --bad-fg: #fda4af;
+        --note-bg: rgba(245, 158, 11, 0.10); --note-line: rgba(245, 158, 11, 0.35); --note-fg: #fcd34d;
+        --danger-line: rgba(251, 113, 133, 0.4); --dash: #3a3d44; --shadow: rgba(0, 0, 0, 0.4);
+        --glass: rgba(22, 23, 26, 0.9);
+        --chart-tick: #9a9ca3; --chart-grid: #24262b; --chart-fill: rgba(243, 244, 246, 0.10);
+      }
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0f1012; --bg-2: #1d1f23; --card: #16171a; --line: #2a2c31;
+      --text: #e8e9ec; --muted: #9a9ca3; --ink: #f3f4f6; --on-ink: #111214; --accent: #f3f4f6;
+      --up: #22c55e; --down: #fb7185; --warn: #f59e0b; --info: #60a5fa;
+      --good-bg: rgba(34, 197, 94, 0.16); --good-fg: #4ade80; --warn-bg: rgba(245, 158, 11, 0.16); --warn-fg: #fbbf24;
+      --info-bg: rgba(96, 165, 250, 0.16); --info-fg: #93c5fd; --bad-bg: rgba(251, 113, 133, 0.16); --bad-fg: #fda4af;
+      --note-bg: rgba(245, 158, 11, 0.10); --note-line: rgba(245, 158, 11, 0.35); --note-fg: #fcd34d;
+      --danger-line: rgba(251, 113, 133, 0.4); --dash: #3a3d44; --shadow: rgba(0, 0, 0, 0.4);
+      --glass: rgba(22, 23, 26, 0.9);
+      --chart-tick: #9a9ca3; --chart-grid: #24262b; --chart-fill: rgba(243, 244, 246, 0.10);
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; background: var(--bg); color: var(--text); font: 13.5px/1.45 var(--sans); }
@@ -26,15 +59,16 @@
       position: sticky; top: 0; z-index: 40;
       display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
       margin: 0 -20px 0; padding: 12px 20px;
-      background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px);
+      background: var(--glass); backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--line);
     }
     header.top h1 { font-size: 17px; font-weight: 700; margin: 0; letter-spacing: -0.03em; }
     header.top .meta { color: var(--muted); font-size: 12px; margin-left: auto; display: flex; gap: 12px; align-items: center; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--down); display: inline-block; }
     .dot.on { background: var(--up); box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 22%, transparent); }
-    .ghost { background: #fff; border: 1px solid var(--ink); padding: 6px 12px; cursor: pointer; border-radius: 6px; font-weight: 600; font-size: 12px; }
-    .ghost:hover { background: var(--ink); color: #fff; }
+    .ghost { background: var(--card); border: 1px solid var(--ink); padding: 6px 12px; cursor: pointer; border-radius: 6px; font-weight: 600; font-size: 12px; }
+    .ghost:hover { background: var(--ink); color: var(--on-ink); }
+    header.top .meta .stale { color: var(--warn); font-weight: 650; }
     .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 16px 0 18px; border-bottom: 1px solid var(--line); }
     .tabs button {
       background: transparent; border: 0; border-bottom: 2px solid transparent;
@@ -43,7 +77,7 @@
     }
     .tabs button.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 650; }
     .tabs .badge {
-      font: 650 11px/1 var(--mono); color: #fff; background: var(--ink);
+      font: 650 11px/1 var(--mono); color: var(--on-ink); background: var(--ink);
       padding: 3px 7px; border-radius: 999px; min-width: 1.6em; text-align: center;
     }
     .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
@@ -66,12 +100,12 @@
     .name { font-weight: 600; }
     .sub { color: var(--muted); font-size: 11px; }
     .chip { display: inline-block; padding: 2px 7px; border-radius: 999px; background: var(--bg-2); font-size: 11px; font-weight: 600; }
-    .chip.match { background: #dbeafe; color: #1d4ed8; }
-    .chip.queue { background: #fef3c7; color: #b45309; }
-    .chip.lobby, .chip.rematch { background: #dcfce7; color: #15803d; }
+    .chip.match { background: var(--info-bg); color: var(--info-fg); }
+    .chip.queue { background: var(--warn-bg); color: var(--warn-fg); }
+    .chip.lobby, .chip.rematch { background: var(--good-bg); color: var(--good-fg); }
     .chip.idle { background: var(--bg-2); color: var(--muted); }
     .chip.bot { opacity: 0.7; }
-    .chip.good { background: #dcfce7; color: #15803d; }
+    .chip.good { background: var(--good-bg); color: var(--good-fg); }
     .panel { display: none; }
     .panel.on { display: block; }
     .gate {
@@ -82,20 +116,21 @@
     .gate p { color: var(--muted); margin: 0 0 16px; }
     .gate input {
       width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 10px;
+      background: var(--card);
     }
     .gate button, .btn-primary, .btn-muted {
       border: 0; border-radius: 6px; padding: 9px 14px; cursor: pointer; font-weight: 650;
     }
-    .gate button, .btn-primary { background: var(--ink); color: #fff; width: 100%; }
+    .gate button, .btn-primary { background: var(--ink); color: var(--on-ink); width: 100%; }
     .btn-primary { width: auto; }
-    .btn-muted { background: #fff; border: 1px solid var(--line); }
+    .btn-muted { background: var(--card); border: 1px solid var(--line); }
     .err { color: var(--down); font-size: 13px; min-height: 18px; }
     .msg { font-size: 12px; margin-left: 8px; }
     .msg.ok { color: var(--up); }
     .msg.err { color: var(--down); }
     .search { display: flex; gap: 8px; margin-bottom: 10px; }
     .search input, .field input, .field textarea, .field select {
-      width: 100%; background: #fff; border: 1px solid var(--line); padding: 8px 10px; border-radius: 6px;
+      width: 100%; background: var(--card); border: 1px solid var(--line); padding: 8px 10px; border-radius: 6px;
     }
     .field textarea { min-height: 72px; resize: vertical; }
     .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
@@ -115,7 +150,7 @@
     /* Daily rewards tab */
     .dr-note {
       display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
-      background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+      background: var(--note-bg); border: 1px solid var(--note-line); color: var(--note-fg);
       padding: 10px 12px; border-radius: var(--radius); margin-bottom: 12px; font-size: 12.5px;
     }
     .seg {
@@ -126,7 +161,7 @@
       border: 0; background: transparent; padding: 6px 12px; border-radius: 6px; cursor: pointer;
       color: var(--muted); font-weight: 600; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;
     }
-    .seg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(17, 24, 39, 0.08); }
+    .seg button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px var(--shadow); }
     .seg .dirty-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
     .seg .dirty-dot[hidden] { display: none; }
     .dr-sub { display: none; }
@@ -137,7 +172,7 @@
     .card-head .push { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .card .lead { color: var(--muted); font-size: 12px; margin: -4px 0 12px; }
     .days-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-    .day-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; background: #fff; min-width: 0; }
+    .day-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; background: var(--card); min-width: 0; }
     .day-head {
       display: flex; justify-content: space-between; align-items: center; gap: 6px;
       margin-bottom: 8px; font-weight: 650; font-size: 12.5px;
@@ -150,7 +185,7 @@
     .dr-table td { vertical-align: middle; }
     .inline-group { display: inline-flex; gap: 8px; align-items: center; }
     .rw select, .rw input, .dr-table input, .dr-select {
-      background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; font-size: 12.5px; min-width: 0;
+      background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; font-size: 12.5px; min-width: 0;
     }
     .rw input[type="number"] { width: 92px; }
     .dr-table input[type="number"] { width: 84px; }
@@ -160,19 +195,19 @@
       margin-left: auto; border: 0; background: transparent; cursor: pointer; color: var(--muted);
       font-size: 16px; line-height: 1; padding: 3px 7px; border-radius: 4px;
     }
-    .icon-btn:hover:not(:disabled) { background: #ffe4e6; color: var(--down); }
+    .icon-btn:hover:not(:disabled) { background: var(--bad-bg); color: var(--down); }
     .icon-btn:disabled { opacity: 0.3; cursor: default; }
     .link-btn { border: 0; background: transparent; color: var(--info); cursor: pointer; font-weight: 600; font-size: 12px; padding: 2px 0; }
     .link-btn:disabled { color: var(--muted); cursor: default; }
     .btn-danger {
-      border: 1px solid #fecaca; background: #fff; color: var(--down);
+      border: 1px solid var(--danger-line); background: var(--card); color: var(--down);
       border-radius: 6px; padding: 7px 12px; cursor: pointer; font-weight: 650; font-size: 12px;
     }
     .btn-primary:disabled, .btn-muted:disabled, .btn-danger:disabled { opacity: 0.45; cursor: default; }
-    .chip.warn { background: #fef3c7; color: #b45309; }
-    .chip.bad { background: #ffe4e6; color: #be123c; }
-    .chip.info { background: #dbeafe; color: #1d4ed8; }
-    .chip.soon { background: #fff; color: var(--muted); border: 1px dashed #d1d5db; }
+    .chip.warn { background: var(--warn-bg); color: var(--warn-fg); }
+    .chip.bad { background: var(--bad-bg); color: var(--bad-fg); }
+    .chip.info { background: var(--info-bg); color: var(--info-fg); }
+    .chip.soon { background: var(--card); color: var(--muted); border: 1px dashed var(--dash); }
     .card h2 .chip { margin-left: 6px; vertical-align: 1px; }
     .field label.toggle {
       display: flex; align-items: center; gap: 8px; color: var(--text);
@@ -183,9 +218,9 @@
       position: sticky; bottom: 0; z-index: 30;
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
       margin-top: 14px; padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(8px);
+      background: var(--glass); backdrop-filter: blur(8px);
       border: 1px solid var(--line); border-radius: var(--radius);
-      box-shadow: 0 -6px 18px rgba(17, 24, 39, 0.06);
+      box-shadow: 0 -6px 18px var(--shadow);
     }
     .savebar .state { display: inline-flex; align-items: center; gap: 7px; font-weight: 650; font-size: 12.5px; }
     .savebar .state .dot { background: var(--up); }
@@ -200,7 +235,7 @@
       .savebar button { flex: 1 1 auto; padding: 7px 10px; font-size: 12px; }
     }
     .warn-box {
-      background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+      background: var(--note-bg); border: 1px solid var(--note-line); color: var(--note-fg);
       border-radius: 6px; padding: 8px 10px; font-size: 12px; margin-bottom: 10px;
     }
     .kpis.tight { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -210,6 +245,59 @@
     .bar-row .bar { height: 8px; background: var(--bg-2); border-radius: 999px; overflow: hidden; }
     .bar-row .bar span { display: block; height: 100%; background: var(--ink); border-radius: 999px; }
     .bar-row .num { text-align: right; font: 600 11.5px/1 var(--mono); color: var(--muted); }
+
+    /* Push tab */
+    .field .label-row { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+    .field .label-row label { margin-bottom: 4px; }
+    .counter { font: 600 11px/1 var(--mono); color: var(--muted); }
+    .counter.over { color: var(--warn); }
+    .hint-line { color: var(--muted); font-size: 11.5px; margin-top: 4px; min-height: 16px; }
+    .hint-line.warn { color: var(--warn); }
+    .link-out { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; }
+    .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; display: inline-block; }
+    .phone {
+      border-radius: 26px; padding: 22px 14px 26px; min-height: 250px;
+      background: radial-gradient(120% 80% at 30% 0%, #2c4a6b 0%, #1b2433 55%, #10141c 100%);
+      border: 1px solid var(--line);
+    }
+    .phone-time { color: #f3f4f6; text-align: center; font: 300 44px/1 var(--sans); letter-spacing: -0.02em; margin-bottom: 4px; }
+    .phone-date { color: rgba(243, 244, 246, 0.75); text-align: center; font-size: 12px; margin-bottom: 18px; }
+    .notif {
+      background: rgba(245, 245, 247, 0.82); color: #111827; border-radius: 16px; padding: 10px 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    }
+    .notif-head { display: flex; align-items: center; gap: 7px; font-size: 11px; color: #4b5563; margin-bottom: 4px; }
+    .notif-icon {
+      width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center;
+      background: #1f6b45; color: #f5c542; font: 700 11px/1 var(--sans);
+    }
+    .notif-when { margin-left: auto; }
+    .notif-title { font-weight: 650; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .notif-body {
+      font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      overflow-wrap: anywhere;
+    }
+    .notif-empty { color: #6b7280; }
+    .audience { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .audience .v { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+    .picked { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; }
+    /* Wide tables scroll inside their card on a phone instead of squeezing. */
+    .history { min-width: 640px; }
+    .history td .sub { max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
+    .pot-table { min-width: 470px; }
+    .pot-table .name { white-space: nowrap; }
+    .num-cell { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    th.num-cell { text-align: right; }
+    .share { display: grid; grid-template-columns: 1fr 44px; gap: 8px; align-items: center; min-width: 110px; }
+    .share .bar { height: 8px; background: var(--bg-2); border-radius: 999px; overflow: hidden; }
+    .share .bar span { display: block; height: 100%; border-radius: 999px; }
+    .trend.up { color: var(--up); }
+    .trend.down { color: var(--down); }
+    @media (max-width: 640px) {
+      .field-grid { grid-template-columns: 1fr; }
+      .field.span-2 { grid-column: auto; }
+      header.top .meta { margin-left: 0; width: 100%; }
+    }
     /* The player preview borrows the app's own look: felt, ivory cards, gold, Cinzel. */
     .felt { background: radial-gradient(120% 90% at 50% 0%, #237a4f 0%, #1f6b45 45%, #155234 100%); border-radius: 12px; padding: 16px 12px; }
     .felt-inner { max-width: 380px; margin: 0 auto; }
@@ -252,6 +340,16 @@
       border: 2px solid #fbf5e6; box-shadow: 0 0 0 1px #c9a34a;
     }
     .pv-ico.boost { background: #fff3c4; border: 1px solid #c8961e; }
+    .pv-ico.boost.bronze { background: radial-gradient(circle at 35% 30%, #ffd2a8, #c9773a 60%, #7a3f17); border-color: #7a3f17; color: #fff3e6; }
+    .pv-ico.boost.silver { background: radial-gradient(circle at 35% 30%, #ffffff, #c8d3df 60%, #7d8a99); border-color: #7d8a99; color: #2b3440; }
+    .pv-ico.boost.gold { background: radial-gradient(circle at 35% 30%, #fff1b8, #f5c542 55%, #b07d12); border-color: #b07d12; color: #5a3d00; }
+    .pv-ico.boost.diamond { background: radial-gradient(circle at 35% 30%, #f1e4ff, #a274f0 60%, #5b2ab8); border-color: #5b2ab8; color: #fff; }
+    .tier-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; margin-right: 6px; }
+    .tier-swatch.bronze { background: #c9773a; } .tier-swatch.silver { background: #b8c4d1; }
+    .tier-swatch.gold { background: #f5c542; } .tier-swatch.diamond { background: #a274f0; }
+    .preset-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; position: relative; }
+    .preset-row .field-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+    .preset-row .icon-btn { position: absolute; top: 8px; right: 8px; }
     .pv-ico.freeze { background: #e0f2fe; border: 1px solid #7dd3fc; }
     .pv-ico.chest { border-radius: 6px; background: linear-gradient(#8b5a2b, #5a3826); color: #ffe08a; border: 1px solid #c9a34a; }
     .pv-val { position: absolute; bottom: 4px; right: 6px; font: 600 9px/1 var(--mono); color: #8a7a55; }
@@ -272,6 +370,7 @@
       <span class="dot" id="live-dot"></span>
       <div class="meta">
         <span id="updated">—</span>
+        <button class="ghost" type="button" id="theme-toggle" title="Theme: follow the system, light or dark">Theme: auto</button>
         <button class="ghost" type="button" id="logout">Lock</button>
       </div>
     </header>
@@ -349,6 +448,18 @@
           <div class="chart-box sm"><canvas id="chart-modes"></canvas></div>
         </div>
       </section>
+      <section class="grid">
+        <div class="card" style="min-width:0">
+          <h2>Pot mix · 14d</h2>
+          <div class="chart-box" style="height:380px"><canvas id="chart-pots" aria-label="Matches per day by pot"></canvas></div>
+          <div class="cap">Matches per day, stacked by pot. The table has the numbers.</div>
+        </div>
+        <div class="card" style="min-width:0">
+          <h2>Pots · 14d</h2>
+          <div class="table-wrap" id="pot-table" style="max-height:none"></div>
+          <div class="cap" id="pot-cap">—</div>
+        </div>
+      </section>
       <section class="card">
         <h2>Recent matches</h2>
         <div class="table-wrap" id="recent-matches"></div>
@@ -411,60 +522,114 @@
     </div>
 
     <div id="panel-push" class="panel" role="tabpanel">
-      <section class="card" style="margin-bottom:14px">
-        <h2>Send marketing push</h2>
-        <p class="cap" style="margin-top:-6px;margin-bottom:12px">
-          Blasts FCM + inbox to <code>notify_marketing</code> players. Filters narrow audience.
-          Deeplink opens that page on tap. Preview before send.
-        </p>
-        <div class="field-grid">
-          <div class="field span-2">
-            <label for="pu-title">Title</label>
-            <input id="pu-title" type="text" maxlength="128" placeholder="Weekend tournament" />
+      <section class="grid-2-1">
+        <div class="card" style="min-width:0">
+          <div class="card-head"><h2>Compose</h2>
+            <span class="cap">FCM push and an inbox entry for players with marketing notifications on.</span>
           </div>
-          <div class="field span-2">
-            <label for="pu-body">Body</label>
-            <textarea id="pu-body" maxlength="512" placeholder="Jump in and play!"></textarea>
-          </div>
-          <div class="field span-2">
-            <label for="pu-route">Deeplink (on tap)</label>
-            <select id="pu-route">
-              <option value="">None</option>
-              <option value="/">Home</option>
-              <option value="/friends">Friends</option>
-              <option value="/ranking">Ranking</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="pu-platform">Platform</label>
-            <select id="pu-platform">
-              <option value="all">All</option>
-              <option value="android">Android</option>
-              <option value="ios">iOS</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="pu-seen-days">Max last-seen days</label>
-            <input id="pu-seen-days" type="number" min="1" max="90" value="30" />
-          </div>
-          <div class="field">
-            <label for="pu-min-matches">Min matches played</label>
-            <input id="pu-min-matches" type="number" min="0" placeholder="optional" />
-          </div>
-          <div class="field">
-            <label for="pu-min-wins">Min wins</label>
-            <input id="pu-min-wins" type="number" min="0" placeholder="optional" />
-          </div>
-          <div class="field span-2">
-            <label for="pu-player-ids">Player ids (optional, overrides filters)</label>
-            <input id="pu-player-ids" type="text" placeholder="id1, id2" />
+          <div class="field-grid">
+            <div class="field span-2">
+              <div class="label-row"><label for="pu-title">Title</label><span class="counter" id="pu-title-count">0 / 128</span></div>
+              <input id="pu-title" type="text" maxlength="128" placeholder="Weekend tournament" />
+              <div class="hint-line" id="pu-title-hint"></div>
+            </div>
+            <div class="field span-2">
+              <div class="label-row"><label for="pu-body">Body</label><span class="counter" id="pu-body-count">0 / 512</span></div>
+              <textarea id="pu-body" maxlength="512" placeholder="Jump in and play!"></textarea>
+              <div class="hint-line" id="pu-body-hint"></div>
+            </div>
+            <div class="field span-2">
+              <label for="pu-link">Opens on tap · every screen, pot and tab the app can open</label>
+              <select class="dr-select" id="pu-link" aria-label="Deeplink" style="width:100%">
+                <option value="">None · opens Home</option>
+              </select>
+              <div id="pu-room-box" hidden style="margin-top:8px">
+                <input class="dr-select" id="pu-room" maxlength="8" placeholder="Room code, e.g. A1B2C3"
+                  autocomplete="off" style="width:200px;text-transform:uppercase" aria-label="Room code" />
+                <div class="hint-line">Players see a join prompt. The room has to still be open when they tap.</div>
+              </div>
+              <div class="link-out">
+                <span class="sub">Route</span><code id="pu-route-out">none</code>
+                <span id="pu-route-badge"></span>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="form-actions">
-          <button class="btn-muted" type="button" id="pu-preview">Preview count</button>
-          <button class="btn-primary" type="button" id="pu-send">Send push</button>
-          <span class="msg" id="pu-msg"></span>
+        <div class="card" style="min-width:0">
+          <h2>Preview</h2>
+          <div class="phone" aria-label="Lock screen preview">
+            <div class="phone-time" id="pu-phone-time">9:41</div>
+            <div class="phone-date" id="pu-phone-date"></div>
+            <div class="notif">
+              <div class="notif-head"><span class="notif-icon">♠</span><span>SHADOW HAND</span><span class="notif-when">now</span></div>
+              <div class="notif-title" id="pu-pv-title"></div>
+              <div class="notif-body" id="pu-pv-body"></div>
+            </div>
+          </div>
+          <p class="cap">Opens: <strong id="pu-opens">Home</strong></p>
+          <p class="cap" style="margin-top:0">Phones cut the title at about 50 characters and the body at about 2 lines. Players tap to read the rest in the inbox.</p>
         </div>
+      </section>
+
+      <section class="grid">
+        <div class="card">
+          <h2>Audience</h2>
+          <div class="field-grid">
+            <div class="field">
+              <label for="pu-platform">Platform</label>
+              <select id="pu-platform">
+                <option value="all">All</option>
+                <option value="android">Android</option>
+                <option value="ios">iOS</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="pu-seen-days">Seen in the last … days</label>
+              <input id="pu-seen-days" type="number" min="1" max="90" value="30" />
+            </div>
+            <div class="field">
+              <label for="pu-min-matches">Min matches played</label>
+              <input id="pu-min-matches" type="number" min="0" placeholder="optional" />
+            </div>
+            <div class="field">
+              <label for="pu-min-wins">Min wins</label>
+              <input id="pu-min-wins" type="number" min="0" placeholder="optional" />
+            </div>
+            <div class="field span-2">
+              <label for="pu-player-ids">Player ids (optional, overrides the filters)</label>
+              <input id="pu-player-ids" type="text" placeholder="id1, id2" />
+            </div>
+          </div>
+          <div class="audience">
+            <span class="v" id="pu-audience">—</span>
+            <span class="sub" id="pu-audience-sub">players match</span>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" type="button" id="pu-send">Send push</button>
+            <span class="msg" id="pu-msg"></span>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Send a test</h2>
+          <p class="lead">Sends this push to one player first, marked as a test in the history. They need marketing notifications on.</p>
+          <div class="search" style="margin-bottom:6px">
+            <input id="pu-test-q" placeholder="Name, username, email or player id" autocomplete="off" />
+          </div>
+          <div class="table-wrap" id="pu-test-results" style="max-height:200px"></div>
+          <div id="pu-test-picked"></div>
+          <div class="form-actions">
+            <button class="btn-muted" type="button" id="pu-test-send" disabled>Send test</button>
+            <span class="msg" id="pu-test-msg"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>History</h2>
+          <span class="cap">Last 90 days. Reads count players who opened it in the inbox.</span>
+          <div class="push"><button class="link-btn" type="button" id="pu-history-refresh">Refresh</button></div>
+        </div>
+        <div class="table-wrap" id="pu-history"><div class="empty">Loading…</div></div>
       </section>
     </div>
 
@@ -540,6 +705,7 @@
         <button type="button" data-sub="calendar" class="on">Calendar<span class="dirty-dot" hidden></span></button>
         <button type="button" data-sub="events">Events<span class="dirty-dot" hidden></span></button>
         <button type="button" data-sub="chests">Chests<span class="dirty-dot" hidden></span></button>
+        <button type="button" data-sub="boosts">Boosts<span class="dirty-dot" hidden></span></button>
         <button type="button" data-sub="rules">Rules<span class="dirty-dot" hidden></span></button>
         <button type="button" data-sub="players">Players</button>
         <button type="button" data-sub="performance">Performance</button>
@@ -548,6 +714,7 @@
       <div id="dr-sub-calendar" class="dr-sub"></div>
       <div id="dr-sub-events" class="dr-sub"></div>
       <div id="dr-sub-chests" class="dr-sub"></div>
+      <div id="dr-sub-boosts" class="dr-sub"></div>
       <div id="dr-sub-rules" class="dr-sub"></div>
       <div id="dr-sub-players" class="dr-sub">
         <section class="card" style="margin-bottom:12px">
@@ -598,14 +765,29 @@
   (function () {
     const STORAGE_KEY = 'shadowhand.adminSecret';
     const TAB_KEY = 'shadowhand.adminTab';
+    const THEME_KEY = 'shadowhand.adminTheme';
     const TABS = ['overview', 'live', 'matches', 'players', 'data', 'push', 'theme', 'gameplay', 'daily'];
-    const COLORS = {
-      ink: '#111827', up: '#16a34a', down: '#e11d48', warn: '#d97706',
-      info: '#2563eb', muted: '#9ca3af', tick: '#6b7280',
+    const THEMES = ['auto', 'light', 'dark'];
+    // One slot per pot in app order: a categorical order checked for
+    // colour-blind separation on both card surfaces. The pot table beside the
+    // chart carries the numbers, since three light slots are under 3:1.
+    const POT_COLORS = {
+      light: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'],
+      dark: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'],
     };
+    /** Chart colours, read from the theme tokens by readColors(). */
+    let COLORS = {};
 
     let secret = sessionStorage.getItem(STORAGE_KEY) || '';
-    let activeTab = sessionStorage.getItem(TAB_KEY) || 'overview';
+    let activeTab = parseHash().tab || sessionStorage.getItem(TAB_KEY) || 'overview';
+    let themePref = 'auto';
+    try {
+      themePref = THEMES.includes(localStorage.getItem(THEME_KEY)) ? localStorage.getItem(THEME_KEY) : 'auto';
+    } catch (_) {
+      // Storage can be blocked; the system theme still applies.
+    }
+    let lastLiveAt = 0;
+    let liveInFlight = false;
     let liveTimer = null;
     let statsTimer = null;
     let searchTimer = null;
@@ -615,6 +797,45 @@
     const charts = new Map();
 
     const $ = (id) => document.getElementById(id);
+
+    /** `#push` or `#daily/rules`: the tab, and the daily-rewards section. */
+    function parseHash() {
+      const [tab, sub] = location.hash.replace(/^#/, '').split('/');
+      return { tab: TABS.includes(tab) ? tab : null, sub: sub || null };
+    }
+    function writeHash(tab, replace) {
+      const next = '#' + tab + (tab === 'daily' ? '/' + dr.sub : '');
+      if (location.hash === next) return;
+      if (replace) history.replaceState(null, '', next);
+      else location.hash = next;
+    }
+
+    function cssVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+    function readColors() {
+      COLORS = {
+        ink: cssVar('--ink'), up: cssVar('--up'), down: cssVar('--down'), warn: cssVar('--warn'),
+        info: cssVar('--info'), muted: cssVar('--muted'), tick: cssVar('--chart-tick'),
+        grid: cssVar('--chart-grid'), fill: cssVar('--chart-fill'), surface: cssVar('--card'),
+      };
+    }
+    function effectiveTheme() {
+      if (themePref !== 'auto') return themePref;
+      return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    function applyTheme() {
+      if (themePref === 'auto') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', themePref);
+      $('theme-toggle').textContent = 'Theme: ' + themePref;
+      readColors();
+      // Chart colours are baked in when a chart is built.
+      charts.forEach((chart) => chart.destroy());
+      charts.clear();
+      if (stats) renderStats(stats);
+      if (liveCache) renderLive(liveCache);
+      if (dr.stats) drRenderStats(dr.stats);
+    }
 
     function esc(s) {
       return String(s == null ? '' : s)
@@ -667,7 +888,10 @@
     }
 
     async function api(path) {
-      const res = await fetch(path, { headers: { 'x-admin-push-secret': secret } });
+      const res = await fetch(path, {
+        headers: { 'x-admin-push-secret': secret },
+        signal: AbortSignal.timeout(15000),
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.message || ('HTTP ' + res.status));
       return body;
@@ -696,7 +920,7 @@
         },
         scales: {
           x: { ticks: { color: COLORS.tick, maxRotation: 0 }, grid: { display: false } },
-          y: { ticks: { color: COLORS.tick }, grid: { color: '#f3f4f6' }, border: { display: false } },
+          y: { ticks: { color: COLORS.tick }, grid: { color: COLORS.grid }, border: { display: false } },
         },
         ...(extra || {}),
       };
@@ -716,10 +940,11 @@
       return chart;
     }
 
-    function switchTab(tab) {
+    function switchTab(tab, { replace = false } = {}) {
       if (!TABS.includes(tab)) tab = 'overview';
       activeTab = tab;
       sessionStorage.setItem(TAB_KEY, tab);
+      writeHash(tab, replace);
       document.querySelectorAll('#tabs button').forEach((b) => {
         b.classList.toggle('on', b.getAttribute('data-tab') === tab);
       });
@@ -732,6 +957,7 @@
       if (tab === 'theme' && secret) void loadTheme();
       if (tab === 'gameplay' && secret) void loadTurnTimer();
       if (tab === 'daily' && secret) void loadDaily();
+      if (tab === 'push' && secret) void loadPushTab();
     }
 
     function renderTheme(state) {
@@ -811,13 +1037,15 @@
     // the inputs. Adding, removing or changing a type re-renders the section.
     // ------------------------------------------------------------------
     const DR_SUB_KEY = 'shadowhand.adminDailySub';
-    const DR_SUBS = ['calendar', 'events', 'chests', 'rules', 'players', 'performance'];
+    const DR_SUBS = ['calendar', 'events', 'chests', 'boosts', 'rules', 'players', 'performance'];
+    const DR_TIERS = [['bronze', 'Bronze'], ['silver', 'Silver'], ['gold', 'Gold'], ['diamond', 'Diamond']];
     // Which config keys each editing section owns, for its unsaved-changes dot.
     const DR_SECTIONS = {
       calendar: ['calendar'],
       events: ['events'],
       chests: ['chests'],
-      rules: ['enabled', 'graceDays', 'minClaimGapHours', 'rescue', 'adBoost', 'boosters', 'comeback', 'reminder'],
+      rules: ['enabled', 'graceDays', 'minClaimGapHours', 'rescue', 'adBoost', 'comeback', 'reminder'],
+      boosts: ['boosters'],
     };
     const DR_LANGS = [['en', 'English'], ['fr', 'Français'], ['es', 'Español'], ['pt', 'Português'], ['ar', 'العربية']];
     const DR_KINDS = [
@@ -828,6 +1056,7 @@
     const DR_ACTION_LABELS = {
       restore: 'Restored streak',
       gift_freeze: 'Gifted Streak Freeze',
+      gift_boost: 'Gifted Coin Boost (QA)',
       shift_days: 'Moved back (QA)',
       reset: 'Reset (QA)',
     };
@@ -838,7 +1067,8 @@
       catalog: null,
       source: 'default',
       hasPrevious: false,
-      sub: sessionStorage.getItem(DR_SUB_KEY) || 'calendar',
+      sub: parseHash().sub || sessionStorage.getItem(DR_SUB_KEY) || 'calendar',
+      stats: null,
       previewId: 'default',
       player: null,
       searchTimer: null,
@@ -921,13 +1151,35 @@
     function drLimit(key, fallback) {
       return dr.catalog?.limits?.[key] ?? fallback;
     }
+    function drPresets() {
+      return dr.draft?.boosters?.coin_boost?.presets || [];
+    }
+    function drPreset(id) {
+      return drPresets().find((preset) => preset.id === id);
+    }
+    function drPresetLabel(preset) {
+      return preset ? `${preset.name?.en || preset.id} · +${preset.percent}%` : 'Coin Boost';
+    }
+    /** Every reward list in the draft, for "which rewards use this preset". */
+    function drAllRewards() {
+      const out = [];
+      const walk = (list, where) => (list || []).forEach((reward) => out.push({ reward, where }));
+      dr.draft.calendar.days.forEach((day) => walk(day.rewards, `Calendar day ${day.day}`));
+      dr.draft.events.forEach((event) => event.days.forEach((day) => walk(day.rewards, `${event.title?.en || event.id} day ${day.day}`)));
+      Object.entries(dr.draft.chests).forEach(([id, chest]) => walk(chest.pool.map((entry) => entry.reward), drChestTitle(id)));
+      walk(dr.draft.comeback.rewards, 'Welcome back');
+      return out;
+    }
+    function drPresetUses(id) {
+      return drAllRewards().filter(({ reward }) => drKind(reward) === 'coin_boost' && reward.presetId === id).map(({ where }) => where);
+    }
     function drNewReward(kind) {
       if (kind === 'chips') return { type: 'chips', amount: 1 };
       if (kind === 'avatar' || kind === 'deck') {
         const item = drItemsOf(kind).find((entry) => entry.id !== 'default');
         return { type: kind, itemId: item ? item.id : '', fallback: drSuggestFallback(item) };
       }
-      if (kind === 'coin_boost') return { type: 'booster', boosterId: 'coin_boost', minutes: 60 };
+      if (kind === 'coin_boost') return { type: 'booster', boosterId: 'coin_boost', presetId: drPresets()[0]?.id || 'standard', minutes: 60 };
       if (kind === 'streak_freeze') return { type: 'booster', boosterId: 'streak_freeze', quantity: 1 };
       if (kind === 'chest') return { type: 'chest', chestId: drChestIds()[0] || '' };
       return { type: 'money', amount: 100 };
@@ -1010,7 +1262,13 @@
             <option value="chips"${fallback.type === 'chips' ? ' selected' : ''}>chips</option>
           </select>`;
       } else if (kind === 'coin_boost') {
-        fields = `${drNum(`${path}.minutes`, reward.minutes, 1, drLimit('maxBoostMinutes', 10080), 'Minutes of Coin Boost')}
+        const presets = drPresets();
+        const known = presets.some((preset) => preset.id === reward.presetId);
+        fields = `<select class="grow" data-path="${esc(path)}.presetId" data-type="text" data-rerender aria-label="Boost preset">
+            ${known ? '' : `<option value="${esc(reward.presetId || '')}" selected>${esc(reward.presetId || 'Pick one')} (removed)</option>`}
+            ${presets.map((preset) => `<option value="${esc(preset.id)}"${preset.id === reward.presetId ? ' selected' : ''}>${esc(drPresetLabel(preset))}</option>`).join('')}
+          </select>
+          ${drNum(`${path}.minutes`, reward.minutes, 1, drLimit('maxBoostMinutes', 10080), 'Minutes of Coin Boost')}
           <span class="hint" data-hint-for="${esc(path)}.minutes">min · ${esc(drHours(reward.minutes))}</span>`;
       } else if (kind === 'streak_freeze') {
         fields = `${drNum(`${path}.quantity`, reward.quantity, 1, drLimit('maxFreezeQuantity', 5), 'How many freezes')}
@@ -1081,7 +1339,10 @@
         return tile('avatar', esc(name.split(/\s+/).map((word) => word[0]).join('').slice(0, 2).toUpperCase()), name);
       }
       if (kind === 'deck') return tile('deck', '', drItem('deck', reward.itemId)?.name || reward.itemId || '?');
-      if (kind === 'coin_boost') return tile('boost', '⚡', drHours(reward.minutes));
+      if (kind === 'coin_boost') {
+        const preset = drPreset(reward.presetId);
+        return tile(`boost ${esc(preset?.tier || '')}`, '⚡', `+${preset?.percent ?? '?'}% · ${drHours(reward.minutes)}`);
+      }
       if (kind === 'streak_freeze') return tile('freeze', '❄', '×' + (reward.quantity ?? ''));
       if (kind === 'chest') return tile('chest', '?', drChestTitle(reward.chestId));
       return '';
@@ -1338,11 +1599,8 @@
           </div>
           <div class="card">
             <h2>Coin Boost</h2>
-            <p class="lead">While a Coin Boost runs, winning a money match pays this share of the winnings on top of the pot, up to the cap. Chips matches are unchanged.</p>
-            <div class="field-grid">
-              ${drField('boosters.coin_boost.percent', 1, 50, 'Bonus on winnings (%)')}
-              ${drField('boosters.coin_boost.maxBonus', 0, 100000, 'Most money per match')}
-            </div>
+            <p class="lead">Boost values now live in their own section: ${drPresets().map((preset) => esc(drPresetLabel(preset))).join(', ')}.</p>
+            <div class="form-actions" style="margin-top:0"><button class="btn-muted" type="button" data-act="goto-boosts">Edit boost presets</button></div>
           </div>
         </section>
         <section class="grid">
@@ -1368,6 +1626,62 @@
         </section>`;
     }
 
+    // ---- Boosts: the presets every Coin Boost reward picks from
+    function drRenderBoosts() {
+      const presets = drPresets();
+      const saved = new Set((dr.live?.boosters?.coin_boost?.presets || []).map((preset) => preset.id));
+      const max = drLimit('maxBoostPresets', 8);
+      const rows = presets.map((preset, index) => {
+        const path = `boosters.coin_boost.presets.${index}`;
+        const uses = drPresetUses(preset.id);
+        return `<div class="preset-row">
+          <button type="button" class="icon-btn" data-act="remove-preset" data-index="${index}" title="Remove" aria-label="Remove"${presets.length > 1 ? '' : ' disabled'}>×</button>
+          <div class="card-head" style="margin-bottom:8px">
+            <h2 style="margin:0"><span class="tier-swatch ${esc(preset.tier)}"></span>${esc(preset.name?.en || preset.id)} <span class="sub">+${esc(preset.percent)}%</span></h2>
+            <span class="sub">${uses.length ? `Used by ${esc(uses.slice(0, 3).join(', '))}${uses.length > 3 ? ` and ${uses.length - 3} more` : ''}` : 'Not used by any reward yet'}</span>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label>Id</label>
+              <input data-path="${path}.id" data-type="slug" data-rerender maxlength="32" value="${esc(preset.id)}" aria-label="Preset id"${saved.has(preset.id) ? ' disabled title="Saved presets keep their id, because rewards and players point at it"' : ''} /></div>
+            <div class="field"><label>Look</label>
+              <select data-path="${path}.tier" data-type="text" data-rerender aria-label="Tier">
+                ${DR_TIERS.map(([key, label]) => `<option value="${key}"${key === preset.tier ? ' selected' : ''}>${label}</option>`).join('')}
+              </select></div>
+            ${drField(`${path}.percent`, 1, drLimit('maxBoostPercent', 100), 'Bonus on winnings (%)')}
+            ${drField(`${path}.maxBonus`, 0, drLimit('maxBoostBonus', 100000), 'Most money per match')}
+          </div>
+          <div class="field-grid" style="margin-top:8px">${DR_LANGS.map(([code, name]) => `
+            <div class="field">
+              <label>${esc(name)}${code === 'en' ? ' · required' : ''}</label>
+              <input data-path="${path}.name.${code}" data-type="title" maxlength="30" value="${esc(preset.name?.[code] ?? '')}"
+                aria-label="${esc(name)} name"${code === 'ar' ? ' dir="rtl"' : ''}${code === 'en' ? '' : ' placeholder="Uses English if empty"'} />
+            </div>`).join('')}</div>
+        </div>`;
+      }).join('');
+      $('dr-sub-boosts').innerHTML = `
+        <section>
+          <div class="card">
+            <div class="card-head">
+              <h2>Coin Boost presets</h2>
+              <button class="btn-primary" type="button" data-act="add-preset"${presets.length >= max ? ' disabled' : ''}>New preset</button>
+            </div>
+            <p class="lead">A claimed boost waits in the player's boosts until they activate it. While it runs, winning a money match pays its share of the winnings on top of the pot, up to its cap. Chips matches are unchanged.
+              Only one value runs at a time: a boost with the same percent adds its time, a different one waits until the running boost ends. So each preset needs its own percent.
+              Rewards pick a preset and a duration in the calendar, events, chests and welcome back.</p>
+            ${rows}
+          </div>
+        </section>`;
+    }
+    function drAddPreset() {
+      const presets = drPresets();
+      const used = new Set(presets.map((preset) => preset.percent));
+      let percent = 10;
+      while (used.has(percent) && percent < 100) percent += 5;
+      let n = presets.length + 1;
+      while (presets.some((preset) => preset.id === `boost-${n}`)) n += 1;
+      presets.push({ id: `boost-${n}`, name: { en: `+${percent}% Boost` }, percent, maxBonus: 2000, tier: 'bronze' });
+    }
+
     // ---- Players: lookup and support fixes
     function drPlayerState(status) {
       if (!status || status.enabled === false) return { label: 'Streaks off', cls: 'idle' };
@@ -1384,7 +1698,10 @@
         return entry.converted ? `${name} (owned, gave ${drGrantText(entry.converted)})` : name;
       }
       if (entry.type === 'booster') {
-        return entry.boosterId === 'coin_boost' ? `Coin Boost ${drHours(entry.minutes)}` : `Streak Freeze ×${entry.quantity}`;
+        if (entry.boosterId !== 'coin_boost') return `Streak Freeze ×${entry.quantity}`;
+        const value = entry.percent ? ` +${entry.percent}%` : '';
+        const where = entry.activated === true ? ', started' : entry.activated === false ? ', to boosts' : '';
+        return `Coin Boost${value} ${drHours(entry.minutes)}${where}`;
       }
       if (entry.type === 'chest') return `${drChestTitle(entry.chestId)} → ${entry.loot ? drGrantText(entry.loot) : 'nothing'}`;
       return entry.type;
@@ -1395,6 +1712,7 @@
         return `Last claim moved from ${detail.from || '—'} to ${detail.to || '—'} · day ${detail.day ?? '—'}, ${detail.count ?? '—'}-day streak kept`;
       }
       if (entry.action === 'gift_freeze') return `+${detail.quantity} (now ${detail.freezes})`;
+      if (entry.action === 'gift_boost') return `${drPresetLabel(drPreset(detail.presetId)) || detail.presetId} · ${drHours(detail.minutes)}`;
       if (entry.action === 'shift_days') return `${detail.days} day${detail.days === 1 ? '' : 's'} into the past`;
       return 'Streak, claims and boosters cleared';
     }
@@ -1405,7 +1723,9 @@
         box.innerHTML = '';
         return;
       }
-      const { player, streak, status, claims, support } = body;
+      const { player, streak, status, claims, support, boosts } = body;
+      const active = boosts?.active;
+      const waiting = (boosts?.inventory || []).flatMap((group) => group.items.map((item) => ({ ...item, group })));
       const state = drPlayerState(status);
       const canRestore = status?.state === 'broken' || !!status?.streak?.resets;
       const nextDay = status?.streak?.nextDay;
@@ -1428,7 +1748,8 @@
               { l: 'Day', v: `${streak.position || 0} / 7`, s: `week ${streak.cycles + 1}` },
               { l: 'Streak', v: streak.count, s: `best ${streak.best}` },
               { l: 'Next claim', v: next, s: nextDay ? `day ${nextDay}` : '' },
-              { l: 'Freezes', v: streak.freezes, s: streak.coinBoostRemainingSeconds ? `Coin Boost ${drDuration(streak.coinBoostRemainingSeconds)} left` : 'no Coin Boost running' },
+              { l: 'Freezes', v: streak.freezes, s: 'Streak Freeze' },
+              { l: 'Coin Boost', v: active ? `+${active.percent}%` : 'off', s: active ? `${drDuration(active.remainingSeconds)} left` : `${waiting.length} waiting` },
             ])}</div>
             <div class="cap">Last claim ${streak.lastClaimAtMs ? esc(fmtTime(streak.lastClaimAtMs)) + ' · their day ' + esc(streak.lastClaimDate) : 'never'} · timezone ${esc(drUtcOffset(streak.tzOffsetMinutes))}</div>
           </div>
@@ -1451,6 +1772,14 @@
               <input class="dr-select" id="dr-shift-days" type="number" min="1" max="30" value="1" aria-label="Days to move back" style="width:70px" />
               <button class="btn-muted" type="button" data-act="player-shift">Move back days</button>
               <button class="btn-danger" type="button" data-act="player-reset">Reset streak</button>
+            </div>
+            <div class="form-actions">
+              <span class="chip warn">QA only</span>
+              <select class="dr-select" id="dr-boost-preset" aria-label="Boost preset">
+                ${drPresets().map((preset) => `<option value="${esc(preset.id)}">${esc(drPresetLabel(preset))}</option>`).join('')}
+              </select>
+              <input class="dr-select" id="dr-boost-min" type="number" min="1" max="${drLimit('maxBoostMinutes', 10080)}" value="60" aria-label="Minutes" style="width:80px" />
+              <button class="btn-muted" type="button" data-act="player-gift-boost">Gift boost</button>
             </div>` : ''}
             <div class="form-actions"><span class="msg" id="dr-player-msg" style="margin-left:0"></span></div>
           </div>
@@ -1465,6 +1794,16 @@
                 <td>${claim.kind === 'comeback' ? 'Welcome back' : `Day ${esc(claim.cycleDay)}`}<div class="sub">${flags(claim)}</div></td>
                 <td class="sub">${esc((claim.granted || []).map(drGrantText).join(', '))}</td>
               </tr>`).join('')}</tbody></table></div>` : '<div class="empty">No claims yet.</div>'}
+          </div>
+          <div class="card">
+            <h2>Boosts</h2>
+            ${active ? `<p class="lead"><span class="tier-swatch ${esc(active.tier)}"></span>${esc(active.name?.en || 'Coin Boost')} +${esc(active.percent)}% running, ${esc(drDuration(active.remainingSeconds))} left · cap ${drFmt(active.maxBonus)}</p>` : '<p class="lead">No boost running.</p>'}
+            ${waiting.length ? `<div class="table-wrap"><table>
+              <thead><tr><th>Waiting to activate</th><th>Time</th></tr></thead>
+              <tbody>${waiting.map((item) => `<tr>
+                <td><span class="tier-swatch ${esc(item.group.tier)}"></span>${esc(item.group.name?.en || 'Coin Boost')} +${esc(item.group.percent)}%${item.group.blocked ? ' <span class="chip idle">waits</span>' : ''}</td>
+                <td class="sub">${esc(drHours(item.minutes))}</td>
+              </tr>`).join('')}</tbody></table></div>` : '<div class="empty">No boosts waiting.</div>'}
           </div>
           <div class="card">
             <h2>Support history</h2>
@@ -1513,6 +1852,7 @@
       const questions = {
         restore: `Restore ${name}'s streak? Their next claim continues where they left off.`,
         gift_freeze: `Gift ${extra?.quantity || 1} Streak Freeze to ${name}?`,
+        gift_boost: `QA: gift ${name} a ${drPresetLabel(drPreset(extra?.presetId))} boost of ${drHours(extra?.minutes)}?`,
         shift_days: `QA: move ${name}'s streak ${extra?.days || 1} day(s) into the past?`,
         reset: `QA: wipe ${name}'s streak, claims and boosters?`,
       };
@@ -1584,7 +1924,8 @@
     }
     async function loadDailyStats() {
       try {
-        drRenderStats(await api('/admin/daily-rewards/stats?days=30'));
+        dr.stats = await api('/admin/daily-rewards/stats?days=30');
+        drRenderStats(dr.stats);
       } catch (error) {
         $('dr-perf-note').textContent = error.message || 'Could not load streak stats';
       }
@@ -1638,6 +1979,7 @@
         if (dr.sub === 'calendar') drRenderCalendar();
         else if (dr.sub === 'events') drRenderEvents();
         else if (dr.sub === 'chests') drRenderChests();
+        else if (dr.sub === 'boosts') drRenderBoosts();
         else if (dr.sub === 'rules') drRenderRules();
       }
       if (dr.sub === 'players') drRenderPlayer();
@@ -1646,6 +1988,7 @@
     function drShowSub(sub) {
       dr.sub = DR_SUBS.includes(sub) ? sub : 'calendar';
       sessionStorage.setItem(DR_SUB_KEY, dr.sub);
+      if (activeTab === 'daily') writeHash('daily');
       document.querySelectorAll('#dr-seg button').forEach((button) => {
         button.classList.toggle('on', button.dataset.sub === dr.sub);
       });
@@ -1721,6 +2064,13 @@
       if (act === 'player-gift') return void drPlayerAction('gift_freeze', { quantity: Number($('dr-gift-qty').value) || 1 });
       if (act === 'player-shift') return void drPlayerAction('shift_days', { days: Number($('dr-shift-days').value) || 1 });
       if (act === 'player-reset') return void drPlayerAction('reset');
+      if (act === 'player-gift-boost') {
+        return void drPlayerAction('gift_boost', {
+          presetId: $('dr-boost-preset').value,
+          minutes: Number($('dr-boost-min').value) || 60,
+        });
+      }
+      if (act === 'goto-boosts') return void drShowSub('boosts');
       if (!dr.draft) return;
       drTouched();
       if (act === 'add-reward') drGet(path).push(drNewReward('money'));
@@ -1740,6 +2090,17 @@
         if (!confirm('Delete this chest?')) return;
         delete dr.draft.chests[button.dataset.id];
       } else if (act === 'add-pool') drGet(path).push({ weight: 10, reward: { type: 'money', amount: 500 } });
+      else if (act === 'add-preset') drAddPreset();
+      else if (act === 'remove-preset') {
+        const preset = drPresets()[Number(button.dataset.index)];
+        const uses = drPresetUses(preset.id);
+        if (uses.length) {
+          alert(`"${drPresetLabel(preset)}" is still a reward in: ${uses.join(', ')}. Pick another preset there first.`);
+          return;
+        }
+        if (!confirm(`Delete the preset "${drPresetLabel(preset)}"? Boosts players already hold keep their value.`)) return;
+        drPresets().splice(Number(button.dataset.index), 1);
+      }
       else return;
       drRenderSub();
     }
@@ -1769,7 +2130,7 @@
           labels: presence.map((p) => new Date(p.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
           datasets: [{
             data: presence.map((p) => p.connections || 0),
-            borderColor: COLORS.ink, backgroundColor: 'rgba(17,24,39,0.08)',
+            borderColor: COLORS.ink, backgroundColor: COLORS.fill,
             fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2,
           }],
         },
@@ -1803,7 +2164,7 @@
           labels: iapDays.map((d) => dayLabel(d.day)),
           datasets: [{
             label: 'Purchases', data: iapDays.map((d) => d.count || 0),
-            borderColor: COLORS.ink, backgroundColor: 'rgba(17,24,39,0.08)',
+            borderColor: COLORS.ink, backgroundColor: COLORS.fill,
             fill: true, tension: 0.3, pointRadius: 2,
           }],
         },
@@ -1838,6 +2199,8 @@
       const c = live.counts || {};
       $('badge-live').textContent = String(c.connections ?? 0);
       $('live-dot').classList.toggle('on', (c.connections || 0) > 0);
+      $('updated').classList.remove('stale');
+      $('updated').title = '';
       $('updated').textContent = 'Live ' + new Date().toLocaleTimeString();
 
       $('live-kpis').innerHTML = kpiHtml([
@@ -1931,7 +2294,7 @@
           labels: modes.length ? modes.map((x) => x.mode || '—') : ['none'],
           datasets: [{
             data: modes.length ? modes.map((x) => x.count || 0) : [1],
-            backgroundColor: [COLORS.ink, COLORS.info, COLORS.warn], borderWidth: 0,
+            backgroundColor: [COLORS.info, COLORS.warn, COLORS.up], borderWidth: 0,
           }],
         },
         options: {
@@ -1940,6 +2303,9 @@
         },
       });
 
+      renderPots(s);
+
+      const cityOf = (id) => (s.pots || []).find((pot) => pot.id === id)?.city;
       const recent = s.recentMatches || [];
       if (!recent.length) {
         $('recent-matches').innerHTML = '<div class="empty">No matches stored yet.</div>';
@@ -1950,11 +2316,74 @@
             const humans = (row.playerCount || 0) - (row.botCount || 0);
             return `<tr>
               <td><div>${esc(fmtTime(row.startedAt))}</div><div class="sub">${esc(row.outcome || '—')}</div></td>
-              <td>${esc(row.mode)} · pot ${row.potAmount || 0}<div class="sub">${humans}h ${row.botCount || 0}b · room ${esc(row.roomId || '')}</div></td>
+              <td>${esc(cityOf(row.potId) || row.mode)} · pot ${row.potAmount || 0}${row.stakeCurrency === 'chips' ? ' chips' : ''}<div class="sub">${humans}h ${row.botCount || 0}b · room ${esc(row.roomId || '')}</div></td>
               <td class="sub">${esc(row.roster || '')}</td>
             </tr>`;
           }).join('')}</tbody></table>`;
       }
+    }
+
+    function potColor(index) {
+      return POT_COLORS[effectiveTheme()][index] || COLORS.muted;
+    }
+    function potTrend(pot) {
+      if (!pot.last7d && !pot.prev7d) return '<span class="sub">—</span>';
+      if (!pot.prev7d) return '<span class="trend up">new</span>';
+      const change = Math.round(((pot.last7d - pot.prev7d) / pot.prev7d) * 100);
+      if (change === 0) return '<span class="sub">flat</span>';
+      return `<span class="trend ${change > 0 ? 'up' : 'down'}">${change > 0 ? '▲' : '▼'} ${Math.abs(change)}%</span>`;
+    }
+    function renderPots(s) {
+      const pots = s.pots || [];
+      const days = s.potsByDay || [];
+      const datasets = pots.map((pot, index) => ({
+        label: pot.city,
+        data: days.map((day) => day[pot.id] || 0),
+        backgroundColor: potColor(index),
+        // A hairline in the card colour keeps stacked segments apart.
+        borderColor: COLORS.surface,
+        borderWidth: 1,
+      }));
+      if (s.potsOther) {
+        datasets.push({
+          label: 'Other',
+          data: days.map((day) => day.other || 0),
+          backgroundColor: COLORS.muted,
+          borderColor: COLORS.surface,
+          borderWidth: 1,
+        });
+      }
+      const stacked = chartOpts();
+      stacked.scales.x.stacked = true;
+      stacked.scales.y.stacked = true;
+      stacked.scales.y.ticks.precision = 0;
+      stacked.plugins.legend = { display: true, position: 'bottom', labels: { color: COLORS.tick, boxWidth: 10 } };
+      stacked.plugins.tooltip = { mode: 'index', intersect: false, filter: (item) => item.raw > 0 };
+      upsertChart('pots', 'chart-pots', {
+        type: 'bar',
+        data: { labels: days.map((day) => dayLabel(day.day)), datasets },
+        options: stacked,
+      });
+
+      const total = pots.reduce((sum, pot) => sum + pot.matches, 0) + (s.potsOther || 0);
+      if (!total) {
+        $('pot-table').innerHTML = '<div class="empty">No matchmaking games in the last 14 days.</div>';
+      } else {
+        $('pot-table').innerHTML = `<table class="pot-table">
+          <thead><tr><th>Pot</th><th>Share</th><th class="num-cell">Matches</th><th class="num-cell">Volume</th><th class="num-cell" title="Last 7 days against the 7 before">Trend</th></tr></thead>
+          <tbody>${pots.map((pot, index) => `<tr>
+            <td><div class="name"><span class="swatch" style="background:${potColor(index)}"></span> ${esc(pot.city)}</div>
+              <div class="sub">${drFmt(pot.pool)} ${pot.currency} · entry ${drFmt(Math.floor(pot.pool / 2))}</div></td>
+            <td><div class="share"><span class="bar"><span style="width:${pot.share}%;background:${potColor(index)}"></span></span><span class="num">${pot.share}%</span></div></td>
+            <td class="num-cell">${drFmt(pot.matches)}<div class="sub">${drFmt(pot.withBot)} with a bot</div></td>
+            <td class="num-cell">${drFmt(pot.volume)}<div class="sub">${pot.currency}</div></td>
+            <td class="num-cell">${potTrend(pot)}<div class="sub">${pot.last7d} vs ${pot.prev7d}</div></td>
+          </tr>`).join('')}</tbody></table>`;
+      }
+      const sumFor = (currency) => pots.filter((pot) => pot.currency === currency)
+        .reduce((sum, pot) => sum + pot.volume, 0);
+      $('pot-cap').textContent = `${drFmt(total)} matches · ${drFmt(sumFor('money'))} money and ${drFmt(sumFor('chips'))} chips staked` +
+        (s.potsOther ? ` · ${s.potsOther} at pots the app no longer offers` : '');
     }
 
     function renderPlayers(s) {
@@ -2084,13 +2513,28 @@
       renderDataKpis(s);
     }
 
+    function markStale(reason) {
+      const el = $('updated');
+      el.classList.add('stale');
+      el.title = reason || '';
+      el.textContent = 'Stale · ' +
+        (lastLiveAt ? 'last update ' + new Date(lastLiveAt).toLocaleTimeString() : 'no data yet');
+      $('live-dot').classList.remove('on');
+    }
     async function tickLive() {
+      if (liveInFlight) {
+        if (Date.now() - lastLiveAt > 10000) markStale('Waiting for the server');
+        return;
+      }
+      liveInFlight = true;
       try {
         const live = await api('/admin/live');
+        lastLiveAt = Date.now();
         renderLive(live);
       } catch (err) {
-        $('updated').textContent = 'Live error: ' + (err.message || 'failed');
-        $('live-dot').classList.remove('on');
+        markStale(err.message || 'Live update failed');
+      } finally {
+        liveInFlight = false;
       }
     }
     async function tickStats() {
@@ -2173,16 +2617,249 @@
       return payload;
     }
 
-    function start() {
+    // ------------------------------------------------------------------
+    // Push tab. The deeplink picker is built from /admin/push/routes, the
+    // same catalogue the server validates sends against.
+    // ------------------------------------------------------------------
+    const pu = {
+      catalog: null,
+      link: '',
+      room: '',
+      audience: null,
+      audienceSeq: 0,
+      audienceTimer: null,
+      testPlayer: null,
+      searchTimer: null,
+    };
+    function puLinks() {
+      return pu.catalog?.links || [];
+    }
+    function puLink() {
+      return puLinks().find((link) => link.route === pu.link) || null;
+    }
+    function puRoute() {
+      if (!pu.link) return null;
+      if (pu.link === '/join') return pu.room ? '/join?roomId=' + pu.room : null;
+      return pu.link;
+    }
+    /** What a tap opens, and whether app builds from before the catalogue open it too. */
+    function puRouteInfo() {
+      const link = puLink();
+      if (!link) return { label: 'Home', legacy: true };
+      if (link.route === '/join') return { label: pu.room ? 'Join room ' + pu.room : 'Join a room', legacy: true };
+      return { label: link.label, legacy: link.legacy };
+    }
+    /** Fills the deeplink list once the catalogue has loaded, grouped like the app. */
+    function puRenderLinks() {
+      const select = $('pu-link');
+      const groups = [...new Set(puLinks().map((link) => link.group))];
+      select.innerHTML = '<option value="">None · opens Home</option>' + groups.map((group) =>
+        `<optgroup label="${esc(group)}">${puLinks().filter((link) => link.group === group).map((link) =>
+          `<option value="${esc(link.route)}">${esc(link.label)}</option>`).join('')}</optgroup>`
+      ).join('');
+      select.value = pu.link;
+      puRenderLink();
+    }
+    function puRenderLink() {
+      $('pu-room-box').hidden = pu.link !== '/join';
+      puRenderPreview();
+    }
+    function puCount(inputId, countId, hintId, softMax, hintText) {
+      const value = $(inputId).value;
+      const length = value.trim().length;
+      $(countId).textContent = `${length} / ${$(inputId).maxLength}`;
+      $(countId).classList.toggle('over', length > softMax);
+      $(hintId).textContent = length > softMax ? hintText : '';
+      $(hintId).classList.toggle('warn', length > softMax);
+      return value.trim();
+    }
+    function puRenderPreview() {
+      const title = puCount('pu-title', 'pu-title-count', 'pu-title-hint', 50, 'Long title: lock screens show about 50 characters.');
+      const body = puCount('pu-body', 'pu-body-count', 'pu-body-hint', 150, 'Long body: about 2 lines show; the rest is in the inbox.');
+      const now = new Date();
+      $('pu-phone-time').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      $('pu-phone-date').textContent = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+      $('pu-pv-title').textContent = title || 'Title';
+      $('pu-pv-title').classList.toggle('notif-empty', !title);
+      $('pu-pv-body').textContent = body || 'Body';
+      $('pu-pv-body').classList.toggle('notif-empty', !body);
+
+      const route = puRoute();
+      const info = puRouteInfo();
+      $('pu-route-out').textContent = route || 'none';
+      $('pu-opens').textContent = info.label;
+      $('pu-route-badge').innerHTML = !pu.link ? '' : info.legacy
+        ? '<span class="chip good">All app versions</span>'
+        : '<span class="chip warn" title="Older app builds open Home instead">Next app release</span>';
+    }
+    function puRenderAudience() {
+      const ids = buildPushAudiencePayload().playerIds;
+      $('pu-audience').textContent = pu.audience == null ? '—' : drFmt(pu.audience);
+      $('pu-audience-sub').textContent = ids ? 'listed players' : 'players match these filters';
+      $('pu-send').textContent = pu.audience == null ? 'Send push' : `Send to ${drFmt(pu.audience)} players`;
+    }
+    function puScheduleAudience() {
+      clearTimeout(pu.audienceTimer);
+      pu.audienceTimer = setTimeout(() => void puLoadAudience(), 400);
+    }
+    async function puLoadAudience() {
+      const seq = ++pu.audienceSeq;
+      try {
+        const result = await apiPost('/admin/push', { dryRun: true, ...buildPushAudiencePayload() });
+        if (seq !== pu.audienceSeq) return;
+        pu.audience = result.audienceCount ?? 0;
+      } catch (error) {
+        if (seq !== pu.audienceSeq) return;
+        pu.audience = null;
+        setMsg('pu-msg', error.message || 'Could not count the audience', false);
+      }
+      puRenderAudience();
+    }
+    function puMessage() {
+      return { title: $('pu-title').value.trim(), body: $('pu-body').value.trim() };
+    }
+    /** The send payload's route, or false when the picked deeplink isn't complete. */
+    function puRouteForSend(msgId) {
+      const route = puRoute();
+      if (pu.link === '/join' && !route) {
+        setMsg(msgId, 'Enter a room code, or pick another deeplink', false);
+        return false;
+      }
+      return route || undefined;
+    }
+    async function puSend() {
+      const { title, body } = puMessage();
+      if (!title || !body) { setMsg('pu-msg', 'Title and body required', false); return; }
+      const route = puRouteForSend('pu-msg');
+      if (route === false) return;
+      if (pu.audience === 0) {
+        setMsg('pu-msg', 'Nobody matches: only players with marketing on and a push token count. Widen the filters.', false);
+        return;
+      }
+      const info = puRouteInfo();
+      const who = pu.audience == null ? 'the filtered audience' : `${drFmt(pu.audience)} players`;
+      if (!confirm(`Send this push to ${who}?\n\n${title}\n${body}\n\nOpens: ${info.label}${route ? ` (${route})` : ''}`)) return;
+      setMsg('pu-msg', 'Sending…', true);
+      $('pu-send').disabled = true;
+      try {
+        const result = await apiPost('/admin/push', { title, body, route, ...buildPushAudiencePayload() });
+        if (result.audienceCount === 0) {
+          setMsg('pu-msg', 'Nothing sent: nobody matched these filters', false);
+          return;
+        }
+        setMsg('pu-msg',
+          `Sent · push ok ${result.successCount ?? 0} / failed ${result.failureCount ?? 0} · inbox ${result.inboxCount ?? 0}` +
+          (result.audienceCount != null ? ` · audience ${result.audienceCount}` : '') +
+          (result.fcmReady === false ? ' · FCM is off on this server, inbox only' : ''),
+          !result.skipped || (result.successCount || 0) > 0 || (result.inboxCount || 0) > 0
+        );
+        void puLoadHistory();
+      } catch (error) {
+        setMsg('pu-msg', error.message || 'Send failed', false);
+      } finally {
+        $('pu-send').disabled = false;
+      }
+    }
+    function puRenderTestPick() {
+      const player = pu.testPlayer;
+      $('pu-test-send').disabled = !player;
+      $('pu-test-picked').innerHTML = player
+        ? `<span class="picked"><span class="chip info">Test goes to ${esc(playerLabel(player))}</span>
+            <span class="sub">${esc(player.playerId)}</span>
+            <button class="link-btn" type="button" id="pu-test-clear">Clear</button></span>`
+        : '';
+    }
+    async function puSearchTest(query) {
+      const box = $('pu-test-results');
+      if (!query) { box.innerHTML = ''; return; }
+      try {
+        const body = await api('/admin/players?q=' + encodeURIComponent(query));
+        const list = (body.players || []).slice(0, 5);
+        box.innerHTML = list.length ? `<table><tbody>${list.map((row) => `<tr>
+          <td><div class="name">${esc(playerLabel(row))}</div><div class="sub">${esc(row.playerId)}</div></td>
+          <td style="text-align:right"><button class="btn-muted" type="button" data-test-pick="${esc(row.playerId)}"
+            data-name="${esc(row.name || '')}" data-username="${esc(row.username || '')}">Pick</button></td>
+        </tr>`).join('')}</tbody></table>` : '<div class="empty">No players match. Paste a full player id and press Enter.</div>';
+      } catch (error) {
+        box.innerHTML = `<div class="empty">${esc(error.message || 'Search failed')}</div>`;
+      }
+    }
+    async function puSendTest() {
+      const player = pu.testPlayer;
+      if (!player) return;
+      const { title, body } = puMessage();
+      if (!title || !body) { setMsg('pu-test-msg', 'Title and body required', false); return; }
+      const route = puRouteForSend('pu-test-msg');
+      if (route === false) return;
+      setMsg('pu-test-msg', 'Sending…', true);
+      $('pu-test-send').disabled = true;
+      try {
+        const result = await apiPost('/admin/push', { title, body, route, playerIds: [player.playerId], test: true });
+        if (!result.inboxCount) {
+          setMsg('pu-test-msg', 'Not delivered: no such player, or their marketing notifications are off', false);
+        } else {
+          setMsg('pu-test-msg',
+            `Test sent · push ok ${result.successCount ?? 0} / failed ${result.failureCount ?? 0} · in their inbox` +
+            (result.fcmReady === false ? ' · FCM is off on this server' : ''), true);
+        }
+        void puLoadHistory();
+      } catch (error) {
+        setMsg('pu-test-msg', error.message || 'Test failed', false);
+      } finally {
+        $('pu-test-send').disabled = false;
+      }
+    }
+    async function puLoadHistory() {
+      const box = $('pu-history');
+      try {
+        const { campaigns = [] } = await api('/admin/push/history?limit=25');
+        box.innerHTML = campaigns.length ? `<table class="history">
+          <thead><tr><th>Sent</th><th>Message</th><th>Opens</th><th class="num-cell">Recipients</th><th class="num-cell">Read in inbox</th></tr></thead>
+          <tbody>${campaigns.map((row) => `<tr>
+            <td class="sub" style="white-space:nowrap">${esc(fmtTime(row.sentAt))}</td>
+            <td><div class="name">${esc(row.title)}${row.test ? ' <span class="chip warn">Test</span>' : ''}</div><div class="sub">${esc(row.body)}</div></td>
+            <td>${esc(row.routeLabel)}${row.route ? `<div class="sub"><code>${esc(row.route)}</code></div>` : ''}</td>
+            <td class="num-cell">${drFmt(row.recipients)}</td>
+            <td class="num-cell">${drFmt(row.readCount)}<div class="sub">${drPct(row.readCount, row.recipients)}</div></td>
+          </tr>`).join('')}</tbody></table>` : '<div class="empty">No pushes sent in the last 90 days.</div>';
+      } catch (error) {
+        box.innerHTML = `<div class="empty">${esc(error.message || 'Could not load the history')}</div>`;
+      }
+    }
+    async function loadPushTab() {
+      if (!pu.catalog) {
+        try {
+          pu.catalog = await api('/admin/push/routes');
+        } catch (error) {
+          setMsg('pu-msg', error.message || 'Could not load the deeplinks', false);
+        }
+      }
+      puRenderLinks();
+      puRenderTestPick();
+      void puLoadAudience();
+      void puLoadHistory();
+    }
+
+    function stopPolling() {
       clearInterval(liveTimer);
       clearInterval(statsTimer);
-      $('gate').classList.add('hide');
-      $('app').classList.add('show');
-      switchTab(activeTab);
+      liveTimer = null;
+      statsTimer = null;
+    }
+    function startPolling() {
+      stopPolling();
       tickLive();
       tickStats();
       liveTimer = setInterval(tickLive, 2000);
       statsTimer = setInterval(tickStats, 20000);
+    }
+    function start() {
+      $('gate').classList.add('hide');
+      $('app').classList.add('show');
+      switchTab(activeTab, { replace: true });
+      // A hidden tab starts polling once it is shown.
+      if (document.hidden) stopPolling();
+      else startPolling();
     }
 
     $('enter').addEventListener('click', async () => {
@@ -2200,7 +2877,7 @@
     $('logout').addEventListener('click', () => {
       sessionStorage.removeItem(STORAGE_KEY);
       secret = '';
-      clearInterval(liveTimer); clearInterval(statsTimer);
+      stopPolling();
       $('app').classList.remove('show');
       $('gate').classList.remove('hide');
       $('gate-err').textContent = '';
@@ -2217,43 +2894,77 @@
       btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
     });
 
-    $('pu-preview').addEventListener('click', async () => {
-      setMsg('pu-msg', 'Counting…', true);
-      $('pu-preview').disabled = true;
-      try {
-        const result = await apiPost('/admin/push', { dryRun: true, ...buildPushAudiencePayload() });
-        const sample = (result.sampleIds || []).slice(0, 3).join(', ');
-        setMsg('pu-msg', `Audience: ${result.audienceCount ?? 0}` + (sample ? ` · e.g. ${sample}` : ''), true);
-      } catch (error) {
-        setMsg('pu-msg', error.message || 'Preview failed', false);
-      } finally {
-        $('pu-preview').disabled = false;
-      }
+    $('pu-link').addEventListener('change', () => {
+      pu.link = $('pu-link').value;
+      puRenderLink();
     });
+    $('pu-room').addEventListener('input', () => {
+      pu.room = $('pu-room').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if ($('pu-room').value !== pu.room) $('pu-room').value = pu.room;
+      puRenderPreview();
+    });
+    $('pu-title').addEventListener('input', puRenderPreview);
+    $('pu-body').addEventListener('input', puRenderPreview);
+    ['pu-platform', 'pu-seen-days', 'pu-min-matches', 'pu-min-wins', 'pu-player-ids'].forEach((id) => {
+      $(id).addEventListener('input', puScheduleAudience);
+    });
+    $('pu-send').addEventListener('click', () => void puSend());
+    $('pu-history-refresh').addEventListener('click', () => void puLoadHistory());
+    $('pu-test-q').addEventListener('input', () => {
+      clearTimeout(pu.searchTimer);
+      const query = $('pu-test-q').value.trim();
+      pu.searchTimer = setTimeout(() => void puSearchTest(query), 250);
+    });
+    $('pu-test-q').addEventListener('keydown', (event) => {
+      const query = $('pu-test-q').value.trim();
+      if (event.key !== 'Enter' || !query) return;
+      pu.testPlayer = { playerId: query };
+      puRenderTestPick();
+    });
+    $('pu-test-results').addEventListener('click', (event) => {
+      const button = event.target.closest('[data-test-pick]');
+      if (!button) return;
+      pu.testPlayer = {
+        playerId: button.dataset.testPick,
+        name: button.dataset.name || null,
+        username: button.dataset.username || null,
+      };
+      $('pu-test-results').innerHTML = '';
+      $('pu-test-q').value = '';
+      puRenderTestPick();
+    });
+    $('pu-test-picked').addEventListener('click', (event) => {
+      if (event.target.id !== 'pu-test-clear') return;
+      pu.testPlayer = null;
+      puRenderTestPick();
+    });
+    $('pu-test-send').addEventListener('click', () => void puSendTest());
 
-    $('pu-send').addEventListener('click', async () => {
-      const title = $('pu-title').value.trim();
-      const body = $('pu-body').value.trim();
-      if (!title || !body) { setMsg('pu-msg', 'Title and body required', false); return; }
-      if (!confirm('Send marketing push to filtered audience?')) return;
-      setMsg('pu-msg', 'Sending…', true);
-      $('pu-send').disabled = true;
+    $('theme-toggle').addEventListener('click', () => {
+      themePref = THEMES[(THEMES.indexOf(themePref) + 1) % THEMES.length];
       try {
-        const route = $('pu-route').value;
-        const result = await apiPost('/admin/push', {
-          title, body, route: route || undefined,
-          ...buildPushAudiencePayload(),
-        });
-        setMsg('pu-msg',
-          `Sent · FCM ok ${result.successCount ?? 0} / fail ${result.failureCount ?? 0} · inbox ${result.inboxCount ?? 0}` +
-          (result.audienceCount != null ? ` · audience ${result.audienceCount}` : '') +
-          (result.skipped ? ' · skipped' : ''),
-          !result.skipped || (result.successCount || 0) > 0
-        );
-      } catch (error) {
-        setMsg('pu-msg', error.message || 'Send failed', false);
-      } finally {
-        $('pu-send').disabled = false;
+        localStorage.setItem(THEME_KEY, themePref);
+      } catch (_) {
+        // Not remembered; still applies to this page.
+      }
+      applyTheme();
+    });
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (themePref === 'auto') applyTheme();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!secret || !$('app').classList.contains('show')) return;
+      if (document.hidden) stopPolling();
+      else startPolling();
+    });
+    window.addEventListener('hashchange', () => {
+      const { tab, sub } = parseHash();
+      if (!secret || !tab) return;
+      if (tab !== activeTab) {
+        if (tab === 'daily' && sub) dr.sub = sub;
+        switchTab(tab);
+      } else if (tab === 'daily' && sub && sub !== dr.sub) {
+        drShowSub(sub);
       }
     });
 
@@ -2340,6 +3051,7 @@
       event.returnValue = '';
     });
 
+    applyTheme();
     if (secret) {
       api('/admin/live').then(() => start()).catch(() => {
         sessionStorage.removeItem(STORAGE_KEY);

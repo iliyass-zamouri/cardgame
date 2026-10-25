@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:cardgame/app/boost_providers.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
+import 'package:cardgame/data/boost/boost_api.dart';
+import 'package:cardgame/data/boost/boost_models.dart';
 import 'package:cardgame/data/daily_reward/daily_reward_models.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/sfx_service.dart';
@@ -11,10 +14,12 @@ import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/amount_format.dart';
+import 'package:cardgame/ui/widgets/boost_badge.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/gold_burst.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Full-screen reveal after a claim: the rewards land in a gold burst under
 /// turning rays, amounts count up, a chest throws its lid open to show what
@@ -29,7 +34,7 @@ class ClaimCelebration extends StatefulWidget {
     this.chests = const {},
     this.jackpot = false,
     this.boostMultiplier,
-    this.coinBoostPercent = 0,
+    this.boostPresets = const {},
     this.onEquip,
   });
 
@@ -41,7 +46,9 @@ class ClaimCelebration extends StatefulWidget {
 
   /// Shown as an "×2 ad boost" badge when the claim was boosted.
   final int? boostMultiplier;
-  final int coinBoostPercent;
+
+  /// Coin Boost presets by id, for boosts granted without their value.
+  final Map<String, BoostPreset> boostPresets;
 
   /// Equips a newly won avatar or deck.
   final void Function(RewardItem item)? onEquip;
@@ -308,7 +315,7 @@ class _ClaimCelebrationState extends State<ClaimCelebration>
                                   curve: Curves.easeOutBack,
                                 ),
                                 chests: widget.chests,
-                                coinBoostPercent: widget.coinBoostPercent,
+                                boostPresets: widget.boostPresets,
                                 equipped: _equipped,
                                 onEquip: widget.onEquip == null ? null : _equip,
                               ),
@@ -417,7 +424,7 @@ class _GrantTile extends StatelessWidget {
     required this.count,
     required this.chest,
     required this.chests,
-    required this.coinBoostPercent,
+    required this.boostPresets,
     required this.equipped,
     required this.onEquip,
   });
@@ -429,7 +436,7 @@ class _GrantTile extends StatelessWidget {
   final Animation<double> count;
   final Animation<double> chest;
   final Map<String, DailyChest> chests;
-  final int coinBoostPercent;
+  final Map<String, BoostPreset> boostPresets;
   final Set<String> equipped;
   final void Function(RewardItem item)? onEquip;
 
@@ -438,6 +445,13 @@ class _GrantTile extends StatelessWidget {
     final l10n = context.l10n;
     final languageCode = Localizations.localeOf(context).languageCode;
     final reward = grant.reward;
+    if (reward is CoinBoostReward) {
+      return _BoostGrantTile(
+        grant: grant,
+        reward: reward,
+        preset: reward.presetIn(boostPresets),
+      );
+    }
     final name = rewardCaption(
       l10n,
       reward,
@@ -485,7 +499,7 @@ class _GrantTile extends StatelessWidget {
                       count: kAlwaysCompleteAnimation,
                       chest: chest,
                       chests: chests,
-                      coinBoostPercent: coinBoostPercent,
+                      boostPresets: boostPresets,
                       equipped: equipped,
                       onEquip: onEquip,
                     ),
@@ -568,7 +582,6 @@ class _GrantTile extends StatelessWidget {
       ]);
     } else {
       final body = switch (reward) {
-        CoinBoostReward() => l10n.dailyCoinBoostBody(coinBoostPercent),
         StreakFreezeReward() => l10n.dailyStreakFreezeBody,
         _ => null,
       };
@@ -588,20 +601,158 @@ class _GrantTile extends StatelessWidget {
   }
 }
 
-class _Glow extends StatelessWidget {
-  const _Glow({required this.child});
+/// A won Coin Boost: its coin in the tier's light, its value and length,
+/// and a button to start it now. A different boost already running keeps
+/// it in the player's boosts for later.
+class _BoostGrantTile extends ConsumerStatefulWidget {
+  const _BoostGrantTile({
+    required this.grant,
+    required this.reward,
+    required this.preset,
+  });
 
-  final Widget child;
+  final GrantedReward grant;
+  final CoinBoostReward reward;
+  final BoostPreset? preset;
+
+  @override
+  ConsumerState<_BoostGrantTile> createState() => _BoostGrantTileState();
+}
+
+enum _BoostGrantState { waiting, busy, active, saved }
+
+class _BoostGrantTileState extends ConsumerState<_BoostGrantTile> {
+  late _BoostGrantState _state =
+      widget.grant.boostActivated
+          ? _BoostGrantState.active
+          : _BoostGrantState.waiting;
+
+  Future<void> _activate(String itemId) async {
+    setState(() => _state = _BoostGrantState.busy);
+    try {
+      await ref.read(boostProvider.notifier).activate(itemId);
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      setState(() => _state = _BoostGrantState.active);
+    } on BoostApiException catch (error) {
+      if (!mounted) return;
+      setState(
+        () =>
+            _state =
+                error.isConflict
+                    ? _BoostGrantState.saved
+                    : _BoostGrantState.waiting,
+      );
+    } catch (_) {
+      if (mounted) setState(() => _state = _BoostGrantState.waiting);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final languageCode = Localizations.localeOf(context).languageCode;
+    final preset = widget.preset;
+    final tier = preset?.tier ?? BoostTier.gold;
+    final metal = BoostMetal.of(tier);
+    final itemId = widget.grant.boostItemId;
+    final running = ref.watch(boostProvider).value?.running;
+    // A different value is running: this one has to wait its turn.
+    final waitsTurn =
+        running != null &&
+        preset != null &&
+        running.preset.percent != preset.percent;
+
+    final Widget action;
+    if (_state == _BoostGrantState.active) {
+      action = _StatusChip(label: l10n.boostActive, color: CasinoColors.raiseHi);
+    } else if (itemId == null ||
+        _state == _BoostGrantState.saved ||
+        (waitsTurn && _state == _BoostGrantState.waiting)) {
+      action = _StatusChip(label: l10n.boostInYourBoosts, color: metal.hi);
+    } else if (_state == _BoostGrantState.busy) {
+      action = const SizedBox(
+        width: 28,
+        height: 28,
+        child: Padding(
+          padding: EdgeInsets.all(5),
+          child: CircularProgressIndicator(strokeWidth: 2.4),
+        ),
+      );
+    } else {
+      action = GoldButton(
+        label: l10n.boostActivateNow,
+        compact: true,
+        leading: const GameIcon(icon: AppIcons.bolt),
+        onPressed: () => _activate(itemId),
+      );
+    }
+
+    return SizedBox(
+      width: 170,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Glow(color: metal.glow, child: BoostCoin(tier: tier, size: 74)),
+          const SizedBox(height: 8),
+          _Name(
+            '${preset?.nameFor(languageCode) ?? l10n.dailyCoinBoost} · ${boostDuration(widget.reward.minutes)}',
+          ),
+          if (preset != null) _Caption(l10n.dailyCoinBoostBody(preset.percent)),
+          const SizedBox(height: 8),
+          action,
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.black.withValues(alpha: 0.4),
+        border: Border.all(color: color.withValues(alpha: 0.75)),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _Glow extends StatelessWidget {
+  const _Glow({required this.child, this.color});
+
+  final Widget child;
+
+  /// The light behind [child]; gold when null.
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = this.color ?? CasinoColors.gold;
     return DecoratedBox(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: RadialGradient(
           colors: [
-            CasinoColors.gold.withValues(alpha: 0.38),
-            CasinoColors.gold.withValues(alpha: 0),
+            color.withValues(alpha: 0.38),
+            color.withValues(alpha: 0),
           ],
         ),
       ),

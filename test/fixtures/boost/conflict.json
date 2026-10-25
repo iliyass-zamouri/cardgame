@@ -1,0 +1,75 @@
+{
+  "error": "boost_conflict",
+  "message": "Another boost is running. It can start when that one ends.",
+  "boosts": {
+    "active": {
+      "presetId": "gold",
+      "name": {
+        "en": "Gold Boost",
+        "fr": "Boost doré",
+        "es": "Impulso dorado",
+        "pt": "Turbo dourado",
+        "ar": "المعزز الذهبي"
+      },
+      "percent": 50,
+      "maxBonus": 5000,
+      "tier": "gold",
+      "remainingSeconds": 1740,
+      "totalSeconds": 1800
+    },
+    "inventory": [
+      {
+        "presetId": "standard",
+        "name": {
+          "en": "Coin Boost",
+          "fr": "Boost de pièces",
+          "es": "Impulso de monedas",
+          "pt": "Turbo de moedas",
+          "ar": "معزز العملات"
+        },
+        "percent": 25,
+        "maxBonus": 2000,
+        "tier": "silver",
+        "blocked": true,
+        "items": [
+          {
+            "id": "boost-739d2dfa-9d2a-4eee-96e3-b5af45014cc1",
+            "minutes": 240
+          },
+          {
+            "id": "boost-a69c6b35-a0c2-46ea-a57d-61ad5edd0c18",
+            "minutes": 60
+          }
+        ]
+      }
+    ],
+    "presets": [
+      {
+        "id": "standard",
+        "name": {
+          "en": "Coin Boost",
+          "fr": "Boost de pièces",
+          "es": "Impulso de monedas",
+          "pt": "Turbo de moedas",
+          "ar": "معزز العملات"
+        },
+        "percent": 25,
+        "maxBonus": 2000,
+        "tier": "silver"
+      },
+      {
+        "id": "gold",
+        "name": {
+          "en": "Gold Boost",
+          "fr": "Boost doré",
+          "es": "Impulso dorado",
+          "pt": "Turbo dourado",
+          "ar": "المعزز الذهبي"
+        },
+        "percent": 50,
+        "maxBonus": 5000,
+        "tier": "gold"
+      }
+    ]
+  }
+}

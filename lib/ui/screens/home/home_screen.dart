@@ -10,6 +10,7 @@ import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/app/table_chat_controller.dart';
 import 'package:cardgame/app/table_social_prefs.dart';
 import 'package:cardgame/app/voice_chat_controller.dart';
+import 'package:cardgame/data/boost/boost_models.dart';
 import 'package:cardgame/data/friends/friends_api.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
@@ -32,6 +33,7 @@ import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/city_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/theme/wide_layout.dart';
+import 'package:cardgame/ui/widgets/boost_badge.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
@@ -1139,6 +1141,7 @@ class GameHud extends ConsumerWidget {
                           amount: game.potAmount,
                           chips: game.stakedInChips,
                           accent: accent,
+                          boost: game.yourBoost,
                         ),
                       const Spacer(),
                       if (playing)
@@ -1379,12 +1382,16 @@ class _PrizePlaque extends StatelessWidget {
     required this.amount,
     required this.chips,
     this.accent,
+    this.boost,
   });
 
   final String label;
   final int amount;
   final bool chips;
   final Color? accent;
+
+  /// The Coin Boost you brought in. A win pays it on top of [amount].
+  final BoostPreset? boost;
 
   @override
   Widget build(BuildContext context) {
@@ -1423,6 +1430,11 @@ class _PrizePlaque extends StatelessWidget {
               ),
             ],
           ),
+          if (boost != null)
+            Semantics(
+              label: context.l10n.boostPayout(boost!.percent),
+              child: BoostPrizeSegment(preset: boost!),
+            ),
         ],
       ),
     );

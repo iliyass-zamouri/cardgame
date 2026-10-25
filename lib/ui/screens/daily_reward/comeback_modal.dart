@@ -273,7 +273,8 @@ class _ComebackModalState extends ConsumerState<ComebackModal>
                 title: l10n.dailyWelcomeBack,
                 granted: celebrating.granted,
                 chests: (celebrating.status ?? status)?.chests ?? const {},
-                coinBoostPercent: status?.coinBoostPercent ?? 0,
+                boostPresets:
+                    (celebrating.status ?? status)?.boostPresets ?? const {},
                 onCollect: _collect,
               ),
             ),

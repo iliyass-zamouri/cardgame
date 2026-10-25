@@ -3,7 +3,7 @@
  * IQ rises with the pot so higher stakes face tougher robots.
  */
 
-/** Pot ladders per currency. Keep in sync with ALLOWED_STAKE_POOLS in game_server.js. */
+/** Pot ladders per currency. Keep in sync with server/pots.js. */
 const POT_LADDERS = {
   money: [20, 50, 100, 200, 500],
   chips: [2, 10, 50],

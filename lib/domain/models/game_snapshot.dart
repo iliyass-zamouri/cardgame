@@ -1,3 +1,5 @@
+import 'package:cardgame/data/boost/boost_models.dart';
+
 enum GameStatus { waiting, playing, ended }
 
 enum LaunchStatus { notLaunched, launched, ended }
@@ -136,6 +138,11 @@ class PlayerResultRating {
   final int? moneyAfter;
   final int? chipsAfter;
 
+  /// Extra money this player's Coin Boost paid on top of the pot, and its
+  /// percent. 0 without a boost.
+  final int boostBonus;
+  final int boostPercent;
+
   /// True when this player quit (left or abandoned) the match.
   final bool quit;
 
@@ -148,6 +155,8 @@ class PlayerResultRating {
     this.eloAfter,
     this.moneyAfter,
     this.chipsAfter,
+    this.boostBonus = 0,
+    this.boostPercent = 0,
     this.quit = false,
   });
 
@@ -161,6 +170,8 @@ class PlayerResultRating {
       eloAfter: (json['eloAfter'] as num?)?.toInt(),
       moneyAfter: (json['moneyAfter'] as num?)?.toInt(),
       chipsAfter: (json['chipsAfter'] as num?)?.toInt(),
+      boostBonus: (json['boostBonus'] as num?)?.toInt() ?? 0,
+      boostPercent: (json['boostPercent'] as num?)?.toInt() ?? 0,
       quit: json['quit'] as bool? ?? false,
     );
   }
@@ -373,6 +384,9 @@ class GameSnapshot {
 
   /// Balance the stake and pot are paid in: `money` or `chips`.
   final String stakeCurrency;
+
+  /// The Coin Boost you brought into this money match. A win pays it.
+  final BoostPreset? yourBoost;
   final int deckCount;
   final String? discardTopTag;
 
@@ -405,6 +419,7 @@ class GameSnapshot {
     this.stakePerPlayer = 0,
     this.potAmount = 0,
     this.stakeCurrency = 'money',
+    this.yourBoost,
     required this.deckCount,
     required this.discardTopTag,
     required this.discardRecentTags,
@@ -438,6 +453,12 @@ class GameSnapshot {
       stakePerPlayer: (json['stakePerPlayer'] as num?)?.toInt() ?? 0,
       potAmount: (json['potAmount'] as num?)?.toInt() ?? 0,
       stakeCurrency: json['stakeCurrency'] == 'chips' ? 'chips' : 'money',
+      yourBoost:
+          json['yourBoost'] is Map
+              ? BoostPreset.fromJson(
+                Map<String, dynamic>.from(json['yourBoost'] as Map),
+              )
+              : null,
       deckCount: json['deckCount'] as int? ?? 0,
       discardTopTag: json['discardTop'] as String?,
       discardRecentTags:

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:cardgame/ads/rewarded_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/boost_providers.dart';
 import 'package:cardgame/app/daily_reward_providers.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
 import 'package:cardgame/data/daily_reward/daily_reward_api.dart';
@@ -41,9 +42,29 @@ Future<void> showDailyRewardModal(
   );
 }
 
+/// Navigator [openDailyRewards] is showing in, so the launch prompt and a
+/// notification tap can't stack two streaks. A navigator torn down mid-show
+/// no longer counts.
+NavigatorState? _dailyRewardsShownIn;
+
 /// The welcome-back gift first when there is one, then the streak if a claim
 /// is waiting.
 Future<void> openDailyRewards(
+  BuildContext context,
+  WidgetRef ref, {
+  required String source,
+}) async {
+  if (_dailyRewardsShownIn?.mounted ?? false) return;
+  final navigator = Navigator.of(context, rootNavigator: true);
+  _dailyRewardsShownIn = navigator;
+  try {
+    await _openDailyRewards(context, ref, source: source);
+  } finally {
+    if (identical(_dailyRewardsShownIn, navigator)) _dailyRewardsShownIn = null;
+  }
+}
+
+Future<void> _openDailyRewards(
   BuildContext context,
   WidgetRef ref, {
   required String source,
@@ -405,7 +426,8 @@ class _DailyRewardModalState extends ConsumerState<DailyRewardModal>
                 chests: (celebrating.status ?? status)?.chests ?? const {},
                 boostMultiplier:
                     celebrating.boosted ? status?.adBoostMultiplier : null,
-                coinBoostPercent: status?.coinBoostPercent ?? 0,
+                boostPresets:
+                    (celebrating.status ?? status)?.boostPresets ?? const {},
                 onCollect: _collect,
                 onEquip: _equip,
               ),
@@ -943,15 +965,17 @@ class _FlamePainter extends CustomPainter {
 
 /// One-line notes above the table: a running event, a forgiven day, a
 /// freeze about to be spent, a fresh start, a Coin Boost still burning.
-class _Notices extends StatelessWidget {
+class _Notices extends ConsumerWidget {
   const _Notices({required this.status});
 
   final DailyRewardStatus status;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final claimable = status.state == DailyRewardState.claimable;
+    final boost = ref.watch(boostProvider).value;
+    final boostLeft = boost?.remainingSeconds() ?? 0;
     final notes = <(GameIconData, String)>[
       if (status.isEvent && status.calendarEndsAt != null)
         (AppIcons.crown, l10n.dailyEventEnds(_daysLeft(status))),
@@ -960,10 +984,10 @@ class _Notices extends StatelessWidget {
       if (claimable && status.graceUsed > 0 && status.freezesWillUse == 0)
         (AppIcons.checkCircle, l10n.dailyGraceForgiven),
       if (claimable && status.resets) (AppIcons.refresh, l10n.dailyNewStreak),
-      if (status.coinBoostRemainingSeconds > 0)
+      if (boost?.state.active case final active? when boostLeft > 0)
         (
           AppIcons.bolt,
-          '${l10n.dailyCoinBoost} · ${boostDuration(math.max(1, status.coinBoostRemainingSeconds ~/ 60))}',
+          '${l10n.dailyCoinBoost} +${active.preset.percent}% · ${boostDuration(math.max(1, boostLeft ~/ 60))}',
         ),
     ];
     if (notes.isEmpty) return const SizedBox.shrink();

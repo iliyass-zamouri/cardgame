@@ -62,6 +62,8 @@ class DailyRewardApi {
             'tzOffsetMinutes': tzOffsetMinutes,
             'boosted': boosted,
             if (choice != null) 'streakChoice': choice.name,
+            // Boosts wait in the player's boosts until activated.
+            'boostInventory': true,
           }),
         )
         .timeout(const Duration(seconds: 10));
@@ -77,7 +79,10 @@ class DailyRewardApi {
         .post(
           uri,
           headers: authHeaders(accessToken),
-          body: jsonEncode({'tzOffsetMinutes': tzOffsetMinutes}),
+          body: jsonEncode({
+            'tzOffsetMinutes': tzOffsetMinutes,
+            'boostInventory': true,
+          }),
         )
         .timeout(const Duration(seconds: 10));
     return DailyClaimResult.fromJson(_decodeMap(response));

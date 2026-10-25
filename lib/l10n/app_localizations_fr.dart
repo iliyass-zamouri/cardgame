@@ -1713,4 +1713,97 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get dailyEntryComeback => 'Un cadeau de retour vous attend';
+
+  @override
+  String get boostsTitle => 'Boosts';
+
+  @override
+  String boostReady(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count boosts prêts',
+      one: '1 boost prêt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String boostWinsPay(int percent, String max) {
+    return 'Les victoires en argent rapportent +$percent% (jusqu\'à $max)';
+  }
+
+  @override
+  String boostTimeLeft(String time) {
+    return 'Encore $time';
+  }
+
+  @override
+  String get boostActive => 'Actif';
+
+  @override
+  String get boostActivate => 'Activer';
+
+  @override
+  String boostAddTime(String time) {
+    return 'Ajouter $time';
+  }
+
+  @override
+  String boostWaitsFor(int percent) {
+    return 'Disponible à la fin de votre +$percent%';
+  }
+
+  @override
+  String get boostNoneActive => 'Aucun boost actif';
+
+  @override
+  String get boostNoneActiveBody =>
+      'Activez-en un pour gagner plus à chaque partie d\'argent.';
+
+  @override
+  String get boostInventoryEmpty =>
+      'Aucun boost en attente. Votre série quotidienne en offre.';
+
+  @override
+  String boostStarted(int percent) {
+    return 'Boost +$percent% activé !';
+  }
+
+  @override
+  String boostExtended(String time) {
+    return 'Boost prolongé de $time';
+  }
+
+  @override
+  String get boostActivateFailed =>
+      'Impossible d\'activer le boost. Réessayez.';
+
+  @override
+  String get boostActivateNow => 'Activer maintenant';
+
+  @override
+  String get boostInYourBoosts => 'Ajouté à vos boosts';
+
+  @override
+  String boostUpTo(String amount) {
+    return 'jusqu\'à +$amount';
+  }
+
+  @override
+  String boostPayout(int percent) {
+    return 'Boost +$percent%';
+  }
+
+  @override
+  String get boostMoneyOnly => 'Parties d\'argent uniquement';
+
+  @override
+  String boostActiveSemantics(int percent, String time) {
+    return 'Boost +$percent% actif, encore $time';
+  }
+
+  @override
+  String get boostOneAtATime =>
+      'Un seul niveau de boost à la fois. Le même niveau ajoute son temps.';
 }

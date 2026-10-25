@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:cardgame/ads/rewarded_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/boost_providers.dart';
 import 'package:cardgame/app/daily_reward_providers.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
+import 'package:cardgame/data/boost/boost_models.dart';
 import 'package:cardgame/data/daily_reward/daily_reward_api.dart';
 import 'package:cardgame/data/daily_reward/daily_reward_models.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
@@ -76,6 +78,33 @@ class _FakeDailyRewards extends DailyRewardController {
     if (status != null) {
       state = AsyncData(DailyRewardView(status, dailyRewardClock()));
     }
+    return result;
+  }
+}
+
+/// Boosts without a server: a fixed state, and activations that succeed.
+class _FakeBoosts extends BoostController {
+  _FakeBoosts([this.initial = BoostState.empty]);
+
+  final BoostState initial;
+  final activated = <String>[];
+
+  @override
+  Future<BoostView?> build() async => BoostView(initial, dailyRewardClock());
+
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  Future<BoostActivation> activate(String itemId) async {
+    activated.add(itemId);
+    final result = BoostActivation.fromJson(
+      jsonDecode(
+            File('test/fixtures/boost/activate_start.json').readAsStringSync(),
+          )
+          as Map<String, dynamic>,
+    );
+    state = AsyncData(BoostView(result.state, dailyRewardClock()));
     return result;
   }
 }
@@ -165,6 +194,7 @@ Future<ProviderContainer> _pump(
   Size size = const Size(390, 844),
   double textScale = 1,
   bool pill = false,
+  _FakeBoosts? boosts,
 }) async {
   tester.view.physicalSize = size * 3;
   tester.view.devicePixelRatio = 3;
@@ -176,6 +206,7 @@ Future<ProviderContainer> _pump(
           PlayerProfileRepository.memory(profile),
         ),
         dailyRewardProvider.overrideWith(() => rewards),
+        boostProvider.overrideWith(() => boosts ?? _FakeBoosts()),
         rewardedAdProvider.overrideWithValue(ads ?? _FakeAds()),
         analyticsServiceProvider.overrideWithValue(analytics ?? _Analytics()),
       ],
@@ -282,6 +313,53 @@ void main() {
     await tester.tap(_label('Come back tomorrow'));
     await tester.pumpAndSettle();
     expect(find.byType(DailyRewardModal), findsNothing);
+  });
+
+  testWidgets('a won boost waits in the boosts and starts from the reveal', (
+    tester,
+  ) async {
+    final boosts = _FakeBoosts();
+    final rewards = _FakeDailyRewards(
+      _status('status_fresh'),
+      replies: {'claim': _result('claim_day2_inventory')},
+    );
+    await _pump(tester, rewards: rewards, boosts: boosts);
+    await _open(tester);
+    await tester.tap(_label('Claim'));
+    await tester.pumpAndSettle();
+
+    final grant = _result('claim_day2_inventory').granted.single;
+    expect(_reveal(find.text('Coin Boost · 1h')), findsOneWidget);
+    expect(_reveal(find.text('+25% money on match wins')), findsOneWidget);
+
+    await tester.tap(_reveal(_label('Activate now')));
+    await tester.pumpAndSettle();
+    expect(boosts.activated, [grant.boostItemId]);
+    expect(_reveal(find.text('Active')), findsOneWidget);
+    expect(_reveal(_label('Activate now')), findsNothing);
+  });
+
+  testWidgets('a won boost of another value waits while one runs', (
+    tester,
+  ) async {
+    final running = BoostState.fromJson(
+      jsonDecode(
+            File('test/fixtures/boost/state_active.json').readAsStringSync(),
+          )
+          as Map<String, dynamic>,
+    );
+    final boosts = _FakeBoosts(running);
+    final rewards = _FakeDailyRewards(
+      _status('status_fresh'),
+      replies: {'claim': _result('claim_day2_inventory')},
+    );
+    await _pump(tester, rewards: rewards, boosts: boosts);
+    await _open(tester);
+    await tester.tap(_label('Claim'));
+    await tester.pumpAndSettle();
+
+    expect(_reveal(find.text('Saved to your boosts')), findsOneWidget);
+    expect(_reveal(_label('Activate now')), findsNothing);
   });
 
   testWidgets('the ad button doubles the claim once an ad is ready', (
@@ -538,6 +616,27 @@ void main() {
     expect(find.byType(DailyRewardModal), findsOneWidget);
     expect(find.text('Start your streak'), findsOneWidget);
     expect(find.text('A new streak starts today'), findsOneWidget);
+  });
+
+  testWidgets('a second open while the streak shows is ignored', (
+    tester,
+  ) async {
+    // The launch prompt and a notification tap can race on a cold start.
+    await _pump(tester, rewards: _FakeDailyRewards(_status('status_midweek')));
+    final launch = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'launch'),
+    );
+    launch.onPressed!();
+    launch.onPressed!();
+    await tester.pumpAndSettle();
+    expect(find.byType(DailyRewardModal), findsOneWidget);
+
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(find.byType(DailyRewardModal), findsNothing);
+    launch.onPressed!();
+    await tester.pumpAndSettle();
+    expect(find.byType(DailyRewardModal), findsOneWidget);
   });
 
   group('entry pill', () {

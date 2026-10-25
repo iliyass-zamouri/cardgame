@@ -1,31 +1,57 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/boost_providers.dart';
+import 'package:cardgame/app/daily_reward_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
+import 'package:cardgame/data/boost/boost_models.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
 import 'package:cardgame/ui/screens/home/stake_selector_modal.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/city_theme.dart';
+import 'package:cardgame/ui/widgets/boost_badge.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _Connected extends GameSessionController {
+class _Session extends GameSessionController {
+  _Session(this.connection);
+
+  final ConnectionStatus connection;
+
   @override
-  GameSessionState build() =>
-      const GameSessionState(connection: ConnectionStatus.connected);
+  GameSessionState build() => GameSessionState(connection: connection);
+}
+
+/// A fixed set of boosts, without a server.
+class _Boosts extends BoostController {
+  _Boosts(this.initial);
+
+  final BoostState initial;
+
+  @override
+  Future<BoostView?> build() async => BoostView(initial, dailyRewardClock());
+
+  @override
+  Future<void> refresh() async {}
 }
 
 Future<void> _pumpSelector(
   WidgetTester tester,
   Size size, {
   String locale = 'en',
+  String? initialPotId,
+  ConnectionStatus connection = ConnectionStatus.connected,
+  BoostState boosts = BoostState.empty,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -33,7 +59,8 @@ Future<void> _pumpSelector(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        gameSessionProvider.overrideWith(_Connected.new),
+        gameSessionProvider.overrideWith(() => _Session(connection)),
+        boostProvider.overrideWith(() => _Boosts(boosts)),
         sessionAuthRepositoryProvider.overrideWithValue(
           SessionAuthRepository.memory(SessionAuthStatus.guest),
         ),
@@ -55,7 +82,7 @@ Future<void> _pumpSelector(
         locale: Locale(locale),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: const StakeSelectorScreen(),
+        home: StakeSelectorScreen(initialPotId: initialPotId),
       ),
     ),
   );
@@ -70,13 +97,13 @@ Future<void> _font(String family, List<String> files) async {
   await loader.load();
 }
 
+dynamic _actionPanel(WidgetTester tester) => tester.widget(
+  find.byWidgetPredicate((w) => w.runtimeType.toString() == '_ActionPanel'),
+);
+
 /// The pot the play panel would start a match at.
-String _selectedPot(WidgetTester tester) {
-  final panel = tester.widget(
-    find.byWidgetPredicate((w) => w.runtimeType.toString() == '_ActionPanel'),
-  );
-  return ((panel as dynamic).option as PotOption).id;
-}
+String _selectedPot(WidgetTester tester) =>
+    (_actionPanel(tester).option as PotOption).id;
 
 void main() {
   group('StakeSelectorScreen Configuration', () {
@@ -214,6 +241,57 @@ void main() {
       expect(_selectedPot(tester), 'paris');
     });
 
+    testWidgets('a running boost sashes the money pots, never the chips ones', (
+      tester,
+    ) async {
+      final boosts = BoostState.fromJson(
+        jsonDecode(
+              File('test/fixtures/boost/state_active.json').readAsStringSync(),
+            )
+            as Map<String, dynamic>,
+      );
+      // Toronto is the first chips pot, so the fan shows both kinds.
+      await _pumpSelector(
+        tester,
+        const Size(1280, 800),
+        initialPotId: 'toronto',
+        boosts: boosts,
+      );
+      expect(tester.takeException(), isNull);
+
+      final cards =
+          tester
+              .widgetList(
+                find.byWidgetPredicate(
+                  (w) => w.runtimeType.toString() == '_PotPlayingCard',
+                ),
+              )
+              .toList();
+      final money =
+          cards
+              .where(
+                (card) =>
+                    (card as dynamic).option.currency == CurrencyType.money,
+              )
+              .toList();
+      expect(money, isNotEmpty);
+      expect(money.length, lessThan(cards.length));
+      final sashes = tester.widgetList<BoostSash>(find.byType(BoostSash));
+      expect(sashes.length, money.length);
+      // +50% of Marrakech's 250 entry, under the 5,000 cap.
+      expect(sashes.map((sash) => sash.upToLabel), contains('up to +125'));
+    });
+
+    testWidgets('opens on the pot a notification asked for', (tester) async {
+      await _pumpSelector(tester, const Size(1280, 800), initialPotId: 'cairo');
+      expect(tester.takeException(), isNull);
+      expect(_selectedPot(tester), 'cairo');
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(_selectedPot(tester), 'marrakech');
+    });
+
     testWidgets('arrow keys follow the reading direction in RTL', (
       tester,
     ) async {
@@ -266,5 +344,47 @@ void main() {
         expect(find.byType(PageView), findsOneWidget);
       });
     }
+
+    testWidgets('opens on the pot a notification asked for', (tester) async {
+      await _pumpSelector(tester, const Size(390, 844), initialPotId: 'tokyo');
+      expect(tester.takeException(), isNull);
+      expect(_selectedPot(tester), 'tokyo');
+      final pages = tester.widget<PageView>(find.byType(PageView));
+      expect(pages.controller!.page, 7);
+    });
+
+    testWidgets('an unknown pot opens on the first', (tester) async {
+      await _pumpSelector(tester, const Size(390, 844), initialPotId: 'vegas');
+      expect(_selectedPot(tester), 'london');
+    });
+
+    testWidgets('play waits for the connection; buying more does not', (
+      tester,
+    ) async {
+      await _pumpSelector(
+        tester,
+        const Size(390, 844),
+        connection: ConnectionStatus.connecting,
+      );
+      // London is affordable, so its Play needs the server.
+      expect(_actionPanel(tester).onPlay, isNull);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(find.byType(StakeSelectorScreen), findsOneWidget);
+    });
+  });
+
+  group('StakeSelectorScreen while disconnected', () {
+    testWidgets('an unaffordable pot still offers the shop', (tester) async {
+      await _pumpSelector(
+        tester,
+        const Size(390, 844),
+        initialPotId: 'tokyo',
+        connection: ConnectionStatus.disconnected,
+      );
+      expect(_actionPanel(tester).canAfford, isFalse);
+      expect(_actionPanel(tester).onPlay, isNotNull);
+    });
   });
 }

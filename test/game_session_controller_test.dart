@@ -128,6 +128,36 @@ void main() {
     expect(jsonDecode(socket.sent.last), {'type': 'tapCard', 'cardIndex': 0});
   });
 
+  test('findMatch before the server connects does not strand the player '
+      'on the waiting screen', () async {
+    final socket = FakeGameSocket();
+    final container = ProviderContainer(
+      overrides: [
+        gameSocketFactoryProvider.overrideWithValue(() => socket),
+        ..._authOverrides(),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(gameSessionProvider);
+    await Future<void>.delayed(Duration.zero);
+
+    container.read(gameSessionProvider.notifier).findMatch(stakePool: 200);
+    final state = container.read(gameSessionProvider);
+    expect(state.searchingMatch, isFalse);
+    expect(state.message, 'server_not_connected');
+    expect(socket.sent.where((raw) => raw.contains('findMatch')), isEmpty);
+
+    socket.emit({
+      'type': 'connected',
+      'protocolVersion': 1,
+      'clientId': 'client-1',
+    });
+    await Future<void>.delayed(Duration.zero);
+    container.read(gameSessionProvider.notifier).findMatch(stakePool: 200);
+    expect(container.read(gameSessionProvider).searchingMatch, isTrue);
+    expect(jsonDecode(socket.sent.last)['type'], 'findMatch');
+  });
+
   test('createRoom includes player identity', () async {
     final socket = FakeGameSocket();
     final container = ProviderContainer(

@@ -1,8 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/boost_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
+import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
+import 'package:cardgame/data/boost/boost_models.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 import 'package:cardgame/ui/screens/marketplace_screen.dart';
@@ -12,6 +15,8 @@ import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/theme/pot_card_style.dart';
 import 'package:cardgame/ui/theme/wide_layout.dart';
+import 'package:cardgame/ui/widgets/amount_format.dart';
+import 'package:cardgame/ui/widgets/boost_badge.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -121,7 +126,11 @@ Future<Set<String>> _loadShippedPotArt() async {
   }
 }
 
-Future<void> showStakeSelectorModal(BuildContext context) async {
+/// Opens the pot picker, on [initialPotId]'s card when it names a pot.
+Future<void> showStakeSelectorModal(
+  BuildContext context, {
+  String? initialPotId,
+}) async {
   final shipped = await _loadShippedPotArt();
   if (!context.mounted) return;
   // Start decoding the art before the route transition so the first frame
@@ -136,12 +145,17 @@ Future<void> showStakeSelectorModal(BuildContext context) async {
     );
   }
   await Navigator.of(context).push<void>(
-    MaterialPageRoute<void>(builder: (_) => const StakeSelectorScreen()),
+    MaterialPageRoute<void>(
+      builder: (_) => StakeSelectorScreen(initialPotId: initialPotId),
+    ),
   );
 }
 
 class StakeSelectorScreen extends ConsumerStatefulWidget {
-  const StakeSelectorScreen({super.key});
+  const StakeSelectorScreen({super.key, this.initialPotId});
+
+  /// Pot selected when the screen opens; the first pot when null or unknown.
+  final String? initialPotId;
 
   static const List<int> stakePools = [20, 50, 100, 200, 500];
 
@@ -203,6 +217,12 @@ class StakeSelectorScreen extends ConsumerStatefulWidget {
     ),
   ];
 
+  /// Index of the pot called [id] in [potOptions], or null.
+  static int? potIndexOf(String? id) {
+    final index = potOptions.indexWhere((option) => option.id == id);
+    return index < 0 ? null : index;
+  }
+
   @override
   ConsumerState<StakeSelectorScreen> createState() =>
       _StakeSelectorScreenState();
@@ -210,16 +230,14 @@ class StakeSelectorScreen extends ConsumerStatefulWidget {
 
 class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen>
     with SingleTickerProviderStateMixin {
-  final PageController _pageController = PageController(
-    viewportFraction: _viewportFraction,
-  );
+  late final PageController _pageController;
 
   /// The wide fan's position in cards: whole at rest, fractional mid-move.
   late final AnimationController _fan;
 
   /// Pot the selection is heading to, so quick repeated steps add up before
   /// the cards arrive.
-  int _target = 0;
+  late int _target;
 
   /// Whether the last build showed the wide fan rather than the carousel.
   bool? _wide;
@@ -228,7 +246,7 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen>
 
   /// Selection lives in a notifier so swiping only rebuilds the chip rail and
   /// the bottom action panel, never the carousel itself.
-  final ValueNotifier<int> _selected = ValueNotifier<int>(0);
+  late final ValueNotifier<int> _selected;
 
   /// Art paths in the bundle; null until the manifest is read.
   Set<String>? _shippedArt = _shippedPotArt;
@@ -236,7 +254,14 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen>
   @override
   void initState() {
     super.initState();
-    _fan = AnimationController.unbounded(vsync: this)
+    final start = StakeSelectorScreen.potIndexOf(widget.initialPotId) ?? 0;
+    _target = start;
+    _selected = ValueNotifier<int>(start);
+    _pageController = PageController(
+      viewportFraction: _viewportFraction,
+      initialPage: start,
+    );
+    _fan = AnimationController.unbounded(vsync: this, value: start.toDouble())
       ..addListener(_onFanMoved);
     if (_shippedArt == null) {
       _loadShippedPotArt().then((shipped) {
@@ -347,6 +372,14 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen>
     final profile = ref.watch(playerProfileProvider).value;
     final playerMoney = profile?.money ?? 0;
     final playerChips = profile?.chips ?? 0;
+    final boost = ref.watch(boostProvider).value?.running?.preset;
+    // A notification can open the picker before the socket is up; matches
+    // wait for it, buying more doesn't.
+    final connected = ref.watch(
+      gameSessionProvider.select(
+        (state) => state.connection == ConnectionStatus.connected,
+      ),
+    );
     final options = StakeSelectorScreen.potOptions;
     final cacheWidth = _potCacheWidth(context);
     final wide = WideLayout.of(context);
@@ -368,16 +401,19 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen>
           cityName: option.nameBuilder(l10n),
           canAfford: option.canAfford(money: playerMoney, chips: playerChips),
           onTap: () => _snapTo(index),
+          boost: boost,
         ),
       );
     }
 
     void play() {
       final option = options[_selected.value];
-      _onPlay(
-        option,
-        option.canAfford(money: playerMoney, chips: playerChips),
+      final canAfford = option.canAfford(
+        money: playerMoney,
+        chips: playerChips,
       );
+      if (canAfford && !connected) return;
+      _onPlay(option, canAfford);
     }
 
     final balance = Padding(
@@ -406,7 +442,8 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen>
                   : option.currency == CurrencyType.chips
                   ? l10n.getMoreChips
                   : l10n.getMoreMoney,
-          onPlay: () => _onPlay(option, canAfford),
+          onPlay:
+              canAfford && !connected ? null : () => _onPlay(option, canAfford),
         );
       },
     );
@@ -578,10 +615,7 @@ class _StakeSelectorScreenState extends ConsumerState<StakeSelectorScreen>
               () => _step(rtl ? -1 : 1),
           const SingleActivator(LogicalKeyboardKey.enter): play,
         },
-        child: Focus(
-          autofocus: true,
-          child: SafeArea(top: false, child: body),
-        ),
+        child: Focus(autofocus: true, child: SafeArea(top: false, child: body)),
       ),
     );
   }
@@ -674,8 +708,7 @@ class _PotFan extends StatelessWidget {
     final away = offset.abs();
     final near = math.min(away, 2.0);
     // Cards shrink with distance, so each step out is a little shorter.
-    final dx =
-        offset * spacing * (1 - 0.06 * (away - 1).clamp(0.0, 2.0));
+    final dx = offset * spacing * (1 - 0.06 * (away - 1).clamp(0.0, 2.0));
     final dy = 16 * near + 6 * near * near;
     final scale = 1 - 0.1 * math.min(away, 2.5);
     // Side cards are shaded rather than faded, so the card behind never
@@ -858,10 +891,14 @@ class _PotPlayingCard extends StatelessWidget {
     required this.cityName,
     required this.canAfford,
     required this.onTap,
+    this.boost,
   });
 
   final PotOption option;
   final int tier;
+
+  /// The running Coin Boost. Money pots wear it as a sash.
+  final BoostPreset? boost;
 
   /// City art, or null when the app doesn't ship any for this city.
   final ImageProvider? image;
@@ -875,12 +912,22 @@ class _PotPlayingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final rank = _tierRanks[tier.clamp(0, _tierRanks.length - 1)];
     final suit = _tierSuits[tier.clamp(0, _tierSuits.length - 1)];
+    final boost = option.currency == CurrencyType.money ? this.boost : null;
+    final upTo =
+        boost == null
+            ? null
+            : context.l10n.boostUpTo(
+              compactAmount(boost.bonusFor(option.entryStake)),
+            );
 
     return GestureDetector(
       onTap: onTap,
       child: Semantics(
         button: true,
-        label: '$cityName ${option.pool}',
+        label: [
+          '$cityName ${option.pool}',
+          if (boost != null) '${context.l10n.boostPayout(boost.percent)}, $upTo',
+        ].join(', '),
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
@@ -914,6 +961,13 @@ class _PotPlayingCard extends StatelessWidget {
                         cityName: cityName,
                       ),
                     ),
+                    if (boost != null)
+                      BoostSash(
+                        preset: boost,
+                        upToLabel: upTo!,
+                        cardWidth: _designCardWidth,
+                        start: Directionality.of(context) == TextDirection.rtl,
+                      ),
                     if (!canAfford) const Positioned.fill(child: _LockedVeil()),
                   ],
                 ),
@@ -1248,11 +1302,7 @@ class _LockedVeil extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              GameIcon(
-                icon: AppIcons.lock,
-                size: 18,
-                color: CasinoColors.gold,
-              ),
+              GameIcon(icon: AppIcons.lock, size: 18, color: CasinoColors.gold),
               const SizedBox(width: 8),
               Text(
                 casinoButtonLabel(context.l10n.locked, locale),
@@ -1307,9 +1357,7 @@ class _ChipRail extends StatelessWidget {
 
   /// Extra room before chip [i]: the group gap, once past the money tables.
   double _gapBefore(int i) =>
-      showAll && options[i].currency != options.first.currency
-          ? _groupGap
-          : 0;
+      showAll && options[i].currency != options.first.currency ? _groupGap : 0;
 
   @override
   Widget build(BuildContext context) {
@@ -1530,7 +1578,9 @@ class _ActionPanel extends StatelessWidget {
   final PotOption option;
   final bool canAfford;
   final String playLabel;
-  final VoidCallback onPlay;
+
+  /// Null dims the button, while the socket isn't connected.
+  final VoidCallback? onPlay;
 
   @override
   Widget build(BuildContext context) {

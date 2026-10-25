@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/boost_providers.dart';
 import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_state.dart';
 import 'package:cardgame/app/ranking_providers.dart';
@@ -272,6 +273,12 @@ class GameSessionController extends Notifier<GameSessionState> {
     int stakePool = 50,
     CurrencyType stakeCurrency = CurrencyType.money,
   }) {
+    // Flagging the search first would strand the player on the waiting
+    // screen when the request can't be sent.
+    if (state.connection != ConnectionStatus.connected) {
+      state = state.copyWith(message: 'server_not_connected');
+      return;
+    }
     state = state.copyWith(searchingMatch: true, message: null, game: null);
     _send('findMatch', {
       'stakePool': stakePool,
@@ -661,6 +668,10 @@ class GameSessionController extends Notifier<GameSessionState> {
     ref.invalidate(leaderboardProvider);
     if (ref.exists(friendsDataProvider)) {
       unawaited(ref.read(friendsDataProvider.notifier).refresh(silent: true));
+    }
+    // A boost may have run out during the match.
+    if (ref.exists(boostProvider)) {
+      unawaited(ref.read(boostProvider.notifier).refresh());
     }
   }
 

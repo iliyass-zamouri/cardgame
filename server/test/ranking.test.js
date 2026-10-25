@@ -86,6 +86,36 @@ test('random endGame invokes onRankedEnd once', async () => {
   assert.equal(calls.length, 2);
 });
 
+test('a money match shows each seat its own kickoff boost and hands it to the payout', async () => {
+  const calls = [];
+  const room = new GameRoom('BOOST1', {
+    random: () => 0.25,
+    onRankedEnd: (payload) => {
+      calls.push(payload);
+      return Promise.resolve(null);
+    },
+  });
+  room.matchType = 'random';
+  room.stakeCurrency = 'money';
+  const silver = { presetId: 'standard', percent: 25, maxBonus: 2000, tier: 'silver' };
+  room.seatBoosts = { 'guest-a': silver };
+  room.addPlayer('c1', { playerId: 'guest-a', displayName: 'A' });
+  room.addPlayer('c2', { playerId: 'guest-b', displayName: 'B' });
+  room.start('c1');
+  assert.deepEqual(room.snapshotFor('c1').yourBoost, silver);
+  assert.equal(room.snapshotFor('c2').yourBoost, null);
+
+  room.players[0].cards = [];
+  room.players[1].cards = ['A5'];
+  room.end('c1');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(calls[0].players.map((player) => player.boost), [silver, null]);
+
+  // A chips pot never pays a boost, so none is shown.
+  room.stakeCurrency = 'chips';
+  assert.equal(room.snapshotFor('c1').yourBoost, null);
+});
+
 test('private match does not invoke onRankedEnd', async () => {
   const calls = [];
   const room = new GameRoom('PRIV01', {

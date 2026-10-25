@@ -1,0 +1,50 @@
+{
+  "action": "extend",
+  "minutes": 60,
+  "boosts": {
+    "active": {
+      "presetId": "standard",
+      "name": {
+        "en": "Coin Boost",
+        "fr": "Boost de pièces",
+        "es": "Impulso de monedas",
+        "pt": "Turbo de moedas",
+        "ar": "معزز العملات"
+      },
+      "percent": 25,
+      "maxBonus": 2000,
+      "tier": "silver",
+      "remainingSeconds": 4800,
+      "totalSeconds": 5400
+    },
+    "inventory": [],
+    "presets": [
+      {
+        "id": "standard",
+        "name": {
+          "en": "Coin Boost",
+          "fr": "Boost de pièces",
+          "es": "Impulso de monedas",
+          "pt": "Turbo de moedas",
+          "ar": "معزز العملات"
+        },
+        "percent": 25,
+        "maxBonus": 2000,
+        "tier": "silver"
+      },
+      {
+        "id": "gold",
+        "name": {
+          "en": "Gold Boost",
+          "fr": "Boost doré",
+          "es": "Impulso dorado",
+          "pt": "Turbo dourado",
+          "ar": "المعزز الذهبي"
+        },
+        "percent": 50,
+        "maxBonus": 5000,
+        "tier": "gold"
+      }
+    ]
+  }
+}

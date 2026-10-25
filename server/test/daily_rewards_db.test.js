@@ -134,7 +134,7 @@ test('two claims that arrive together grant exactly once', { skip }, async () =>
   assert.deepEqual(await balances(playerId), { money: 700, chips: 1 });
 });
 
-test('a consecutive day pays day 2 and starts a Coin Boost from the claim time', { skip }, async () => {
+test('an app build without the boost inventory still starts a Coin Boost on claim', { skip }, async () => {
   const playerId = await createPlayer();
   await claim(playerId);
   const nextDayMs = NOW + 25 * 3600_000;
@@ -142,9 +142,37 @@ test('a consecutive day pays day 2 and starts a Coin Boost from the claim time',
   assert.equal(second.day, 2);
   const [boost] = second.granted;
   assert.equal(boost.boosterId, 'coin_boost');
+  assert.equal(boost.activated, true);
   assert.equal(boost.activeUntilMs, nextDayMs + 60 * 60_000);
   assert.equal(second.status.coinBoost.remainingSeconds, 3600);
   assert.equal(second.streak.count, 2);
+});
+
+test('with the boost inventory a claimed Coin Boost waits until the player activates it', { skip }, async () => {
+  const boosts = require('../db/boosts');
+  const playerId = await createPlayer();
+  await claim(playerId, { boostInventory: true });
+  const nextDayMs = NOW + 25 * 3600_000;
+  const second = await claim(playerId, { nowMs: nextDayMs, boostInventory: true });
+  const [boost] = second.granted;
+  assert.equal(boost.activated, false);
+  assert.equal(boost.percent, 25);
+  assert.ok(boost.itemId);
+  assert.equal(second.status.coinBoost.remainingSeconds, 0);
+
+  const view = await boosts.getBoosts({ playerId, nowMs: nextDayMs, config: DEFAULTS });
+  assert.equal(view.active, null);
+  assert.deepEqual(view.inventory.map((group) => group.items.map((item) => item.id)), [[boost.itemId]]);
+
+  const activated = await boosts.activateBoost({ playerId, itemId: boost.itemId, nowMs: nextDayMs, config: DEFAULTS });
+  assert.equal(activated.action, 'start');
+  assert.equal(activated.boosts.active.remainingSeconds, 3600);
+  assert.deepEqual(activated.boosts.inventory, []);
+
+  await assert.rejects(
+    boosts.activateBoost({ playerId, itemId: boost.itemId, nowMs: nextDayMs, config: DEFAULTS }),
+    { code: 'boost_not_found' },
+  );
 });
 
 test('an ad boost doubles currency and leaves booster durations alone', { skip }, async () => {
@@ -325,6 +353,83 @@ test('the player routes need a token, map refusals to status codes, and pay once
   const comeback = await post('/daily-reward/comeback/claim', {});
   assert.equal(comeback.status, 409);
   assert.equal((await comeback.json()).error, 'comeback_unavailable');
+
+  const boosts = await fetch(`${base}/boosts`, { headers: auth });
+  assert.equal(boosts.status, 200);
+  const view = await boosts.json();
+  assert.equal(view.active, null);
+  assert.deepEqual(view.presets.map((preset) => preset.id), ['standard', 'gold']);
+
+  assert.equal((await post('/boosts/activate', {})).status, 400);
+  const missing = await post('/boosts/activate', { itemId: 'boost-nope' });
+  assert.equal(missing.status, 404);
+  assert.equal((await missing.json()).error, 'boost_not_found');
+});
+
+// ---------------------------------------------------------------- boost inventory
+
+/** Gifts one boost through the QA action and returns the new item's id. */
+async function giftBoost(playerId, presetId, minutes, nowMs = NOW) {
+  const admin = require('../db/daily_rewards_admin');
+  const { getBoosts } = require('../db/boosts');
+  const ids = async () =>
+    (await getBoosts({ playerId, nowMs, config: DEFAULTS })).inventory.flatMap((group) => group.items.map((item) => item.id));
+  const before = new Set(await ids());
+  await admin.applySupportAction({ playerId, action: 'gift_boost', presetId, minutes, nowMs, config: DEFAULTS });
+  return (await ids()).find((id) => !before.has(id));
+}
+
+test('the same value adds its time, a different value waits for the running boost to end', { skip }, async () => {
+  const boosts = require('../db/boosts');
+  const playerId = await createPlayer();
+  const first = await giftBoost(playerId, 'standard', 60);
+  const same = await giftBoost(playerId, 'standard', 30);
+  const gold = await giftBoost(playerId, 'gold', 15);
+
+  await boosts.activateBoost({ playerId, itemId: first, nowMs: NOW, config: DEFAULTS });
+  const later = NOW + 10 * 60_000;
+  const extended = await boosts.activateBoost({ playerId, itemId: same, nowMs: later, config: DEFAULTS });
+  assert.equal(extended.action, 'extend');
+  // 60 minutes from NOW, plus 30 more, read as one 90-minute run.
+  assert.equal(extended.boosts.active.remainingSeconds, 80 * 60);
+  assert.equal(extended.boosts.active.totalSeconds, 90 * 60);
+  assert.equal(extended.boosts.inventory[0].blocked, true, 'gold is blocked while +25% runs');
+
+  await assert.rejects(boosts.activateBoost({ playerId, itemId: gold, nowMs: later, config: DEFAULTS }), (error) => {
+    assert.equal(error.code, 'boost_conflict');
+    assert.equal(error.details.boosts.active.percent, 25);
+    return true;
+  });
+
+  const afterEnd = NOW + 91 * 60_000;
+  const started = await boosts.activateBoost({ playerId, itemId: gold, nowMs: afterEnd, config: DEFAULTS });
+  assert.equal(started.action, 'start');
+  assert.equal(started.boosts.active.percent, 50);
+  assert.equal(started.boosts.active.tier, 'gold');
+});
+
+test('a boost running from before presets reads as the first preset', { skip }, async () => {
+  const boosts = require('../db/boosts');
+  const playerId = await createPlayer();
+  await giveCoinBoost(playerId, NOW + 3600_000);
+  const view = await boosts.getBoosts({ playerId, nowMs: NOW, config: DEFAULTS });
+  assert.equal(view.active.presetId, 'standard');
+  assert.equal(view.active.percent, 25);
+  const seats = await boosts.seatBoostsFor([playerId], { nowMs: NOW, config: DEFAULTS });
+  assert.deepEqual(seats[playerId], { presetId: 'standard', percent: 25, maxBonus: 2000, tier: 'silver' });
+});
+
+test('activations that arrive together for one item run it once', { skip }, async () => {
+  const boosts = require('../db/boosts');
+  const playerId = await createPlayer();
+  const itemId = await giftBoost(playerId, 'standard', 60);
+  const results = await Promise.allSettled([
+    boosts.activateBoost({ playerId, itemId, nowMs: NOW, config: DEFAULTS }),
+    boosts.activateBoost({ playerId, itemId, nowMs: NOW, config: DEFAULTS }),
+  ]);
+  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+  const view = await boosts.getBoosts({ playerId, nowMs: NOW, config: DEFAULTS });
+  assert.equal(view.active.remainingSeconds, 3600);
 });
 
 // ---------------------------------------------------------------- Coin Boost in matches
@@ -337,22 +442,23 @@ async function giveCoinBoost(playerId, activeUntilMs) {
   );
 }
 
-async function stakedMatch({ winner, loser, stake, currency = 'money', coinBoost }) {
+/** A staked match whose seats carry the boosts that were running at `kickoffMs`. */
+async function stakedMatch({ winner, loser, stake, currency = 'money', kickoffMs = NOW }) {
   const ranking = require('../db/ranking');
+  const boosts = require('../db/boosts');
   await ranking.escrowStake({ playerIds: [winner, loser], stake, currency });
+  const seats = await boosts.seatBoostsFor([winner, loser], { nowMs: kickoffMs, config: DEFAULTS });
   return ranking.recordRankedMatch({
     roomId: `boost-${crypto.randomUUID()}`,
     players: [
-      { playerId: winner, cardTotal: 10 },
-      { playerId: loser, cardTotal: 30 },
+      { playerId: winner, cardTotal: 10, boost: currency === 'money' ? seats[winner] ?? null : null },
+      { playerId: loser, cardTotal: 30, boost: currency === 'money' ? seats[loser] ?? null : null },
     ],
     winnerIndex: 0,
     stakePerPlayer: stake,
     potAmount: stake * 2,
     stakeCurrency: currency,
     escrowed: true,
-    coinBoost,
-    nowMs: NOW,
   });
 }
 
@@ -362,11 +468,12 @@ test('a running Coin Boost tops up the winner\'s money winnings', { skip }, asyn
   await giveCoinBoost(winner, NOW + 3600_000);
   await giveCoinBoost(loser, NOW + 3600_000);
 
-  const result = await stakedMatch({ winner, loser, stake: 200, coinBoost: { percent: 25, maxBonus: 2000 } });
+  const result = await stakedMatch({ winner, loser, stake: 200 });
   // 1000 - 200 stake + 400 pot + 25% of the 200 won.
   assert.deepEqual(await balances(winner), { money: 1250, chips: 1 });
   assert.deepEqual(await balances(loser), { money: 800, chips: 1 }, 'a losing boost pays nothing');
   assert.equal(result.players[0].boostBonus, 50);
+  assert.equal(result.players[0].boostPercent, 25);
   assert.equal(result.players[0].moneyAfter, 1250);
   assert.equal(result.players[1].boostBonus, 0);
 });
@@ -374,24 +481,31 @@ test('a running Coin Boost tops up the winner\'s money winnings', { skip }, asyn
 test('Coin Boost respects its cap, its end time and money-only matches', { skip }, async () => {
   const capped = await createPlayer({ money: 1000 });
   const expired = await createPlayer({ money: 1000 });
+  const lateEnd = await createPlayer({ money: 1000 });
   const chipsWinner = await createPlayer({ money: 1000, chips: 10 });
-  const opponent = await createPlayer({ money: 5000, chips: 10 });
-  await giveCoinBoost(capped, NOW + 3600_000);
+  const opponent = await createPlayer({ money: 50_000, chips: 10 });
   await giveCoinBoost(expired, NOW - 1);
+  await giveCoinBoost(lateEnd, NOW + 60_000);
   await giveCoinBoost(chipsWinner, NOW + 3600_000);
 
-  await stakedMatch({ winner: capped, loser: opponent, stake: 200, coinBoost: { percent: 25, maxBonus: 10 } });
-  assert.equal((await balances(capped)).money, 1210, 'the bonus stops at the cap');
+  // +25% of 10,000 won would be 2,500. The standard preset caps it at 2,000.
+  await (await db()).execute(`UPDATE players SET money = 20000 WHERE id = :id`, { id: capped });
+  await giveCoinBoost(capped, NOW + 3600_000);
+  await stakedMatch({ winner: capped, loser: opponent, stake: 10_000 });
+  assert.equal((await balances(capped)).money, 32_000, 'the bonus stops at the cap');
 
-  await stakedMatch({ winner: expired, loser: opponent, stake: 200, coinBoost: { percent: 25, maxBonus: 2000 } });
+  await stakedMatch({ winner: expired, loser: opponent, stake: 200 });
   assert.equal((await balances(expired)).money, 1200, 'an expired boost pays nothing');
+
+  // Running at kickoff, so it pays even though it ended before the result.
+  await stakedMatch({ winner: lateEnd, loser: opponent, stake: 200, kickoffMs: NOW });
+  assert.equal((await balances(lateEnd)).money, 1250, 'the boost locked at kickoff pays');
 
   await stakedMatch({
     winner: chipsWinner,
     loser: opponent,
     stake: 2,
     currency: 'chips',
-    coinBoost: { percent: 25, maxBonus: 2000 },
   });
   assert.deepEqual(await balances(chipsWinner), { money: 1000, chips: 12 }, 'chips matches are unchanged');
 });

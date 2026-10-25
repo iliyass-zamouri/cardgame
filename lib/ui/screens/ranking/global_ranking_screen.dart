@@ -14,14 +14,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
 
+/// Tabs of [GlobalRankingScreen], in display order.
+enum RankingTab { leaderboard, history }
+
 class GlobalRankingScreen extends ConsumerWidget {
-  const GlobalRankingScreen({super.key});
+  const GlobalRankingScreen({
+    super.key,
+    this.initialTab = RankingTab.leaderboard,
+  });
+
+  final RankingTab initialTab;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     return DefaultTabController(
-      length: 2,
+      length: RankingTab.values.length,
+      initialIndex: initialTab.index,
       child: FeltScaffold(
         title: l10n.globalRanking,
         tabs: TabBar(

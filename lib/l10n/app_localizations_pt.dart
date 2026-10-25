@@ -1708,4 +1708,97 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get dailyEntryComeback => 'Um presente de boas-vindas espera por você';
+
+  @override
+  String get boostsTitle => 'Turbos';
+
+  @override
+  String boostReady(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count turbos prontos',
+      one: '1 turbo pronto',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String boostWinsPay(int percent, String max) {
+    return 'Vitórias com dinheiro pagam +$percent% (até $max)';
+  }
+
+  @override
+  String boostTimeLeft(String time) {
+    return 'Faltam $time';
+  }
+
+  @override
+  String get boostActive => 'Ativo';
+
+  @override
+  String get boostActivate => 'Ativar';
+
+  @override
+  String boostAddTime(String time) {
+    return 'Adicionar $time';
+  }
+
+  @override
+  String boostWaitsFor(int percent) {
+    return 'Disponível quando o seu +$percent% acabar';
+  }
+
+  @override
+  String get boostNoneActive => 'Nenhum turbo ativo';
+
+  @override
+  String get boostNoneActiveBody =>
+      'Ative um para ganhar mais em cada partida com dinheiro.';
+
+  @override
+  String get boostInventoryEmpty =>
+      'Nenhum turbo à espera. A sua sequência diária oferece-os.';
+
+  @override
+  String boostStarted(int percent) {
+    return 'Turbo +$percent% ativado!';
+  }
+
+  @override
+  String boostExtended(String time) {
+    return 'Turbo prolongado em $time';
+  }
+
+  @override
+  String get boostActivateFailed =>
+      'Não foi possível ativar o turbo. Tente de novo.';
+
+  @override
+  String get boostActivateNow => 'Ativar agora';
+
+  @override
+  String get boostInYourBoosts => 'Guardado nos seus turbos';
+
+  @override
+  String boostUpTo(String amount) {
+    return 'até +$amount';
+  }
+
+  @override
+  String boostPayout(int percent) {
+    return 'Turbo +$percent%';
+  }
+
+  @override
+  String get boostMoneyOnly => 'Só partidas com dinheiro';
+
+  @override
+  String boostActiveSemantics(int percent, String time) {
+    return 'Turbo +$percent% ativo, faltam $time';
+  }
+
+  @override
+  String get boostOneAtATime =>
+      'Só um nível de turbo de cada vez. O mesmo nível soma o seu tempo.';
 }

@@ -4,6 +4,7 @@ import 'package:cardgame/ads/ad_ids.dart';
 import 'package:cardgame/ads/interstitial_ad_service.dart';
 import 'package:cardgame/ads/rewarded_ad_service.dart';
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/daily_reward_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/app/home_menu_providers.dart';
 import 'package:cardgame/app/locale_provider.dart';
@@ -29,7 +30,9 @@ import 'package:cardgame/ui/background.dart';
 import 'package:cardgame/ui/flame/card_back_skins.dart';
 import 'package:cardgame/ui/flame/card_fonts.dart';
 import 'package:cardgame/ui/screens/auth/authentication_screen.dart';
+import 'package:cardgame/ui/screens/daily_reward/daily_reward_modal.dart';
 import 'package:cardgame/ui/screens/home/home_screen.dart';
+import 'package:cardgame/ui/screens/notifications/notifications_panel.dart';
 import 'package:cardgame/ui/screens/tutorial/tutorial_progress_repository.dart';
 import 'package:cardgame/ui/theme/app_theme.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
@@ -196,9 +199,34 @@ class _MyAppState extends ConsumerState<MyApp> {
   Future<void> _bootstrapPush() async {
     if (_pushStarted) return;
     _pushStarted = true;
-    ref.read(joinRoomBinderProvider).callback = (roomId) {
-      ref.read(gameSessionProvider.notifier).joinRoom(roomId);
-    };
+    ref.read(deeplinkActionsProvider)
+      ..joinRoom = (roomId) {
+        ref.read(gameSessionProvider.notifier).joinRoom(roomId);
+      }
+      ..canStartMatch = () {
+        final session = ref.read(gameSessionProvider);
+        return session.game == null && !session.searchingMatch;
+      }
+      ..openDailyRewards = (context) async {
+        // On a cold start the streak may still be loading.
+        try {
+          await ref
+              .read(dailyRewardProvider.future)
+              .timeout(const Duration(seconds: 6));
+        } catch (_) {
+          return;
+        }
+        if (!context.mounted) return;
+        await openDailyRewards(context, ref, source: 'push');
+      }
+      ..openInbox = (context) {
+        return showNotificationsPanel(context, ref);
+      }
+      ..playVsRobot = (context) {
+        ref
+            .read(gameSessionProvider.notifier)
+            .playVsRobot(robotName: context.l10n.robotName);
+      };
     final navigator = ref.read(notificationNavigatorProvider);
     final push = ref.read(pushNotificationServiceProvider);
     push.onInboxChanged = () {

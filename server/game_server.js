@@ -119,6 +119,7 @@ const {
   rewardCatalog,
   rewardCatalogBody,
 } = require('./db/daily_rewards');
+const { getBoosts, activateBoost, seatBoostsFor } = require('./db/boosts');
 const {
   playerExists,
   upsertDeviceToken,
@@ -130,8 +131,15 @@ const {
   listPlayerIdsWithNotifyPref,
   listMarketingBlastAudience,
   countMarketingBlastAudience,
+  listMarketingCampaigns,
 } = require('./db/push');
 const { sendToPlayers, sendMarketingBlast, isFcmReady } = require('./push/fcm');
+const {
+  normalizeDeeplink,
+  describeDeeplink,
+  deeplinkCatalog,
+} = require('./push/deeplinks');
+const { POTS } = require('./pots');
 const {
   getAdminDashboardStats,
   getPlayersByIds,
@@ -142,11 +150,11 @@ const {
 
 /**
  * Pot sizes matchmaking accepts, per stake currency (each player pays half).
- * Must match `StakeSelectorScreen.potOptions` in the app.
+ * Comes from server/pots.js, which mirrors `StakeSelectorScreen.potOptions`.
  */
 const ALLOWED_STAKE_POOLS = {
-  money: [20, 50, 100, 200, 500],
-  chips: [2, 10, 50],
+  money: POTS.filter((pot) => pot.currency === 'money').map((pot) => pot.pool),
+  chips: POTS.filter((pot) => pot.currency === 'chips').map((pot) => pot.pool),
 };
 
 const ADMIN_HTML_PATH = path.join(__dirname, 'public', 'admin.html');
@@ -257,6 +265,9 @@ const DAILY_REWARD_ERROR_STATUS = {
   daily_disabled: 409,
   comeback_unavailable: 409,
   streak_not_broken: 409,
+  boost_not_found: 404,
+  boost_conflict: 409,
+  invalid_value: 400,
 };
 
 /** A timezone offset in minutes, or null to keep the stored one. */
@@ -800,6 +811,17 @@ class GameServer {
       return;
     }
 
+    if (request.method === 'GET' && url.pathname === '/admin/push/routes') {
+      if (!assertAdminPushSecret(request, response)) return;
+      sendJson(response, 200, deeplinkCatalog());
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/admin/push/history') {
+      await this.#handleAdminPushHistory(request, response, url);
+      return;
+    }
+
     if (request.method === 'GET' && url.pathname === '/admin/theme') {
       await this.#handleAdminThemeGet(request, response);
       return;
@@ -832,6 +854,16 @@ class GameServer {
 
     if (request.method === 'POST' && url.pathname === '/daily-reward/comeback/claim') {
       await this.#handleComebackClaim(request, response);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/boosts') {
+      await this.#handleBoostsGet(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/boosts/activate') {
+      await this.#handleBoostActivate(request, response);
       return;
     }
 
@@ -2501,8 +2533,10 @@ class GameServer {
         return;
       }
     }
+    const seatBoosts = await this.#seatBoosts([context.playerId], stakeCurrency);
     const room = this.#createRoom(roomId, 'random', stakePool, stakeCurrency);
     room.escrowed = escrowed;
+    room.seatBoosts = seatBoosts;
     context.roomId = roomId;
 
     room.addPlayer(context.id, {
@@ -2570,10 +2604,12 @@ class GameServer {
           }
         }
 
+        const seatBoosts = await this.#seatBoosts([first.playerId, second.playerId], stakeCurrency);
         let roomId;
         do roomId = createRoomCode(); while (this.rooms.has(roomId));
         const room = this.#createRoom(roomId, 'random', stake, stakeCurrency);
         room.escrowed = escrowed;
+        room.seatBoosts = seatBoosts;
         first.roomId = roomId;
         second.roomId = roomId;
         room.addPlayer(first.id, {
@@ -2621,13 +2657,9 @@ class GameServer {
           this.#noteBotMatchEnd(changedRoom, roomBot);
         }
       },
-      onRankedEnd: (payload) =>
-        recordRankedMatch({
-          ...payload,
-          coinBoost: this.dailyRewardsStore.current().boosters.coin_boost,
-          nowMs: this.clock(),
-        }),
+      onRankedEnd: (payload) => recordRankedMatch(payload),
       beforeRematch: ({ playerIds, stake, currency }) => escrowStake({ playerIds, stake, currency })
+        .then(async (result) => ({ ...result, boosts: await this.#seatBoosts(playerIds, currency) }))
         .catch((error) => {
           // Without a DB (tests/local), rematch unstaked as matchmaking does.
           if (error?.message?.includes('MySQL pool not initialized')) {
@@ -2963,6 +2995,7 @@ class GameServer {
         tzOffsetMinutes: readOffset(input.tzOffsetMinutes),
         boosted: input.boosted === true,
         choice: input.streakChoice ?? null,
+        boostInventory: input.boostInventory === true,
         config: this.dailyRewardsStore.current(),
       });
       sendJson(response, 200, result);
@@ -2989,11 +3022,76 @@ class GameServer {
         playerId: auth.playerId,
         nowMs: this.clock(),
         tzOffsetMinutes: readOffset(input.tzOffsetMinutes),
+        boostInventory: input.boostInventory === true,
         config: this.dailyRewardsStore.current(),
       });
       sendJson(response, 200, result);
     } catch (error) {
       this.#sendDailyRewardError(response, error, 'daily-reward/comeback');
+    }
+  }
+
+  async #handleBoostsGet(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+    try {
+      const boosts = await getBoosts({
+        playerId: auth.playerId,
+        nowMs: this.clock(),
+        config: this.dailyRewardsStore.current(),
+      });
+      sendJson(response, 200, boosts);
+    } catch (error) {
+      this.#sendDailyRewardError(response, error, 'boosts');
+    }
+  }
+
+  async #handleBoostActivate(request, response) {
+    const auth = await this.#requireAuth(request, response);
+    if (!auth) return;
+
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      sendJson(response, 400, { error: 'invalid_json', message: 'Invalid JSON body' });
+      return;
+    }
+    const itemId = typeof body?.itemId === 'string' ? body.itemId.trim() : '';
+    if (itemId === '' || itemId.length > 64) {
+      sendJson(response, 400, { error: 'invalid_body', message: 'itemId is required' });
+      return;
+    }
+
+    try {
+      const result = await activateBoost({
+        playerId: auth.playerId,
+        itemId,
+        nowMs: this.clock(),
+        config: this.dailyRewardsStore.current(),
+      });
+      sendJson(response, 200, result);
+    } catch (error) {
+      this.#sendDailyRewardError(response, error, 'boosts/activate');
+    }
+  }
+
+  /**
+   * Running Coin Boosts of the seats of a money match, read at kickoff. The
+   * match pays these whenever it ends. Empty without a database.
+   */
+  async #seatBoosts(playerIds, currency) {
+    if (currency !== 'money') return {};
+    try {
+      return await seatBoostsFor(playerIds, {
+        nowMs: this.clock(),
+        config: this.dailyRewardsStore.current(),
+      });
+    } catch (error) {
+      if (!error?.message?.includes('MySQL pool not initialized')) {
+        console.error('[boosts] seat lookup failed', error);
+      }
+      return {};
     }
   }
 
@@ -3154,11 +3252,11 @@ class GameServer {
       return;
     }
 
-    const routeRaw = typeof body.route === 'string' ? body.route.trim() : '';
-    if (routeRaw && !routeRaw.startsWith('/')) {
+    const deeplink = normalizeDeeplink(body.route);
+    if (deeplink.error) {
       sendJson(response, 400, {
         error: 'invalid_route',
-        message: 'route must start with /',
+        message: deeplink.error,
       });
       return;
     }
@@ -3253,8 +3351,11 @@ class GameServer {
       /** @type {Record<string, unknown>} */
       const data = {
         ...(body.data && typeof body.data === 'object' ? body.data : {}),
+        // Groups this send's inbox rows for the push history.
+        campaignId: crypto.randomBytes(6).toString('hex'),
       };
-      if (routeRaw) data.route = routeRaw;
+      if (deeplink.route) data.route = deeplink.route;
+      if (body.test === true) data.test = '1';
 
       const result = await sendMarketingBlast({
         title,
@@ -3266,10 +3367,34 @@ class GameServer {
             ? audienceFilters
             : undefined,
       });
-      sendJson(response, 200, { ...result, fcmReady: isFcmReady() });
+      sendJson(response, 200, {
+        ...result,
+        campaignId: data.campaignId,
+        route: deeplink.route,
+        fcmReady: isFcmReady(),
+      });
     } catch (error) {
       console.error('[admin/push] failed', error);
       sendJson(response, 500, { error: 'server_error', message: 'Push failed' });
+    }
+  }
+
+  async #handleAdminPushHistory(request, response, url) {
+    if (!assertAdminPushSecret(request, response)) return;
+    try {
+      const campaigns = await listMarketingCampaigns({
+        limit: url.searchParams.get('limit'),
+        days: url.searchParams.get('days'),
+      });
+      sendJson(response, 200, {
+        campaigns: campaigns.map((campaign) => ({
+          ...campaign,
+          routeLabel: describeDeeplink(campaign.route),
+        })),
+      });
+    } catch (error) {
+      console.error('[admin/push/history] failed', error);
+      sendJson(response, 500, { error: 'server_error', message: 'History failed' });
     }
   }
 

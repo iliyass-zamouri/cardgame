@@ -7,20 +7,14 @@ final rootNavigatorKeyProvider = Provider<GlobalKey<NavigatorState>>((ref) {
   return GlobalKey<NavigatorState>();
 });
 
-class JoinRoomBinder {
-  void Function(String roomId)? callback;
-
-  void call(String roomId) => callback?.call(roomId);
-}
-
-final joinRoomBinderProvider = Provider<JoinRoomBinder>((ref) {
-  return JoinRoomBinder();
+/// Bound by the root widget at startup; see [DeeplinkActions].
+final deeplinkActionsProvider = Provider<DeeplinkActions>((ref) {
+  return DeeplinkActions();
 });
 
 final notificationNavigatorProvider = Provider<NotificationNavigator>((ref) {
-  final binder = ref.watch(joinRoomBinderProvider);
   return NotificationNavigator(
     navigatorKey: ref.watch(rootNavigatorKeyProvider),
-    onJoinRoom: binder.call,
+    actions: ref.watch(deeplinkActionsProvider),
   );
 });

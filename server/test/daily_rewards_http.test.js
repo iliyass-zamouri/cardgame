@@ -168,4 +168,8 @@ test('player endpoints require a bearer token before touching the database', asy
 
   const comeback = await fetch(`${base}/daily-reward/comeback/claim`, { method: 'POST', body: '{}' });
   assert.equal(comeback.status, 401);
+
+  assert.equal((await fetch(`${base}/boosts`)).status, 401);
+  const activate = await fetch(`${base}/boosts/activate`, { method: 'POST', body: '{"itemId":"x"}' });
+  assert.equal(activate.status, 401);
 });

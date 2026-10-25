@@ -5,10 +5,12 @@ import 'package:cardgame/app/player_profile_repository.dart';
 import 'package:cardgame/app/ranking_providers.dart';
 import 'package:cardgame/app/session_auth_repository.dart';
 import 'package:cardgame/app/session_auth_status.dart';
+import 'package:cardgame/data/boost/boost_models.dart';
 import 'package:cardgame/data/ranking/ranking_api.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/app_localizations.dart';
 import 'package:cardgame/ui/screens/home/home_screen.dart';
+import 'package:cardgame/ui/widgets/boost_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -353,5 +355,123 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets('GameOverPanel shows what a Coin Boost added to the prize', (
+    tester,
+  ) async {
+    const profile = PlayerProfile(
+      playerId: 'guest-1',
+      name: 'Alice',
+      username: 'alice_ace',
+      avatarId: 'golden-king',
+    );
+    const snapshot = GameSnapshot(
+      roomId: 'room-1',
+      version: 2,
+      status: GameStatus.ended,
+      ready: true,
+      deckCount: 0,
+      discardTopTag: 'A2',
+      discardRecentTags: ['A2'],
+      isYourTurn: false,
+      potAmount: 400,
+      stakePool: 400,
+      stakePerPlayer: 200,
+      matchType: 'random',
+      yourBoost: BoostPreset(
+        id: 'standard',
+        percent: 25,
+        maxBonus: 2000,
+        tier: BoostTier.silver,
+      ),
+      you: PlayerSnapshot(
+        connected: true,
+        displayName: 'Alice',
+        playerId: 'guest-1',
+        launch: LaunchStatus.ended,
+        total: 5,
+        cards: [],
+        handCardTag: null,
+        hasHandCard: false,
+      ),
+      opponent: PlayerSnapshot(
+        connected: true,
+        displayName: 'Bob',
+        playerId: 'guest-2',
+        launch: LaunchStatus.ended,
+        total: 12,
+        cards: [],
+        handCardTag: null,
+        hasHandCard: false,
+      ),
+      result: GameResult(
+        scores: [5, 12],
+        winnerIndex: 0,
+        ratings: [
+          PlayerResultRating(
+            playerId: 'guest-1',
+            result: 'win',
+            pointsEarned: 30,
+            eloDelta: 16,
+            boostBonus: 50,
+            boostPercent: 25,
+          ),
+          PlayerResultRating(
+            playerId: 'guest-2',
+            result: 'loss',
+            pointsEarned: 2,
+            eloDelta: -16,
+          ),
+        ],
+      ),
+      lastAction: null,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameSessionProvider.overrideWith(
+            () => _FixedGameSessionController(
+              const GameSessionState(
+                connection: ConnectionStatus.connected,
+                game: snapshot,
+                clientId: 'guest-1',
+              ),
+            ),
+          ),
+          sessionAuthRepositoryProvider.overrideWithValue(
+            SessionAuthRepository.memory(SessionAuthStatus.guest),
+          ),
+          playerProfileRepositoryProvider.overrideWithValue(
+            PlayerProfileRepository.memory(profile),
+          ),
+          rankingApiProvider.overrideWithValue(
+            RankingApi(
+              baseUrl: 'http://localhost',
+              client: MockClient(
+                (_) async => http.Response('{"matches":[],"elo":1200}', 200),
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: Scaffold(body: GameOverPanel()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(find.byType(BoostPayoutPill), findsOneWidget);
+    expect(find.text('Boost +25%'), findsOneWidget);
+    expect(find.text('+50'), findsOneWidget);
   });
 }

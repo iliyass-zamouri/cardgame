@@ -1,4 +1,5 @@
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
+import 'package:cardgame/data/boost/boost_models.dart';
 
 int _int(Object? value, [int fallback = 0]) =>
     value is num ? value.toInt() : fallback;
@@ -47,7 +48,11 @@ sealed class RewardItem {
         fallback: CurrencyReward.tryParse(json['fallback']),
       ),
       'booster' => switch (json['boosterId']) {
-        'coin_boost' => CoinBoostReward(minutes: _int(json['minutes'])),
+        'coin_boost' => CoinBoostReward(
+          minutes: _int(json['minutes']),
+          presetId: _string(json['presetId']),
+          preset: json['percent'] is num ? BoostPreset.fromJson(json) : null,
+        ),
         'streak_freeze' => StreakFreezeReward(
           quantity: _int(json['quantity'], 1),
         ),
@@ -94,11 +99,37 @@ final class DeckReward extends RewardItem {
   final CurrencyReward? fallback;
 }
 
-/// Extra money on match wins for [minutes].
+/// Extra money on match wins for [minutes], at the admin's preset
+/// [presetId]. It waits in the player's boosts until they activate it.
 final class CoinBoostReward extends RewardItem {
-  const CoinBoostReward({required this.minutes});
+  const CoinBoostReward({
+    required this.minutes,
+    this.presetId = '',
+    this.preset,
+  });
 
   final int minutes;
+  final String presetId;
+
+  /// Its value: as a claim granted it, or the admin's preset that the
+  /// status resolved. Null from a server that predates presets.
+  final BoostPreset? preset;
+
+  /// Its value: its own, else from [presets], else null.
+  BoostPreset? presetIn(Map<String, BoostPreset> presets) =>
+      preset ?? presets[presetId];
+}
+
+/// [reward] with its Coin Boost value filled in from [presets].
+RewardItem _withPreset(RewardItem reward, Map<String, BoostPreset> presets) {
+  if (reward is! CoinBoostReward || reward.preset != null) return reward;
+  final preset = presets[reward.presetId];
+  if (preset == null) return reward;
+  return CoinBoostReward(
+    minutes: reward.minutes,
+    presetId: reward.presetId,
+    preset: preset,
+  );
 }
 
 /// Saves the streak through a missed day, [quantity] times.
@@ -128,6 +159,8 @@ class GrantedReward {
     this.duplicate = false,
     this.converted,
     this.loot,
+    this.boostItemId,
+    this.boostActivated = false,
   });
 
   final RewardItem reward;
@@ -140,6 +173,16 @@ class GrantedReward {
   /// What a chest rolled.
   final GrantedReward? loot;
 
+  /// A Coin Boost waiting in the player's boosts, to activate by this id.
+  final String? boostItemId;
+
+  /// A Coin Boost the server started at once.
+  final bool boostActivated;
+
+  /// This grant, or the chest loot inside it, when that is a Coin Boost.
+  GrantedReward? get boost =>
+      reward is CoinBoostReward ? this : loot?.boost;
+
   factory GrantedReward.fromJson(Map<String, dynamic> json) {
     final loot = json['loot'];
     return GrantedReward(
@@ -147,6 +190,8 @@ class GrantedReward {
       duplicate: json['duplicate'] == true || json['unknown'] == true,
       converted: CurrencyReward.tryParse(json['converted']),
       loot: loot is Map ? GrantedReward.fromJson(_map(loot)) : null,
+      boostItemId: json['itemId'] is String ? json['itemId'] as String : null,
+      boostActivated: json['activated'] == true,
     );
   }
 
@@ -182,14 +227,18 @@ class DailyDay {
   final DailyDayStatus status;
   final List<RewardItem> rewards;
 
-  factory DailyDay.fromJson(Map<String, dynamic> json) {
+  factory DailyDay.fromJson(
+    Map<String, dynamic> json, [
+    Map<String, BoostPreset> presets = const {},
+  ]) {
     return DailyDay(
       day: _int(json['day'], 1),
       status:
           DailyDayStatus.values.asNameMap()[json['status']] ??
           DailyDayStatus.upcoming,
       rewards: [
-        for (final entry in _maps(json['rewards'])) RewardItem.fromJson(entry),
+        for (final entry in _maps(json['rewards']))
+          _withPreset(RewardItem.fromJson(entry), presets),
       ],
     );
   }
@@ -214,14 +263,20 @@ class DailyChest {
     return total <= 0 ? 0 : pool[index].weight / total;
   }
 
-  factory DailyChest.fromJson(Map<String, dynamic> json) {
+  factory DailyChest.fromJson(
+    Map<String, dynamic> json, [
+    Map<String, BoostPreset> presets = const {},
+  ]) {
     return DailyChest(
       titles: _titles(json['title']),
       pool: [
         for (final entry in _maps(json['pool']))
           ChestOdds(
             weight: _int(entry['weight']),
-            reward: RewardItem.fromJson(_map(entry['reward'])),
+            reward: _withPreset(
+              RewardItem.fromJson(_map(entry['reward'])),
+              presets,
+            ),
           ),
       ],
     );
@@ -263,6 +318,7 @@ class DailyRewardStatus {
     this.comebackAvailable = false,
     this.comebackRewards = const [],
     this.chests = const {},
+    this.boostPresets = const {},
   });
 
   static const disabled = DailyRewardStatus(
@@ -319,6 +375,9 @@ class DailyRewardStatus {
   final List<RewardItem> comebackRewards;
   final Map<String, DailyChest> chests;
 
+  /// Every Coin Boost preset by id, to name and colour a boost reward.
+  final Map<String, BoostPreset> boostPresets;
+
   bool get isEvent => calendarId != 'default' && calendarTitles.isNotEmpty;
 
   /// Day 7 was collected today. [days] already points at next week's day 1,
@@ -346,6 +405,11 @@ class DailyRewardStatus {
     final coinBoost = _map(json['coinBoost']);
     final comeback = _map(json['comeback']);
     final chests = _map(json['chests']);
+    final boostPresets = <String, BoostPreset>{
+      for (final entry in _map(json['boostPresets']).entries)
+        if (entry.value is Map)
+          entry.key: BoostPreset.fromJson(_map(entry.value)),
+    };
     final serverNow = json['serverNow'];
     final tzOffsetMinutes = _int(json['tzOffsetMinutes']);
     final local =
@@ -376,10 +440,13 @@ class DailyRewardStatus {
       cycle: _int(streak['cycle']),
       nextDay: _int(streak['nextDay'], 1),
       resets: streak['resets'] == true,
-      days: [for (final entry in _maps(json['days'])) DailyDay.fromJson(entry)],
+      days: [
+        for (final entry in _maps(json['days']))
+          DailyDay.fromJson(entry, boostPresets),
+      ],
       nextRewards: [
         for (final entry in _maps(_map(json['nextReward'])['rewards']))
-          RewardItem.fromJson(entry),
+          _withPreset(RewardItem.fromJson(entry), boostPresets),
       ],
       secondsUntilNextClaim: _int(json['secondsUntilNextClaim']),
       graceDays: _int(grace['days']),
@@ -398,13 +465,14 @@ class DailyRewardStatus {
       comebackAvailable: comeback['available'] == true,
       comebackRewards: [
         for (final entry in _maps(comeback['rewards']))
-          RewardItem.fromJson(entry),
+          _withPreset(RewardItem.fromJson(entry), boostPresets),
       ],
       chests: {
         for (final entry in chests.entries)
           if (entry.value is Map)
-            entry.key: DailyChest.fromJson(_map(entry.value)),
+            entry.key: DailyChest.fromJson(_map(entry.value), boostPresets),
       },
+      boostPresets: boostPresets,
     );
   }
 }

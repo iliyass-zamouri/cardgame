@@ -323,7 +323,7 @@ test('buildDailyStatus marks the days of a claimed streak as claimed and next', 
     config: DEFAULTS,
     nowMs,
     offsetMinutes: 0,
-    coinBoostUntilMs: nowMs + 90_000,
+    activeBoost: { presetId: 'gold', percent: 50, maxBonus: 5000, tier: 'gold', untilMs: nowMs + 90_000 },
     comeback: comebackStatus({ lastAtMs: nowMs }, nowMs, DEFAULTS),
   });
   assert.equal(body.state, 'claimed');
@@ -333,6 +333,9 @@ test('buildDailyStatus marks the days of a claimed streak as claimed and next', 
   );
   assert.equal(body.secondsUntilNextClaim, 12 * 3600);
   assert.equal(body.coinBoost.remainingSeconds, 90);
+  assert.equal(body.coinBoost.percent, 50);
+  assert.deepEqual(Object.keys(body.boostPresets), ['standard', 'gold']);
+  assert.equal(body.boostPresets.gold.tier, 'gold');
   // Day 7 holds the Royal Chest, so the app gets its title and odds.
   assert.deepEqual(Object.keys(body.chests), ['royal']);
   assert.equal(body.chests.royal.title.fr, 'Coffre royal');
@@ -353,7 +356,6 @@ test('buildDailyStatus marks today on a claimable streak', () => {
     config: DEFAULTS,
     nowMs,
     offsetMinutes: 0,
-    coinBoostUntilMs: 0,
     comeback: comebackStatus({}, nowMs, DEFAULTS),
   });
   assert.deepEqual(
@@ -464,6 +466,53 @@ test('validation forbids a chest inside a chest pool', () => {
   const nested = structuredClone(DEFAULTS);
   nested.chests.royal.pool[0].reward = { type: 'chest', chestId: 'royal' };
   assert.match(validateConfig(nested).message, /cannot hold another chest/);
+});
+
+test('a config saved before presets turns its one boost value into a standard preset', () => {
+  const legacy = withConfig({ boosters: { coin_boost: { percent: 30, maxBonus: 1500 } } });
+  legacy.calendar.days[1].rewards = [{ type: 'booster', boosterId: 'coin_boost', minutes: 60 }];
+  const config = validOrThrow(legacy);
+  assert.deepEqual(
+    config.boosters.coin_boost.presets.map(({ id, percent, maxBonus }) => ({ id, percent, maxBonus })),
+    [{ id: 'standard', percent: 30, maxBonus: 1500 }],
+  );
+  // A boost reward with no preset runs at the first one.
+  assert.equal(config.calendar.days[1].rewards[0].presetId, 'standard');
+});
+
+test('boost presets need unique ids and percents, a known tier, and known references', () => {
+  const presets = structuredClone(DEFAULTS.boosters.coin_boost.presets);
+  const withPresets = (list) => withConfig({ boosters: { coin_boost: { presets: list } } });
+
+  const samePercent = withPresets([presets[0], { ...presets[1], percent: presets[0].percent }]);
+  assert.match(validateConfig(samePercent, { catalog }).message, /same percent/);
+
+  const sameId = withPresets([presets[0], { ...presets[1], id: presets[0].id }]);
+  assert.match(validateConfig(sameId, { catalog }).message, /ids must be unique/);
+
+  const badTier = withPresets([{ ...presets[0], tier: 'rainbow' }]);
+  assert.match(validateConfig(badTier, { catalog }).message, /tier/);
+
+  assert.match(validateConfig(withPresets([]), { catalog }).message, /1 to 8 presets/);
+
+  // The calendar still points at "gold", which is gone.
+  const missing = withPresets([presets[0]]);
+  missing.calendar.days[1].rewards = [{ type: 'booster', boosterId: 'coin_boost', presetId: 'gold', minutes: 60 }];
+  assert.match(validateConfig(missing, { catalog }).message, /"gold" is not a boost preset/);
+
+  const mixed = withPresets(presets);
+  mixed.boosters.coin_boost.percent = 10;
+  assert.match(validateConfig(mixed, { catalog }).message, /on each preset/);
+});
+
+test('a chest can hold a boost of any preset', () => {
+  const input = withConfig({});
+  input.chests.royal.pool.push({
+    weight: 5,
+    reward: { type: 'booster', boosterId: 'coin_boost', presetId: 'gold', minutes: 30 },
+  });
+  const config = validOrThrow(input);
+  assert.equal(config.chests.royal.pool.at(-1).reward.presetId, 'gold');
 });
 
 test('normalizeConfig falls back to the defaults for garbage and logs it', (t) => {

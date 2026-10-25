@@ -1,31 +1,31 @@
-import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/widgets.dart';
 import 'package:path_parsing/path_parsing.dart';
 
-/// How a [GameIconPart] takes its colour from the icon's tint.
+/// How a [GameIconPart] is painted.
 enum GameIconTone {
-  /// The tint itself, lit from above.
-  body,
+  /// The tint at full strength: the part that carries the meaning.
+  solid,
 
-  /// The tint's partner: ivory beside a colour, gold beside white or black.
-  accent,
+  /// The tint at reduced strength: supporting shapes behind the main one.
+  soft,
 
-  /// Fine detail: dark on a light tint, ivory on a dark one.
-  ink,
+  /// Negative space, cut clean through everything painted before it.
+  cut,
 }
 
 /// One shape of a [GameIconData]: SVG path data on a 100x100 grid.
 @immutable
 class GameIconPart {
-  const GameIconPart.body(this.path, {this.stroke, this.fused = false})
-    : tone = GameIconTone.body;
+  const GameIconPart.solid(this.path, {this.stroke, this.fused = false})
+    : tone = GameIconTone.solid;
 
-  const GameIconPart.accent(this.path, {this.stroke, this.fused = false})
-    : tone = GameIconTone.accent;
+  const GameIconPart.soft(this.path, {this.stroke, this.fused = false})
+    : tone = GameIconTone.soft;
 
-  const GameIconPart.ink(this.path, {this.stroke})
-    : tone = GameIconTone.ink,
+  const GameIconPart.cut(this.path, {this.stroke})
+    : tone = GameIconTone.cut,
       fused = false;
 
   final String path;
@@ -34,12 +34,12 @@ class GameIconPart {
   /// Stroke width in grid units; null fills the path.
   final double? stroke;
 
-  /// Shares the previous part's outline, so the two read as one piece
-  /// (an arrow's shaft and head) with no seam where they meet.
+  /// Joins the previous part without the hairline gap that otherwise keeps
+  /// overlapping pieces apart (an arrow's shaft and its head).
   final bool fused;
 }
 
-/// A chunky, outlined game icon: [parts] painted back to front.
+/// A glyph built from [parts], painted back to front.
 @immutable
 class GameIconData {
   const GameIconData(this.parts);
@@ -47,11 +47,11 @@ class GameIconData {
   final List<GameIconPart> parts;
 }
 
-/// Paints a [GameIconData] in [color] (or the ambient icon colour) with the
-/// sticker look: dark outline, top light, bottom shade and a drop shadow.
+/// Paints a [GameIconData] in [color] (or the ambient icon colour): a solid
+/// glyph with knocked-out detail, faintly lit from above, on a tight shadow.
 ///
-/// Dark tints (ink on a gold button or an ivory card) come out as black
-/// lacquer with gold trim, like the game's chip.
+/// Dark ink (on a gold button or an ivory card) sits on a pale lip instead,
+/// as if pressed into the surface.
 class GameIcon extends StatelessWidget {
   const GameIcon({super.key, required this.icon, this.size = 24, this.color});
 
@@ -76,50 +76,30 @@ class GameIcon extends StatelessWidget {
   }
 }
 
-/// Below this luminance a tint is ink, and the icon turns to lacquer.
-const _lacquerLuminance = 0.125;
+/// Below this luminance a tint is ink on a light surface.
+const _inkLuminance = 0.125;
 
-/// How far the top light and bottom shade reach into a shape, in grid units.
-const _bevel = 4.0;
+/// Corner softening applied to every filled shape, in grid units.
+const _round = 3.0;
 
-/// Corner rounding applied to every filled shape, in grid units.
-const _round = 4.0;
+/// Strength of [GameIconTone.soft] parts; see-through, so they sit back on
+/// any surface.
+const _softAlpha = 0.55;
 
 const _white = Color(0xFFFFFFFF);
 const _black = Color(0xFF000000);
-const _silverShade = Color(0xFFB4C3D2);
-const _gold = [Color(0xFFFFE69A), Color(0xFFF5C542), Color(0xFFC98F1E)];
-const _ivory = [Color(0xFFFFFDF6), Color(0xFFF6EEDB), Color(0xFFE2D5B6)];
-const _ivoryInk = Color(0xFFFFF6DE);
 
 class _Shape {
   _Shape(GameIconPart part)
     : tone = part.tone,
       stroke = part.stroke,
       fused = part.fused,
-      path = _parse(part.path) {
-    if (stroke == null && tone != GameIconTone.ink) {
-      light = Path.combine(
-        PathOperation.difference,
-        path,
-        path.shift(const Offset(_bevel * 0.35, _bevel)),
-      );
-      shade = Path.combine(
-        PathOperation.difference,
-        path,
-        path.shift(const Offset(0, -_bevel)),
-      );
-    }
-  }
+      path = _parse(part.path);
 
   final GameIconTone tone;
   final double? stroke;
   final bool fused;
   final Path path;
-  Path? light;
-  Path? shade;
-
-  late final Rect bounds = path.getBounds().inflate((stroke ?? _round) / 2);
 
   static Path _parse(String data) {
     final proxy = _PathProxy();
@@ -157,74 +137,6 @@ final _shapes = Expando<List<_Shape>>();
 List<_Shape> _shapesOf(GameIconData icon) =>
     _shapes[icon] ??= [for (final part in icon.parts) _Shape(part)];
 
-/// The colours one tint paints with.
-class _Look {
-  factory _Look(Color tint) {
-    final hsl = HSLColor.fromColor(tint);
-    // Chroma, not HSL saturation, which runs wild for near-whites.
-    final chroma =
-        math.max(tint.r, math.max(tint.g, tint.b)) -
-        math.min(tint.r, math.min(tint.g, tint.b));
-    final neutral = chroma < 0.12;
-    if (tint.computeLuminance() < _lacquerLuminance) {
-      return _Look._(
-        body: [
-          Color.lerp(tint, _white, 0.34)!,
-          tint,
-          Color.lerp(tint, _black, 0.5)!,
-        ],
-        accent: _gold,
-        ink: _ivoryInk,
-        line: Color.lerp(tint, _black, 0.7)!,
-      );
-    }
-    final line =
-        hsl
-            .withSaturation(math.min(hsl.saturation, 0.6))
-            .withLightness(0.1)
-            .toColor();
-    if (neutral && hsl.lightness > 0.85) {
-      return _Look._(
-        body: [_white, tint, _silverShade],
-        accent: _gold,
-        ink: line,
-        line: line,
-      );
-    }
-    return _Look._(
-      body: [
-        Color.lerp(tint, _white, 0.42)!,
-        tint,
-        hsl.withLightness(math.max(0, hsl.lightness - 0.2)).toColor(),
-      ],
-      accent:
-          neutral
-              ? [
-                Color.lerp(tint, _white, 0.75)!,
-                Color.lerp(tint, _white, 0.6)!,
-                Color.lerp(tint, _white, 0.42)!,
-              ]
-              : _ivory,
-      ink: line,
-      line: line,
-    );
-  }
-
-  const _Look._({
-    required this.body,
-    required this.accent,
-    required this.ink,
-    required this.line,
-  });
-
-  final List<Color> body;
-  final List<Color> accent;
-  final Color ink;
-
-  /// The outline round every piece.
-  final Color line;
-}
-
 class _GameIconPainter extends CustomPainter {
   _GameIconPainter(this.icon, this.color);
 
@@ -237,11 +149,27 @@ class _GameIconPainter extends CustomPainter {
     if (px <= 0 || color.a == 0) return;
     final unit = px / 100;
     final shapes = _shapesOf(icon);
-    final look = _Look(color.withValues(alpha: 1));
-    final outline = (px * 0.06).clamp(1.0, 3.2) / unit;
+    final tint = color.withValues(alpha: 1);
+    final ink = tint.computeLuminance() < _inkLuminance;
+    final gap = (px * 0.045).clamp(0.8, 2.4) / unit;
+    final face =
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color.lerp(tint, _white, ink ? 0.12 : 0.18)!,
+              tint,
+              Color.lerp(tint, _black, 0.1)!,
+            ],
+          ).createShader(const Rect.fromLTWH(0, 0, 100, 100));
+    final soft =
+        Paint()
+          ..color = tint.withValues(alpha: _softAlpha)
+          ..blendMode = BlendMode.src;
+
     canvas.save();
     canvas.translate((size.width - px) / 2, (size.height - px) / 2);
-    canvas.scale(unit);
     final faded = color.a < 1;
     if (faded) {
       canvas.saveLayer(
@@ -250,88 +178,61 @@ class _GameIconPainter extends CustomPainter {
       );
     }
 
-    // Drop shadow: every silhouette, flattened into one soft layer.
-    canvas.saveLayer(null, Paint()..color = _black.withValues(alpha: 0.42));
-    canvas.save();
-    canvas.translate(0, (px * 0.05).clamp(0.8, 3.0) / unit);
-    final shadow =
-        Paint()
-          ..color = _black
-          ..maskFilter = MaskFilter.blur(
-            BlurStyle.normal,
-            (px * 0.02).clamp(0.4, 1.4) / unit,
-          );
-    for (final shape in shapes) {
-      _silhouette(canvas, shape, shadow, outline);
-    }
-    canvas.restore();
+    // Under the glyph: a tight shadow, or a pale lip under dark ink.
+    final sigma = px * 0.02;
+    canvas.saveLayer(
+      null,
+      Paint()
+        ..colorFilter = ColorFilter.mode(
+          (ink ? _white : _black).withValues(alpha: ink ? 0.4 : 0.35),
+          BlendMode.srcIn,
+        )
+        ..imageFilter =
+            ink ? null : ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+    );
+    canvas.translate(0, (px * 0.04).clamp(0.6, 2.0));
+    canvas.scale(unit);
+    _glyph(canvas, shapes, face, soft, gap);
     canvas.restore();
 
-    final ink = Paint()..color = look.ink;
-    final rim = Paint()..color = look.line;
-    for (var i = 0; i < shapes.length; i++) {
-      final shape = shapes[i];
-      if (shape.tone == GameIconTone.ink) {
-        _fill(canvas, shape, ink);
-        continue;
-      }
-      // A fused run is outlined as one piece, then filled.
-      if (!shape.fused) {
-        for (var j = i; j < shapes.length; j++) {
-          if (j > i && !shapes[j].fused) break;
-          _outline(canvas, shapes[j], outline, rim);
-        }
-      }
-      _fill(
-        canvas,
-        shape,
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: shape.tone == GameIconTone.body ? look.body : look.accent,
-          ).createShader(shape.bounds),
-      );
-      _light(canvas, shape);
-    }
+    canvas.save();
+    canvas.scale(unit);
+    _glyph(canvas, shapes, face, soft, gap);
+    canvas.restore();
 
     if (faded) canvas.restore();
     canvas.restore();
   }
 
-  void _silhouette(Canvas canvas, _Shape shape, Paint paint, double outline) {
-    final stroke = shape.stroke;
-    canvas.drawPath(
-      shape.path,
-      Paint()
-        ..color = paint.color
-        ..maskFilter = paint.maskFilter
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = (stroke ?? _round) + outline * 2
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-    if (stroke == null) canvas.drawPath(shape.path, paint);
+  void _glyph(
+    Canvas canvas,
+    List<_Shape> shapes,
+    Paint face,
+    Paint soft,
+    double gap,
+  ) {
+    canvas.saveLayer(null, Paint());
+    final clear = Paint()..blendMode = BlendMode.clear;
+    for (var i = 0; i < shapes.length; i++) {
+      final shape = shapes[i];
+      if (shape.tone == GameIconTone.cut) {
+        _draw(canvas, shape, clear, 0);
+        continue;
+      }
+      // A hairline of clear space keeps each piece apart from the last.
+      if (i > 0 && !shape.fused) _draw(canvas, shape, clear, gap);
+      _draw(canvas, shape, shape.tone == GameIconTone.solid ? face : soft, 0);
+    }
+    canvas.restore();
   }
 
-  /// Strokes [width] beyond the shape's edge on every side.
-  void _outline(Canvas canvas, _Shape shape, double width, Paint paint) {
-    canvas.drawPath(
-      shape.path,
-      paint
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = (shape.stroke ?? _round) + width * 2
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-  }
-
-  /// Fills a shape with its corners rounded off, or strokes a line part.
-  void _fill(Canvas canvas, _Shape shape, Paint paint) {
+  /// Fills [shape] with softened corners (or strokes a line part), grown by
+  /// [grow] on every side.
+  void _draw(Canvas canvas, _Shape shape, Paint paint, double grow) {
     final stroke = shape.stroke;
     paint
       ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke ?? _round
+      ..strokeWidth = (stroke ?? _round) + grow * 2
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     canvas.drawPath(shape.path, paint);
@@ -339,31 +240,6 @@ class _GameIconPainter extends CustomPainter {
       paint.style = PaintingStyle.fill;
       canvas.drawPath(shape.path, paint);
     }
-  }
-
-  void _light(Canvas canvas, _Shape shape) {
-    final stroke = shape.stroke;
-    if (stroke == null) {
-      canvas.drawPath(
-        shape.light!,
-        Paint()..color = _white.withValues(alpha: 0.42),
-      );
-      canvas.drawPath(
-        shape.shade!,
-        Paint()..color = _black.withValues(alpha: 0.16),
-      );
-      return;
-    }
-    // A line part gets a glint along its upper edge instead.
-    canvas.drawPath(
-      shape.path.shift(Offset(-stroke * 0.08, -stroke * 0.18)),
-      Paint()
-        ..color = _white.withValues(alpha: 0.4)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke * 0.3
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
   }
 
   @override

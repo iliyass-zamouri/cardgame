@@ -1691,4 +1691,95 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dailyEntryComeback => 'هدية العودة بانتظارك';
+
+  @override
+  String get boostsTitle => 'المعززات';
+
+  @override
+  String boostReady(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count معززات جاهزة',
+      one: 'معزز واحد جاهز',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String boostWinsPay(int percent, String max) {
+    return 'انتصارات المال تمنحك +$percent% (حتى $max)';
+  }
+
+  @override
+  String boostTimeLeft(String time) {
+    return 'متبقٍ $time';
+  }
+
+  @override
+  String get boostActive => 'نشط';
+
+  @override
+  String get boostActivate => 'تفعيل';
+
+  @override
+  String boostAddTime(String time) {
+    return 'أضف $time';
+  }
+
+  @override
+  String boostWaitsFor(int percent) {
+    return 'متاح عند انتهاء معزز +$percent%';
+  }
+
+  @override
+  String get boostNoneActive => 'لا يوجد معزز نشط';
+
+  @override
+  String get boostNoneActiveBody => 'فعّل معززًا لتربح أكثر في كل مباراة مال.';
+
+  @override
+  String get boostInventoryEmpty =>
+      'لا توجد معززات. سلسلتك اليومية تمنحك إياها.';
+
+  @override
+  String boostStarted(int percent) {
+    return 'تم تفعيل معزز +$percent%!';
+  }
+
+  @override
+  String boostExtended(String time) {
+    return 'تم تمديد المعزز $time';
+  }
+
+  @override
+  String get boostActivateFailed => 'تعذر تفعيل المعزز. حاول مجددًا.';
+
+  @override
+  String get boostActivateNow => 'فعّل الآن';
+
+  @override
+  String get boostInYourBoosts => 'حُفظ في معززاتك';
+
+  @override
+  String boostUpTo(String amount) {
+    return 'حتى +$amount';
+  }
+
+  @override
+  String boostPayout(int percent) {
+    return 'معزز +$percent%';
+  }
+
+  @override
+  String get boostMoneyOnly => 'مباريات المال فقط';
+
+  @override
+  String boostActiveSemantics(int percent, String time) {
+    return 'معزز +$percent% نشط، متبقٍ $time';
+  }
+
+  @override
+  String get boostOneAtATime =>
+      'يعمل مستوى معزز واحد في كل مرة. المستوى نفسه يضيف وقته.';
 }

@@ -95,14 +95,17 @@ Future<ByteData> _render(WidgetTester tester, Widget icon) async {
   return pixels;
 }
 
-/// The red channel at (x, y): enough to tell dark from light here.
+int _alpha(ByteData pixels, int size, int x, int y) =>
+    pixels.getUint8((y * size + x) * 4 + 3);
+
 int _red(ByteData pixels, int size, int x, int y) =>
     pixels.getUint8((y * size + x) * 4);
 
+int _green(ByteData pixels, int size, int x, int y) =>
+    pixels.getUint8((y * size + x) * 4 + 1);
+
 void main() {
-  testWidgets('every icon paints on light and dark tints', (
-    tester,
-  ) async {
+  testWidgets('every icon paints on light and dark tints', (tester) async {
     const size = 48;
     for (final MapEntry(key: name, value: icon) in _icons.entries) {
       for (final tint in [_gold, _ink]) {
@@ -116,39 +119,37 @@ void main() {
         }
         expect(
           covered / (size * size),
-          greaterThan(0.08),
+          greaterThan(0.05),
           reason: '$name painted almost nothing in $tint',
         );
       }
     }
   });
 
-  testWidgets('ink details flip to ivory on a dark tint', (tester) async {
+  testWidgets('cut details show the surface through, light or dark', (
+    tester,
+  ) async {
     const size = 100;
     // The dot of the "i" sits at (50, 29); (25, 50) is solid disc.
-    final gold = await _render(
-      tester,
-      const GameIcon(icon: AppIcons.info, size: 100, color: _gold),
-    );
-    expect(_red(gold, size, 50, 29), lessThan(80));
-    expect(_red(gold, size, 25, 50), greaterThan(200));
-
-    final lacquer = await _render(
-      tester,
-      const GameIcon(icon: AppIcons.info, size: 100, color: _ink),
-    );
-    expect(_red(lacquer, size, 50, 29), greaterThan(200));
-    expect(_red(lacquer, size, 25, 50), lessThan(80));
+    for (final tint in [_gold, _ink]) {
+      final pixels = await _render(
+        tester,
+        GameIcon(icon: AppIcons.info, size: 100, color: tint),
+      );
+      expect(_alpha(pixels, size, 50, 29), lessThan(64), reason: '$tint');
+      expect(_alpha(pixels, size, 25, 50), 255, reason: '$tint');
+    }
   });
 
   testWidgets('falls back to the ambient icon colour', (tester) async {
     final pixels = await _render(
       tester,
       const IconTheme(
-        data: IconThemeData(color: _ink),
+        data: IconThemeData(color: Color(0xFFD32F2F)),
         child: GameIcon(icon: AppIcons.info, size: 100),
       ),
     );
-    expect(_red(pixels, 100, 50, 29), greaterThan(200));
+    expect(_red(pixels, 100, 25, 50), greaterThan(150));
+    expect(_green(pixels, 100, 25, 50), lessThan(100));
   });
 }

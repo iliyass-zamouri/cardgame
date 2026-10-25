@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { AVATAR_CATALOG, DECK_CATALOG } = require('./marketplace');
 const { rollChest } = require('../daily_rewards');
+const { grantBoostItem } = require('./boosts');
 
 const MAX_CHEST_DEPTH = 1;
 
@@ -45,24 +46,15 @@ async function grantItem(conn, playerId, reward, ctx) {
   return { ...entry, granted: true };
 }
 
-/** Coin Boost extends from whichever is later, the current end or now. Streak Freeze stacks. */
+/** Coin Boost goes to the inventory (see grantBoostItem). Streak Freeze stacks. */
 async function grantBooster(conn, playerId, reward, ctx) {
   if (reward.boosterId === 'coin_boost') {
-    const [rows] = await conn.execute(
-      `SELECT active_until_ms FROM player_boosters
-       WHERE player_id = :playerId AND booster_id = 'coin_boost'
-       FOR UPDATE`,
-      { playerId },
-    );
-    const current = Number(rows[0]?.active_until_ms) || 0;
-    const activeUntilMs = Math.max(current, ctx.nowMs) + reward.minutes * 60_000;
-    await conn.execute(
-      `INSERT INTO player_boosters (player_id, booster_id, quantity, active_until_ms)
-       VALUES (:playerId, 'coin_boost', 0, :activeUntilMs) AS new
-       ON DUPLICATE KEY UPDATE active_until_ms = new.active_until_ms`,
-      { playerId, activeUntilMs },
-    );
-    return { type: 'booster', boosterId: 'coin_boost', minutes: reward.minutes, activeUntilMs };
+    return grantBoostItem(conn, playerId, reward, {
+      presets: ctx.boostPresets,
+      nowMs: ctx.nowMs,
+      source: ctx.source,
+      autoActivate: ctx.autoActivateBoosts,
+    });
   }
 
   await conn.execute(
@@ -107,13 +99,18 @@ async function grantOne(conn, playerId, reward, ctx, depth) {
  * can combine it with other changes in one UPDATE (see applyBalances).
  *
  * `multiplier` scales currency only (an ad boost). Booster durations and
- * quantities are never scaled.
+ * quantities are never scaled. `boostPresets` and `source` describe Coin
+ * Boost items, and `autoActivateBoosts` starts them at once for app builds
+ * that have no boost inventory.
  */
 async function grantRewards(conn, playerId, rewards, options) {
   const ctx = {
     multiplier: options.multiplier ?? 1,
     nowMs: options.nowMs,
     chests: options.chests ?? {},
+    boostPresets: options.boostPresets ?? [],
+    source: options.source ?? 'daily',
+    autoActivateBoosts: options.autoActivateBoosts ?? false,
     randomInt: options.randomInt ?? crypto.randomInt,
     totals: { money: 0, chips: 0 },
   };

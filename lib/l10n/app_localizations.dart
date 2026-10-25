@@ -3145,6 +3145,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A welcome-back gift is waiting'**
   String get dailyEntryComeback;
+
+  /// No description provided for @boostsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Boosts'**
+  String get boostsTitle;
+
+  /// No description provided for @boostReady.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 boost ready} other{{count} boosts ready}}'**
+  String boostReady(int count);
+
+  /// No description provided for @boostWinsPay.
+  ///
+  /// In en, this message translates to:
+  /// **'Money wins pay +{percent}% (up to {max})'**
+  String boostWinsPay(int percent, String max);
+
+  /// No description provided for @boostTimeLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} left'**
+  String boostTimeLeft(String time);
+
+  /// No description provided for @boostActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get boostActive;
+
+  /// No description provided for @boostActivate.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate'**
+  String get boostActivate;
+
+  /// No description provided for @boostAddTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Add {time}'**
+  String boostAddTime(String time);
+
+  /// No description provided for @boostWaitsFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Available when your +{percent}% ends'**
+  String boostWaitsFor(int percent);
+
+  /// No description provided for @boostNoneActive.
+  ///
+  /// In en, this message translates to:
+  /// **'No boost running'**
+  String get boostNoneActive;
+
+  /// No description provided for @boostNoneActiveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate one to win more from every money match.'**
+  String get boostNoneActiveBody;
+
+  /// No description provided for @boostInventoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No boosts waiting. Your daily streak hands them out.'**
+  String get boostInventoryEmpty;
+
+  /// No description provided for @boostStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'+{percent}% boost is on!'**
+  String boostStarted(int percent);
+
+  /// No description provided for @boostExtended.
+  ///
+  /// In en, this message translates to:
+  /// **'Boost extended by {time}'**
+  String boostExtended(String time);
+
+  /// No description provided for @boostActivateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t activate the boost. Try again.'**
+  String get boostActivateFailed;
+
+  /// No description provided for @boostActivateNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate now'**
+  String get boostActivateNow;
+
+  /// No description provided for @boostInYourBoosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to your boosts'**
+  String get boostInYourBoosts;
+
+  /// No description provided for @boostUpTo.
+  ///
+  /// In en, this message translates to:
+  /// **'up to +{amount}'**
+  String boostUpTo(String amount);
+
+  /// No description provided for @boostPayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Boost +{percent}%'**
+  String boostPayout(int percent);
+
+  /// No description provided for @boostMoneyOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Money matches only'**
+  String get boostMoneyOnly;
+
+  /// No description provided for @boostActiveSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Coin Boost +{percent}% active, {time} left'**
+  String boostActiveSemantics(int percent, String time);
+
+  /// No description provided for @boostOneAtATime.
+  ///
+  /// In en, this message translates to:
+  /// **'One boost value runs at a time. The same value adds its time.'**
+  String get boostOneAtATime;
 }
 
 class _AppLocalizationsDelegate

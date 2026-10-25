@@ -59,6 +59,8 @@ class GameRoom {
     this.rematchReady = [false, false];
     this.rankedSaved = false;
     this.escrowed = false;
+    // Running Coin Boosts by player id, read when the match was staked.
+    this.seatBoosts = {};
     this.players = [];
     this.deck = [];
     this.discard = [];
@@ -123,6 +125,7 @@ class GameRoom {
     this.potAmount = 0;
     this.stakeCurrency = 'money';
     this.escrowed = false;
+    this.seatBoosts = {};
     this.seriesWins = [0, 0];
     this.missedTurns = [0, 0];
     this.lobbyReady = [false, false];
@@ -255,6 +258,7 @@ class GameRoom {
         if (!this.#rematchStillValid(playerIds)) return;
         this.escrowed = Boolean(result?.escrowed);
         this.stakeBalances = result?.balances ?? null;
+        this.seatBoosts = result?.boosts ?? {};
         const starter = this.players.find((p) => p.id === clientId) ?? this.players[0];
         this.start(starter.id);
       })
@@ -651,6 +655,12 @@ class GameRoom {
     return this.players.find((p) => p.playerId === playerId) || null;
   }
 
+  /** The Coin Boost a seat carries into this match. Only ranked money matches pay one. */
+  #boostOf(player) {
+    if (!player?.playerId || this.matchType !== 'random' || this.stakeCurrency !== 'money') return null;
+    return this.seatBoosts?.[player.playerId] ?? null;
+  }
+
   snapshotFor(clientId) {
     const viewerIndex = this.players.findIndex((player) => player.id === clientId);
     const viewer = viewerIndex >= 0 ? this.players[viewerIndex] : null;
@@ -668,6 +678,7 @@ class GameRoom {
       stakePerPlayer: this.stakePerPlayer,
       potAmount: this.potAmount,
       stakeCurrency: this.stakeCurrency,
+      yourBoost: this.#boostOf(viewer),
       deckCount: this.deck.length,
       discardTop: this.discard.at(-1) ?? null,
       discardRecent: this.discard.slice(-2),
@@ -819,6 +830,7 @@ class GameRoom {
       players: this.players.map((player) => ({
         playerId: player.playerId,
         cardTotal: player.total,
+        boost: this.#boostOf(player),
       })),
       winnerIndex,
       quitterIndex: this.result?.quitterIndex ?? null,

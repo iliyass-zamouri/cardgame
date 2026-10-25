@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cardgame/app/auth_providers.dart';
+import 'package:cardgame/app/boost_providers.dart';
 import 'package:cardgame/app/daily_reward_providers.dart';
 import 'package:cardgame/app/friends_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
@@ -18,6 +19,7 @@ import 'package:cardgame/data/auth/guest_google_link.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/services/analytics_service.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
+import 'package:cardgame/ui/screens/boost/boost_play_tag.dart';
 import 'package:cardgame/ui/screens/collection_screen.dart';
 import 'package:cardgame/ui/screens/daily_reward/daily_entry_pill.dart';
 import 'package:cardgame/ui/screens/daily_reward/daily_reward_modal.dart';
@@ -34,6 +36,7 @@ import 'package:cardgame/ui/theme/casino_chrome.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/theme/wide_layout.dart';
+import 'package:cardgame/ui/widgets/boost_badge.dart';
 import 'package:cardgame/ui/widgets/country_flag.dart';
 import 'package:cardgame/ui/widgets/hud_counter.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
@@ -487,6 +490,9 @@ class _HomeTab extends ConsumerWidget {
     final displayName = profile.isEmpty ? l10n.player : profile.name;
     final unread = ref.watch(notificationsUnreadCountProvider);
     final dailyVisible = ref.watch(dailyEntryVisibleProvider);
+    final boostTier = ref.watch(
+      boostProvider.select((view) => view.value?.running?.preset.tier),
+    );
 
     Widget logo(double width) => DealIn(
       from: const Offset(0, -0.3),
@@ -517,6 +523,8 @@ class _HomeTab extends ConsumerWidget {
         subtitle: l10n.winnerTakesAll,
         icon: AppIcons.bolt,
         onTap: connected ? () => showStakeSelectorModal(context) : null,
+        tag: const BoostPlayTag(),
+        glow: boostTier == null ? null : BoostMetal.of(boostTier).glow,
       ),
     );
     Widget modeRow(double height) => Row(

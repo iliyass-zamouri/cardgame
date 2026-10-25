@@ -330,6 +330,8 @@ class PrimaryPlayCard extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.onTap,
+    this.tag,
+    this.glow,
   });
 
   final String title;
@@ -337,8 +339,30 @@ class PrimaryPlayCard extends StatelessWidget {
   final GameIconData icon;
   final VoidCallback? onTap;
 
+  /// Pinned across the card's top edge at the end side (the boost tag). It
+  /// takes its own taps.
+  final Widget? tag;
+
+  /// Replaces the gold glow around the card (a running boost's metal).
+  final Color? glow;
+
+  /// How far [tag] rises above the card's top edge.
+  static const tagRise = 13.0;
+
   @override
   Widget build(BuildContext context) {
+    final tag = this.tag;
+    if (tag == null) return _card(context);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        _card(context),
+        PositionedDirectional(top: -tagRise, end: 14, child: tag),
+      ],
+    );
+  }
+
+  Widget _card(BuildContext context) {
     final locale = Localizations.localeOf(context);
     return Pressable(
       onTap: onTap,
@@ -353,8 +377,10 @@ class PrimaryPlayCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: CasinoColors.gold.withValues(alpha: 0.35),
-              blurRadius: 22,
+              color: (glow ?? CasinoColors.gold).withValues(
+                alpha: glow == null ? 0.35 : 0.6,
+              ),
+              blurRadius: glow == null ? 22 : 26,
               spreadRadius: -4,
             ),
             const BoxShadow(
@@ -1273,7 +1299,7 @@ class _NavTile extends StatelessWidget {
                       GameIcon(
                         icon: item.icon,
                         size: _iconSize,
-                        color: Colors.white,
+                        color: selected ? CasinoColors.gold : CasinoColors.text,
                       ),
                       if (item.badge > 0)
                         PositionedDirectional(

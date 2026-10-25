@@ -23,6 +23,7 @@ const {
   buildDailyStatus,
   disabledStatus,
 } = require('../daily_rewards');
+const { activeBoostFromRow } = require('../boosts');
 
 const ERROR_MESSAGES = {
   invalid_choice: 'choice must be rescue or restart',
@@ -152,7 +153,7 @@ async function loadDailyContext(db, playerId, { lock = false } = {}) {
     { playerId },
   );
   const [boosters] = await db.execute(
-    `SELECT booster_id, quantity, active_until_ms FROM player_boosters
+    `SELECT booster_id, quantity, active_until_ms, active_from_ms, preset_id, percent, max_bonus FROM player_boosters
      WHERE player_id = :playerId ${suffix}`,
     { playerId },
   );
@@ -167,7 +168,7 @@ async function loadDailyContext(db, playerId, { lock = false } = {}) {
     chips: Number(player.chips) || 0,
     storedOffset: row?.tz_offset_minutes ?? null,
     tzChangedAtMs: toNumberOrNull(row?.tz_changed_at_ms),
-    coinBoostUntilMs: Number(boosterRow('coin_boost')?.active_until_ms) || 0,
+    coinBoostRow: boosterRow('coin_boost') ?? null,
     input: {
       position: row?.streak_position ?? 0,
       count: row?.streak_count ?? 0,
@@ -210,7 +211,7 @@ function statusFromContext(context, nowMs, offsetMinutes, config) {
     config,
     nowMs,
     offsetMinutes,
-    coinBoostUntilMs: context.coinBoostUntilMs,
+    activeBoost: activeBoostFromRow(context.coinBoostRow, config.boosters.coin_boost.presets, nowMs),
     comeback: comebackStatus(context.input, nowMs, config),
   });
 }
@@ -238,6 +239,7 @@ async function claimDailyReward({
   tzOffsetMinutes,
   boosted = false,
   choice = null,
+  boostInventory = false,
   config,
   randomInt = crypto.randomInt,
 }) {
@@ -283,6 +285,9 @@ async function claimDailyReward({
       multiplier,
       nowMs,
       chests: config.chests,
+      boostPresets: config.boosters.coin_boost.presets,
+      source: 'daily',
+      autoActivateBoosts: !boostInventory,
       randomInt,
     });
     await applyBalances(conn, playerId, { money: grant.money, chips: grant.chips - plan.chipCost });
@@ -363,7 +368,14 @@ async function claimDailyReward({
 }
 
 /** POST /daily-reward/comeback/claim. One bonus per cooldown, separate from the streak. */
-async function claimComeback({ playerId, nowMs, tzOffsetMinutes, config, randomInt = crypto.randomInt }) {
+async function claimComeback({
+  playerId,
+  nowMs,
+  tzOffsetMinutes,
+  boostInventory = false,
+  config,
+  randomInt = crypto.randomInt,
+}) {
   if (!config.enabled || !config.comeback.enabled) {
     throw withCode('comeback_unavailable', ERROR_MESSAGES.comeback_unavailable);
   }
@@ -387,6 +399,9 @@ async function claimComeback({ playerId, nowMs, tzOffsetMinutes, config, randomI
       multiplier: 1,
       nowMs,
       chests: config.chests,
+      boostPresets: config.boosters.coin_boost.presets,
+      source: 'comeback',
+      autoActivateBoosts: !boostInventory,
       randomInt,
     });
     await applyBalances(conn, playerId, { money: grant.money, chips: grant.chips });

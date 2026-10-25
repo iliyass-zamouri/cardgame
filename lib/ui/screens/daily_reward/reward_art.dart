@@ -8,6 +8,7 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/game_icon.dart';
 import 'package:cardgame/ui/widgets/amount_format.dart';
+import 'package:cardgame/ui/widgets/boost_badge.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/deck_fan_preview.dart';
 import 'package:cardgame/ui/widgets/player_avatar.dart';
@@ -50,6 +51,9 @@ class RewardArt extends StatelessWidget {
           ),
         ),
         DeckReward(:final itemId) => _DeckArt(deckId: itemId, size: size),
+        CoinBoostReward(:final preset?) => Center(
+          child: BoostCoin(tier: preset.tier, size: size * 0.86),
+        ),
         CoinBoostReward() => const CustomPaint(painter: _BoostPainter()),
         StreakFreezeReward() => const CustomPaint(painter: _FreezeGemPainter()),
         ChestReward() => CustomPaint(painter: ChestPainter(open: chestOpen)),
@@ -565,6 +569,8 @@ String rewardCaption(
       _knownDeck(itemId)
           ? l10n.deckName(DeckCatalog.getById(itemId))
           : l10n.dailyMysteryGift,
+    CoinBoostReward(:final minutes, :final preset?) =>
+      '+${preset.percent}% · ${boostDuration(minutes)}',
     CoinBoostReward(:final minutes) => boostDuration(minutes),
     StreakFreezeReward(:final quantity) => '×$quantity',
     ChestReward(:final chestId) => chestName(
@@ -587,8 +593,8 @@ String rewardTitle(
   return switch (reward) {
     CurrencyReward(:final currency, :final amount) =>
       '${groupedAmount(amount)} ${currency == CurrencyType.chips ? l10n.chips : l10n.money}',
-    CoinBoostReward(:final minutes) =>
-      '${l10n.dailyCoinBoost} · ${boostDuration(minutes)}',
+    CoinBoostReward(:final minutes, :final preset) =>
+      '${preset?.nameFor(languageCode) ?? l10n.dailyCoinBoost}${preset == null ? '' : ' +${preset.percent}%'} · ${boostDuration(minutes)}',
     StreakFreezeReward(:final quantity) =>
       '${l10n.dailyStreakFreeze} ×$quantity',
     _ => rewardCaption(

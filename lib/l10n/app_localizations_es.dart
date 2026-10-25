@@ -1711,4 +1711,97 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get dailyEntryComeback => 'Te espera un regalo de bienvenida';
+
+  @override
+  String get boostsTitle => 'Impulsos';
+
+  @override
+  String boostReady(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count impulsos listos',
+      one: '1 impulso listo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String boostWinsPay(int percent, String max) {
+    return 'Las victorias con dinero pagan +$percent% (hasta $max)';
+  }
+
+  @override
+  String boostTimeLeft(String time) {
+    return 'Quedan $time';
+  }
+
+  @override
+  String get boostActive => 'Activo';
+
+  @override
+  String get boostActivate => 'Activar';
+
+  @override
+  String boostAddTime(String time) {
+    return 'Añadir $time';
+  }
+
+  @override
+  String boostWaitsFor(int percent) {
+    return 'Disponible cuando acabe tu +$percent%';
+  }
+
+  @override
+  String get boostNoneActive => 'Ningún impulso activo';
+
+  @override
+  String get boostNoneActiveBody =>
+      'Activa uno para ganar más en cada partida con dinero.';
+
+  @override
+  String get boostInventoryEmpty =>
+      'No tienes impulsos. Tu racha diaria los reparte.';
+
+  @override
+  String boostStarted(int percent) {
+    return '¡Impulso +$percent% activado!';
+  }
+
+  @override
+  String boostExtended(String time) {
+    return 'Impulso ampliado $time';
+  }
+
+  @override
+  String get boostActivateFailed =>
+      'No se pudo activar el impulso. Inténtalo de nuevo.';
+
+  @override
+  String get boostActivateNow => 'Activar ahora';
+
+  @override
+  String get boostInYourBoosts => 'Guardado en tus impulsos';
+
+  @override
+  String boostUpTo(String amount) {
+    return 'hasta +$amount';
+  }
+
+  @override
+  String boostPayout(int percent) {
+    return 'Impulso +$percent%';
+  }
+
+  @override
+  String get boostMoneyOnly => 'Solo partidas con dinero';
+
+  @override
+  String boostActiveSemantics(int percent, String time) {
+    return 'Impulso +$percent% activo, quedan $time';
+  }
+
+  @override
+  String get boostOneAtATime =>
+      'Solo un nivel de impulso a la vez. El mismo nivel suma su tiempo.';
 }

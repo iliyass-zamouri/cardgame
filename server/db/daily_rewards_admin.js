@@ -6,6 +6,7 @@ const { getPool } = require('./pool');
 const { fillDays } = require('../admin/stats');
 const { grantRewards } = require('./rewards');
 const { loadDailyContext, statusFromContext } = require('./daily_rewards');
+const { getBoosts } = require('./boosts');
 const { CYCLE_DAYS, addDays, computeStreakState, planRestore } = require('../daily_rewards');
 
 const DAY_MS = 86_400_000;
@@ -180,8 +181,8 @@ async function getDailyRewardPlayer({ playerId, nowMs, config, debug = false }) 
       lastComebackAtMs: input.lastComebackAtMs,
       tzOffsetMinutes: context.storedOffset,
       freezes: input.freezes,
-      coinBoostRemainingSeconds: Math.max(0, Math.ceil((context.coinBoostUntilMs - nowMs) / 1000)),
     },
+    boosts: await getBoosts({ playerId, nowMs, config }),
     // The player's own clock, as their app would see it.
     status: statusFromContext(context, nowMs, context.storedOffset ?? 0, config),
     claims: claims.map((row) => ({
@@ -203,7 +204,7 @@ async function getDailyRewardPlayer({ playerId, nowMs, config, debug = false }) 
   };
 }
 
-async function runSupportAction(conn, { playerId, action, quantity, days, nowMs, config, context }) {
+async function runSupportAction(conn, { playerId, action, quantity, days, presetId, minutes, nowMs, config, context }) {
   const { input } = context;
 
   if (action === 'restore') {
@@ -227,6 +228,19 @@ async function runSupportAction(conn, { playerId, action, quantity, days, nowMs,
       nowMs,
     });
     return { quantity, freezes: input.freezes + quantity };
+  }
+
+  if (action === 'gift_boost') {
+    const presets = config.boosters.coin_boost.presets;
+    if (!presets.some((preset) => preset.id === presetId)) {
+      throw withCode('invalid_value', `"${presetId}" is not a boost preset`);
+    }
+    await grantRewards(conn, playerId, [{ type: 'booster', boosterId: 'coin_boost', presetId, minutes }], {
+      nowMs,
+      boostPresets: presets,
+      source: 'support',
+    });
+    return { presetId, minutes };
   }
 
   if (action === 'shift_days') {
@@ -265,6 +279,7 @@ async function runSupportAction(conn, { playerId, action, quantity, days, nowMs,
   // reset: the support log keeps its rows, so the history survives.
   await conn.execute(`DELETE FROM daily_reward_claims WHERE player_id = :playerId`, { playerId });
   await conn.execute(`DELETE FROM player_boosters WHERE player_id = :playerId`, { playerId });
+  await conn.execute(`DELETE FROM player_boost_items WHERE player_id = :playerId`, { playerId });
   await conn.execute(`DELETE FROM daily_reward_state WHERE player_id = :playerId`, { playerId });
   return { cleared: true };
 }
@@ -273,7 +288,7 @@ async function runSupportAction(conn, { playerId, action, quantity, days, nowMs,
  * One support fix, in a transaction with the usual lock order (players, then
  * streak state, then boosters), logged on the player. Returns what changed.
  */
-async function applySupportAction({ playerId, action, quantity, days, nowMs, config }) {
+async function applySupportAction({ playerId, action, quantity, days, presetId, minutes, nowMs, config }) {
   const conn = await getPool().getConnection();
   try {
     await conn.beginTransaction();
@@ -283,6 +298,8 @@ async function applySupportAction({ playerId, action, quantity, days, nowMs, con
       action,
       quantity,
       days,
+      presetId,
+      minutes,
       nowMs,
       config,
       context,

@@ -67,6 +67,7 @@ void main() {
       'tzOffsetMinutes': -300,
       'boosted': true,
       'streakChoice': 'rescue',
+      'boostInventory': true,
     });
     expect(result.rescued, isTrue);
   });
@@ -83,7 +84,11 @@ void main() {
 
     await api.claim(tzOffsetMinutes: 0);
 
-    expect(jsonDecode(sent.body), {'tzOffsetMinutes': 0, 'boosted': false});
+    expect(jsonDecode(sent.body), {
+      'tzOffsetMinutes': 0,
+      'boosted': false,
+      'boostInventory': true,
+    });
     expect(sent.headers.containsKey('Authorization'), isFalse);
   });
 
@@ -100,7 +105,10 @@ void main() {
     final result = await api.claimComeback(tzOffsetMinutes: 60);
 
     expect(sent.url.path, '/daily-reward/comeback/claim');
-    expect(jsonDecode(sent.body), {'tzOffsetMinutes': 60});
+    expect(jsonDecode(sent.body), {
+      'tzOffsetMinutes': 60,
+      'boostInventory': true,
+    });
     expect(result.money, 1000);
   });
 

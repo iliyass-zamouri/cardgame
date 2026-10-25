@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:cardgame/app/auth_providers.dart';
 import 'package:cardgame/app/game_session_controller.dart';
 import 'package:cardgame/data/avatars/avatar_catalog.dart';
+import 'package:cardgame/data/boost/boost_models.dart';
 import 'package:cardgame/domain/models/game_snapshot.dart';
 import 'package:cardgame/l10n/l10n_ext.dart';
 import 'package:cardgame/ui/flame/suit_shapes.dart';
@@ -10,6 +11,9 @@ import 'package:cardgame/ui/theme/app_icons.dart';
 import 'package:cardgame/ui/theme/casino_theme.dart';
 import 'package:cardgame/ui/theme/felt_chrome.dart';
 import 'package:cardgame/ui/theme/game_icon.dart';
+import 'package:cardgame/ui/widgets/amount_format.dart';
+import 'package:cardgame/ui/widgets/boost_badge.dart';
+import 'package:cardgame/ui/widgets/counting_amount.dart';
 import 'package:cardgame/ui/widgets/currency_icon.dart';
 import 'package:cardgame/ui/widgets/gold_burst.dart';
 import 'package:cardgame/ui/widgets/insufficient_funds_sheet.dart';
@@ -122,6 +126,9 @@ class GameOverPanel extends ConsumerWidget {
       ),
       pot: game.potAmount,
       potCurrency: game.stakedInChips ? CurrencyType.chips : CurrencyType.money,
+      boostBonus: youRating?.boostBonus ?? 0,
+      boostPercent: youRating?.boostPercent ?? 0,
+      boostTier: game.yourBoost?.tier ?? BoostTier.silver,
       // Practice (robot) and private matches are unranked: no XP/ELO shown.
       neutral: game.matchType != 'random',
       xp: youXp,
@@ -172,6 +179,9 @@ class _Recap extends StatefulWidget {
     required this.opponent,
     required this.pot,
     required this.potCurrency,
+    this.boostBonus = 0,
+    this.boostPercent = 0,
+    this.boostTier = BoostTier.silver,
     required this.neutral,
     required this.xp,
     required this.eloDelta,
@@ -188,6 +198,11 @@ class _Recap extends StatefulWidget {
   final _SeatData opponent;
   final int pot;
   final CurrencyType potCurrency;
+
+  /// What your Coin Boost paid on top of the pot, at [boostPercent].
+  final int boostBonus;
+  final int boostPercent;
+  final BoostTier boostTier;
   final bool neutral;
   final int xp;
   final int eloDelta;
@@ -375,6 +390,18 @@ class _RecapState extends State<_Recap> with TickerProviderStateMixin {
                               outcome: outcome,
                               pot: widget.pot,
                               potCurrency: widget.potCurrency,
+                              boost:
+                                  widget.boostBonus > 0
+                                      ? BoostPayoutPill(
+                                        tier: widget.boostTier,
+                                        label: l10n.boostPayout(
+                                          widget.boostPercent,
+                                        ),
+                                        amount: _BoostAmount(
+                                          value: widget.boostBonus,
+                                        ),
+                                      )
+                                      : null,
                               count: countIn,
                               drawLabel: l10n.draw,
                               prizeLabel: l10n.prize,
@@ -861,6 +888,7 @@ class _RewardBlock extends StatelessWidget {
     required this.outcome,
     required this.pot,
     required this.potCurrency,
+    this.boost,
     required this.count,
     required this.drawLabel,
     required this.prizeLabel,
@@ -870,6 +898,9 @@ class _RewardBlock extends StatelessWidget {
   final _Outcome outcome;
   final int pot;
   final CurrencyType potCurrency;
+
+  /// What a Coin Boost added, shown under the prize.
+  final Widget? boost;
   final Animation<double> count;
   final String drawLabel;
   final String prizeLabel;
@@ -931,11 +962,45 @@ class _RewardBlock extends StatelessWidget {
                 );
               },
             ),
+            if (boost != null) ...[const SizedBox(height: 8), boost!],
             const SizedBox(height: 10),
           ],
           child,
         ],
       ),
+    );
+  }
+}
+
+/// The boost's extra money, counting up once the result lands.
+class _BoostAmount extends StatelessWidget {
+  const _BoostAmount({required this.value});
+
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CountingAmount(
+          value: value,
+          duration: const Duration(milliseconds: 1200),
+          builder:
+              (context, shown) => Text(
+                '+${groupedAmount(shown)}',
+                style: const TextStyle(
+                  fontFamily: CasinoFonts.display,
+                  color: _inkGold,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+        ),
+        const SizedBox(width: 4),
+        const CashIcon(size: 18),
+      ],
     );
   }
 }

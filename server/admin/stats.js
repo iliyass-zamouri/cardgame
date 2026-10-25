@@ -1,4 +1,5 @@
 const { getPool } = require('../db/pool');
+const { POTS, potFor } = require('../pots');
 
 function dayKey(value) {
   if (!value) return '';
@@ -73,6 +74,61 @@ const PLAYER_SELECT = `id, display_name, username, auth_type, google_sub, email,
             money, chips, last_ip`;
 
 /**
+ * Matches per pot table over the last 14 days, from rows of
+ * (day, currency, pot, matches, with_bot). A pot the app no longer offers
+ * counts as "other".
+ */
+function summarizePots(rows, days = 14) {
+  const ids = [...POTS.map((pot) => pot.id), 'other'];
+  const blank = () => Object.fromEntries(ids.map((id) => [id, 0]));
+  const byDay = new Map();
+  for (const row of rows) {
+    const key = dayKey(row.day);
+    if (!byDay.has(key)) byDay.set(key, blank());
+    const id = potFor(row.currency, row.pot)?.id ?? 'other';
+    byDay.get(key)[id] += n(row.matches);
+  }
+  const potsByDay = fillDays([], days, []).map(({ day }) => ({
+    day,
+    ...(byDay.get(day) || blank()),
+  }));
+
+  const half = Math.floor(days / 2);
+  const totals = new Map(ids.map((id) => [id, { matches: 0, withBot: 0, recent: 0, earlier: 0 }]));
+  for (const row of rows) {
+    const id = potFor(row.currency, row.pot)?.id ?? 'other';
+    const entry = totals.get(id);
+    const count = n(row.matches);
+    entry.matches += count;
+    entry.withBot += n(row.with_bot);
+    const index = potsByDay.findIndex((point) => point.day === dayKey(row.day));
+    if (index >= days - half) entry.recent += count;
+    else if (index >= 0) entry.earlier += count;
+  }
+  const all = [...totals.values()].reduce((sum, entry) => sum + entry.matches, 0);
+  const pots = POTS.map((pot) => {
+    const entry = totals.get(pot.id);
+    return {
+      id: pot.id,
+      city: pot.city,
+      currency: pot.currency,
+      pool: pot.pool,
+      matches: entry.matches,
+      volume: entry.matches * pot.pool,
+      withBot: entry.withBot,
+      share: all ? Math.round((entry.matches / all) * 1000) / 10 : 0,
+      last7d: entry.recent,
+      prev7d: entry.earlier,
+    };
+  });
+  return {
+    pots,
+    potsOther: totals.get('other').matches,
+    potsByDay,
+  };
+}
+
+/**
  * Aggregate KPIs / charts for the ops dashboard.
  */
 async function getAdminDashboardStats() {
@@ -93,6 +149,7 @@ async function getAdminDashboardStats() {
     [pushPrefRows],
     [engagementRows],
     [newUserRecentRows],
+    [potDayRows],
   ] = await Promise.all([
     pool.execute(
       `SELECT
@@ -151,6 +208,7 @@ async function getAdminDashboardStats() {
          m.match_type AS mode,
          m.stake_per_player AS stakePerPlayer,
          m.pot_amount AS potAmount,
+         m.stake_currency AS stakeCurrency,
          m.winner_player_id AS winnerPlayerId,
          m.created_at AS startedAt,
          COUNT(mp.player_id) AS playerCount,
@@ -169,7 +227,7 @@ async function getAdminDashboardStats() {
        LEFT JOIN players p ON p.id = mp.player_id
        WHERE m.created_at >= UTC_DATE() - INTERVAL 30 DAY
        GROUP BY m.id, m.room_id, m.match_type, m.stake_per_player,
-                m.pot_amount, m.winner_player_id, m.created_at
+                m.pot_amount, m.stake_currency, m.winner_player_id, m.created_at
        ORDER BY m.created_at DESC
        LIMIT 25`,
     ),
@@ -224,6 +282,20 @@ async function getAdminDashboardStats() {
          AND created_at >= UTC_TIMESTAMP() - INTERVAL 7 DAY
        ORDER BY created_at DESC
        LIMIT 80`,
+    ),
+    pool.execute(
+      `SELECT DATE_FORMAT(m.created_at, '%Y-%m-%d') AS day,
+              m.stake_currency AS currency,
+              m.pot_amount AS pot,
+              COUNT(*) AS matches,
+              SUM(EXISTS (
+                SELECT 1 FROM match_players mp
+                JOIN players p ON p.id = mp.player_id
+                WHERE mp.match_id = m.id AND p.is_bot = 1
+              )) AS with_bot
+       FROM matches m
+       WHERE m.created_at >= UTC_DATE() - INTERVAL 13 DAY
+       GROUP BY DATE_FORMAT(m.created_at, '%Y-%m-%d'), m.stake_currency, m.pot_amount`,
     ),
   ]);
 
@@ -291,6 +363,7 @@ async function getAdminDashboardStats() {
     topMap: { last24h: null, last7d: null, last30d: null },
     signupsByDay: fillDays(signupRows, 14, ['count']),
     matchesByDay: matchDays,
+    ...summarizePots(potDayRows),
     iap: {
       count: n(iap.count),
       gems: 0,
@@ -338,6 +411,8 @@ async function getAdminDashboardStats() {
       endedAt: toIso(row.startedAt),
       stakePerPlayer: n(row.stakePerPlayer),
       potAmount: n(row.potAmount),
+      stakeCurrency: row.stakeCurrency || 'money',
+      potId: potFor(row.stakeCurrency || 'money', row.potAmount)?.id ?? null,
       playerCount: n(row.playerCount),
       botCount: n(row.botCount),
       roster: row.roster || '',
@@ -472,6 +547,7 @@ async function exportAdminGooglePlayersCsv() {
 }
 
 module.exports = {
+  summarizePots,
   fillDays,
   getAdminDashboardStats,
   getPlayersByIds,
